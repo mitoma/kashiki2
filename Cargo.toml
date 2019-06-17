@@ -1,0 +1,9 @@
+[package]
+name = "kashiki2"
+version = "0.1.0"
+authors = ["mitoma <mutetheradio@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+piston = "0.48.0"
+piston_window = "^0.81.0"
