@@ -20,8 +20,8 @@ fn main() {
     )
     .unwrap();
 
-    let mut frame: u16 = 0;
-    let mut x_smooth: SmoothValue = SmoothValue::new(10.0, MovingType::Liner, 5);
+    let mut x_smooth: SmoothValue = SmoothValue::new(10.0, MovingType::Smooth, 10);
+    let mut y_smooth: SmoothValue = SmoothValue::new(10.0, MovingType::Smooth, 10);
 
     while let Some(event) = window.next() {
         if let Some(text) = event.text_args() {
@@ -35,26 +35,22 @@ fn main() {
                 input::Button::Keyboard(keyboard::Key::Left) => {
                     x_smooth.add(-100.0);
                 }
+                input::Button::Keyboard(keyboard::Key::Up) => {
+                    y_smooth.add(-100.0);
+                }
+                input::Button::Keyboard(keyboard::Key::Down) => {
+                    y_smooth.add(100.0);
+                }
                 _ => {}
             }
         }
         if let Some(_args) = event.render_args() {
-            frame = frame + 1;
             window.draw_2d(&event, |context, graphics, device| {
                 // Set a white background
-                let transform = context.transform.trans(10.0 + x_smooth.next(), 100.0);
+                let transform = context
+                    .transform
+                    .trans(10.0 + x_smooth.next(), 100.0 + y_smooth.next());
                 clear([1.0, 1.0, 1.0, 1.0], graphics);
-                /*
-                text::Text::new_color([0.0, 0.0, 0.0, 1.0], 64)
-                    .draw(
-                        &format!("{}", frame),
-                        &mut glyphs,
-                        &context.draw_state,
-                        transform,
-                        graphics,
-                    )
-                    .unwrap();
-                    */
                 text::Text::new_color([0.0, 0.0, 0.0, 1.0], 64)
                     .draw(
                         &input_text,
