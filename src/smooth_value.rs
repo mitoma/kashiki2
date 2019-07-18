@@ -24,7 +24,7 @@ impl MovingType {
                 let g = consts::PI * gain;
                 for i in 0..num_of_div {
                     let i = i as f64;
-                    let div_gain = (g + i).cos() - (g * (i + 1.0)).cos();
+                    let div_gain = (g * i).cos() - (g * (i + 1.0)).cos();
                     vec.push(div_gain / 2.0)
                 }
             }
@@ -32,7 +32,8 @@ impl MovingType {
                 let gain = 1.0 / num_of_div as f64;
                 let g = consts::PI * gain / 2.0;
                 for i in 0..num_of_div {
-                    let div_gain = (g * (i as f64 + 1.0)).sin() - (g * i as f64).sin();
+                    let i = i as f64;
+                    let div_gain = (g * (i + 1.0)).sin() - (g * i).sin();
                     vec.push(div_gain)
                 }
             }
@@ -41,18 +42,20 @@ impl MovingType {
                 let g = consts::PI * gain / 2.0;
                 let start = consts::PI * 1.5;
                 for i in 0..num_of_div {
-                    let div_gain =
-                        (start + (g * (i as f64 + 1.0))).sin() - (start + (g * i as f64)).sin();
+                    let i = i as f64;
+                    let div_gain = (start + (g * (i + 1.0))).sin() - (start + (g * i)).sin();
                     vec.push(div_gain)
                 }
             }
             MovingType::Bound => {
+                // TODO 壊れてる
                 let gain = 1.0 / num_of_div as f64;
                 let g = consts::PI * 1.5 * gain;
                 let qg = consts::PI * 4.0;
                 let dd = qg.sin() * 2.0;
                 for i in 0..num_of_div {
-                    let div_gain = ((g * i as f64) + qg).sin() - (g * (i as f64 + 1.0) + qg).sin();
+                    let i = i as f64;
+                    let div_gain = ((g * i) + qg).sin() - (g * (i + 1.0) + qg).sin();
                     vec.push(div_gain / dd)
                 }
             }
@@ -118,7 +121,7 @@ mod tests {
 
     #[test]
     fn liner() {
-        let mut value = SmoothValue::new(100.0, 100.0, MovingType::Liner, 5);
+        let mut value = SmoothValue::new(100.0, MovingType::Liner, 5);
         value.update(200.0);
         assert_eq!(value.next(), 120.0);
         assert_eq!(value.next(), 140.0);

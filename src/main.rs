@@ -1,4 +1,5 @@
-use kashiki2::smooth_value::{MovingType, SmoothValue};
+use kashiki2::smooth_value::*;
+use piston::input;
 use piston_window::*;
 
 fn main() {
@@ -26,8 +27,16 @@ fn main() {
         if let Some(text) = event.text_args() {
             input_text = text;
         }
-        if let Some(_key) = event.press_args() {
-            x_smooth.add(30.0);
+        if let Some(key) = event.press_args() {
+            match key {
+                input::Button::Keyboard(keyboard::Key::Right) => {
+                    x_smooth.add(100.0);
+                }
+                input::Button::Keyboard(keyboard::Key::Left) => {
+                    x_smooth.add(-100.0);
+                }
+                _ => {}
+            }
         }
         if let Some(_args) = event.render_args() {
             frame = frame + 1;
@@ -35,6 +44,7 @@ fn main() {
                 // Set a white background
                 let transform = context.transform.trans(10.0 + x_smooth.next(), 100.0);
                 clear([1.0, 1.0, 1.0, 1.0], graphics);
+                /*
                 text::Text::new_color([0.0, 0.0, 0.0, 1.0], 64)
                     .draw(
                         &format!("{}", frame),
@@ -44,6 +54,7 @@ fn main() {
                         graphics,
                     )
                     .unwrap();
+                    */
                 text::Text::new_color([0.0, 0.0, 0.0, 1.0], 64)
                     .draw(
                         &input_text,
