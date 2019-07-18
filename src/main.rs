@@ -1,5 +1,4 @@
-extern crate piston_window;
-
+use kashiki2::smooth_value::{MovingType, SmoothValue};
 use piston_window::*;
 
 fn main() {
@@ -20,21 +19,21 @@ fn main() {
     )
     .unwrap();
 
-    let mut x: f64 = 0.0;
     let mut frame: u16 = 0;
+    let mut x_smooth: SmoothValue = SmoothValue::new(10.0, MovingType::Liner, 5);
 
     while let Some(event) = window.next() {
         if let Some(text) = event.text_args() {
             input_text = text;
         }
         if let Some(_key) = event.press_args() {
-            x = x + 10.0;
+            x_smooth.add(30.0);
         }
         if let Some(_args) = event.render_args() {
             frame = frame + 1;
             window.draw_2d(&event, |context, graphics, device| {
                 // Set a white background
-                let transform = context.transform.trans(10.0 + x, 100.0);
+                let transform = context.transform.trans(10.0 + x_smooth.next(), 100.0);
                 clear([1.0, 1.0, 1.0, 1.0], graphics);
                 text::Text::new_color([0.0, 0.0, 0.0, 1.0], 64)
                     .draw(

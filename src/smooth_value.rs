@@ -10,7 +10,7 @@ pub enum MovingType {
 }
 
 impl MovingType {
-    fn gains(&mut self, num_of_div: i16) -> Vec<f64> {
+    fn gains(&self, num_of_div: i16) -> Vec<f64> {
         let mut vec = Vec::new();
         match self {
             MovingType::Liner => {
@@ -61,7 +61,7 @@ impl MovingType {
     }
 }
 
-struct SmoothValue {
+pub struct SmoothValue {
     value: f64,
     current_value: f64,
     moving_type: MovingType,
@@ -70,12 +70,7 @@ struct SmoothValue {
 }
 
 impl SmoothValue {
-    pub fn new(
-        value: f64,
-        current_value: f64,
-        moving_type: MovingType,
-        num_of_div: i16,
-    ) -> SmoothValue {
+    pub fn new(value: f64, moving_type: MovingType, num_of_div: i16) -> SmoothValue {
         SmoothValue {
             value: value,
             current_value: value,
@@ -109,6 +104,10 @@ impl SmoothValue {
             new_queue.push_back(value)
         });
         self.queue = new_queue
+    }
+
+    pub fn add(&mut self, add_value: f64) {
+        self.update(self.value + add_value);
     }
 }
 
