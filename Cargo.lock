@@ -1103,6 +1103,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "text_buffer"
+version = "0.1.0"
+
+[[package]]
 name = "tiff"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

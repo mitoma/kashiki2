@@ -1,2 +1,2 @@
 [workspace]
-members = ["gui"]
+members = ["text_buffer", "gui"]
