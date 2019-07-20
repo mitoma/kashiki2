@@ -1,4 +1,4 @@
-use kashiki2::smooth_value::*;
+use gui::smooth_value::*;
 use piston::input;
 use piston_window::*;
 

@@ -419,6 +419,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gui"
+version = "0.1.0"
+dependencies = [
+ "piston 0.48.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "piston_window 0.99.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "image"
 version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -455,14 +463,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "kashiki2"
-version = "0.1.0"
-dependencies = [
- "piston 0.48.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "piston_window 0.99.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
