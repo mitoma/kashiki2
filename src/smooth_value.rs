@@ -112,6 +112,10 @@ impl SmoothValue {
     pub fn add(&mut self, add_value: f64) {
         self.update(self.value + add_value);
     }
+
+    pub fn is_animated(&mut self) -> bool {
+        !self.queue.is_empty()
+    }
 }
 
 #[cfg(test)]
@@ -122,12 +126,16 @@ mod tests {
     #[test]
     fn liner() {
         let mut value = SmoothValue::new(100.0, MovingType::Liner, 5);
+        assert!(!value.is_animated());
         value.update(200.0);
+        assert!(value.is_animated());
         assert_eq!(value.next(), 120.0);
         assert_eq!(value.next(), 140.0);
         assert_eq!(value.next(), 160.0);
         assert_eq!(value.next(), 180.0);
+        assert!(value.is_animated());
         assert_eq!(value.next(), 200.0);
+        assert!(!value.is_animated());
         assert_eq!(value.next(), 200.0);
         value.update(100.0);
         assert_eq!(value.next(), 180.0);
