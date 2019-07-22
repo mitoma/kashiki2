@@ -13,7 +13,7 @@ impl Buffer {
 }
 
 pub struct BufferLine {
-    row_num: i64,
+    row_num: usize,
     chars: Vec<BufferChar>,
 }
 
@@ -25,26 +25,39 @@ impl BufferLine {
         }
     }
 
-    pub fn update_row_num(&mut self, row_num: i64) {
+    pub fn update_position(&mut self, row_num: usize) {
         self.row_num = row_num;
-        (0_i64..).zip(self.chars.iter_mut()).for_each(|(i, c)| {
+        (0..).zip(self.chars.iter_mut()).for_each(|(i, c)| {
             c.update_position(row_num, i);
         })
     }
 
-    pub fn pos_string(&self, position: usize) -> &str {
-        &self.chars[position].c
+    pub fn to_line_string(&self) -> String {
+        self.chars.iter().map(|c| c.c).collect()
+    }
+
+    pub fn pos_char(&self, position: usize) -> char {
+        self.chars[position].c
+    }
+
+    pub fn insert_char(&mut self, col: usize, c: char) {
+        self.chars
+            .insert(col, BufferChar::new(col, self.row_num, c))
+    }
+
+    pub fn remove_char(&mut self, col: usize) {
+        self.chars.remove(col);
     }
 }
 
 pub struct BufferChar {
-    row: i64,
-    col: i64,
-    c: String,
+    row: usize,
+    col: usize,
+    c: char,
 }
 
 impl BufferChar {
-    pub fn new(row: i64, col: i64, c: String) -> BufferChar {
+    pub fn new(row: usize, col: usize, c: char) -> BufferChar {
         BufferChar {
             row: row,
             col: col,
@@ -52,8 +65,31 @@ impl BufferChar {
         }
     }
 
-    pub fn update_position(&mut self, row: i64, col: i64) {
+    pub fn update_position(&mut self, row: usize, col: usize) {
         self.row = row;
         self.col = col;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn buffer_line() {
+        let mut sut = BufferLine::new();
+        assert_eq!(sut.to_line_string(), "");
+        sut.insert_char(0, '鉄');
+        sut.insert_char(1, 'ン');
+        assert_eq!(sut.to_line_string(), "鉄ン");
+        sut.insert_char(1, '鍋');
+        sut.insert_char(2, 'の');
+        sut.insert_char(3, 'ャ');
+        sut.insert_char(3, 'ジ');
+        assert_eq!(sut.to_line_string(), "鉄鍋のジャン");
+        sut.remove_char(4);
+        sut.remove_char(3);
+        assert_eq!(sut.to_line_string(), "鉄鍋のン");
     }
 }
