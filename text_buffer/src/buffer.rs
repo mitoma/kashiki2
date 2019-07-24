@@ -3,6 +3,12 @@ pub struct Caret {
     col: usize,
 }
 
+impl Caret {
+    pub fn new(row: usize, col: usize) -> Caret {
+        Caret { row: row, col: col }
+    }
+}
+
 pub struct Buffer {
     buffer_name: String,
     lines: Vec<BufferLine>,
@@ -27,14 +33,26 @@ impl Buffer {
             .join("\n")
     }
 
-    pub fn insert_char(&mut self, mut caret: Caret, c: char) {
+    pub fn insert_char(&mut self, mut caret: Caret, c: char) -> Caret {
         match self.lines.get_mut(caret.row) {
             Some(line) => {
                 line.insert_char(caret.col, c);
-                caret.col +=1
+                caret.col += 1
             }
             None => {}
         }
+        caret
+    }
+
+    pub fn insert_enter(&mut self, mut caret: Caret) -> Caret {
+        if let Some(line) = self.lines.get_mut(caret.row) {
+            if let Some(next_line) = line.insert_enter(caret.col) {
+                caret.row += 1;
+                caret.col = 0;
+                self.lines.insert(caret.row, next_line);
+            }
+        }
+        caret
     }
 }
 
@@ -78,8 +96,14 @@ impl BufferLine {
             .insert(col, BufferChar::new(col, self.row_num, c))
     }
 
-    pub fn insert_enter(&mut self, col: usize) -> BufferLine {
-        BufferLine::from_chars(self.chars.split_off(col))
+    pub fn insert_enter(&mut self, col: usize) -> Option<BufferLine> {
+        if self.chars.len() == col {
+            Some(BufferLine::new())
+        } else if self.chars.len() > col {
+            Some(BufferLine::from_chars(self.chars.split_off(col)))
+        } else {
+            None
+        }
     }
 
     pub fn remove_char(&mut self, col: usize) {
@@ -119,8 +143,27 @@ mod tests {
 
     #[test]
     fn buffer() {
+        let caret = Caret::new(0, 0);
         let mut sut = Buffer::new("hello buffer".to_string());
         assert_eq!(sut.to_buffer_string(), "");
+        let caret = sut.insert_char(caret, '山');
+        assert_eq!(sut.to_buffer_string(), "山");
+        assert_eq!(caret.row, 0);
+        assert_eq!(caret.col, 1);
+        let caret = sut.insert_char(caret, '本');
+        assert_eq!(sut.to_buffer_string(), "山本");
+        assert_eq!(caret.row, 0);
+        assert_eq!(caret.col, 2);
+        let caret = sut.insert_enter(caret);
+        assert_eq!(sut.to_buffer_string(), "山本\n");
+        assert_eq!(caret.row, 1);
+        assert_eq!(caret.col, 0);
+        let caret = sut.insert_enter(caret);
+        assert_eq!(sut.to_buffer_string(), "山本\n\n");
+        assert_eq!(caret.row, 2);
+        assert_eq!(caret.col, 0);
+        sut.insert_enter(Caret::new(100, 100));
+        assert_eq!(sut.to_buffer_string(), "山本\n\n");
     }
 
     #[test]
@@ -148,11 +191,25 @@ mod tests {
         sut.insert_char(1, '鳥');
         sut.insert_char(2, '風');
         sut.insert_char(3, '月');
-        let sut2 = sut.insert_enter(2);
-        assert_eq!(sut.to_line_string(), "花鳥");
-        assert_eq!(sut2.to_line_string(), "風月");
-        sut.join(sut2);
+        if let Some(result) = sut.insert_enter(2) {
+            assert_eq!(sut.to_line_string(), "花鳥");
+            assert_eq!(result.to_line_string(), "風月");
+            sut.join(result);
+        } else {
+            assert!(false);
+        }
         assert_eq!(sut.to_line_string(), "花鳥風月");
+        if let Some(result) = sut.insert_enter(4) {
+            assert_eq!(sut.to_line_string(), "花鳥風月");
+            assert_eq!(result.to_line_string(), "");
+        } else {
+            assert!(false);
+        }
+        if let Some(_) = sut.insert_enter(5) {
+            assert!(false);
+        } else {
+            assert!(true);
+        }
     }
 
 }
