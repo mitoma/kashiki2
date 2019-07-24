@@ -51,6 +51,24 @@ impl Buffer {
         }
         caret
     }
+
+    pub fn head(&mut self, mut caret: Caret) -> Caret {
+        caret.col = 0;
+        caret
+    }
+
+    pub fn last(&mut self, mut caret: Caret) -> Caret {
+        if let Some(line) = self.lines.get(caret.row) {
+            caret.col = line.chars.len();
+        }
+        caret
+    }
+
+    pub fn buffer_head(&mut self, mut caret: Caret) -> Caret{
+        caret.row = 0;
+        caret.col = 0;
+        caret
+    }
 }
 
 pub struct BufferLine {
