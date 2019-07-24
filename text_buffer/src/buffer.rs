@@ -34,12 +34,9 @@ impl Buffer {
     }
 
     pub fn insert_char(&mut self, mut caret: Caret, c: char) -> Caret {
-        match self.lines.get_mut(caret.row) {
-            Some(line) => {
-                line.insert_char(caret.col, c);
-                caret.col += 1
-            }
-            None => {}
+        if let Some(line) = self.lines.get_mut(caret.row) {
+            line.insert_char(caret.col, c);
+            caret.col += 1;
         }
         caret
     }
