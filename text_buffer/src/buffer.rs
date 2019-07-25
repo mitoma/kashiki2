@@ -47,9 +47,16 @@ impl Buffer {
                 caret.row += 1;
                 caret.col = 0;
                 self.lines.insert(caret.row, next_line);
+                self.update_position();
             }
         }
         caret
+    }
+
+    pub fn update_position(&mut self) {
+        (0..).zip(self.lines.iter_mut()).for_each(|(i, l)| {
+            l.update_position(i);
+        })
     }
 
     pub fn head(&mut self, mut caret: Caret) -> Caret {
@@ -64,9 +71,17 @@ impl Buffer {
         caret
     }
 
-    pub fn buffer_head(&mut self, mut caret: Caret) -> Caret{
+    pub fn buffer_head(&mut self, mut caret: Caret) -> Caret {
         caret.row = 0;
         caret.col = 0;
+        caret
+    }
+
+    pub fn buffer_last(&mut self, mut caret: Caret) -> Caret {
+        if let Some(last_line) = self.lines.last() {
+            caret.row = last_line.row_num;
+            caret.col = last_line.chars.len();
+        }
         caret
     }
 }
