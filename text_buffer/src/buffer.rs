@@ -34,24 +34,21 @@ impl Buffer {
     }
 
     pub fn insert_string(&mut self, caret: Caret, string: String) -> Caret {
-        let lines: Vec<&str> = string
+        let mut iter = string
             .split("\r\n")
-            .flat_map(|line| line.split('\n'))
-            .collect();
-        if lines.len() == 0 {
-            self.insert_enter(caret)
-        } else if lines.len() == 1 {
-            lines[0]
-                .chars()
+            .flat_map(|line| line.split('\n'));
+        let first_line = match iter.next() {
+            Some(first) => first,
+            None => return caret,
+        };
+        let caret = first_line
+            .chars()
+            .fold(caret, |caret, c| self.insert_char(caret, c));
+        iter.fold(caret, |caret, line| {
+            let caret = self.insert_enter(caret);
+            line.chars()
                 .fold(caret, |caret, c| self.insert_char(caret, c))
-        } else {
-            lines.iter().fold(caret, |caret, line| {
-                let caret = line
-                    .chars()
-                    .fold(caret, |caret, c| self.insert_char(caret, c));
-                self.insert_enter(caret)
-            })
-        }
+        })
     }
 
     pub fn insert_char(&mut self, mut caret: Caret, c: char) -> Caret {
@@ -227,10 +224,10 @@ mod tests {
         );
         assert_eq!(
             sut.to_buffer_string(),
-            "東京は\n今日もいい天気\nだった。\n"
+            "東京は\n今日もいい天気\nだった。"
         );
-        assert_eq!(caret.row, 3);
-        assert_eq!(caret.col, 0);
+        assert_eq!(caret.row, 2);
+        assert_eq!(caret.col, 4);
     }
 
     #[test]
