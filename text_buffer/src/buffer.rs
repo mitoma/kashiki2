@@ -303,6 +303,34 @@ mod tests {
     }
 
     #[test]
+    fn buffer_position_check() {
+        let mut sut = Buffer::new("hello buffer".to_string());
+        let _caret = sut.insert_string(
+            Caret::new(0, 0),
+            "あいうえお\nかきくけこ\nさしすせそそ".to_string(),
+        );
+        // buffer head
+        assert!(sut.is_buffer_head(&Caret::new(0, 0)));
+        assert!(sut.is_buffer_head(&Caret::new(0, 4)));
+        assert!(!sut.is_buffer_head(&Caret::new(1, 0)));
+
+        // buffer last
+        assert!(sut.is_buffer_last(&Caret::new(2, 0)));
+        assert!(sut.is_buffer_last(&Caret::new(2, 4)));
+        assert!(!sut.is_buffer_last(&Caret::new(0, 0)));
+
+        // line head
+        assert!(sut.is_line_head(&Caret::new(0, 0)));
+        assert!(sut.is_line_head(&Caret::new(2, 0)));
+        assert!(!sut.is_line_head(&Caret::new(1, 3)));
+
+        // line last
+        assert!(sut.is_line_last(&Caret::new(0, 4)));
+        assert!(sut.is_line_last(&Caret::new(2, 5)));
+        assert!(!sut.is_line_last(&Caret::new(2, 4)));
+    }
+
+    #[test]
     fn buffer_line_insert_remove() {
         let mut sut = BufferLine::new();
         assert_eq!(sut.to_line_string(), "");
