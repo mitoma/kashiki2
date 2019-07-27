@@ -170,9 +170,23 @@ impl Buffer {
 
     pub fn is_line_last(&mut self, caret: &Caret) -> bool {
         if let Some(line_length) = self.lines.get(caret.row).map(|line| line.chars.len()) {
-            caret.col == line_length - 1
+            caret.col == line_length
         } else {
             false
+        }
+    }
+
+    pub fn delete(&mut self, caret: &Caret) {
+        if self.is_line_last(&caret) {
+            if !self.is_buffer_last(&caret) {
+                let next_line = self.lines.remove(caret.row + 1);
+                let current_line = self.lines.get_mut(caret.row).unwrap();
+                current_line.join(next_line);
+            }
+        } else {
+            if let Some(line) = self.lines.get_mut(caret.row) {
+                line.remove_char(caret.col);
+            }
         }
     }
 }
@@ -326,13 +340,13 @@ mod tests {
         assert!(!sut.is_line_head(&Caret::new(1, 3)));
 
         // line last
-        assert!(sut.is_line_last(&Caret::new(0, 4)));
-        assert!(sut.is_line_last(&Caret::new(2, 5)));
-        assert!(!sut.is_line_last(&Caret::new(2, 4)));
+        assert!(sut.is_line_last(&Caret::new(0, 5)));
+        assert!(sut.is_line_last(&Caret::new(2, 6)));
+        assert!(!sut.is_line_last(&Caret::new(2, 5)));
     }
 
     #[test]
-    fn buffer_forward() {
+    fn buffer_move() {
         let mut sut = Buffer::new("hello buffer".to_string());
         let _caret = sut.insert_string(
             Caret::new(0, 0),
@@ -341,8 +355,9 @@ mod tests {
 
         // forward
         assert_eq!(sut.forward(Caret::new(0, 0)), Caret::new(0, 1));
-        assert_eq!(sut.forward(Caret::new(0, 4)), Caret::new(1, 0));
-        assert_eq!(sut.forward(Caret::new(2, 4)), Caret::new(2, 4));
+        assert_eq!(sut.forward(Caret::new(0, 4)), Caret::new(0, 5));
+        assert_eq!(sut.forward(Caret::new(0, 5)), Caret::new(1, 0));
+        assert_eq!(sut.forward(Caret::new(2, 5)), Caret::new(2, 5));
 
         // back
         assert_eq!(sut.back(Caret::new(0, 3)), Caret::new(0, 2));
@@ -358,6 +373,36 @@ mod tests {
         assert_eq!(sut.next(Caret::new(0, 3)), Caret::new(1, 3));
         assert_eq!(sut.next(Caret::new(1, 5)), Caret::new(2, 4));
         assert_eq!(sut.next(Caret::new(2, 4)), Caret::new(2, 4));
+    }
+
+    #[test]
+    fn buffer_delete() {
+        let mut sut = Buffer::new("hello buffer".to_string());
+        let _caret = sut.insert_string(
+            Caret::new(0, 0),
+            "あいうえお\nかきくけこ\nさしすせそ".to_string(),
+        );
+        sut.delete(&Caret::new(1, 3));
+        assert_eq!(
+            sut.to_buffer_string(),
+            "あいうえお\nかきくこ\nさしすせそ".to_string()
+        );
+        sut.delete(&Caret::new(1, 3));
+        sut.delete(&Caret::new(1, 3));
+        assert_eq!(
+            sut.to_buffer_string(),
+            "あいうえお\nかきくさしすせそ".to_string()
+        );
+        sut.delete(&Caret::new(1, 7));
+        assert_eq!(
+            sut.to_buffer_string(),
+            "あいうえお\nかきくさしすせ".to_string()
+        );
+        sut.delete(&Caret::new(1, 7));
+        assert_eq!(
+            sut.to_buffer_string(),
+            "あいうえお\nかきくさしすせ".to_string()
+        );
     }
 
     #[test]
