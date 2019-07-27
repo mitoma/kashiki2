@@ -83,7 +83,7 @@ impl Buffer {
 
     pub fn last(&mut self, mut caret: Caret) -> Caret {
         if let Some(line) = self.lines.get(caret.row) {
-            caret.col = line.chars.len() - 1;
+            caret.col = line.chars.len();
         }
         caret
     }
@@ -173,6 +173,16 @@ impl Buffer {
             caret.col == line_length
         } else {
             false
+        }
+    }
+
+    pub fn backspace(&mut self, caret: Caret) -> Caret {
+        if self.is_buffer_head(&caret) && self.is_line_head(&caret) {
+            caret
+        } else {
+            let caret = self.back(caret);
+            self.delete(&caret);
+            caret
         }
     }
 
@@ -362,17 +372,41 @@ mod tests {
         // back
         assert_eq!(sut.back(Caret::new(0, 3)), Caret::new(0, 2));
         assert_eq!(sut.back(Caret::new(0, 0)), Caret::new(0, 0));
-        assert_eq!(sut.back(Caret::new(2, 0)), Caret::new(1, 5));
+        assert_eq!(sut.back(Caret::new(2, 0)), Caret::new(1, 6));
 
         // previous
         assert_eq!(sut.previous(Caret::new(1, 3)), Caret::new(0, 3));
-        assert_eq!(sut.previous(Caret::new(1, 5)), Caret::new(0, 4));
+        assert_eq!(sut.previous(Caret::new(1, 5)), Caret::new(0, 5));
         assert_eq!(sut.previous(Caret::new(2, 4)), Caret::new(1, 4));
 
         // next
         assert_eq!(sut.next(Caret::new(0, 3)), Caret::new(1, 3));
-        assert_eq!(sut.next(Caret::new(1, 5)), Caret::new(2, 4));
-        assert_eq!(sut.next(Caret::new(2, 4)), Caret::new(2, 4));
+        assert_eq!(sut.next(Caret::new(1, 6)), Caret::new(2, 5));
+        assert_eq!(sut.next(Caret::new(2, 5)), Caret::new(2, 5));
+    }
+
+    #[test]
+    fn buffer_backspace() {
+        let mut sut = Buffer::new("hello buffer".to_string());
+        let _caret = sut.insert_string(
+            Caret::new(0, 0),
+            "あいうえお\nかきくけこ\nさしすせそ".to_string(),
+        );
+        sut.backspace(Caret::new(1, 3));
+        assert_eq!(
+            sut.to_buffer_string(),
+            "あいうえお\nかきけこ\nさしすせそ".to_string()
+        );
+        sut.backspace(Caret::new(1, 4));
+        assert_eq!(
+            sut.to_buffer_string(),
+            "あいうえお\nかきけ\nさしすせそ".to_string()
+        );
+        sut.backspace(Caret::new(2, 0));
+        assert_eq!(
+            sut.to_buffer_string(),
+            "あいうえお\nかきけさしすせそ".to_string()
+        );
     }
 
     #[test]
