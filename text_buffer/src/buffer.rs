@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub struct Caret {
     row: usize,
     col: usize,
@@ -82,7 +83,7 @@ impl Buffer {
 
     pub fn last(&mut self, mut caret: Caret) -> Caret {
         if let Some(line) = self.lines.get(caret.row) {
-            caret.col = line.chars.len();
+            caret.col = line.chars.len() - 1;
         }
         caret
     }
@@ -120,7 +121,7 @@ impl Buffer {
             caret
         } else {
             caret.row -= 1;
-            if caret.col > self.lines.get(caret.row).unwrap().chars.len() {
+            if caret.col > self.lines.get(caret.row).unwrap().chars.len() - 1 {
                 self.last(caret)
             } else {
                 caret
@@ -133,7 +134,7 @@ impl Buffer {
             caret
         } else {
             caret.row += 1;
-            if caret.col > self.lines.get(caret.row).unwrap().chars.len() {
+            if caret.col > self.lines.get(caret.row).unwrap().chars.len() - 1 {
                 self.last(caret)
             } else {
                 caret
@@ -328,6 +329,35 @@ mod tests {
         assert!(sut.is_line_last(&Caret::new(0, 4)));
         assert!(sut.is_line_last(&Caret::new(2, 5)));
         assert!(!sut.is_line_last(&Caret::new(2, 4)));
+    }
+
+    #[test]
+    fn buffer_forward() {
+        let mut sut = Buffer::new("hello buffer".to_string());
+        let _caret = sut.insert_string(
+            Caret::new(0, 0),
+            "あいうえお\nきかくけここ\nさしすせそ".to_string(),
+        );
+
+        // forward
+        assert_eq!(sut.forward(Caret::new(0, 0)), Caret::new(0, 1));
+        assert_eq!(sut.forward(Caret::new(0, 4)), Caret::new(1, 0));
+        assert_eq!(sut.forward(Caret::new(2, 4)), Caret::new(2, 4));
+
+        // back
+        assert_eq!(sut.back(Caret::new(0, 3)), Caret::new(0, 2));
+        assert_eq!(sut.back(Caret::new(0, 0)), Caret::new(0, 0));
+        assert_eq!(sut.back(Caret::new(2, 0)), Caret::new(1, 5));
+
+        // previous
+        assert_eq!(sut.previous(Caret::new(1, 3)), Caret::new(0, 3));
+        assert_eq!(sut.previous(Caret::new(1, 5)), Caret::new(0, 4));
+        assert_eq!(sut.previous(Caret::new(2, 4)), Caret::new(1, 4));
+
+        // next
+        assert_eq!(sut.next(Caret::new(0, 3)), Caret::new(1, 3));
+        assert_eq!(sut.next(Caret::new(1, 5)), Caret::new(2, 4));
+        assert_eq!(sut.next(Caret::new(2, 4)), Caret::new(2, 4));
     }
 
     #[test]
