@@ -34,9 +34,7 @@ impl Buffer {
     }
 
     pub fn insert_string(&mut self, caret: Caret, string: String) -> Caret {
-        let mut iter = string
-            .split("\r\n")
-            .flat_map(|line| line.split('\n'));
+        let mut iter = string.split("\r\n").flat_map(|line| line.split('\n'));
         let first_line = match iter.next() {
             Some(first) => first,
             None => return caret,
@@ -89,6 +87,60 @@ impl Buffer {
         caret
     }
 
+    pub fn back(&mut self, mut caret: Caret) -> Caret {
+        if self.is_line_head(&caret) {
+            if self.is_buffer_head(&caret) {
+                caret
+            } else {
+                let caret = self.previous(caret);
+                self.last(caret)
+            }
+        } else {
+            caret.col -= 1;
+            caret
+        }
+    }
+
+    pub fn forward(&mut self, mut caret: Caret) -> Caret {
+        if self.is_line_last(&caret) {
+            if self.is_buffer_last(&caret) {
+                caret
+            } else {
+                let caret = self.next(caret);
+                self.head(caret)
+            }
+        } else {
+            caret.col += 1;
+            caret
+        }
+    }
+
+    pub fn previous(&mut self, mut caret: Caret) -> Caret {
+        if self.is_buffer_head(&caret) {
+            caret
+        } else {
+            caret.row -= 1;
+            if caret.col > self.lines.get(caret.row).unwrap().chars.len() {
+                self.last(caret)
+            } else {
+                caret
+            }
+        }
+    }
+
+    pub fn next(&mut self, mut caret: Caret) -> Caret {
+        if self.is_buffer_last(&caret) {
+            caret
+        } else {
+            caret.row += 1;
+            if caret.col > self.lines.get(caret.row).unwrap().chars.len() {
+                self.last(caret)
+            } else {
+                caret
+            }
+        }
+    }
+
     pub fn buffer_head(&mut self, mut caret: Caret) -> Caret {
         caret.row = 0;
         caret.col = 0;
@@ -101,6 +153,26 @@ impl Buffer {
             caret.col = last_line.chars.len();
         }
         caret
+    }
+
+    pub fn is_buffer_head(&mut self, caret: &Caret) -> bool {
+        caret.row == 0
+    }
+
+    pub fn is_buffer_last(&mut self, caret: &Caret) -> bool {
+        caret.row == self.lines.len() - 1
+    }
+
+    pub fn is_line_head(&mut self, caret: &Caret) -> bool {
+        caret.col == 0
+    }
+
+    pub fn is_line_last(&mut self, caret: &Caret) -> bool {
+        if let Some(line_length) = self.lines.get(caret.row).map(|line| line.chars.len()) {
+            caret.col == line_length - 1
+        } else {
+            false
+        }
     }
 }
 
