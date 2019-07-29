@@ -98,6 +98,25 @@ pub fn buffer_apply(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret
             }
             (buffer, caret, result)
         }
+        BufferAction::Delete(caret) => {
+            let removed_char = buffer.delete(caret);
+            match removed_char {
+                RemovedChar::Char(c) => {
+                    result
+                        .actions
+                        .push(BufferAction::InsertChar(caret.clone(), c));
+                    result.actions.push(BufferAction::MoveTo(caret.clone()));
+                }
+                RemovedChar::Enter => {
+                    result
+                        .actions
+                        .push(BufferAction::InsertEnter(caret.clone()));
+                    result.actions.push(BufferAction::MoveTo(caret.clone()));
+                }
+                RemovedChar::None => {}
+            }
+            (buffer, caret.clone(), result)
+        }
 
         _ => {
             /* メチャ適当。ここを通ればバグる */
