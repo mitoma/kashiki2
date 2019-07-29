@@ -176,26 +176,31 @@ impl Buffer {
         }
     }
 
-    pub fn backspace(&mut self, caret: Caret) -> Caret {
+    pub fn backspace(&mut self, caret: Caret) -> (Caret, RemovedChar) {
         if self.is_buffer_head(&caret) && self.is_line_head(&caret) {
-            caret
+            (caret, RemovedChar::None)
         } else {
             let caret = self.back(caret);
-            self.delete(&caret);
-            caret
+            let removed_char = self.delete(&caret);
+            (caret, removed_char)
         }
     }
 
-    pub fn delete(&mut self, caret: &Caret) {
+    pub fn delete(&mut self, caret: &Caret) -> RemovedChar {
         if self.is_line_last(&caret) {
             if !self.is_buffer_last(&caret) {
                 let next_line = self.lines.remove(caret.row + 1);
                 let current_line = self.lines.get_mut(caret.row).unwrap();
                 current_line.join(next_line);
+                RemovedChar::Enter
+            } else {
+                RemovedChar::None
             }
         } else {
             if let Some(line) = self.lines.get_mut(caret.row) {
-                line.remove_char(caret.col);
+                line.remove_char(caret.col)
+            } else {
+                RemovedChar::None
             }
         }
     }
@@ -251,8 +256,9 @@ impl BufferLine {
         }
     }
 
-    pub fn remove_char(&mut self, col: usize) {
-        self.chars.remove(col);
+    pub fn remove_char(&mut self, col: usize) -> RemovedChar {
+        let removed = self.chars.remove(col);
+        RemovedChar::Char(removed.c)
     }
 
     pub fn join(&mut self, line: BufferLine) {
@@ -279,6 +285,13 @@ impl BufferChar {
         self.row = row;
         self.col = col;
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum RemovedChar {
+    Char(char),
+    Enter,
+    None,
 }
 
 #[cfg(test)]
@@ -392,17 +405,17 @@ mod tests {
             Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
-        sut.backspace(Caret::new(1, 3));
+        assert_eq!(sut.backspace(Caret::new(1, 3)).1, RemovedChar::Char('く'));
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきけこ\nさしすせそ".to_string()
         );
-        sut.backspace(Caret::new(1, 4));
+        assert_eq!(sut.backspace(Caret::new(1, 4)).1, RemovedChar::Char('こ'));
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきけ\nさしすせそ".to_string()
         );
-        sut.backspace(Caret::new(2, 0));
+        assert_eq!(sut.backspace(Caret::new(2, 0)).1, RemovedChar::Enter);
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきけさしすせそ".to_string()
@@ -416,23 +429,23 @@ mod tests {
             Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
-        sut.delete(&Caret::new(1, 3));
+        assert_eq!(sut.delete(&Caret::new(1, 3)), RemovedChar::Char('け'));
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくこ\nさしすせそ".to_string()
         );
-        sut.delete(&Caret::new(1, 3));
-        sut.delete(&Caret::new(1, 3));
+        assert_eq!(sut.delete(&Caret::new(1, 3)), RemovedChar::Char('こ'));
+        assert_eq!(sut.delete(&Caret::new(1, 3)), RemovedChar::Enter);
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくさしすせそ".to_string()
         );
-        sut.delete(&Caret::new(1, 7));
+        assert_eq!(sut.delete(&Caret::new(1, 7)), RemovedChar::Char('そ'));
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくさしすせ".to_string()
         );
-        sut.delete(&Caret::new(1, 7));
+        assert_eq!(sut.delete(&Caret::new(1, 7)), RemovedChar::None);
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくさしすせ".to_string()
@@ -451,8 +464,8 @@ mod tests {
         sut.insert_char(3, 'ャ');
         sut.insert_char(3, 'ジ');
         assert_eq!(sut.to_line_string(), "鉄鍋のジャン");
-        sut.remove_char(4);
-        sut.remove_char(3);
+        assert_eq!(sut.remove_char(4), RemovedChar::Char('ャ'));
+        assert_eq!(sut.remove_char(3), RemovedChar::Char('ジ'));
         assert_eq!(sut.to_line_string(), "鉄鍋のン");
     }
 

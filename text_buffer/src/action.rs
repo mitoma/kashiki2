@@ -86,8 +86,16 @@ pub fn buffer_apply(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret
             (buffer, caret, result)
         }
         BufferAction::Backspace(caret) => {
-            let caret = buffer.backspace(caret.clone());
-            // ここも書く必要ある
+            let (caret, removed_char) = buffer.backspace(caret.clone());
+            match removed_char {
+                RemovedChar::Char(c) => result
+                    .actions
+                    .push(BufferAction::InsertChar(caret.clone(), c)),
+                RemovedChar::Enter => result
+                    .actions
+                    .push(BufferAction::InsertEnter(caret.clone())),
+                RemovedChar::None => {}
+            }
             (buffer, caret, result)
         }
 
@@ -111,7 +119,7 @@ mod tests {
         reverses.push(action);
         let (sut, caret, action) = buffer_apply(sut, &BufferAction::InsertChar(caret, '鳥'));
         reverses.push(action);
-        let (sut, caret, action) = buffer_apply(sut, &BufferAction::InsertChar(caret, '\n'));
+        let (sut, _, action) = buffer_apply(sut, &BufferAction::InsertChar(caret, '\n'));
         reverses.push(action);
         assert_eq!(sut.to_buffer_string(), "花鳥\n".to_string());
 
