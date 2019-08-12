@@ -28,12 +28,12 @@ pub fn apply_reserve_actions(buffer: Buffer, reverse_action: &ReverseAction) -> 
         .actions
         .iter()
         .fold((buffer, Caret::new(0, 0)), |(buffer, _), action| {
-            let result = buffer_apply(buffer, &action);
+            let result = apply_action(buffer, &action);
             (result.0, result.1)
         })
 }
 
-pub fn buffer_apply(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret, ReverseAction) {
+pub fn apply_action(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret, ReverseAction) {
     let mut result = ReverseAction {
         actions: Vec::new(),
     };
@@ -150,42 +150,42 @@ mod tests {
     fn test_buffer_move() {
         let mut sut = Buffer::new("test buffer".to_string());
         sut.insert_string(Caret::new(0, 0), "ABCD\nEFGH\nIJKL\nMNO".to_string());
-        let (sut, caret, action) = buffer_apply(sut, &BufferAction::Last(Caret::new(0, 0)));
+        let (sut, caret, action) = apply_action(sut, &BufferAction::Last(Caret::new(0, 0)));
         assert_eq!(caret, Caret::new(0, 4));
         let (_, caret) = apply_reserve_actions(sut, &action);
         assert_eq!(caret, Caret::new(0, 0));
     }
 
     #[test]
-    fn test_buffer_apply() {
+    fn test_apply_action() {
         let sut = Buffer::new("hello buffer".to_string());
         let mut reverses = Vec::new();
         let (sut, caret, action) =
-            buffer_apply(sut, &BufferAction::InsertChar(Caret::new(0, 0), '花'));
+            apply_action(sut, &BufferAction::InsertChar(Caret::new(0, 0), '花'));
         reverses.push(action);
-        let (sut, caret, action) = buffer_apply(sut, &BufferAction::InsertChar(caret, '鳥'));
+        let (sut, caret, action) = apply_action(sut, &BufferAction::InsertChar(caret, '鳥'));
         reverses.push(action);
-        let (sut, _, action) = buffer_apply(sut, &BufferAction::InsertChar(caret, '\n'));
+        let (sut, _, action) = apply_action(sut, &BufferAction::InsertChar(caret, '\n'));
         reverses.push(action);
         assert_eq!(sut.to_buffer_string(), "花鳥\n".to_string());
 
         let reverse_action = reverses.pop().unwrap();
         let sut = reverse_action.actions.iter().fold(sut, |sut, action| {
-            let (sut, _, _) = buffer_apply(sut, action);
+            let (sut, _, _) = apply_action(sut, action);
             sut
         });
         assert_eq!(sut.to_buffer_string(), "花鳥".to_string());
 
         let reverse_action = reverses.pop().unwrap();
         let sut = reverse_action.actions.iter().fold(sut, |sut, action| {
-            let (sut, _, _) = buffer_apply(sut, action);
+            let (sut, _, _) = apply_action(sut, action);
             sut
         });
         assert_eq!(sut.to_buffer_string(), "花".to_string());
 
         let reverse_action = reverses.pop().unwrap();
         let sut = reverse_action.actions.iter().fold(sut, |sut, action| {
-            let (sut, _, _) = buffer_apply(sut, action);
+            let (sut, _, _) = apply_action(sut, action);
             sut
         });
         assert_eq!(sut.to_buffer_string(), "".to_string());
