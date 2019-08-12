@@ -44,6 +44,7 @@ pub fn apply_action(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             (buffer, pre_caret.clone(), result)
         }
+
         BufferAction::Head(pre_caret) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             let post_caret = buffer.head(pre_caret.clone());
@@ -148,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_buffer_move() {
-        let mut sut = Buffer::new("test buffer".to_string());
+        let mut sut = Buffer::new("hello buffer".to_string());
         sut.insert_string(Caret::new(0, 0), "ABCD\nEFGH\nIJKL\nMNO".to_string());
         let (sut, caret, action) = apply_action(sut, &BufferAction::Last(Caret::new(0, 0)));
         assert_eq!(caret, Caret::new(0, 4));

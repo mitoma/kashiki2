@@ -8,7 +8,8 @@ fn main() {
         .build()
         .unwrap();
 
-    let mut input_text = "☆".to_string();
+    let mut caret = text_buffer::buffer::Caret::new(0, 0);
+    let mut text_buffer = text_buffer::buffer::Buffer::new("scratch".to_string());
 
     let mut glyphs = Glyphs::new(
         "asset/TakaoGothic.ttf",
@@ -25,7 +26,7 @@ fn main() {
 
     while let Some(event) = window.next() {
         if let Some(text) = event.text_args() {
-            input_text = text;
+            caret = text_buffer.insert_string(caret, text);
         }
         if let Some(key) = event.press_args() {
             match key {
@@ -53,7 +54,7 @@ fn main() {
                 clear([1.0, 1.0, 1.0, 1.0], graphics);
                 text::Text::new_color([0.0, 0.0, 0.0, 1.0], 64)
                     .draw(
-                        &input_text,
+                        &text_buffer.to_buffer_string(),
                         &mut glyphs,
                         &context.draw_state,
                         transform,

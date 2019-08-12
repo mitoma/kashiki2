@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 piston_window = "0.99.0"
 piston = "0.48.0"
+text_buffer = { version = "0.1.0", path = "../text_buffer" }
