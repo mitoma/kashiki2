@@ -134,10 +134,7 @@ pub fn buffer_apply(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret
                 RemovedChar::None => {}
             }
             (buffer, caret.clone(), result)
-        } // _ => {
-          //     /* メチャ適当。ここを通ればバグる */
-          //     (buffer, Caret::new(0, 0), result)
-          // }
+        }
     }
 }
 #[cfg(test)]
