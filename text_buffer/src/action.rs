@@ -95,6 +95,14 @@ pub fn buffer_apply(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret
             result.actions.push(BufferAction::Backspace(caret.clone()));
             (buffer, caret, result)
         }
+        BufferAction::InsertString(pre_caret, str_value) => {
+            result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
+            let post_caret = buffer.insert_string(pre_caret.clone(), str_value.clone());
+            for _ in 0..str_value.chars().count() {
+                result.actions.push(BufferAction::Delete(pre_caret.clone()));
+            }
+            (buffer, post_caret, result)
+        }
         BufferAction::Backspace(caret) => {
             let (caret, removed_char) = buffer.backspace(caret.clone());
             match removed_char {
@@ -126,12 +134,10 @@ pub fn buffer_apply(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret
                 RemovedChar::None => {}
             }
             (buffer, caret.clone(), result)
-        }
-
-        _ => {
-            /* メチャ適当。ここを通ればバグる */
-            (buffer, Caret::new(0, 0), result)
-        }
+        } // _ => {
+          //     /* メチャ適当。ここを通ればバグる */
+          //     (buffer, Caret::new(0, 0), result)
+          // }
     }
 }
 #[cfg(test)]
@@ -145,7 +151,7 @@ mod tests {
         sut.insert_string(Caret::new(0, 0), "ABCD\nEFGH\nIJKL\nMNO".to_string());
         let (sut, caret, action) = buffer_apply(sut, &BufferAction::Last(Caret::new(0, 0)));
         assert_eq!(caret, Caret::new(0, 4));
-        let (sut, caret, action) = buffer_apply(sut, action.actions.first().unwrap());
+        let (_, caret) = apply_reserve_actions(sut, &action);
         assert_eq!(caret, Caret::new(0, 0));
     }
 
