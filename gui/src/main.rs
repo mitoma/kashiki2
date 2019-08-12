@@ -30,6 +30,10 @@ fn main() {
         }
         if let Some(key) = event.press_args() {
             match key {
+                input::Button::Keyboard(keyboard::Key::Backspace) => {
+                    let (result_caret, _) = text_buffer.backspace(caret);
+                    caret = result_caret;
+                }
                 input::Button::Keyboard(keyboard::Key::Right) => {
                     x_smooth.add(100.0);
                 }
