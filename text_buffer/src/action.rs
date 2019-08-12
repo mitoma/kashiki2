@@ -23,6 +23,16 @@ pub struct ReverseAction {
     actions: Vec<BufferAction>,
 }
 
+pub fn apply_reserve_actions(buffer: Buffer, reverse_action: &ReverseAction) -> (Buffer, Caret) {
+    reverse_action
+        .actions
+        .iter()
+        .fold((buffer, Caret::new(0, 0)), |(buffer, _), action| {
+            let result = buffer_apply(buffer, &action);
+            (result.0, result.1)
+        })
+}
+
 pub fn buffer_apply(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret, ReverseAction) {
     let mut result = ReverseAction {
         actions: Vec::new(),
@@ -128,6 +138,16 @@ pub fn buffer_apply(mut buffer: Buffer, action: &BufferAction) -> (Buffer, Caret
 mod tests {
 
     use super::*;
+
+    #[test]
+    fn test_buffer_move() {
+        let mut sut = Buffer::new("test buffer".to_string());
+        sut.insert_string(Caret::new(0, 0), "ABCD\nEFGH\nIJKL\nMNO".to_string());
+        let (sut, caret, action) = buffer_apply(sut, &BufferAction::Last(Caret::new(0, 0)));
+        assert_eq!(caret, Caret::new(0, 4));
+        let (sut, caret, action) = buffer_apply(sut, action.actions.first().unwrap());
+        assert_eq!(caret, Caret::new(0, 0));
+    }
 
     #[test]
     fn test_buffer_apply() {
