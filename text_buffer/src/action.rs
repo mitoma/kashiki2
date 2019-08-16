@@ -23,6 +23,14 @@ pub struct ReverseAction {
     actions: Vec<BufferAction>,
 }
 
+impl ReverseAction{
+    fn new() -> ReverseAction{
+        ReverseAction {
+            actions: Vec::new()
+        }
+    }
+}
+
 pub struct ApplyResult {
     buffer: Buffer,
     caret: Caret,
@@ -39,13 +47,17 @@ impl ApplyResult {
     }
 }
 
-pub fn apply_reserve_actions(buffer: Buffer, reverse_action: &ReverseAction) -> (Buffer, Caret) {
+pub fn apply_reserve_actions(buffer: Buffer, reverse_action: &ReverseAction) -> ApplyResult {
     reverse_action
         .actions
         .iter()
-        .fold((buffer, Caret::new(0, 0)), |(buffer, _), action| {
-            let result = apply_action(buffer, &action);
-            (result.buffer, result.caret)
+        .fold(ApplyResult::new(buffer, Caret::new(0,0), ReverseAction::new()), |mut result, action| {
+            let r = apply_action(result.buffer, &action);
+            result.buffer = r.buffer;
+            result.caret = r.caret;
+            let mut reverse_actions = r.reverse_action.actions;
+            result.reverse_action.actions.append(&mut reverse_actions);
+            result
         })
 }
 
@@ -168,8 +180,8 @@ mod tests {
         sut.insert_string(Caret::new(0, 0), "ABCD\nEFGH\nIJKL\nMNO".to_string());
         let result = apply_action(sut, &BufferAction::Last(Caret::new(0, 0)));
         assert_eq!(result.caret, Caret::new(0, 4));
-        let (_, caret) = apply_reserve_actions(result.buffer, &result.reverse_action);
-        assert_eq!(caret, Caret::new(0, 0));
+        let result = apply_reserve_actions(result.buffer, &result.reverse_action);
+        assert_eq!(result.caret, Caret::new(0, 0));
     }
 
     #[test]
