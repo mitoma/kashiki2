@@ -29,6 +29,16 @@ pub struct ApplyResult {
     reverse_action: ReverseAction,
 }
 
+impl ApplyResult {
+    fn new(buffer: Buffer, caret: Caret, reverse_action: ReverseAction) -> ApplyResult {
+        ApplyResult {
+            buffer: buffer,
+            caret: caret,
+            reverse_action: reverse_action,
+        }
+    }
+}
+
 pub fn apply_reserve_actions(buffer: Buffer, reverse_action: &ReverseAction) -> (Buffer, Caret) {
     reverse_action
         .actions
@@ -48,83 +58,47 @@ pub fn apply_action(mut buffer: Buffer, action: &BufferAction) -> ApplyResult {
         BufferAction::MoveTo(pre_caret) => {
             // MoveTo には from と to 二つ必要かどうかよくわかっていない。
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
-            ApplyResult {
-                buffer: buffer,
-                caret: pre_caret.clone(),
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, pre_caret.clone(), result)
         }
         BufferAction::Head(pre_caret) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             let post_caret = buffer.head(pre_caret.clone());
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::Last(pre_caret) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             let post_caret = buffer.last(pre_caret.clone());
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::Back(pre_caret) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             let post_caret = buffer.back(pre_caret.clone());
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::Forward(pre_caret) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             let post_caret = buffer.forward(pre_caret.clone());
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::Previous(pre_caret) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             let post_caret = buffer.previous(pre_caret.clone());
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::Next(pre_caret) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             let post_caret = buffer.next(pre_caret.clone());
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::BufferHead(pre_caret) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             let post_caret = buffer.buffer_head(pre_caret.clone());
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::BufferLast(pre_caret) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
             let post_caret = buffer.buffer_last(pre_caret.clone());
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
 
         BufferAction::InsertEnter(pre_caret) => {
@@ -132,22 +106,14 @@ pub fn apply_action(mut buffer: Buffer, action: &BufferAction) -> ApplyResult {
             result
                 .actions
                 .push(BufferAction::Backspace(post_caret.clone()));
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::InsertChar(pre_caret, char_value) => {
             let post_caret = buffer.insert_char(pre_caret.clone(), char_value.clone());
             result
                 .actions
                 .push(BufferAction::Backspace(post_caret.clone()));
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::InsertString(pre_caret, str_value) => {
             result.actions.push(BufferAction::MoveTo(pre_caret.clone()));
@@ -155,11 +121,7 @@ pub fn apply_action(mut buffer: Buffer, action: &BufferAction) -> ApplyResult {
             for _ in 0..str_value.chars().count() {
                 result.actions.push(BufferAction::Delete(pre_caret.clone()));
             }
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::Backspace(pre_caret) => {
             let (post_caret, removed_char) = buffer.backspace(pre_caret.clone());
@@ -172,11 +134,7 @@ pub fn apply_action(mut buffer: Buffer, action: &BufferAction) -> ApplyResult {
                     .push(BufferAction::InsertEnter(post_caret.clone())),
                 RemovedChar::None => {}
             }
-            ApplyResult {
-                buffer: buffer,
-                caret: post_caret,
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, post_caret, result)
         }
         BufferAction::Delete(pre_caret) => {
             let removed_char = buffer.delete(pre_caret);
@@ -195,11 +153,7 @@ pub fn apply_action(mut buffer: Buffer, action: &BufferAction) -> ApplyResult {
                 }
                 RemovedChar::None => {}
             }
-            ApplyResult {
-                buffer: buffer,
-                caret: pre_caret.clone(),
-                reverse_action: result,
-            }
+            ApplyResult::new(buffer, pre_caret.clone(), result)
         }
     }
 }
