@@ -1,3 +1,4 @@
+use super::caret::*;
 use super::buffer::*;
 
 pub enum BufferAction {

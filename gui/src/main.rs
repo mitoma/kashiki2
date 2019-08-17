@@ -8,7 +8,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let mut caret = text_buffer::buffer::Caret::new(0, 0);
+    let mut caret = text_buffer::caret::Caret::new(0, 0);
     let mut text_buffer = text_buffer::buffer::Buffer::new("scratch".to_string());
 
     let mut glyphs = Glyphs::new(

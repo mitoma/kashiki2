@@ -1,14 +1,4 @@
-#[derive(Debug, PartialEq, Clone)]
-pub struct Caret {
-    row: usize,
-    col: usize,
-}
-
-impl Caret {
-    pub fn new(row: usize, col: usize) -> Caret {
-        Caret { row: row, col: col }
-    }
-}
+use super::caret::*;
 
 pub struct Buffer {
     buffer_name: String,
