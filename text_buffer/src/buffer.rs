@@ -1,17 +1,15 @@
 use crate::caret::Caret;
 
 pub struct Buffer {
-    buffer_name: String,
     lines: Vec<BufferLine>,
 }
 
 impl Buffer {
-    pub fn new(buffer_name: String) -> Buffer {
+    pub fn new() -> Buffer {
         let mut lines = Vec::new();
         let line = BufferLine::new();
         lines.push(line);
         Buffer {
-            buffer_name: buffer_name,
             lines: lines,
         }
     }
@@ -292,7 +290,7 @@ mod tests {
     #[test]
     fn buffer() {
         let caret = Caret::new(0, 0);
-        let mut sut = Buffer::new("hello buffer".to_string());
+        let mut sut = Buffer::new();
         assert_eq!(sut.to_buffer_string(), "");
         let caret = sut.insert_char(caret, '山');
         assert_eq!(sut.to_buffer_string(), "山");
@@ -317,7 +315,7 @@ mod tests {
     #[test]
     fn buffer_insert_string() {
         let caret = Caret::new(0, 0);
-        let mut sut = Buffer::new("hello buffer".to_string());
+        let mut sut = Buffer::new();
         let caret = sut.insert_string(
             caret,
             "東京は\n今日もいい天気\nだった。".to_string(),
@@ -332,7 +330,7 @@ mod tests {
 
     #[test]
     fn buffer_position_check() {
-        let mut sut = Buffer::new("hello buffer".to_string());
+        let mut sut = Buffer::new();
         let _caret = sut.insert_string(
             Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそそ".to_string(),
@@ -360,7 +358,7 @@ mod tests {
 
     #[test]
     fn buffer_move() {
-        let mut sut = Buffer::new("hello buffer".to_string());
+        let mut sut = Buffer::new();
         let _caret = sut.insert_string(
             Caret::new(0, 0),
             "あいうえお\nきかくけここ\nさしすせそ".to_string(),
@@ -390,7 +388,7 @@ mod tests {
 
     #[test]
     fn buffer_backspace() {
-        let mut sut = Buffer::new("hello buffer".to_string());
+        let mut sut = Buffer::new();
         let _caret = sut.insert_string(
             Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
@@ -414,7 +412,7 @@ mod tests {
 
     #[test]
     fn buffer_delete() {
-        let mut sut = Buffer::new("hello buffer".to_string());
+        let mut sut = Buffer::new();
         let _caret = sut.insert_string(
             Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),

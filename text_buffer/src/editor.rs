@@ -10,11 +10,11 @@ pub struct BufferState {
 }
 
 impl BufferState {
-    pub fn new(buffer_name: String) -> BufferState {
+    pub fn new() -> BufferState {
         BufferState {
             main_caret: Caret::new(0, 0),
             mark: Option::None,
-            buffer: Buffer::new(buffer_name),
+            buffer: Buffer::new(),
             reverse_actions: Vec::new(),
         }
     }

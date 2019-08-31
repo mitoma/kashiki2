@@ -9,7 +9,7 @@ fn main() {
         .unwrap();
 
     let mut caret = text_buffer::caret::Caret::new(0, 0);
-    let mut text_buffer = text_buffer::buffer::Buffer::new("scratch".to_string());
+    let mut text_buffer = text_buffer::buffer::Buffer::new();
 
     let mut glyphs = Glyphs::new(
         "asset/TakaoGothic.ttf",

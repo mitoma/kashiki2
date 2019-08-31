@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_buffer_move() {
-        let mut sut = Buffer::new("hello buffer".to_string());
+        let mut sut = Buffer::new();
         sut.insert_string(Caret::new(0, 0), "ABCD\nEFGH\nIJKL\nMNO".to_string());
         let result = apply_action(sut, &BufferAction::Last(Caret::new(0, 0)));
         assert_eq!(result.caret, Caret::new(0, 4));
@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn test_apply_action() {
-        let sut = Buffer::new("hello buffer".to_string());
+        let sut = Buffer::new();
         let mut reverses = Vec::new();
         let result = apply_action(sut, &BufferAction::InsertChar(Caret::new(0, 0), '花'));
         reverses.push(result.reverse_action);
