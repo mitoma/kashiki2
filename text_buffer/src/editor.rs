@@ -10,12 +10,16 @@ pub struct BufferState {
 }
 
 impl BufferState {
-    fn new(buffer_name: String) -> BufferState {
+    pub fn new(buffer_name: String) -> BufferState {
         BufferState {
             main_caret: Caret::new(0, 0),
             mark: Option::None,
             buffer: Buffer::new(buffer_name),
             reverse_actions: Vec::new(),
         }
+    }
+
+    pub fn mark(&mut self) {
+        self.mark = Some(self.main_caret.clone());
     }
 }

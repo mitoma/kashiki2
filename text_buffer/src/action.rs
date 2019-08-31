@@ -1,5 +1,5 @@
-use super::caret::*;
-use super::buffer::*;
+use crate::caret::*;
+use crate::buffer::*;
 
 pub enum BufferAction {
     MoveTo(Caret),

@@ -1,4 +1,4 @@
-use super::caret::Caret;
+use crate::caret::Caret;
 
 pub struct Buffer {
     buffer_name: String,
