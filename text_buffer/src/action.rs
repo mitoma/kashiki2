@@ -1,5 +1,5 @@
-use crate::caret::*;
 use crate::buffer::*;
+use crate::caret::*;
 
 pub enum BufferAction {
     MoveTo(Caret),
@@ -18,6 +18,11 @@ pub enum BufferAction {
     InsertEnter(Caret),
     Backspace(Caret),
     Delete(Caret),
+}
+
+pub enum BufferStateAction {
+    Mark(),
+    Copy(),
 }
 
 pub struct ReverseAction {
