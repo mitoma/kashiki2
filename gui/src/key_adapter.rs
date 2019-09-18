@@ -1,9 +1,25 @@
 use piston::input;
 use piston_window::*;
 
+#[derive(Debug)]
 pub enum InputAction {
-    KeyAction(Key, MetaKey),
+    KeyAction(KeyWithMeta),
     TextAction(String),
+}
+
+#[derive(Debug)]
+pub struct KeyWithMeta {
+    key: Key,
+    meta_key: MetaKey,
+}
+
+impl KeyWithMeta {
+    fn new(key: Key, meta_key: MetaKey) -> KeyWithMeta {
+        KeyWithMeta {
+            key: key,
+            meta_key: meta_key,
+        }
+    }
 }
 
 // copy from pinston. keyboard.rs
@@ -491,6 +507,7 @@ impl From<u32> for Key {
     }
 }
 
+#[derive(Debug)]
 pub enum MetaKey {
     None,
     Ctrl,
@@ -500,6 +517,10 @@ pub enum MetaKey {
     CtrlShift,
     AltShift,
     CtrlAltShift,
+}
+
+pub struct Stroke {
+    keys: Vec<KeyWithMeta>,
 }
 
 pub struct StrokeParser {
@@ -539,7 +560,7 @@ impl StrokeParser {
      * A-S-a -> press, press, press
      * C-A-S-a -> press, press, press, press
      */
-    pub fn update(&mut self, event: input::Event) -> Option<InputAction> {
+    pub fn parse(&mut self, event: &input::Event) -> Option<InputAction> {
         if let Some(text) = event.text_args() {
             Some(InputAction::TextAction(text))
         } else if let Some(key) = event.press_args() {
@@ -559,10 +580,10 @@ impl StrokeParser {
                     self.on_shift = true;
                     None
                 }
-                input::Button::Keyboard(key) => Some(InputAction::KeyAction(
+                input::Button::Keyboard(key) => Some(InputAction::KeyAction(KeyWithMeta::new(
                     Key::from(key as u32),
                     self.meta_key(),
-                )),
+                ))),
                 _ => None,
             }
         } else if let Some(key) = event.release_args() {
