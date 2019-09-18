@@ -1,10 +1,9 @@
 use piston::input;
 use piston_window::*;
 
-pub struct InputAction {
-    key: Key,
-    meta_key: MetaKey,
-    text: String,
+pub enum InputAction {
+    KeyAction(Key, MetaKey),
+    TextAction(String),
 }
 
 // copy from pinston. keyboard.rs
@@ -529,7 +528,7 @@ impl StrokeParser {
      * C-A-a -> press, press, press
      * A-S-a -> press, press, press
      * C-A-S-a -> press, press, press, press
-     * 
+     *
      * IME on
      * a -> press
      * S-a -> press, press
@@ -541,8 +540,9 @@ impl StrokeParser {
      * C-A-S-a -> press, press, press, press
      */
     pub fn update(&mut self, event: input::Event) -> Option<InputAction> {
-        if let Some(key) = event.press_args() {
-            let text = event.text_args();
+        if let Some(text) = event.text_args() {
+            Some(InputAction::TextAction(text))
+        } else if let Some(key) = event.press_args() {
             match key {
                 input::Button::Keyboard(input::keyboard::Key::LAlt)
                 | input::Button::Keyboard(input::keyboard::Key::RAlt) => {
@@ -559,7 +559,11 @@ impl StrokeParser {
                     self.on_shift = true;
                     None
                 }
-                other => None,
+                input::Button::Keyboard(key) => Some(InputAction::KeyAction(
+                    Key::from(key as u32),
+                    self.meta_key(),
+                )),
+                _ => None,
             }
         } else if let Some(key) = event.release_args() {
             match key {
