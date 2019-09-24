@@ -30,6 +30,10 @@ fn main() {
     while let Some(event) = window.next() {
         let input_action = adapter.parse(&event);
 
+        if let Some(action) = input_action {
+            println!("input:{:?}", action);
+        }
+
         if let Some(_args) = event.render_args() {
             window.draw_2d(&event, |context, graphics, device| {
                 // Set a white background

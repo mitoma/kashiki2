@@ -617,12 +617,12 @@ impl StrokeParser {
             MetaKey::CtrlAlt
         } else if self.on_ctrl && self.on_shift {
             MetaKey::CtrlShift
-        } else if self.on_ctrl {
-            MetaKey::Ctrl
         } else if self.on_alt && self.on_shift {
             MetaKey::AltShift
+        } else if self.on_ctrl {
+            MetaKey::Ctrl
         } else if self.on_alt {
-            MetaKey::AltShift
+            MetaKey::Alt
         } else if self.on_shift {
             MetaKey::Shift
         } else {
