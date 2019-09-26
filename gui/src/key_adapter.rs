@@ -1,3 +1,4 @@
+use serde_derive::{Serialize, Deserialize};
 use piston::input;
 use piston_window::*;
 
@@ -7,7 +8,7 @@ pub enum InputAction {
     TextAction(String),
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct KeyWithMeta {
     key: Key,
     meta_key: MetaKey,
@@ -23,7 +24,7 @@ impl KeyWithMeta {
 }
 
 // copy from pinston. keyboard.rs
-#[derive(Copy, Clone, Debug, Hash)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, Hash)]
 pub enum Key {
     Unknown = 0x00,
     Backspace = 0x08,
@@ -507,7 +508,7 @@ impl From<u32> for Key {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub enum MetaKey {
     None,
     Ctrl,
@@ -519,8 +520,15 @@ pub enum MetaKey {
     CtrlAltShift,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Stroke {
     keys: Vec<KeyWithMeta>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct KeyBind {
+    action_name: String, 
+    stroke: Stroke,
 }
 
 pub struct StrokeParser {
