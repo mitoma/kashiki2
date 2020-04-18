@@ -9,8 +9,9 @@ fn main() {
         .build()
         .unwrap();
 
-    let mut caret = text_buffer::caret::Caret::new(0, 0);
+    let caret = &mut text_buffer::caret::Caret::new(0, 0);
     let mut text_buffer = text_buffer::buffer::Buffer::new();
+    text_buffer.insert_string(caret, "hello world".to_string());
 
     let mut glyphs = Glyphs::new(
         "asset/TakaoGothic.ttf",
@@ -32,6 +33,26 @@ fn main() {
 
         if let Some(action) = input_action {
             println!("input:{:?}", action);
+            match action {
+                InputAction::TextAction(s) => text_buffer.insert_string(caret, s),
+                InputAction::KeyAction(key_with_meta) => {
+                    match key_with_meta {
+                        KeyWithMeta {
+                            key: gui::key_adapter::Key::Backspace,
+                            meta_key: MetaKey::None,
+                        } => {
+                            text_buffer.backspace(caret);
+                        }
+                        KeyWithMeta {
+                            key: gui::key_adapter::Key::Return,
+                            meta_key: MetaKey::None,
+                        } => {
+                            text_buffer.insert_enter(caret);
+                        }
+                        _ => {}
+                    };
+                }
+            }
         }
 
         if let Some(_args) = event.render_args() {

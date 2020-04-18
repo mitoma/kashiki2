@@ -10,8 +10,8 @@ pub enum InputAction {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeyWithMeta {
-    key: Key,
-    meta_key: MetaKey,
+    pub key: Key,
+    pub meta_key: MetaKey,
 }
 
 impl KeyWithMeta {
