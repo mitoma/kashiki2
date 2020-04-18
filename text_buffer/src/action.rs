@@ -1,4 +1,4 @@
-use crate::buffer2::*;
+use crate::buffer::*;
 use crate::caret::*;
 
 pub enum BufferAction {

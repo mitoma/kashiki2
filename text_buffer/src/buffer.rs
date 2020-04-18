@@ -9,9 +9,7 @@ impl Buffer {
         let mut lines = Vec::new();
         let line = BufferLine::new();
         lines.push(line);
-        Buffer {
-            lines: lines,
-        }
+        Buffer { lines: lines }
     }
 
     pub fn to_buffer_string(&self) -> String {
@@ -22,31 +20,27 @@ impl Buffer {
             .join("\n")
     }
 
-    pub fn insert_string(&mut self, caret: Caret, string: String) -> Caret {
+    pub fn insert_string(&mut self, caret: &mut Caret, string: String) {
         let mut iter = string.split("\r\n").flat_map(|line| line.split('\n'));
         let first_line = match iter.next() {
             Some(first) => first,
-            None => return caret,
+            None => return,
         };
-        let caret = first_line
-            .chars()
-            .fold(caret, |caret, c| self.insert_char(caret, c));
-        iter.fold(caret, |caret, line| {
-            let caret = self.insert_enter(caret);
-            line.chars()
-                .fold(caret, |caret, c| self.insert_char(caret, c))
+        first_line.chars().for_each(|c| self.insert_char(caret, c));
+        iter.for_each(|line| {
+            self.insert_enter(caret);
+            line.chars().for_each(|c| self.insert_char(caret, c))
         })
     }
 
-    pub fn insert_char(&mut self, mut caret: Caret, c: char) -> Caret {
+    pub fn insert_char(&mut self, caret: &mut Caret, c: char) {
         if let Some(line) = self.lines.get_mut(caret.row) {
             line.insert_char(caret.col, c);
             caret.col += 1;
         }
-        caret
     }
 
-    pub fn insert_enter(&mut self, mut caret: Caret) -> Caret {
+    pub fn insert_enter(&mut self, caret: &mut Caret) {
         if let Some(line) = self.lines.get_mut(caret.row) {
             if let Some(next_line) = line.insert_enter(caret.col) {
                 caret.row += 1;
@@ -55,7 +49,6 @@ impl Buffer {
                 self.update_position();
             }
         }
-        caret
     }
 
     pub fn update_position(&mut self) {
@@ -64,84 +57,78 @@ impl Buffer {
         })
     }
 
-    pub fn head(&mut self, mut caret: Caret) -> Caret {
+    pub fn head(&mut self, caret: &mut Caret) {
         caret.col = 0;
-        caret
     }
 
-    pub fn last(&mut self, mut caret: Caret) -> Caret {
+    pub fn last(&mut self, caret: &mut Caret) {
         if let Some(line) = self.lines.get(caret.row) {
             caret.col = line.chars.len();
         }
-        caret
     }
 
-    pub fn back(&mut self, mut caret: Caret) -> Caret {
+    pub fn back(&mut self, caret: &mut Caret) {
         if self.is_line_head(&caret) {
             if self.is_buffer_head(&caret) {
-                caret
+                return;
             } else {
-                let caret = self.previous(caret);
-                self.last(caret)
+                self.previous(caret);
+                self.last(caret);
             }
         } else {
             caret.col -= 1;
-            caret
         }
     }
 
-    pub fn forward(&mut self, mut caret: Caret) -> Caret {
+    pub fn forward(&mut self, caret: &mut Caret) {
         if self.is_line_last(&caret) {
             if self.is_buffer_last(&caret) {
-                caret
+                return;
             } else {
-                let caret = self.next(caret);
-                self.head(caret)
+                self.next(caret);
+                self.head(caret);
             }
         } else {
             caret.col += 1;
-            caret
         }
     }
 
-    pub fn previous(&mut self, mut caret: Caret) -> Caret {
+    pub fn previous(&mut self, caret: &mut Caret) {
         if self.is_buffer_head(&caret) {
-            caret
+            return;
         } else {
             caret.row -= 1;
             if caret.col > self.lines.get(caret.row).unwrap().chars.len() - 1 {
                 self.last(caret)
             } else {
-                caret
+                return;
             }
         }
     }
 
-    pub fn next(&mut self, mut caret: Caret) -> Caret {
+    pub fn next(&mut self, caret: &mut Caret) {
         if self.is_buffer_last(&caret) {
-            caret
+            return;
         } else {
             caret.row += 1;
             if caret.col > self.lines.get(caret.row).unwrap().chars.len() - 1 {
                 self.last(caret)
             } else {
-                caret
+                return;
             }
         }
     }
 
-    pub fn buffer_head(&mut self, mut caret: Caret) -> Caret {
+    pub fn buffer_head(&mut self, caret: &mut Caret) {
         caret.row = 0;
         caret.col = 0;
-        caret
     }
 
-    pub fn buffer_last(&mut self, mut caret: Caret) -> Caret {
+    pub fn buffer_last(&mut self, caret: &mut Caret) {
         if let Some(last_line) = self.lines.last() {
             caret.row = last_line.row_num;
             caret.col = last_line.chars.len();
         }
-        caret
     }
 
     pub fn is_buffer_head(&mut self, caret: &Caret) -> bool {
@@ -164,13 +151,13 @@ impl Buffer {
         }
     }
 
-    pub fn backspace(&mut self, caret: Caret) -> (Caret, RemovedChar) {
+    pub fn backspace(&mut self, caret: &mut Caret) -> RemovedChar {
         if self.is_buffer_head(&caret) && self.is_line_head(&caret) {
-            (caret, RemovedChar::None)
+            RemovedChar::None
         } else {
-            let caret = self.back(caret);
-            let removed_char = self.delete(&caret);
-            (caret, removed_char)
+            self.back(caret);
+            let removed_char = self.delete(caret);
+            removed_char
         }
     }
 
@@ -289,41 +276,35 @@ mod tests {
 
     #[test]
     fn buffer() {
-        let caret = Caret::new(0, 0);
+        let caret = &mut Caret::new(0, 0);
         let mut sut = Buffer::new();
         assert_eq!(sut.to_buffer_string(), "");
-        let caret = sut.insert_char(caret, '山');
+        sut.insert_char(caret, '山');
         assert_eq!(sut.to_buffer_string(), "山");
         assert_eq!(caret.row, 0);
         assert_eq!(caret.col, 1);
-        let caret = sut.insert_char(caret, '本');
+        sut.insert_char(caret, '本');
         assert_eq!(sut.to_buffer_string(), "山本");
         assert_eq!(caret.row, 0);
         assert_eq!(caret.col, 2);
-        let caret = sut.insert_enter(caret);
+        sut.insert_enter(caret);
         assert_eq!(sut.to_buffer_string(), "山本\n");
         assert_eq!(caret.row, 1);
         assert_eq!(caret.col, 0);
-        let caret = sut.insert_enter(caret);
+        sut.insert_enter(caret);
         assert_eq!(sut.to_buffer_string(), "山本\n\n");
         assert_eq!(caret.row, 2);
         assert_eq!(caret.col, 0);
-        sut.insert_enter(Caret::new(100, 100));
+        sut.insert_enter(&mut Caret::new(100, 100));
         assert_eq!(sut.to_buffer_string(), "山本\n\n");
     }
 
     #[test]
     fn buffer_insert_string() {
-        let caret = Caret::new(0, 0);
+        let caret = &mut Caret::new(0, 0);
         let mut sut = Buffer::new();
-        let caret = sut.insert_string(
-            caret,
-            "東京は\n今日もいい天気\nだった。".to_string(),
-        );
-        assert_eq!(
-            sut.to_buffer_string(),
-            "東京は\n今日もいい天気\nだった。"
-        );
+        sut.insert_string(caret, "東京は\n今日もいい天気\nだった。".to_string());
+        assert_eq!(sut.to_buffer_string(), "東京は\n今日もいい天気\nだった。");
         assert_eq!(caret.row, 2);
         assert_eq!(caret.col, 4);
     }
@@ -331,8 +312,8 @@ mod tests {
     #[test]
     fn buffer_position_check() {
         let mut sut = Buffer::new();
-        let _caret = sut.insert_string(
-            Caret::new(0, 0),
+        sut.insert_string(
+            &mut Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそそ".to_string(),
         );
         // buffer head
@@ -359,51 +340,90 @@ mod tests {
     #[test]
     fn buffer_move() {
         let mut sut = Buffer::new();
-        let _caret = sut.insert_string(
-            Caret::new(0, 0),
-            "あいうえお\nきかくけここ\nさしすせそ".to_string(),
-        );
+        let caret = &mut Caret::new(0, 0);
+        let _caret = sut.insert_string(caret, "あいうえお\nきかくけここ\nさしすせそ".to_string());
 
         // forward
-        assert_eq!(sut.forward(Caret::new(0, 0)), Caret::new(0, 1));
-        assert_eq!(sut.forward(Caret::new(0, 4)), Caret::new(0, 5));
-        assert_eq!(sut.forward(Caret::new(0, 5)), Caret::new(1, 0));
-        assert_eq!(sut.forward(Caret::new(2, 5)), Caret::new(2, 5));
+        caret.move_to(0, 0);
+        sut.forward(caret);
+        assert_eq!(caret, &Caret::new(0, 1));
+
+        caret.move_to(0, 4);
+        sut.forward(caret);
+        assert_eq!(caret, &Caret::new(0, 5));
+
+        caret.move_to(0, 5);
+        sut.forward(caret);
+        assert_eq!(caret, &Caret::new(1, 0));
+
+        caret.move_to(2, 5);
+        sut.forward(caret);
+        assert_eq!(caret, &Caret::new(2, 5));
 
         // back
-        assert_eq!(sut.back(Caret::new(0, 3)), Caret::new(0, 2));
-        assert_eq!(sut.back(Caret::new(0, 0)), Caret::new(0, 0));
-        assert_eq!(sut.back(Caret::new(2, 0)), Caret::new(1, 6));
+        caret.move_to(0, 3);
+        sut.back(caret);
+        assert_eq!(caret, &Caret::new(0, 2));
+
+        caret.move_to(0, 0);
+        sut.back(caret);
+        assert_eq!(caret, &Caret::new(0, 0));
+
+        caret.move_to(2, 0);
+        sut.back(caret);
+        assert_eq!(caret, &Caret::new(1, 6));
 
         // previous
-        assert_eq!(sut.previous(Caret::new(1, 3)), Caret::new(0, 3));
-        assert_eq!(sut.previous(Caret::new(1, 5)), Caret::new(0, 5));
-        assert_eq!(sut.previous(Caret::new(2, 4)), Caret::new(1, 4));
+        caret.move_to(1, 3);
+        sut.previous(caret);
+        assert_eq!(caret, &Caret::new(0, 3));
+
+        caret.move_to(1, 5);
+        sut.previous(caret);
+        assert_eq!(caret, &Caret::new(0, 5));
+
+        caret.move_to(2, 4);
+        sut.previous(caret);
+        assert_eq!(caret, &Caret::new(1, 4));
 
         // next
-        assert_eq!(sut.next(Caret::new(0, 3)), Caret::new(1, 3));
-        assert_eq!(sut.next(Caret::new(1, 6)), Caret::new(2, 5));
-        assert_eq!(sut.next(Caret::new(2, 5)), Caret::new(2, 5));
+        caret.move_to(0, 3);
+        sut.next(caret);
+        assert_eq!(caret, &Caret::new(1, 3));
+
+        caret.move_to(1, 6);
+        sut.next(caret);
+        assert_eq!(caret, &Caret::new(2, 5));
+
+        caret.move_to(2, 5);
+        sut.next(caret);
+        assert_eq!(caret, &Caret::new(2, 5));
     }
 
     #[test]
     fn buffer_backspace() {
         let mut sut = Buffer::new();
         let _caret = sut.insert_string(
-            Caret::new(0, 0),
+            &mut Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
-        assert_eq!(sut.backspace(Caret::new(1, 3)).1, RemovedChar::Char('く'));
+        assert_eq!(
+            sut.backspace(&mut Caret::new(1, 3)),
+            RemovedChar::Char('く')
+        );
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきけこ\nさしすせそ".to_string()
         );
-        assert_eq!(sut.backspace(Caret::new(1, 4)).1, RemovedChar::Char('こ'));
+        assert_eq!(
+            sut.backspace(&mut Caret::new(1, 4)),
+            RemovedChar::Char('こ')
+        );
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきけ\nさしすせそ".to_string()
         );
-        assert_eq!(sut.backspace(Caret::new(2, 0)).1, RemovedChar::Enter);
+        assert_eq!(sut.backspace(&mut Caret::new(2, 0)), RemovedChar::Enter);
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきけさしすせそ".to_string()
@@ -414,7 +434,7 @@ mod tests {
     fn buffer_delete() {
         let mut sut = Buffer::new();
         let _caret = sut.insert_string(
-            Caret::new(0, 0),
+            &mut Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
         assert_eq!(sut.delete(&Caret::new(1, 3)), RemovedChar::Char('け'));
@@ -485,5 +505,4 @@ mod tests {
             assert!(true);
         }
     }
-
 }
