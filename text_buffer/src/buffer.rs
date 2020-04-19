@@ -1,7 +1,7 @@
 use crate::caret::Caret;
 
 pub struct Buffer {
-    lines: Vec<BufferLine>,
+    pub lines: Vec<BufferLine>,
 }
 
 impl Buffer {
@@ -179,7 +179,7 @@ impl Buffer {
 
 pub struct BufferLine {
     row_num: usize,
-    chars: Vec<BufferChar>,
+    pub chars: Vec<BufferChar>,
 }
 
 impl BufferLine {
@@ -238,9 +238,9 @@ impl BufferLine {
 }
 
 pub struct BufferChar {
-    row: usize,
-    col: usize,
-    c: char,
+    pub row: usize,
+    pub col: usize,
+    pub c: char,
 }
 
 impl BufferChar {

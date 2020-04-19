@@ -1,6 +1,8 @@
-use serde_derive::{Serialize, Deserialize};
 use piston::input;
+use piston::input::keyboard::ModifierKey;
 use piston_window::*;
+use serde_derive::{Deserialize, Serialize};
+use std::default::Default;
 
 #[derive(Debug)]
 pub enum InputAction {
@@ -527,22 +529,18 @@ pub struct Stroke {
 
 #[derive(Serialize, Deserialize)]
 pub struct KeyBind {
-    action_name: String, 
+    action_name: String,
     stroke: Stroke,
 }
 
 pub struct StrokeParser {
-    on_ctrl: bool,
-    on_alt: bool,
-    on_shift: bool,
+    modifier_key: ModifierKey,
 }
 
 impl StrokeParser {
     pub fn new() -> StrokeParser {
         StrokeParser {
-            on_ctrl: false,
-            on_alt: false,
-            on_shift: false,
+            modifier_key: Default::default(),
         }
     }
 
@@ -569,48 +567,15 @@ impl StrokeParser {
      * C-A-S-a -> press, press, press, press
      */
     pub fn parse(&mut self, event: &input::Event) -> Option<InputAction> {
+        self.modifier_key.event(event);
         if let Some(text) = event.text_args() {
             Some(InputAction::TextAction(text))
         } else if let Some(key) = event.press_args() {
             match key {
-                input::Button::Keyboard(input::keyboard::Key::LAlt)
-                | input::Button::Keyboard(input::keyboard::Key::RAlt) => {
-                    self.on_alt = true;
-                    None
-                }
-                input::Button::Keyboard(input::keyboard::Key::LCtrl)
-                | input::Button::Keyboard(input::keyboard::Key::RCtrl) => {
-                    self.on_ctrl = true;
-                    None
-                }
-                input::Button::Keyboard(input::keyboard::Key::LShift)
-                | input::Button::Keyboard(input::keyboard::Key::RShift) => {
-                    self.on_shift = true;
-                    None
-                }
                 input::Button::Keyboard(key) => Some(InputAction::KeyAction(KeyWithMeta::new(
                     Key::from(key as u32),
                     self.meta_key(),
                 ))),
-                _ => None,
-            }
-        } else if let Some(key) = event.release_args() {
-            match key {
-                input::Button::Keyboard(input::keyboard::Key::LAlt)
-                | input::Button::Keyboard(input::keyboard::Key::RAlt) => {
-                    self.on_alt = false;
-                    None
-                }
-                input::Button::Keyboard(input::keyboard::Key::LCtrl)
-                | input::Button::Keyboard(input::keyboard::Key::RCtrl) => {
-                    self.on_ctrl = false;
-                    None
-                }
-                input::Button::Keyboard(input::keyboard::Key::LShift)
-                | input::Button::Keyboard(input::keyboard::Key::RShift) => {
-                    self.on_shift = false;
-                    None
-                }
                 _ => None,
             }
         } else {
@@ -619,22 +584,15 @@ impl StrokeParser {
     }
 
     fn meta_key(&self) -> MetaKey {
-        if self.on_ctrl && self.on_alt && self.on_shift {
-            MetaKey::CtrlAltShift
-        } else if self.on_ctrl && self.on_alt {
-            MetaKey::CtrlAlt
-        } else if self.on_ctrl && self.on_shift {
-            MetaKey::CtrlShift
-        } else if self.on_alt && self.on_shift {
-            MetaKey::AltShift
-        } else if self.on_ctrl {
-            MetaKey::Ctrl
-        } else if self.on_alt {
-            MetaKey::Alt
-        } else if self.on_shift {
-            MetaKey::Shift
-        } else {
-            MetaKey::None
+        match self.modifier_key {
+            ModifierKey::CTRL_SHIFT_ALT => MetaKey::CtrlAltShift,
+            ModifierKey::CTRL_ALT => MetaKey::CtrlAlt,
+            ModifierKey::CTRL_SHIFT => MetaKey::CtrlShift,
+            ModifierKey::SHIFT_ALT => MetaKey::AltShift,
+            ModifierKey::CTRL => MetaKey::AltShift,
+            ModifierKey::ALT => MetaKey::Alt,
+            ModifierKey::SHIFT => MetaKey::Shift,
+            _ => MetaKey::None,
         }
     }
 }
