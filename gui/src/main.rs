@@ -108,7 +108,7 @@ fn main() {
 
         window.draw_2d(&event, |context, graphics, device| {
             // Set a white background
-            clear([1.0, 1.0, 1.0, 1.0], graphics);
+            clear([0.8, 0.8, 0.8, 1.0], graphics);
 
             let base_x = x_smooth.next();
             let base_y = y_smooth.next();
