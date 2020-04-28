@@ -4,7 +4,7 @@ use winit::{
     window::WindowBuilder,
 };
 
-use stroke_parser::{Action, ActionCategory, ActionStore};
+use stroke_parser::{Action, ActionStore};
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -15,11 +15,9 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match store.winit_event_to_action(&event) {
-            Some(Action {
-                name,
-                category: ActionCategory::System,
-            }) if name == "exit" => *control_flow = ControlFlow::Exit,
-            _ => {}
+            Some(Action::Command(_, name)) if *name == "exit" => *control_flow = ControlFlow::Exit,
+            Some(command) => println!("{:?}", command),
+            None => {}
         }
 
         match event {

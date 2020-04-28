@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use winit::event::{
     ElementState, Event, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent,
 };
@@ -9,23 +10,51 @@ pub struct KeyWithModifier {
 }
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone)]
-pub enum ActionCategory {
-    System,
-    User(String),
-}
-
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone)]
-pub struct Action {
-    pub name: String,
-    pub category: ActionCategory,
+pub enum Action {
+    Command(CommandNamespace, CommandName),
+    Keytype(char),
 }
 
 impl Action {
-    fn new(name: &str, category: ActionCategory) -> Action {
-        Action {
-            name: name.to_owned(),
-            category,
-        }
+    fn new_command(namespace: &str, name: &str) -> Action {
+        Action::Command(
+            CommandNamespace::new(String::from(namespace)),
+            CommandName::new(String::from(name)),
+        )
+    }
+}
+
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone)]
+pub struct CommandNamespace(String);
+
+impl Deref for CommandNamespace {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl CommandNamespace {
+    pub fn new(value: String) -> CommandNamespace {
+        CommandNamespace(value)
+    }
+}
+
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone)]
+pub struct CommandName(String);
+
+impl Deref for CommandName {
+    type Target = String;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl CommandName {
+    pub fn new(value: String) -> CommandName {
+        CommandName(value)
     }
 }
 
@@ -80,7 +109,7 @@ impl Default for ActionStore {
                     modifires: ModifiersState::empty(),
                 }],
             },
-            action: Action::new("exit", ActionCategory::System),
+            action: Action::new_command("system", "exit"),
         });
         store.keybinds.push(KeyBind {
             stroke: Stroke {
@@ -95,7 +124,7 @@ impl Default for ActionStore {
                     },
                 ],
             },
-            action: Action::new("exit", ActionCategory::System),
+            action: Action::new_command("system", "exit"),
         });
         store
     }
@@ -143,6 +172,10 @@ impl ActionStore {
                 self.current_modifier = state.clone();
                 None
             }
+            Event::WindowEvent {
+                event: WindowEvent::ReceivedCharacter(c),
+                ..
+            } => Some(Action::Keytype(*c)),
             _ => None,
         }
     }
