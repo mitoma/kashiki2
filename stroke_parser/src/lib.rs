@@ -102,7 +102,7 @@ impl Default for ActionStore {
             current_modifier: ModifiersState::empty(),
             current_stroke: Default::default(),
         };
-        store.keybinds.push(KeyBind {
+        store.register_keybind(KeyBind {
             stroke: Stroke {
                 keys: vec![KeyWithModifier {
                     key: VirtualKeyCode::Escape,
@@ -111,7 +111,7 @@ impl Default for ActionStore {
             },
             action: Action::new_command("system", "exit"),
         });
-        store.keybinds.push(KeyBind {
+        store.register_keybind(KeyBind {
             stroke: Stroke {
                 keys: vec![
                     KeyWithModifier {
@@ -180,6 +180,10 @@ impl ActionStore {
         }
     }
 
+    pub fn register_keybind(&mut self, keybind: KeyBind) {
+        self.keybinds.push(keybind);
+    }
+
     fn get_action(&self) -> Option<Action> {
         self.keybinds
             .iter()
@@ -196,7 +200,6 @@ impl ActionStore {
         false
     }
 
-    #[inline]
     fn is_modifire_key(keycode: &VirtualKeyCode) -> bool {
         match *keycode {
             VirtualKeyCode::LControl
