@@ -1,15 +1,16 @@
-use std::ops::Deref;
-use winit::event::{
-    ElementState, Event, KeyboardInput, ModifiersState, VirtualKeyCode, WindowEvent,
-};
+pub mod keys;
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone)]
+use serde_derive::{Deserialize, Serialize};
+use std::ops::Deref;
+use winit::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
+
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct KeyWithModifier {
-    key: VirtualKeyCode,
-    modifires: ModifiersState,
+    key: keys::KeyCode,
+    modifires: keys::ModifiersState,
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Action {
     Command(CommandNamespace, CommandName),
     Keytype(char),
@@ -24,7 +25,7 @@ impl Action {
     }
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct CommandNamespace(String);
 
 impl Deref for CommandNamespace {
@@ -41,7 +42,7 @@ impl CommandNamespace {
     }
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct CommandName(String);
 
 impl Deref for CommandName {
@@ -58,7 +59,7 @@ impl CommandName {
     }
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct Stroke {
     keys: Vec<KeyWithModifier>,
 }
@@ -83,7 +84,7 @@ impl Stroke {
     }
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct KeyBind {
     stroke: Stroke,
     action: Action,
@@ -91,7 +92,7 @@ pub struct KeyBind {
 
 pub struct ActionStore {
     keybinds: Vec<KeyBind>,
-    current_modifier: ModifiersState,
+    current_modifier: keys::ModifiersState,
     current_stroke: Stroke,
 }
 
@@ -99,14 +100,14 @@ impl Default for ActionStore {
     fn default() -> Self {
         let mut store = ActionStore {
             keybinds: Vec::new(),
-            current_modifier: ModifiersState::empty(),
+            current_modifier: keys::ModifiersState::NONE,
             current_stroke: Default::default(),
         };
         store.register_keybind(KeyBind {
             stroke: Stroke {
                 keys: vec![KeyWithModifier {
-                    key: VirtualKeyCode::Escape,
-                    modifires: ModifiersState::empty(),
+                    key: keys::KeyCode::Escape,
+                    modifires: keys::ModifiersState::NONE,
                 }],
             },
             action: Action::new_command("system", "exit"),
@@ -115,12 +116,12 @@ impl Default for ActionStore {
             stroke: Stroke {
                 keys: vec![
                     KeyWithModifier {
-                        key: VirtualKeyCode::X,
-                        modifires: ModifiersState::CTRL,
+                        key: keys::KeyCode::X,
+                        modifires: keys::ModifiersState::Ctrl,
                     },
                     KeyWithModifier {
-                        key: VirtualKeyCode::C,
-                        modifires: ModifiersState::CTRL,
+                        key: keys::KeyCode::C,
+                        modifires: keys::ModifiersState::Ctrl,
                     },
                 ],
             },
@@ -151,7 +152,7 @@ impl ActionStore {
                 }
 
                 self.current_stroke.append_key(KeyWithModifier {
-                    key: *keycode,
+                    key: keys::KeyCode::from(*keycode),
                     modifires: self.current_modifier.clone(),
                 });
 
@@ -169,13 +170,20 @@ impl ActionStore {
                 event: WindowEvent::ModifiersChanged(state),
                 ..
             } => {
-                self.current_modifier = state.clone();
+                self.current_modifier = keys::ModifiersState::from(*state);
                 None
             }
             Event::WindowEvent {
                 event: WindowEvent::ReceivedCharacter(c),
                 ..
-            } => Some(Action::Keytype(*c)),
+            } => {
+                if c.is_control() {
+                    // Enter や Backspace は Action で対応する？
+                    None
+                } else {
+                    Some(Action::Keytype(*c))
+                }
+            }
             _ => None,
         }
     }
