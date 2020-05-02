@@ -9,3 +9,6 @@ winit = "0.22.1"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
+
+[dev-dependencies]
+text_buffer = { version = "0.1.0", path = "../text_buffer" }

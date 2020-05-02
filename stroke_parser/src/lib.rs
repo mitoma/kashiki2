@@ -10,6 +10,12 @@ pub struct KeyWithModifier {
     modifires: keys::ModifiersState,
 }
 
+impl KeyWithModifier {
+    pub fn new(key: keys::KeyCode, modifires: keys::ModifiersState) -> KeyWithModifier {
+        KeyWithModifier { key, modifires }
+    }
+}
+
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Action {
     Command(CommandNamespace, CommandName),
@@ -17,7 +23,7 @@ pub enum Action {
 }
 
 impl Action {
-    fn new_command(namespace: &str, name: &str) -> Action {
+    pub fn new_command(namespace: &str, name: &str) -> Action {
         Action::Command(
             CommandNamespace::new(String::from(namespace)),
             CommandName::new(String::from(name)),
@@ -71,8 +77,12 @@ impl Default for Stroke {
 }
 
 impl Stroke {
+    pub fn new(keys: Vec<KeyWithModifier>) -> Stroke {
+        Stroke { keys }
+    }
+
     fn append_key(&mut self, key: KeyWithModifier) {
-        self.keys.push(key)
+        self.keys.push(key);
     }
 
     fn starts_with(&self, stroke: &Stroke) -> bool {
@@ -88,6 +98,12 @@ impl Stroke {
 pub struct KeyBind {
     stroke: Stroke,
     action: Action,
+}
+
+impl KeyBind {
+    pub fn new(stroke: Stroke, action: Action) -> KeyBind {
+        KeyBind { stroke, action }
+    }
 }
 
 pub struct ActionStore {
@@ -132,6 +148,10 @@ impl Default for ActionStore {
 }
 
 impl ActionStore {
+    pub fn keybinds_to_string(&self) -> String {
+        serde_json::to_string(&self.keybinds).unwrap()
+    }
+
     pub fn winit_event_to_action(&mut self, event: &Event<()>) -> Option<Action> {
         match event {
             Event::WindowEvent {

@@ -1,0 +1,30 @@
+[
+    {
+        "stroke": {"keys": [{"key": "Escape","modifires": "NONE"}]},
+        "action": {"Command": ["system","exit"]}
+    },
+    {
+        "stroke": {"keys": [{"key": "X","modifires": "Ctrl"},{"key": "C","modifires": "Ctrl"}]},
+        "action": {"Command": ["system","exit"]}
+    },
+    {
+        "stroke": {"keys": [{"key": "Left","modifires": "NONE"}]},
+        "action": {"Command": ["system","back"]}
+    },
+    {
+        "stroke": {"keys": [{"key": "Right","modifires": "NONE"}]},
+        "action": {"Command": ["system","forward"]}
+    },
+    {
+        "stroke": {"keys": [{"key": "Up","modifires": "NONE"}]},
+        "action": {"Command": ["system","previous"]}
+    },
+    {
+        "stroke": {"keys": [{"key": "Down","modifires": "NONE"}]},
+        "action": {"Command": ["system","next"]}
+    },
+    {
+        "stroke": {"keys": [{"key": "Return","modifires": "NONE"}]},
+        "action": {"Command": ["system","return"]}
+    }
+]
