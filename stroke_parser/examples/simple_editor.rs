@@ -1,4 +1,6 @@
-use stroke_parser::{keys, Action, ActionStore, KeyBind, KeyWithModifier, Stroke};
+use stroke_parser::{
+    action_store_parser, keys, Action, ActionStore, KeyBind, KeyWithModifier, Stroke,
+};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -14,13 +16,12 @@ fn main() {
     text_buffer.insert_string(&mut caret, "hello world".to_string());
 
     let mut store: ActionStore = Default::default();
-    store.register_keybind(KeyBind::new(
-        Stroke::new(vec![KeyWithModifier::new(
-            keys::KeyCode::Return,
-            keys::ModifiersState::NONE,
-        )]),
-        Action::new_command("system", "return"),
-    ));
+    let key_setting = include_str!("key-settings.txt");
+    println!("{}", key_setting);
+    let keybinds = action_store_parser::ActionStoreParser::parse_setting(String::from(key_setting));
+    keybinds
+        .iter()
+        .for_each(|k| store.register_keybind(k.clone()));
 
     println!("{}", store.keybinds_to_string());
 

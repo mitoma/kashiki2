@@ -102,7 +102,7 @@ pub enum KeyCode {
 
     /// The Backspace key, right over Enter.
     // TODO: rename
-    Back,
+    Backspace,
     /// The Enter key.
     Return,
     /// The space bar.
@@ -278,7 +278,7 @@ impl KeyCode {
             winit::event::VirtualKeyCode::Up => KeyCode::Up,
             winit::event::VirtualKeyCode::Right => KeyCode::Right,
             winit::event::VirtualKeyCode::Down => KeyCode::Down,
-            winit::event::VirtualKeyCode::Back => KeyCode::Back,
+            winit::event::VirtualKeyCode::Back => KeyCode::Backspace,
             winit::event::VirtualKeyCode::Return => KeyCode::Return,
             winit::event::VirtualKeyCode::Space => KeyCode::Space,
             winit::event::VirtualKeyCode::Compose => KeyCode::Compose,
@@ -377,6 +377,7 @@ pub enum ModifiersState {
     AltShift,
     Ctrl,
     Alt,
+    Shift,
     NONE,
 }
 
@@ -398,6 +399,8 @@ impl ModifiersState {
             ModifiersState::Ctrl
         } else if on_alt {
             ModifiersState::Alt
+        } else if on_shift {
+            ModifiersState::Shift
         } else {
             ModifiersState::NONE
         }

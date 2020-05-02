@@ -1,3 +1,4 @@
+pub mod action_store_parser;
 pub mod keys;
 
 use serde_derive::{Deserialize, Serialize};
@@ -114,36 +115,11 @@ pub struct ActionStore {
 
 impl Default for ActionStore {
     fn default() -> Self {
-        let mut store = ActionStore {
+        ActionStore {
             keybinds: Vec::new(),
             current_modifier: keys::ModifiersState::NONE,
             current_stroke: Default::default(),
-        };
-        store.register_keybind(KeyBind {
-            stroke: Stroke {
-                keys: vec![KeyWithModifier {
-                    key: keys::KeyCode::Escape,
-                    modifires: keys::ModifiersState::NONE,
-                }],
-            },
-            action: Action::new_command("system", "exit"),
-        });
-        store.register_keybind(KeyBind {
-            stroke: Stroke {
-                keys: vec![
-                    KeyWithModifier {
-                        key: keys::KeyCode::X,
-                        modifires: keys::ModifiersState::Ctrl,
-                    },
-                    KeyWithModifier {
-                        key: keys::KeyCode::C,
-                        modifires: keys::ModifiersState::Ctrl,
-                    },
-                ],
-            },
-            action: Action::new_command("system", "exit"),
-        });
-        store
+        }
     }
 }
 
