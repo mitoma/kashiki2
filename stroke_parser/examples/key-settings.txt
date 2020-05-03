@@ -9,6 +9,7 @@ Left system:back
 Down system:next
 Up system:previous
 
+# emacs style keybinds
 C-A system:head
 C-E system:last
 C-F system:forward
@@ -29,3 +30,6 @@ C-W system:cut
 C-Y system:paste
 
 C-X C-C system:exit
+
+# 
+C-S-P system:command-pallet
