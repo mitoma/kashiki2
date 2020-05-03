@@ -9,5 +9,8 @@ edition = "2018"
 [dependencies]
 wgpu = "*"
 wgpu_glyph = "*"
+winit = "*"
+env_logger = "*"
+futures = "*"
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
 stroke_parser = {version = "0.1.0", path = "../stroke_parser" }
