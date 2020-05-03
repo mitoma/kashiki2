@@ -1,2 +1,2 @@
 [workspace]
-members = ["text_buffer", "stroke_parser"]
+members = ["text_buffer", "stroke_parser", "wgpu-gui"]
