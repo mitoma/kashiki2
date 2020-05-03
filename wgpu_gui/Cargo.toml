@@ -1,5 +1,5 @@
 [package]
-name = "wgpu-gui"
+name = "wgpu_gui"
 version = "0.1.0"
 authors = ["mitoma <mutetheradio@gmail.com>"]
 edition = "2018"
@@ -7,3 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+wgpu = "*"
+wgpu_glyph = "*"
+text_buffer = { version = "0.1.0", path = "../text_buffer" }
+stroke_parser = {version = "0.1.0", path = "../stroke_parser" }
