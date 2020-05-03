@@ -1,7 +1,5 @@
 use crate::{keys, Action, KeyBind, KeyWithModifier, Stroke};
 
-pub struct ActionStoreParser();
-
 pub fn parse_setting(setting_string: String) -> Vec<KeyBind> {
     let mut result: Vec<KeyBind> = Vec::new();
     for line in setting_string.lines() {
