@@ -1,0 +1,14 @@
+[package]
+name = "stroke_parser"
+version = "0.1.0"
+authors = ["mitoma <mutetheradio@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+winit = "0.22.1"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+
+[dev-dependencies]
+text_buffer = { version = "0.1.0", path = "../text_buffer" }
