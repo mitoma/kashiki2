@@ -9,8 +9,14 @@ edition = "2018"
 [dependencies]
 wgpu = "*"
 wgpu_glyph = "*"
+rusttype = { version = "*", features = ["gpu_cache"] }
 winit = "*"
+log = "*"
 env_logger = "*"
 futures = "*"
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
 stroke_parser = {version = "0.1.0", path = "../stroke_parser" }
+
+[dev-dependencies]
+cgmath = "*"
+bytemuck = "*"
