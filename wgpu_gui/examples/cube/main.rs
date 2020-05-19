@@ -2,6 +2,10 @@
 mod framework;
 
 use bytemuck::{Pod, Zeroable};
+use rusttype::gpu_cache::Cache;
+use rusttype::{point, vector, Font, PositionedGlyph, Rect, Scale};
+use wgpu::TextureView;
+use wgt::TextureViewDescriptor;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -67,26 +71,31 @@ fn create_vertices() -> (Vec<Vertex>, Vec<u16>) {
 }
 
 fn create_texels(size: usize) -> Vec<u8> {
-    use std::iter;
+    // Prepare font.
+    let inconsolata: &[u8] = include_bytes!("../../src/TakaoGothic.ttf");
+    let font = Font::from_bytes(inconsolata as &[u8]).unwrap();
 
-    (0..size * size)
-        .flat_map(|id| {
-            // get high five for recognizing this ;)
-            let cx = 3.0 * (id % size) as f32 / (size - 1) as f32 - 2.0;
-            let cy = 2.0 * (id / size) as f32 / (size - 1) as f32 - 1.0;
-            let (mut x, mut y, mut count) = (cx, cy, 0);
-            while count < 0xFF && x * x + y * y < 4.0 {
-                let old_x = x;
-                x = x * x - y * y + cx;
-                y = 2.0 * old_x * y + cy;
-                count += 1;
-            }
-            iter::once(0xFF - (count * 5) as u8)
-                .chain(iter::once(0xFF - (count * 15) as u8))
-                .chain(iter::once(0xFF - (count * 50) as u8))
-                .chain(iter::once(1))
-        })
-        .collect()
+    let (cache_width, cache_height) = (size as u32, size as u32);
+    let mut cache: Cache<'static> = Cache::builder()
+        .dimensions(cache_width, cache_height)
+        .build();
+    let glyph = font
+        .glyph('X')
+        .scaled(Scale::uniform(128.0))
+        .positioned(point(0.0, 0.0));
+    cache.queue_glyph(0, glyph); // font_id is always 0. because i use single font.
+    let glyph = font
+        .glyph('毛')
+        .scaled(Scale::uniform(64.0))
+        .positioned(point(0.0, 0.0));
+    cache.queue_glyph(0, glyph); // font_id is always 0. because i use single font.
+
+    let mut texels: Vec<u8> = Vec::new();
+
+    let _result = cache.cache_queued(|_, data| {
+        texels.append(&mut data.to_vec());
+    });
+    texels
 }
 
 struct Example {
@@ -176,11 +185,11 @@ impl framework::Example for Example {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            format: wgpu::TextureFormat::R8Unorm,
             usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
             label: None,
         });
-        let texture_view = texture.create_default_view();
+        let texture_view: TextureView = texture.create_default_view();
         let temp_buf =
             device.create_buffer_with_data(texels.as_slice(), wgpu::BufferUsage::COPY_SRC);
         init_encoder.copy_buffer_to_texture(
@@ -243,7 +252,8 @@ impl framework::Example for Example {
 
         // Create the render pipeline
         let vs_bytes = include_bytes!("shader.vert.spv");
-        let fs_bytes = include_bytes!("shader.frag.spv");
+//        let fs_bytes = include_bytes!("shader.frag.spv");
+        let fs_bytes = include_bytes!("a.spv");
         let vs_module = device
             .create_shader_module(&wgpu::read_spirv(std::io::Cursor::new(&vs_bytes[..])).unwrap());
         let fs_module = device

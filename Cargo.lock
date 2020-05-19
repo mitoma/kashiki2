@@ -1547,6 +1547,7 @@ dependencies = [
  "stroke_parser 0.1.0",
  "text_buffer 0.1.0",
  "wgpu 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wgpu-types 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "wgpu_glyph 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winit 0.22.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

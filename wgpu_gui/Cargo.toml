@@ -20,3 +20,7 @@ stroke_parser = {version = "0.1.0", path = "../stroke_parser" }
 [dev-dependencies]
 cgmath = "*"
 bytemuck = "*"
+
+[dev-dependencies.wgt]
+version = "0.5"
+package = "wgpu-types"
