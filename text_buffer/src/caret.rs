@@ -6,7 +6,7 @@ pub struct Caret {
 
 impl Caret {
     pub fn new(row: usize, col: usize) -> Caret {
-        Caret { row: row, col: col }
+        Caret { row, col }
     }
 
     pub fn move_to(&mut self, row: usize, col: usize) {

@@ -2,16 +2,16 @@ use super::action::*;
 use super::buffer::*;
 use super::caret::*;
 
-pub struct BufferState {
+pub struct Editor {
     main_caret: Caret,
     mark: Option<Caret>,
     buffer: Buffer,
     reverse_actions: Vec<ReverseAction>,
 }
 
-impl BufferState {
-    pub fn new() -> BufferState {
-        BufferState {
+impl Editor {
+    pub fn new() -> Editor {
+        Editor {
             main_caret: Caret::new(0, 0),
             mark: Option::None,
             buffer: Buffer::new(),

@@ -29,9 +29,9 @@ pub struct ReverseAction {
     actions: Vec<BufferAction>,
 }
 
-impl ReverseAction {
-    fn new() -> ReverseAction {
-        ReverseAction {
+impl Default for ReverseAction {
+    fn default() -> Self {
+        Self {
             actions: Vec::new(),
         }
     }
@@ -44,11 +44,11 @@ pub struct ApplyResult {
 }
 
 impl ApplyResult {
-    fn new(buffer: Buffer, caret: Caret, reverse_action: ReverseAction) -> ApplyResult {
-        ApplyResult {
-            buffer: buffer,
-            caret: caret,
-            reverse_action: reverse_action,
+    fn new(buffer: Buffer, caret: Caret, reverse_action: ReverseAction) -> Self {
+        Self {
+            buffer,
+            caret,
+            reverse_action,
         }
     }
 }
@@ -58,7 +58,7 @@ pub struct BufferApplyer {}
 impl BufferApplyer {
     pub fn apply_reserve_actions(buffer: Buffer, reverse_action: &ReverseAction) -> ApplyResult {
         reverse_action.actions.iter().fold(
-            ApplyResult::new(buffer, Caret::new(0, 0), ReverseAction::new()),
+            ApplyResult::new(buffer, Caret::new(0, 0), ReverseAction::default()),
             |mut result, action| {
                 let mut r = BufferApplyer::apply_action(result.buffer, &action);
                 result.buffer = r.buffer;

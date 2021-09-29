@@ -23,7 +23,7 @@ impl Buffer {
     pub fn insert_string(&mut self, caret: &mut Caret, string: String) {
         let mut iter = string.split("\r\n").flat_map(|line| line.split('\n'));
         let first_line = match iter.next() {
-            Some(first) => first,
+            Some(line) => line,
             None => return,
         };
         first_line.chars().for_each(|c| self.insert_char(caret, c));
@@ -193,7 +193,7 @@ impl BufferLine {
     pub fn from_chars(chars: Vec<BufferChar>) -> BufferLine {
         BufferLine {
             row_num: 0,
-            chars: chars,
+            chars,
         }
     }
 
@@ -233,7 +233,7 @@ impl BufferLine {
     }
 
     pub fn join(&mut self, line: BufferLine) {
-        line.chars.into_iter().for_each({ |c| self.chars.push(c) })
+        line.chars.into_iter().for_each(|c| self.chars.push(c))
     }
 }
 
