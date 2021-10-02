@@ -13,4 +13,9 @@ impl Caret {
         self.row = row;
         self.col = col;
     }
+
+    pub fn to(&mut self, to: &Caret) {
+        self.row = to.row;
+        self.col = to.col;
+    }
 }

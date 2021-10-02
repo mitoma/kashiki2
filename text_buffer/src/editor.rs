@@ -6,7 +6,7 @@ pub struct Editor {
     main_caret: Caret,
     mark: Option<Caret>,
     buffer: Buffer,
-    reverse_actions: Vec<ReverseAction>,
+    reverse_actions: Vec<ReverseActions>,
 }
 
 impl Editor {
