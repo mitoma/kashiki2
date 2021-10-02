@@ -5,10 +5,10 @@ authors = ["mitoma <mutetheradio@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-winit = "*"
-serde = "*"
-serde_derive = "*"
-serde_json = "*"
+winit = "0.25"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
 
 [dev-dependencies]
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
