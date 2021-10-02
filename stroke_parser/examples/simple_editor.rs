@@ -40,28 +40,11 @@ fn main() {
                     "forward" => EditorOperation::Forward,
                     "head" => EditorOperation::Head,
                     "last" => EditorOperation::Last,
-                    "undo" => EditorOperation::Noop,
+                    "undo" => EditorOperation::Undo,
                     _ => EditorOperation::Noop,
                 };
                 editor.operation(&action);
             }
-            /*
-                       Some(Action::Command(category, name)) if *category == "system" && *name == "exit" => {
-                           *control_flow = ControlFlow::Exit
-                       }
-                       Some(Action::Command(category, name)) if *category == "system" && *name == "return" => {
-                           text_buffer.insert_enter(&mut caret);
-                       }
-                       Some(Action::Command(category, name))
-                           if *category == "system" && *name == "backspace" =>
-                       {
-                           text_buffer.backspace(&mut caret);
-                       }
-                       Some(Action::Keytype(c)) => {
-                           text_buffer.insert_char(&mut caret, c);
-                       }
-                       Some(command) => println!("{:?}", command),
-            */
             Some(Action::Command(_, _)) => {}
             Some(Action::Keytype(c)) => {
                 let action = EditorOperation::InsertChar(c);

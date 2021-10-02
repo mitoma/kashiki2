@@ -20,6 +20,7 @@ pub enum EditorOperation {
     Backspace,
     Delete,
 
+    Undo,
     Noop,
 }
 
@@ -181,6 +182,7 @@ impl BufferApplyer {
                 }
             }
             EditorOperation::Noop => {}
+            EditorOperation::Undo => {}
         };
         reverse_actions
     }
