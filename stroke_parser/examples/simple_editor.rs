@@ -1,5 +1,5 @@
 use stroke_parser::{action_store_parser, Action, ActionStore};
-use text_buffer::action::{ApplyResult, BufferAction, BufferApplyer};
+use text_buffer::action::EditorOperation;
 use winit::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -10,9 +10,7 @@ fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut caret = text_buffer::caret::Caret::new(0, 0);
-    let mut text_buffer = text_buffer::buffer::Buffer::new();
-    let mut undo_list: Vec<ApplyResult> = Vec::default();
+    let mut editor = text_buffer::editor::Editor::default();
 
     let mut store: ActionStore = Default::default();
     let key_setting = include_str!("key-settings.txt");
@@ -28,40 +26,24 @@ fn main() {
         *control_flow = ControlFlow::Wait;
         match store.winit_event_to_action(&event) {
             Some(Action::Command(category, name)) if *category == "system" => {
-                let cloned_caret = caret.clone();
                 let action = match &*name.to_string() {
                     "exit" => {
                         *control_flow = ControlFlow::Exit;
-                        BufferAction::Noop(cloned_caret)
+                        EditorOperation::Noop
                     }
-                    "return" => BufferAction::InsertEnter(cloned_caret),
-                    "backspace" => BufferAction::Backspace(cloned_caret),
-                    "delete" => BufferAction::Delete(cloned_caret),
-                    "previous" => BufferAction::Previous(cloned_caret),
-                    "next" => BufferAction::Next(cloned_caret),
-                    "back" => BufferAction::Back(cloned_caret),
-                    "forward" => BufferAction::Forward(cloned_caret),
-                    "head" => BufferAction::Head(cloned_caret),
-                    "last" => BufferAction::Last(cloned_caret),
-                    "undo" => {
-                        println!("undo!");
-                        if let Some(reverse_action) = undo_list.pop() {
-                            println!("has undo item!");
-                            let result = BufferApplyer::apply_reserve_actions(
-                                &mut text_buffer,
-                                &reverse_action.reverse_action,
-                            );
-                            caret.move_to(result.caret.row, result.caret.col);
-                        };
-                        BufferAction::Noop(cloned_caret)
-                    }
-                    _ => BufferAction::Noop(cloned_caret),
+                    "return" => EditorOperation::InsertEnter,
+                    "backspace" => EditorOperation::Backspace,
+                    "delete" => EditorOperation::Delete,
+                    "previous" => EditorOperation::Previous,
+                    "next" => EditorOperation::Next,
+                    "back" => EditorOperation::Back,
+                    "forward" => EditorOperation::Forward,
+                    "head" => EditorOperation::Head,
+                    "last" => EditorOperation::Last,
+                    "undo" => EditorOperation::Noop,
+                    _ => EditorOperation::Noop,
                 };
-                let result = BufferApplyer::apply_action(&mut text_buffer, &action);
-                caret.move_to(result.caret.row, result.caret.col);
-                if !result.reverse_action.is_empty() {
-                    undo_list.push(result);
-                }
+                editor.operation(&action);
             }
             /*
                        Some(Action::Command(category, name)) if *category == "system" && *name == "exit" => {
@@ -82,10 +64,8 @@ fn main() {
             */
             Some(Action::Command(_, _)) => {}
             Some(Action::Keytype(c)) => {
-                let action = BufferAction::InsertChar(caret.clone(), c);
-                let result = BufferApplyer::apply_action(&mut text_buffer, &action);
-                caret.move_to(result.caret.row, result.caret.col);
-                undo_list.push(result);
+                let action = EditorOperation::InsertChar(c);
+                editor.operation(&action);
             }
             None => {}
         }
@@ -98,7 +78,6 @@ fn main() {
             _ => (),
         }
 
-        println!("\n----\n{}", text_buffer.to_buffer_string());
-        println!("undo_list:{:?}", undo_list);
+        println!("\n----\n{}", editor.to_buffer_string());
     });
 }
