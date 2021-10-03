@@ -28,6 +28,7 @@ A-W system:copy
 C-K system:kill-ring
 C-W system:cut
 C-Y system:paste
+C-Z system:undo
 
 C-X C-C system:exit
 
