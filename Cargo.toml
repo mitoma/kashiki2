@@ -1,2 +1,3 @@
 [workspace]
 members = ["text_buffer", "stroke_parser", "wgpu_gui"]
+resolver = "2"
