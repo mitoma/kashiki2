@@ -253,7 +253,7 @@ impl State {
         });
 
         // Text
-        let text = text::Text::new("Hello,風wgpu!,,,,,,,,wwwwWWWWwWwW".to_string());
+        let text = text::Text::new("".to_string(), &font_texture);
 
         Self {
             surface,
@@ -338,7 +338,7 @@ impl State {
                 label: Some("Render Encoder"),
             });
 
-        let glyph_instances = self.text.glyph_instances(&self.font_texture);
+        let glyph_instances = &self.text.glyph_instances;
         let gib: Vec<(&GlyphInstances, wgpu::BindGroup)> = glyph_instances
             .iter()
             .map(|gi| (gi, self.create_uniform_bind_group(&gi.instances)))
@@ -380,9 +380,12 @@ impl State {
     }
 
     pub fn change_string(&mut self, buffer_text: String) {
+        if buffer_text == self.text.value {
+            return;
+        }
         self.font_texture
             .add_chars(buffer_text.chars().collect(), &self.queue, &self.device);
-        self.text = text::Text::new(buffer_text);
+        self.text = text::Text::new(buffer_text, &self.font_texture);
     }
 }
 

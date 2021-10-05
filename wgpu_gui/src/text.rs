@@ -7,7 +7,8 @@ use crate::{
 };
 
 pub struct Text {
-    value: String,
+    pub value: String,
+    pub glyph_instances: Vec<GlyphInstances>,
 }
 
 pub struct GlyphInstances {
@@ -16,17 +17,20 @@ pub struct GlyphInstances {
 }
 
 impl Text {
-    pub fn new(value: String) -> Self {
-        Self { value }
+    pub fn new(value: String, font_texture: &FontTexture) -> Self {
+        Self {
+            value: value.clone(),
+            glyph_instances: Self::glyph_instances(value.clone(), font_texture),
+        }
     }
 
-    pub fn glyph_instances(&self, font_texture: &FontTexture) -> Vec<GlyphInstances> {
+    fn glyph_instances(value: String, font_texture: &FontTexture) -> Vec<GlyphInstances> {
         let mut result: HashMap<char, Instances> = HashMap::new();
 
         let mut start_xpos: f32 = 0.0;
         let mut start_ypos: f32 = 0.0;
 
-        let lines = self.value.lines();
+        let lines = value.lines();
 
         for line in lines.into_iter() {
             for c in line.chars() {
