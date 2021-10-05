@@ -38,7 +38,7 @@ impl FontTexture {
         let label = Some("font texture");
 
         let (cache_width, cache_height) =
-            ((512.0 * scale_factor) as u32, (512.0 * scale_factor) as u32);
+            ((1024.0 * scale_factor) as u32, (1024.0 * scale_factor) as u32);
         let cache: Cache<'static> = Cache::builder()
             .dimensions(cache_width, cache_height)
             .build();

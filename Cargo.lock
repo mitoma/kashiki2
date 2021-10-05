@@ -1962,6 +1962,8 @@ dependencies = [
  "image",
  "log",
  "rusttype",
+ "stroke_parser",
+ "text_buffer",
  "wgpu",
  "winit",
 ]

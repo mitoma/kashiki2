@@ -76,7 +76,7 @@ impl State {
 
         let mut font_texture = font_texture::FontTexture::new(scale, &device, &queue).unwrap();
         let mut chars = ('A'..='Z').chain('a'..='z').collect::<Vec<char>>();
-        chars.append(&mut vec![' ', ',', '!', '山', '風', '|', 'ひ']);
+        chars.append(&mut vec![' ', ',', '!', '山', '風', '|', 'ひ', '　']);
         font_texture.add_chars(chars, &queue, &device);
 
         // texture
@@ -377,6 +377,12 @@ impl State {
             }
         }
         self.queue.submit(std::iter::once(encoder.finish()));
+    }
+
+    pub fn change_string(&mut self, buffer_text: String) {
+        self.font_texture
+            .add_chars(buffer_text.chars().collect(), &self.queue, &self.device);
+        self.text = text::Text::new(buffer_text);
     }
 }
 
