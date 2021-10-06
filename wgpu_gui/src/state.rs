@@ -1,4 +1,7 @@
-use crate::{camera, font_texture, model, text, texture};
+use crate::{
+    camera::{self, CameraOperation},
+    font_texture, model, text, texture,
+};
 use font_texture::FontTexture;
 use text::GlyphInstances;
 use winit::{event::*, window::Window};
@@ -283,8 +286,11 @@ impl State {
         self.surface.configure(&self.device, &self.config)
     }
 
+    pub fn send_camera_operation(&mut self, op: &CameraOperation) {
+        self.camera_controller.process(op);
+    }
+
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_event(event);
         match event {
             WindowEvent::CursorMoved { position, .. } => {
                 self.bg_color.r = position.x / self.size.width as f64;
@@ -298,6 +304,7 @@ impl State {
     pub fn update(&mut self) {
         self.camera_controller.update_camera(&mut self.camera);
         self.uniforms.update_view_proj(&self.camera);
+        self.camera_controller.reset_state();
     }
 
     fn create_uniform_bind_group(&self, instances: &model::Instances) -> wgpu::BindGroup {

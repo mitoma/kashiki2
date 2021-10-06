@@ -5,8 +5,8 @@ mod state;
 mod text;
 mod texture;
 
-use stroke_parser::{action_store_parser, Action, ActionStore};
 use futures::executor::block_on;
+use stroke_parser::{action_store_parser, Action, ActionStore};
 
 use text_buffer::action::EditorOperation;
 use winit::{
@@ -14,6 +14,8 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
+
+use crate::camera::CameraOperation;
 
 fn main() {
     env_logger::init();
@@ -34,6 +36,7 @@ fn main() {
 
     event_loop.run(move |event, _, control_flow| {
         match store.winit_event_to_action(&event) {
+            // system
             Some(Action::Command(category, name)) if *category == "system" => {
                 let action = match &*name.to_string() {
                     "exit" => {
@@ -54,6 +57,21 @@ fn main() {
                 };
                 editor.operation(&action);
             }
+            // UI
+            Some(Action::Command(category, name)) if *category == "ui" => {
+                let action = match &*name.to_string() {
+                    "up" => Some(CameraOperation::Up),
+                    "down" => Some(CameraOperation::Down),
+                    "left" => Some(CameraOperation::Left),
+                    "right" => Some(CameraOperation::Right),
+                    "forward" => Some(CameraOperation::Forward),
+                    "backward" => Some(CameraOperation::Backward),
+                    _ => None,
+                };
+                if let Some(op) = action {
+                    state.send_camera_operation(&op);
+                }
+            }
             Some(Action::Command(_, _)) => {}
             Some(Action::Keytype(c)) => {
                 let action = EditorOperation::InsertChar(c);
@@ -68,28 +86,24 @@ fn main() {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() => {
-                if !state.input(event) {
-                    match event {
-                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                        WindowEvent::KeyboardInput { input, .. } => match input {
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            } => *control_flow = ControlFlow::Exit,
-                            _ => {}
-                        },
-                        WindowEvent::Resized(physical_size) => {
-                            state.resize(*physical_size);
-                        }
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            state.resize(**new_inner_size);
-                        }
-                        _ => {}
-                    }
+            } if window_id == window.id() => match event {
+                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::KeyboardInput { input, .. } => match input {
+                    KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(VirtualKeyCode::Escape),
+                        ..
+                    } => *control_flow = ControlFlow::Exit,
+                    _ => {}
+                },
+                WindowEvent::Resized(physical_size) => {
+                    state.resize(*physical_size);
                 }
-            }
+                WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                    state.resize(**new_inner_size);
+                }
+                _ => {}
+            },
             Event::RedrawRequested(_) => {
                 state.update();
                 state.render();

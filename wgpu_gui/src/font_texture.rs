@@ -47,7 +47,7 @@ impl FontTexture {
         // let font_data = include_bytes!("font/GenJyuuGothic-Monospace-Normal.ttf");
         let font_data = include_bytes!("font/HackGenConsole-Regular.ttf");
         let font = Font::try_from_bytes(font_data as &[u8]).unwrap();
-        let font_scale = rusttype::Scale::uniform(128.0 * scale_factor);
+        let font_scale = rusttype::Scale::uniform(64.0 * scale_factor);
 
         let default_glyph_point = rusttype::point(0.0, 0.0);
 

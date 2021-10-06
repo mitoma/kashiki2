@@ -51,6 +51,15 @@ impl Camera {
     }
 }
 
+pub enum CameraOperation {
+    Up,
+    Down,
+    Left,
+    Right,
+    Forward,
+    Backward,
+}
+
 pub struct CameraController {
     speed: f32,
     is_up_pressed: bool,
@@ -72,6 +81,26 @@ impl CameraController {
             is_left_pressed: false,
             is_right_pressed: false,
         }
+    }
+
+    pub fn process(&mut self, op: &CameraOperation) {
+        match op {
+            CameraOperation::Up => self.is_up_pressed = true,
+            CameraOperation::Down => self.is_down_pressed = true,
+            CameraOperation::Right => self.is_right_pressed = true,
+            CameraOperation::Left => self.is_left_pressed = true,
+            CameraOperation::Forward => self.is_forward_pressed = true,
+            CameraOperation::Backward => self.is_backward_pressed = true,
+        }
+    }
+
+    pub fn reset_state(&mut self) {
+        self.is_up_pressed = false;
+        self.is_down_pressed = false;
+        self.is_forward_pressed = false;
+        self.is_backward_pressed = false;
+        self.is_left_pressed = false;
+        self.is_right_pressed = false;
     }
 
     pub fn process_event(&mut self, event: &WindowEvent) -> bool {
