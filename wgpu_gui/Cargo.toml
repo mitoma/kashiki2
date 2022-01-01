@@ -7,20 +7,16 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-wgpu = "*"
-wgpu_glyph = "*"
-rusttype = { version = "*", features = ["gpu_cache"] }
-winit = "*"
-log = "*"
-env_logger = "*"
-futures = "*"
+image = "0.23"
+winit = "0.25"
+cgmath = "0.18"
+env_logger = "0.9"
+log = "0.4"
+wgpu = "0.10"
+futures = "0.3"
+bytemuck = { version = "1.7", features = [ "derive" ] }
+anyhow = "1.0"
+rusttype = { version = "0.9.2", features = ["gpu_cache"] }
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
-stroke_parser = {version = "0.1.0", path = "../stroke_parser" }
-
-[dev-dependencies]
-cgmath = "*"
-bytemuck = "*"
-
-[dev-dependencies.wgt]
-version = "0.5"
-package = "wgpu-types"
+stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
+nenobi = { git = "https://github.com/mitoma/nenobi", branch = "main" }
