@@ -2,10 +2,10 @@
 name = "stroke_parser"
 version = "0.1.0"
 authors = ["mitoma <mutetheradio@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-winit = "0.25"
+winit = "0.26"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"

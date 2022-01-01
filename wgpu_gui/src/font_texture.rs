@@ -1,4 +1,5 @@
 use crate::model::Vertex;
+use core::result::Result::Ok;
 use std::{
     collections::{HashMap, HashSet},
     num::NonZeroU32,
@@ -37,8 +38,10 @@ impl FontTexture {
     pub fn new(scale_factor: f32, device: &wgpu::Device, queue: &wgpu::Queue) -> Result<Self> {
         let label = Some("font texture");
 
-        let (cache_width, cache_height) =
-            ((1024.0 * scale_factor) as u32, (1024.0 * scale_factor) as u32);
+        let (cache_width, cache_height) = (
+            (1024.0 * scale_factor) as u32,
+            (1024.0 * scale_factor) as u32,
+        );
         let cache: Cache<'static> = Cache::builder()
             .dimensions(cache_width, cache_height)
             .build();
