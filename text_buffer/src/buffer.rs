@@ -4,14 +4,16 @@ pub struct Buffer {
     pub lines: Vec<BufferLine>,
 }
 
-impl Buffer {
-    pub fn new() -> Buffer {
+impl Default for Buffer {
+    fn default() -> Self {
         let mut lines = Vec::new();
-        let line = BufferLine::new();
+        let line = BufferLine::default();
         lines.push(line);
-        Buffer { lines: lines }
+        Self { lines }
     }
+}
 
+impl Buffer {
     pub fn to_buffer_string(&self) -> String {
         self.lines
             .iter()
@@ -68,7 +70,7 @@ impl Buffer {
     }
 
     pub fn back(&mut self, caret: &mut Caret) {
-        match (self.is_line_head(&caret), self.is_buffer_head(&caret)) {
+        match (self.is_line_head(caret), self.is_buffer_head(caret)) {
             (true, true) => {}
             (true, false) => {
                 self.previous(caret);
@@ -79,7 +81,7 @@ impl Buffer {
     }
 
     pub fn forward(&mut self, caret: &mut Caret) {
-        match (self.is_line_last(&caret), self.is_buffer_last(&caret)) {
+        match (self.is_line_last(caret), self.is_buffer_last(caret)) {
             (true, true) => {}
             (true, false) => {
                 self.next(caret);
@@ -90,27 +92,21 @@ impl Buffer {
     }
 
     pub fn previous(&mut self, caret: &mut Caret) {
-        if self.is_buffer_head(&caret) {
-            return;
-        } else {
+        if !self.is_buffer_head(caret) {
             caret.row -= 1;
             if self.is_line_last(caret) {
+                // 前行が短い場合に Caret 位置を調整
                 self.last(caret)
-            } else {
-                return;
             }
         }
     }
 
     pub fn next(&mut self, caret: &mut Caret) {
-        if self.is_buffer_last(&caret) {
-            return;
-        } else {
+        if !self.is_buffer_last(caret) {
             caret.row += 1;
             if self.is_line_last(caret) {
+                // 次行が短い場合に Caret 位置を調整
                 self.last(caret)
-            } else {
-                return;
             }
         }
     }
@@ -148,18 +144,17 @@ impl Buffer {
     }
 
     pub fn backspace(&mut self, caret: &mut Caret) -> RemovedChar {
-        if self.is_buffer_head(&caret) && self.is_line_head(&caret) {
+        if self.is_buffer_head(caret) && self.is_line_head(caret) {
             RemovedChar::None
         } else {
             self.back(caret);
-            let removed_char = self.delete(caret);
-            removed_char
+            self.delete(caret)
         }
     }
 
     pub fn delete(&mut self, caret: &Caret) -> RemovedChar {
-        if self.is_line_last(&caret) {
-            if !self.is_buffer_last(&caret) {
+        if self.is_line_last(caret) {
+            if !self.is_buffer_last(caret) {
                 let next_line = self.lines.remove(caret.row + 1);
                 let current_line = self.lines.get_mut(caret.row).unwrap();
                 current_line.join(next_line);
@@ -167,34 +162,23 @@ impl Buffer {
             } else {
                 RemovedChar::None
             }
+        } else if let Some(line) = self.lines.get_mut(caret.row) {
+            line.remove_char(caret.col)
         } else {
-            if let Some(line) = self.lines.get_mut(caret.row) {
-                line.remove_char(caret.col)
-            } else {
-                RemovedChar::None
-            }
+            RemovedChar::None
         }
     }
 }
 
+#[derive(Default)]
 pub struct BufferLine {
     row_num: usize,
     pub chars: Vec<BufferChar>,
 }
 
 impl BufferLine {
-    pub fn new() -> BufferLine {
-        BufferLine {
-            row_num: 0,
-            chars: Vec::new(),
-        }
-    }
-
     pub fn from_chars(chars: Vec<BufferChar>) -> BufferLine {
-        BufferLine {
-            row_num: 0,
-            chars,
-        }
+        BufferLine { row_num: 0, chars }
     }
 
     pub fn update_position(&mut self, row_num: usize) {
@@ -218,12 +202,10 @@ impl BufferLine {
     }
 
     pub fn insert_enter(&mut self, col: usize) -> Option<BufferLine> {
-        if self.chars.len() == col {
-            Some(BufferLine::new())
-        } else if self.chars.len() > col {
-            Some(BufferLine::from_chars(self.chars.split_off(col)))
-        } else {
-            None
+        match self.chars.len() {
+            len if len == col => Some(BufferLine::default()),
+            len if len > col => Some(BufferLine::from_chars(self.chars.split_off(col))),
+            _ => None,
         }
     }
 
@@ -245,11 +227,7 @@ pub struct BufferChar {
 
 impl BufferChar {
     pub fn new(row: usize, col: usize, c: char) -> BufferChar {
-        BufferChar {
-            row: row,
-            col: col,
-            c: c,
-        }
+        BufferChar { row, col, c }
     }
 
     pub fn update_position(&mut self, row: usize, col: usize) {
@@ -273,7 +251,7 @@ mod tests {
     #[test]
     fn buffer() {
         let caret = &mut Caret::new(0, 0);
-        let mut sut = Buffer::new();
+        let mut sut = Buffer::default();
         assert_eq!(sut.to_buffer_string(), "");
         sut.insert_char(caret, '山');
         assert_eq!(sut.to_buffer_string(), "山");
@@ -298,7 +276,7 @@ mod tests {
     #[test]
     fn buffer_insert_string() {
         let caret = &mut Caret::new(0, 0);
-        let mut sut = Buffer::new();
+        let mut sut = Buffer::default();
         sut.insert_string(caret, "東京は\n今日もいい天気\nだった。".to_string());
         assert_eq!(sut.to_buffer_string(), "東京は\n今日もいい天気\nだった。");
         assert_eq!(caret.row, 2);
@@ -307,7 +285,7 @@ mod tests {
 
     #[test]
     fn buffer_position_check() {
-        let mut sut = Buffer::new();
+        let mut sut = Buffer::default();
         sut.insert_string(
             &mut Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそそ".to_string(),
@@ -335,7 +313,7 @@ mod tests {
 
     #[test]
     fn buffer_move() {
-        let mut sut = Buffer::new();
+        let mut sut = Buffer::default();
         let caret = &mut Caret::new(0, 0);
         let _caret = sut.insert_string(caret, "あいうえお\nきかくけここ\nさしすせそ".to_string());
 
@@ -398,7 +376,7 @@ mod tests {
 
     #[test]
     fn buffer_backspace() {
-        let mut sut = Buffer::new();
+        let mut sut = Buffer::default();
         let _caret = sut.insert_string(
             &mut Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
@@ -428,7 +406,7 @@ mod tests {
 
     #[test]
     fn buffer_delete() {
-        let mut sut = Buffer::new();
+        let mut sut = Buffer::default();
         let _caret = sut.insert_string(
             &mut Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
@@ -458,7 +436,7 @@ mod tests {
 
     #[test]
     fn buffer_line_insert_remove() {
-        let mut sut = BufferLine::new();
+        let mut sut = BufferLine::default();
         assert_eq!(sut.to_line_string(), "");
         sut.insert_char(0, '鉄');
         sut.insert_char(1, 'ン');
@@ -475,7 +453,7 @@ mod tests {
 
     #[test]
     fn buffer_line_enter_join() {
-        let mut sut = BufferLine::new();
+        let mut sut = BufferLine::default();
         assert_eq!(sut.to_line_string(), "");
         sut.insert_char(0, '花');
         sut.insert_char(1, '鳥');

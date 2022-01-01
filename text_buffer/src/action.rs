@@ -41,7 +41,7 @@ impl ReverseAction {
             ReverseAction::MoveTo(caret) => EditorOperation::MoveTo(caret.clone()),
             ReverseAction::Back => EditorOperation::Back,
             ReverseAction::Backspace => EditorOperation::Backspace,
-            ReverseAction::InsertChar(c) => EditorOperation::InsertChar(c.clone()),
+            ReverseAction::InsertChar(c) => EditorOperation::InsertChar(*c),
             ReverseAction::InsertString(str) => EditorOperation::InsertString(str.clone()),
             ReverseAction::InsertEnter => EditorOperation::InsertEnter,
         }
@@ -53,18 +53,11 @@ pub enum BufferStateAction {
     Copy(),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ReverseActions {
     actions: Vec<ReverseAction>,
 }
 
-impl Default for ReverseActions {
-    fn default() -> Self {
-        Self {
-            actions: Vec::new(),
-        }
-    }
-}
 impl ReverseActions {
     pub fn is_empty(&self) -> bool {
         self.actions.is_empty()
@@ -146,7 +139,7 @@ impl BufferApplyer {
                 reverse_actions.push(ReverseAction::Backspace);
             }
             EditorOperation::InsertChar(char_value) => {
-                buffer.insert_char(current_caret, char_value.clone());
+                buffer.insert_char(current_caret, *char_value);
                 reverse_actions.push(ReverseAction::Backspace);
             }
             EditorOperation::InsertString(str_value) => {
@@ -195,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_buffer_move() {
-        let mut sut = Buffer::new();
+        let mut sut = Buffer::default();
         let mut caret = Caret::new(0, 0);
         BufferApplyer::apply_action(
             &mut sut,
@@ -211,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_apply_action() {
-        let mut sut = Buffer::new();
+        let mut sut = Buffer::default();
         let mut caret = Caret::new(0, 0);
         let mut reverses = Vec::new();
         let result =

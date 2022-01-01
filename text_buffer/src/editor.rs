@@ -14,7 +14,7 @@ impl Default for Editor {
         Self {
             main_caret: Caret::new(0, 0),
             mark: Option::None,
-            buffer: Buffer::new(),
+            buffer: Buffer::default(),
             undo_list: Vec::new(),
         }
     }
