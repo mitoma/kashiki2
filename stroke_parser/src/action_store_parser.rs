@@ -8,7 +8,7 @@ pub fn parse_setting(setting_string: String) -> Vec<KeyBind> {
         if line.is_empty() {
             continue;
         }
-        if line.starts_with("#") {
+        if line.starts_with('#') {
             continue;
         }
 
@@ -28,7 +28,7 @@ pub fn parse_setting(setting_string: String) -> Vec<KeyBind> {
 }
 
 fn parse_action(line: String) -> Option<Action> {
-    let words: Vec<&str> = line.split(":").collect();
+    let words: Vec<&str> = line.split(':').collect();
     if words.len() != 2 {
         return None;
     }
@@ -40,17 +40,17 @@ fn parse_keywithmodifier(line: String) -> Option<KeyWithModifier> {
     if line.is_empty() {
         return None;
     }
-    if line.starts_with("#") {
+    if line.starts_with('#') {
         return None;
     }
 
     let key = line
         .rsplit('-')
         .next()
-        .ok_or("key not found".to_owned())
+        .ok_or(())
         .and_then(|command| {
             serde_json::from_str::<keys::KeyCode>(&format!("\"{}\"", command))
-                .map_err(|e| e.to_string())
+                .map_err(|_| ())
         });
     let key = match key {
         Ok(key) => key,

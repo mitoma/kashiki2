@@ -66,15 +66,9 @@ impl CommandName {
     }
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
 pub struct Stroke {
     keys: Vec<KeyWithModifier>,
-}
-
-impl Default for Stroke {
-    fn default() -> Self {
-        Stroke { keys: Vec::new() }
-    }
 }
 
 impl Stroke {
@@ -149,12 +143,12 @@ impl ActionStore {
 
                 self.current_stroke.append_key(KeyWithModifier {
                     key: keys::KeyCode::from(*keycode),
-                    modifires: self.current_modifier.clone(),
+                    modifires: self.current_modifier,
                 });
 
                 if let Some(action) = self.get_action() {
                     self.current_stroke.clear();
-                    return Some(action.clone());
+                    return Some(action);
                 }
 
                 if !self.in_stroke() {
@@ -205,14 +199,14 @@ impl ActionStore {
     }
 
     fn is_modifire_key(keycode: &VirtualKeyCode) -> bool {
-        match *keycode {
+        matches!(
+            *keycode,
             VirtualKeyCode::LControl
-            | VirtualKeyCode::RControl
-            | VirtualKeyCode::LAlt
-            | VirtualKeyCode::RAlt
-            | VirtualKeyCode::LShift
-            | VirtualKeyCode::RShift => true,
-            _ => false,
-        }
+                | VirtualKeyCode::RControl
+                | VirtualKeyCode::LAlt
+                | VirtualKeyCode::RAlt
+                | VirtualKeyCode::LShift
+                | VirtualKeyCode::RShift
+        )
     }
 }
