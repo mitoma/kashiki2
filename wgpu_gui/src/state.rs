@@ -256,7 +256,7 @@ impl State {
         });
 
         // Text
-        let text = text::Text::new("".to_string(), &font_texture);
+        let text = text::Text::new("　".to_string(), &font_texture);
 
         Self {
             surface,
@@ -345,7 +345,7 @@ impl State {
                 label: Some("Render Encoder"),
             });
 
-        let glyph_instances = &self.text.glyph_instances;
+        let glyph_instances = &self.text.glyph_instances(&self.font_texture);
         let gib: Vec<(&GlyphInstances, wgpu::BindGroup)> = glyph_instances
             .iter()
             .map(|gi| (gi, self.create_uniform_bind_group(&gi.instances)))

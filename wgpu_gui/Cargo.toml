@@ -19,3 +19,4 @@ anyhow = "1.0"
 rusttype = { version = "0.9.2", features = ["gpu_cache"] }
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
 stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
+nenobi = { git = "https://github.com/mitoma/nenobi", branch = "main" }

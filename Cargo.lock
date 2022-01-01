@@ -1114,6 +1114,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c44922cb3dbb1c70b5e5f443d63b64363a898564d739ba5198e3a9138442868d"
 
 [[package]]
+name = "nenobi"
+version = "0.1.0"
+source = "git+https://github.com/mitoma/nenobi?branch=main#e5ee714ce4862c492aa0c99018793e766e6f0ee0"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "nix"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1961,6 +1969,7 @@ dependencies = [
  "futures",
  "image",
  "log",
+ "nenobi",
  "rusttype",
  "stroke_parser",
  "text_buffer",
