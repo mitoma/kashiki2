@@ -1,23 +1,27 @@
-[[block]]
 struct Uniforms {
     u_view_proj: mat4x4<f32>;
     u_time: f32;
 };
 
-[[block]]
+[[group(1), binding(0)]]
+var<uniform> u_buffer: Uniforms;
+
+struct Vertex {
+    [[location(0)]] a_position: vec3<f32>;
+    [[location(1)]] a_tex_coords: vec2<f32>;
+};
+
 struct Instances {
-    s_models: [[stride(64)]] array<mat4x4<f32>>;
+    [[location(5)]] model_matrix_0: vec4<f32>;
+    [[location(6)]] model_matrix_1: vec4<f32>;
+    [[location(7)]] model_matrix_2: vec4<f32>;
+    [[location(8)]] model_matrix_3: vec4<f32>;
 };
 
 struct VertexOutput {
     [[location(0)]] v_tex_coords: vec2<f32>;
     [[builtin(position)]] member: vec4<f32>;
 };
-
-[[group(1), binding(0)]]
-var<uniform> u_buffer: Uniforms;
-[[group(1), binding(1)]]
-var<storage, read> i_buffer: Instances;
 
 fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
     let a: vec3<f32> = normalize(axis);
@@ -43,11 +47,17 @@ fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
 
 [[stage(vertex)]]
 fn main(
-    [[location(0)]] a_position: vec3<f32>,
-    [[location(1)]] a_tex_coords: vec2<f32>,
-    [[builtin(instance_index)]] instance_index: u32,
+    v: Vertex,
+    i: Instances,
 ) -> VertexOutput {
-    let rotated: vec4<f32> = vec4<f32>(rotate(a_position, u_buffer.u_time, vec3<f32>(0.0, 1.0, 0.0)), 1.0);
-    let position: vec4<f32> = u_buffer.u_view_proj * i_buffer.s_models[instance_index] * rotated;
-    return VertexOutput(a_tex_coords, position);
+    let instance_matrix = mat4x4<f32>(
+        i.model_matrix_0,
+        i.model_matrix_1,
+        i.model_matrix_2,
+        i.model_matrix_3,
+    );
+
+    let rotated: vec4<f32> = vec4<f32>(rotate(v.a_position, u_buffer.u_time, vec3<f32>(0.0, 1.0, 0.0)), 1.0);
+    let position: vec4<f32> = u_buffer.u_view_proj * instance_matrix * rotated;
+    return VertexOutput(v.a_tex_coords, position);
 }

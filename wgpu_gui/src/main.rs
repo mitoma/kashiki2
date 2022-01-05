@@ -5,7 +5,10 @@ mod state;
 mod text;
 mod texture;
 
+use std::env;
+
 use futures::executor::block_on;
+use log::info;
 use stroke_parser::{action_store_parser, Action, ActionStore};
 
 use text_buffer::action::EditorOperation;
@@ -18,6 +21,7 @@ use winit::{
 use crate::camera::CameraOperation;
 
 fn main() {
+    env::set_var("RUST_LOG", "info");
     env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
@@ -25,6 +29,7 @@ fn main() {
     let mut state = block_on(state::State::new(&window));
 
     let mut editor = text_buffer::editor::Editor::default();
+    editor.operation(&EditorOperation::InsertString("Hello".to_string()));
 
     let mut store: ActionStore = Default::default();
 
@@ -106,7 +111,9 @@ fn main() {
             },
             Event::RedrawRequested(_) => {
                 state.update();
-                state.render();
+                if let Err(err) = state.render() {
+                    info!("error:{}", err);
+                };
             }
             Event::MainEventsCleared => {
                 window.request_redraw();

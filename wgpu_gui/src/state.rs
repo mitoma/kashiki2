@@ -43,6 +43,7 @@ impl State {
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
             })
             .await
             .unwrap();
@@ -99,10 +100,7 @@ impl State {
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler {
-                            comparison: false,
-                            filtering: true,
-                        },
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
                 ],
@@ -145,28 +143,16 @@ impl State {
 
         let uniform_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::VERTEX,
-                        ty: wgpu::BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Storage { read_only: true },
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
-                    },
-                ],
+                    count: None,
+                }],
                 label: Some("uniform_bind_group_layout"),
             });
 
@@ -185,7 +171,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &vs_module,
                 entry_point: "main",
-                buffers: &[model::Vertex::desc()],
+                buffers: &[model::Vertex::desc(), model::InstanceRaw::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &fs_module,
@@ -212,7 +198,7 @@ impl State {
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None, // font は裏面も描画するのでカリングしない。
-                clamp_depth: false,
+                unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
             },
@@ -228,6 +214,7 @@ impl State {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
+            multiview: None,
             /*
             rasterization_state: Some(wgpu::RasterizationStateDescriptor {
                 front_face: wgpu::FrontFace::Ccw,
@@ -307,35 +294,24 @@ impl State {
         self.camera_controller.reset_state();
     }
 
-    fn create_uniform_bind_group(&self, instances: &model::Instances) -> wgpu::BindGroup {
+    fn create_uniform_bind_group(&self) -> wgpu::BindGroup {
         self.device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.uniform_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: self
-                        .uniforms
-                        .to_wgpu_buffer(&self.device)
-                        .as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: instances.to_wgpu_buffer(&self.device).as_entire_binding(),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: self
+                    .uniforms
+                    .to_wgpu_buffer(&self.device)
+                    .as_entire_binding(),
+            }],
             label: Some("uniform_bind_group"),
         })
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         // test
         self.uniforms.update_view_proj(&self.camera);
-
-        let frame = self
-            .surface
-            .get_current_frame()
-            .expect("Timeout getting texture")
-            .output;
+        let frame = self.surface.get_current_texture()?;
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -345,10 +321,10 @@ impl State {
                 label: Some("Render Encoder"),
             });
 
-        let glyph_instances = &self.text.glyph_instances(&self.font_texture);
+        let glyph_instances = &self.text.glyph_instances(&self.font_texture, &self.device);
         let gib: Vec<(&GlyphInstances, wgpu::BindGroup)> = glyph_instances
             .iter()
-            .map(|gi| (gi, self.create_uniform_bind_group(&gi.instances)))
+            .map(|gi| (gi, self.create_uniform_bind_group()))
             .collect();
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -375,15 +351,21 @@ impl State {
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
 
             for (gi, bind_group) in &gib {
-                render_pass.set_bind_group(1, &bind_group, &[]);
-                let v_buffer = &gi.glyph.vertex_buffer;
-                let i_buffer = &gi.glyph.index_buffer;
-                render_pass.set_vertex_buffer(0, v_buffer.slice(..));
-                render_pass.set_index_buffer(i_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..6, 0, 0..gi.instances.len() as _);
+                render_pass.set_bind_group(1, bind_group, &[]);
+                render_pass.set_vertex_buffer(0, gi.glyph.vertex_buffer.slice(..));
+                render_pass
+                    .set_index_buffer(gi.glyph.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                for ib in &gi.instance_buffer {
+                    render_pass.set_vertex_buffer(1, ib.slice(..));
+                    render_pass.draw_indexed(0..6, 0, 0..gi.instances.len() as _);
+                }
+
             }
         }
         self.queue.submit(std::iter::once(encoder.finish()));
+        frame.present();
+
+        Ok(())
     }
 
     pub fn change_string(&mut self, buffer_text: String) {

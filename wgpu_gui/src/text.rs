@@ -4,6 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 use crate::{
     font_texture::{FontTexture, GlyphModel},
     model::{Instance, Instances},
+    state::ToBuffer,
 };
 
 pub struct Text {
@@ -13,6 +14,7 @@ pub struct Text {
 pub struct GlyphInstances {
     pub glyph: Arc<GlyphModel>,
     pub instances: Instances,
+    pub instance_buffer: Vec<wgpu::Buffer>,
 }
 
 impl Text {
@@ -22,7 +24,11 @@ impl Text {
         }
     }
 
-    pub fn glyph_instances(&self, font_texture: &FontTexture) -> Vec<GlyphInstances> {
+    pub fn glyph_instances(
+        &self,
+        font_texture: &FontTexture,
+        device: &wgpu::Device,
+    ) -> Vec<GlyphInstances> {
         let mut result: HashMap<char, Instances> = HashMap::new();
 
         let mut start_xpos: f32 = 0.0;
@@ -60,15 +66,18 @@ impl Text {
         result
             .into_iter()
             .map(|(k, v)| {
+                let buffers = v.to_wgpu_buffers(device);
                 if let Some(glyph) = font_texture.get_glyph(k) {
                     GlyphInstances {
                         glyph,
                         instances: v,
+                        instance_buffer: buffers,
                     }
                 } else {
                     GlyphInstances {
                         glyph: font_texture.get_glyph('　').unwrap(),
                         instances: v,
+                        instance_buffer: buffers,
                     }
                 }
             })
