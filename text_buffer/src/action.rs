@@ -144,7 +144,7 @@ impl BufferApplyer {
             }
             EditorOperation::InsertString(str_value) => {
                 // normalize
-                let str_value = str_value.clone().replace("\r\n", "\n").replace("\r", "\n");
+                let str_value = str_value.clone().replace("\r\n", "\n").replace('\r', "\n");
                 buffer.insert_string(current_caret, str_value.clone());
                 str_value.chars().for_each(|_| {
                     reverse_actions.push(ReverseAction::Backspace);

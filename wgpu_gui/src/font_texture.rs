@@ -78,7 +78,7 @@ impl FontTexture {
             &image_buffer,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: NonZeroU32::new(1 * cache_width), // モノクロ256階調なので1byte
+                bytes_per_row: NonZeroU32::new(cache_width), // モノクロ256階調なので1byte
                 rows_per_image: NonZeroU32::new(cache_height),
             },
             size,
@@ -109,7 +109,7 @@ impl FontTexture {
         })
     }
 
-    pub fn chars_on_cache(&self, chars: &Vec<char>) -> bool {
+    pub fn chars_on_cache(&self, chars: &[char]) -> bool {
         let uniq: HashSet<&char> = chars.iter().collect();
         uniq.into_iter().all(|c| self.glyph_map.contains_key(c))
     }
@@ -151,10 +151,10 @@ impl FontTexture {
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::default(),
             },
-            &image_buffer,
+            image_buffer,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: NonZeroU32::new(1 * self.size.width), // モノクロ256階調なので1byte
+                bytes_per_row: NonZeroU32::new(self.size.width), // モノクロ256階調なので1byte
                 rows_per_image: NonZeroU32::new(self.size.height),
             },
             self.size,
@@ -230,6 +230,6 @@ impl FontTexture {
     }
 
     pub fn get_glyph(&self, c: char) -> Option<Arc<GlyphModel>> {
-        self.glyph_map.get(&c).map(|g| g.clone())
+        self.glyph_map.get(&c).cloned()
     }
 }

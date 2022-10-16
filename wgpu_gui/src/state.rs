@@ -256,7 +256,7 @@ impl State {
         });
 
         // Text
-        let text = text::Text::new("　".to_string(), &font_texture);
+        let text = text::Text::new("　".to_string());
 
         Self {
             surface,
@@ -375,7 +375,7 @@ impl State {
             render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
 
             for (gi, bind_group) in &gib {
-                render_pass.set_bind_group(1, &bind_group, &[]);
+                render_pass.set_bind_group(1, bind_group, &[]);
                 let v_buffer = &gi.glyph.vertex_buffer;
                 let i_buffer = &gi.glyph.index_buffer;
                 render_pass.set_vertex_buffer(0, v_buffer.slice(..));
@@ -392,7 +392,7 @@ impl State {
         }
         self.font_texture
             .add_chars(buffer_text.chars().collect(), &self.queue, &self.device);
-        self.text = text::Text::new(buffer_text, &self.font_texture);
+        self.text = text::Text::new(buffer_text);
     }
 }
 

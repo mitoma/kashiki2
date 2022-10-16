@@ -16,10 +16,8 @@ pub struct GlyphInstances {
 }
 
 impl Text {
-    pub fn new(value: String, font_texture: &FontTexture) -> Self {
-        Self {
-            value: value.clone(),
-        }
+    pub fn new(value: String) -> Self {
+        Self { value }
     }
 
     pub fn glyph_instances(&self, font_texture: &FontTexture) -> Vec<GlyphInstances> {
@@ -30,7 +28,7 @@ impl Text {
 
         let lines = self.value.lines();
 
-        for line in lines.into_iter() {
+        for line in lines {
             for c in line.chars() {
                 let position = cgmath::Vector3 {
                     x: start_xpos,
