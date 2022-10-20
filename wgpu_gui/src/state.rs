@@ -43,6 +43,7 @@ impl State {
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
             })
             .await
             .unwrap();
@@ -59,7 +60,7 @@ impl State {
             .unwrap();
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_preferred_format(&adapter).unwrap(),
+            format: surface.get_supported_formats(&adapter)[0],
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
@@ -99,10 +100,7 @@ impl State {
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler {
-                            comparison: false,
-                            filtering: true,
-                        },
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
                 ],
@@ -170,8 +168,9 @@ impl State {
                 label: Some("uniform_bind_group_layout"),
             });
 
-        let vs_module = device.create_shader_module(&wgpu::include_wgsl!("wgsl/shader.vert.wgsl"));
-        let fs_module = device.create_shader_module(&wgpu::include_wgsl!("wgsl/shader.frag.wgsl"));
+        //let vs_module = device.create_shader_module(wgpu::include_wgsl!("wgsl/shader.vert.wgsl"));
+        //let fs_module = device.create_shader_module(wgpu::include_wgsl!("wgsl/shader.frag.wgsl"));
+        let shader_module = device.create_shader_module(wgpu::include_wgsl!("wgsl/shader.wgsl"));
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -183,14 +182,14 @@ impl State {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &vs_module,
-                entry_point: "main",
+                module: &shader_module,
+                entry_point: "vs_main",
                 buffers: &[model::Vertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
-                module: &fs_module,
-                entry_point: "main",
-                targets: &[wgpu::ColorTargetState {
+                module: &shader_module,
+                entry_point: "fs_main",
+                targets: &[Some(wgpu::ColorTargetState {
                     format: config.format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent {
@@ -205,16 +204,16 @@ impl State {
                         },
                     }),
                     write_mask: wgpu::ColorWrites::ALL,
-                }],
+                })],
             }),
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: None, // font は裏面も描画するのでカリングしない。
-                clamp_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
+                unclipped_depth: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: texture::Texture::DEPTH_FORMAT,
@@ -228,6 +227,7 @@ impl State {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
+            multiview: None,
             /*
             rasterization_state: Some(wgpu::RasterizationStateDescriptor {
                 front_face: wgpu::FrontFace::Ccw,
@@ -333,9 +333,8 @@ impl State {
 
         let frame = self
             .surface
-            .get_current_frame()
-            .expect("Timeout getting texture")
-            .output;
+            .get_current_texture()
+            .expect("Timeout getting texture");
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -353,14 +352,14 @@ impl State {
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
-                color_attachments: &[wgpu::RenderPassColorAttachment {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.bg_color),
                         store: true,
                     },
-                }],
+                })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.depth_texture.view,
                     depth_ops: Some(wgpu::Operations {

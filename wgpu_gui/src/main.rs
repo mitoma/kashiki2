@@ -5,7 +5,6 @@ mod state;
 mod text;
 mod texture;
 
-use futures::executor::block_on;
 use stroke_parser::{action_store_parser, Action, ActionStore};
 
 use text_buffer::action::EditorOperation;
@@ -18,11 +17,15 @@ use winit::{
 use crate::camera::CameraOperation;
 
 fn main() {
+    pollster::block_on(run());
+}
+
+pub async fn run() {
     env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut state = block_on(state::State::new(&window));
+    let mut state = state::State::new(&window).await;
 
     let mut editor = text_buffer::editor::Editor::default();
 
