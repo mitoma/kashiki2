@@ -8,6 +8,7 @@ mod texture;
 use stroke_parser::{action_store_parser, Action, ActionStore};
 
 use text_buffer::action::EditorOperation;
+use wgpu::SurfaceError;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -21,11 +22,12 @@ fn main() {
 }
 
 pub async fn run() {
+    std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
 
-    let mut state = state::State::new(&window).await;
+    let mut state = state::State::new(&window).await.unwrap();
 
     let mut editor = text_buffer::editor::Editor::default();
 
@@ -110,7 +112,17 @@ pub async fn run() {
             },
             Event::RedrawRequested(_) => {
                 state.update();
-                state.render();
+                match state.render() {
+                    Ok(_) => {}
+                    // Reconfigure the surface if it's lost or outdated
+                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                        state.resize(state.size)
+                    }
+                    // The system is out of memory, we should probably quit
+                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
+                    // We're ignoring timeouts
+                    Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
+                };
             }
             Event::MainEventsCleared => {
                 window.request_redraw();

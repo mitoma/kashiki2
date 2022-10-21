@@ -2,6 +2,7 @@ use crate::{
     camera::{self, CameraOperation},
     font_texture, model, text, texture,
 };
+use anyhow::Context;
 use font_texture::FontTexture;
 use text::GlyphInstances;
 use winit::{event::*, window::Window};
@@ -11,7 +12,7 @@ pub struct State {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    size: winit::dpi::PhysicalSize<u32>,
+    pub size: winit::dpi::PhysicalSize<u32>,
 
     bg_color: wgpu::Color,
     render_pipeline: wgpu::RenderPipeline,
@@ -34,10 +35,10 @@ pub struct State {
 impl State {
     // Creating some of the wgpu types requires async code
     // いくつかの wgpu の型を作成するときに非同期コードが必要になります。
-    pub async fn new(window: &Window) -> Self {
+    pub async fn new(window: &Window) -> anyhow::Result<Self> {
         let size = window.inner_size();
 
-        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+        let instance = wgpu::Instance::new(wgpu::Backends::all());
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -46,7 +47,7 @@ impl State {
                 force_fallback_adapter: false,
             })
             .await
-            .unwrap();
+            .with_context(|| "create adapter")?;
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
@@ -57,7 +58,7 @@ impl State {
                 None,
             )
             .await
-            .unwrap();
+            .with_context(|| "get device and queue")?;
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface.get_supported_formats(&adapter)[0],
@@ -257,8 +258,7 @@ impl State {
 
         // Text
         let text = text::Text::new("　".to_string());
-
-        Self {
+        Ok(Self {
             surface,
             device,
             queue,
@@ -274,16 +274,16 @@ impl State {
             uniforms,
             uniform_bind_group_layout,
             text,
-        }
+        })
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         self.size = new_size;
         self.config.width = new_size.width;
         self.config.height = new_size.height;
+        self.surface.configure(&self.device, &self.config);
         self.depth_texture =
             texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
-        self.surface.configure(&self.device, &self.config)
     }
 
     pub fn send_camera_operation(&mut self, op: &CameraOperation) {
@@ -327,14 +327,9 @@ impl State {
         })
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self) -> std::result::Result<(), wgpu::SurfaceError> {
         // test
-        self.uniforms.update_view_proj(&self.camera);
-
-        let frame = self
-            .surface
-            .get_current_texture()
-            .expect("Timeout getting texture");
+        let frame = self.surface.get_current_texture()?;
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -383,6 +378,8 @@ impl State {
             }
         }
         self.queue.submit(std::iter::once(encoder.finish()));
+        frame.present();
+        Ok(())
     }
 
     pub fn change_string(&mut self, buffer_text: String) {

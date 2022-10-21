@@ -2,6 +2,7 @@ use std::num::NonZeroU32;
 
 use anyhow::*;
 use image::GenericImageView;
+use log::debug;
 
 pub struct Texture {
     pub texture: wgpu::Texture,
@@ -33,7 +34,9 @@ impl Texture {
             format: Self::DEPTH_FORMAT,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
         };
+        debug!("before create texture");
         let texture = device.create_texture(&desc);
+        debug!("after create texture");
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
