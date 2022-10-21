@@ -1,8 +1,8 @@
 [package]
-name = "tutorial4-buffer"
+name = "font_rusterizer"
 version = "0.1.0"
-authors = ["Ben Hansen <bhbenjaminhansen@gmail.com>"]
-edition = "2018"
+authors = ["Ryo Mitoma <mutetheradio@gmail.com>"]
+edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -36,9 +36,5 @@ fs_extra = "1.2"
 glob = "0.3"
 
 [[bin]]
-name = "tutorial4-buffer"
+name = "font_rustarizer"
 path = "src/main.rs"
-
-[[bin]]
-name = "tutorial4-challenge"
-path = "src/challenge.rs"
