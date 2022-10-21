@@ -7,7 +7,7 @@ use winit::{
     window::{Window, WindowBuilder},
 };
 
-#[cfg(target_arch="wasm32")]
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 #[repr(C)]
@@ -40,28 +40,20 @@ impl Vertex {
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [-0.0868241, 0.49240386, 0.0],
-        color: [0.5, 0.0, 0.5],
+        position: [-0.0, 0.5, 0.0],
+        color: [1.0, 0.0, 0.5],
     }, // A
     Vertex {
-        position: [-0.49513406, 0.06958647, 0.0],
-        color: [0.5, 0.0, 0.5],
+        position: [-0.40, -0.40, 0.0],
+        color: [0.0, 1.0, 0.0],
     }, // B
     Vertex {
-        position: [-0.21918549, -0.44939706, 0.0],
-        color: [0.5, 0.0, 0.5],
+        position: [0.40, -0.40, 0.0],
+        color: [0.0, 0.0, 1.0],
     }, // C
-    Vertex {
-        position: [0.35966998, -0.3473291, 0.0],
-        color: [0.5, 0.0, 0.5],
-    }, // D
-    Vertex {
-        position: [0.44147372, 0.2347359, 0.0],
-        color: [0.5, 0.0, 0.5],
-    }, // E
 ];
 
-const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4, /* padding */ 0];
+const INDICES: &[u16] = &[0, 1, 2, /* padding */ 0];
 
 struct State {
     surface: wgpu::Surface,
@@ -261,7 +253,7 @@ impl State {
     }
 }
 
-#[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
@@ -281,7 +273,7 @@ pub async fn run() {
         // the size manually when on web.
         use winit::dpi::PhysicalSize;
         window.set_inner_size(PhysicalSize::new(450, 400));
-        
+
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
             .and_then(|win| win.document())
@@ -331,7 +323,9 @@ pub async fn run() {
                 match state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => state.resize(state.size),
+                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                        state.resize(state.size)
+                    }
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     // We're ignoring timeouts

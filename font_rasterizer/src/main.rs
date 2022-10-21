@@ -1,4 +1,4 @@
-use tutorial4_buffer::run;
+use font_rusterizer::run;
 
 fn main() {
     pollster::block_on(run());
