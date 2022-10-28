@@ -1,4 +1,4 @@
-use std::{iter, ops::Range, sync::Arc};
+use std::iter;
 
 use anyhow::Context;
 use ttf_parser::{Face, OutlineBuilder, Rect};
@@ -8,6 +8,9 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
+fn main() {
+    pollster::block_on(run());
+}
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -53,31 +56,20 @@ struct VertexBuilder {
 impl VertexBuilder {
     fn new() -> Self {
         VertexBuilder {
-            main_vertex: vec![(0.0, 0.0), (10.0, 0.0), (0.0, 10.0)],
+            main_vertex: vec![(0.0, 0.0)],
             main_index: Vec::new(),
             current_main_index: 0,
             control_vertexs: Vec::new(),
         }
     }
 
-    #[inline]
-    fn convert_range(f: f32, range: (f32, f32)) -> f32 {
-        let target_min = -0.5;
-        let target_max = 0.5;
-        let mut f = f - range.0;
-        f /= range.1 - range.0;
-        f *= target_max - target_min;
-        f += target_min;
-        f
-    }
-
-    fn build(self, rect: Rect) -> (Vec<Vertex>, Vec<u16>) {
+    fn build(mut self, rect: Rect) -> (Vec<Vertex>, Vec<u16>) {
         let vertex = self
             .main_vertex
             .iter()
             .map(|(x, y)| {
-                let x = Self::convert_range(*x, (rect.x_min as f32, rect.x_max as f32));
-                let y = Self::convert_range(*y, (rect.y_min as f32, rect.y_max as f32));
+                let x = (*x / rect.width() as f32) - 0.5;
+                let y = (*y / rect.height() as f32) - 0.5;
                 println!("x:{}, y:{}", x, y);
                 Vertex {
                     position: [x, y, 0.0],
@@ -102,6 +94,7 @@ impl OutlineBuilder for VertexBuilder {
         self.main_index.push(self.current_main_index);
         self.current_main_index = self.main_vertex.len() as u16 - 1;
         self.main_index.push(self.current_main_index);
+        self.main_index.push(0);
     }
 
     fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
@@ -110,6 +103,7 @@ impl OutlineBuilder for VertexBuilder {
         self.main_index.push(self.current_main_index);
         self.current_main_index = self.main_vertex.len() as u16 - 1;
         self.main_index.push(self.current_main_index);
+        self.main_index.push(0);
 
         // TODO ベジエ曲線
     }
@@ -139,22 +133,22 @@ const VERTICES: &[Vertex] = &[
     Vertex {
         position: [0.0, 0.0, 0.0],
         wait: [1.0, 1.0],
-    }, // A
+    }, // ZERO
     Vertex {
-        position: [-0.0, 0.5, 0.0],
+        position: [-0.5, -0.5, 0.0],
         wait: [1.0, 0.0],
     }, // A
     Vertex {
-        position: [-0.40, -0.40, 0.0],
+        position: [-0.5, 0.5, 0.0],
         wait: [0.0, 1.0],
     }, // B
     Vertex {
-        position: [0.40, -0.40, 0.0],
+        position: [0.40, -0.30, 0.0],
         wait: [0.0, 0.0],
     }, // C
 ];
 
-const INDICES: &[u16] = &[0, 1, 2];
+const INDICES: &[u16] = &[0, 2, 1, 0, 3, 2];
 
 struct State {
     surface: wgpu::Surface,
@@ -215,7 +209,7 @@ impl State {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!("../src/shader.wgsl").into()),
         });
 
         let render_pipeline_layout =
@@ -270,19 +264,17 @@ impl State {
             multiview: None,
         });
 
-        let v = Vertex::new_char('あ').unwrap();
-
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&v.0),
+            contents: bytemuck::cast_slice(&VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&v.1),
+            contents: bytemuck::cast_slice(&INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
-        let num_indices = v.1.len() as u32;
+        let num_indices = INDICES.len() as u32;
 
         Self {
             surface,

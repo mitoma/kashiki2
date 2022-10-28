@@ -24,9 +24,9 @@ fn vs_main(
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let in_bezier = pow((in.wait.x / 2.0 + in.wait.y), 2.0) < in.wait.y;
-    if !in_bezier {
-        discard;
-    }
-    return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+//    let in_bezier = pow((in.wait.x / 2.0 + in.wait.y), 2.0) < in.wait.y;
+//    if !in_bezier {
+//        discard;
+//    }
+    return vec4<f32>(0.0, 1.0, 0.0, 1.0);
 }
