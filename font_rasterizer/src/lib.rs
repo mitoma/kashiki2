@@ -315,7 +315,6 @@ impl State {
                     topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    //cull_mode: Some(wgpu::Face::Back),
                     cull_mode: None,
                     // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
                     // or Features::POLYGON_MODE_POINT
@@ -336,19 +335,22 @@ impl State {
                 multiview: None,
             });
 
-        let font_vertex = FontVertex::new_char('土').unwrap();
+        let font_vertex = FontVertex::new_char('あ').unwrap();
 
         let deffered_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Deffered Vertex Buffer"),
             contents: bytemuck::cast_slice(&font_vertex.0),
+            //contents: bytemuck::cast_slice(&DEFFERED_VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let deffered_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Deffered Index Buffer"),
             contents: bytemuck::cast_slice(&font_vertex.1),
+            //contents: bytemuck::cast_slice(&DEFFERED_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
         let deffered_num_indices = font_vertex.1.len() as u32;
+        //let deffered_num_indices = DEFFERED_INDICES.len() as u32;
 
         // setup screen
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {

@@ -29,9 +29,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // G, B = ベジエ曲線
 
     // B が 0 の時はベジエ曲線ではなくて単なるポリゴンとして処理する
-    if in.color.b == 0.0 {
-        return vec4<f32>(in.color, UNIT);
-    }
+    //if in.color.b == 0.0 {
+        //return vec4<f32>(in.color, UNIT);
+    //}
 
     // G, B のいずれかが 0 でないとき
     let in_bezier = pow((in.color.g / 2.0 + in.color.b), 2.0) < in.color.b;

@@ -7,7 +7,7 @@ const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct FontVertex {
     pub(crate) position: [f32; 3],
-    pub(crate) wait: [f32; 2],
+    pub(crate) wait: [f32; 3],
 }
 
 struct InternalFontVertex {
@@ -62,7 +62,7 @@ impl FontVertexBuilder {
     fn next_wait(&mut self) -> (f32, f32) {
         self.vertex_swap = !self.vertex_swap;
         if self.vertex_swap {
-            (1.0, 0.0)
+            (0.0, 1.0)
         } else {
             (0.0, 0.0)
         }
@@ -75,15 +75,15 @@ impl FontVertexBuilder {
             .map(|InternalFontVertex { x, y, wait }| {
                 let x = (*x / rect.width() as f32) - 0.5;
                 let y = (*y / rect.height() as f32) - 0.5;
-                println!("x:{}, y:{}", x, y);
+                println!("x:{}, y:{}, wait:{:?}", x, y, wait);
                 FontVertex {
                     position: [x, y, 0.0],
-                    wait: [wait.0, wait.1],
+                    wait: [1.0, wait.0, wait.1],
                 }
             })
             .collect();
         println!("index:{:?}", &self.main_index);
-        (vertex, self.main_index.clone())
+        (vertex, self.main_index.clone().into_iter().collect())
     }
 }
 
@@ -118,7 +118,7 @@ impl OutlineBuilder for FontVertexBuilder {
         self.main_vertex.push(InternalFontVertex {
             x: x1,
             y: y1,
-            wait: (0.0, 1.0),
+            wait: (1.0, 0.0),
         });
         let control_index = self.main_vertex.len() as u16 - 1;
         self.main_index.push(pre_index);
