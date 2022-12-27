@@ -18,6 +18,7 @@ wgpu = "0.14"
 winit = "0.27"
 
 ttf-parser = "0.17"
+cgmath = "0.18"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"

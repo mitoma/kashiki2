@@ -1,6 +1,7 @@
 use std::iter;
 
 use font_vertex::FontVertex;
+use uniforms::Uniforms;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -13,6 +14,7 @@ use wasm_bindgen::prelude::*;
 
 mod font_vertex;
 mod screen_texture;
+mod uniforms;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -83,6 +85,9 @@ struct State {
     deffered_bind_group: wgpu::BindGroup,
 
     font_vertex: (Vec<FontVertex>, Vec<u16>),
+
+    uniforms: uniforms::Uniforms,
+    uniform_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl State {
@@ -128,6 +133,25 @@ impl State {
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
         surface.configure(&device, &config);
+
+        // setup uniform
+
+        // uniforms
+        let uniform_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("uniform_bind_group_layout"),
+            });
+        let uniforms = Uniforms::new();
 
         // setup deffered
 
@@ -183,7 +207,7 @@ impl State {
         let deffered_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Deffered Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&uniform_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -345,6 +369,8 @@ impl State {
             deffered_bind_group,
 
             font_vertex,
+            uniforms,
+            uniform_bind_group_layout,
         }
     }
 
@@ -364,6 +390,20 @@ impl State {
 
     fn update(&mut self) {}
 
+    fn create_uniform_bind_group(&self) -> wgpu::BindGroup {
+        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.uniform_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: self
+                    .uniforms
+                    .to_wgpu_buffer(&self.device)
+                    .as_entire_binding(),
+            }],
+            label: Some("uniform_bind_group"),
+        })
+    }
+
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let mut encoder = self
             .device
@@ -375,6 +415,9 @@ impl State {
             .deffered_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
+        self.uniforms.update_view_proj();
+        let bind_group = self.create_uniform_bind_group();
+
         {
             let mut deffered_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Deffered Render Pass"),
@@ -395,6 +438,7 @@ impl State {
             });
 
             deffered_render_pass.set_pipeline(&self.deffered_render_pipeline);
+            deffered_render_pass.set_bind_group(0, &bind_group, &[]);
             deffered_render_pass.set_vertex_buffer(0, self.deffered_vertex_buffer.slice(..));
             deffered_render_pass.set_index_buffer(
                 self.deffered_index_buffer.slice(..),
