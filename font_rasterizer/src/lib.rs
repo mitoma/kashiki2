@@ -12,83 +12,8 @@ use winit::{
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-Regular.ttf");
+mod font_vertex;
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct Vertex {
-    position: [f32; 3],
-    wait: [f32; 2],
-}
-
-impl Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-            ],
-        }
-    }
-}
-
-struct VertexBuilder {
-    main_vertex: Vec<(f32, f32)>,
-    main_index: Vec<u16>,
-    current_main_index: u16,
-
-    control_vertexs: Vec<(f32, f32)>,
-}
-
-impl VertexBuilder {
-    fn new() -> Self {
-        VertexBuilder {
-            main_vertex: vec![(0.0, 0.0), (10.0, 0.0), (0.0, 10.0)],
-            main_index: Vec::new(),
-            current_main_index: 0,
-            control_vertexs: Vec::new(),
-        }
-    }
-
-    #[inline]
-    fn convert_range(f: f32, range: (f32, f32)) -> f32 {
-        let target_min = -0.5;
-        let target_max = 0.5;
-        let mut f = f - range.0;
-        f /= range.1 - range.0;
-        f *= target_max - target_min;
-        f += target_min;
-        f
-    }
-
-    fn build(self, rect: Rect) -> (Vec<Vertex>, Vec<u16>) {
-        let vertex = self
-            .main_vertex
-            .iter()
-            .map(|(x, y)| {
-                let x = Self::convert_range(*x, (rect.x_min as f32, rect.x_max as f32));
-                let y = Self::convert_range(*y, (rect.y_min as f32, rect.y_max as f32));
-                println!("x:{}, y:{}", x, y);
-                Vertex {
-                    position: [x, y, 0.0],
-                    wait: [1.0, 1.0],
-                }
-            })
-            .collect();
-        println!("index:{:?}", &self.main_index);
-        (vertex, self.main_index)
-    }
-}
 
 impl OutlineBuilder for VertexBuilder {
     fn move_to(&mut self, x: f32, y: f32) {
