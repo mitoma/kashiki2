@@ -1,5 +1,6 @@
 use std::iter;
 
+use font_vertex::FontVertex;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -10,6 +11,7 @@ use winit::{
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+mod font_vertex;
 mod screen_texture;
 
 #[repr(C)]
@@ -174,6 +176,8 @@ struct State {
     deffered_num_indices: u32,
     deffered_texture: screen_texture::ScreenTexture,
     deffered_bind_group: wgpu::BindGroup,
+
+    font_vertex: (Vec<FontVertex>, Vec<u16>),
 }
 
 impl State {
@@ -311,7 +315,8 @@ impl State {
                     topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
+                    //cull_mode: Some(wgpu::Face::Back),
+                    cull_mode: None,
                     // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
                     // or Features::POLYGON_MODE_POINT
                     polygon_mode: wgpu::PolygonMode::Fill,
@@ -331,17 +336,19 @@ impl State {
                 multiview: None,
             });
 
+        let font_vertex = FontVertex::new_char('土').unwrap();
+
         let deffered_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Deffered Vertex Buffer"),
-            contents: bytemuck::cast_slice(DEFFERED_VERTICES),
+            contents: bytemuck::cast_slice(&font_vertex.0),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let deffered_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Deffered Index Buffer"),
-            contents: bytemuck::cast_slice(DEFFERED_INDICES),
+            contents: bytemuck::cast_slice(&font_vertex.1),
             usage: wgpu::BufferUsages::INDEX,
         });
-        let deffered_num_indices = DEFFERED_INDICES.len() as u32;
+        let deffered_num_indices = font_vertex.1.len() as u32;
 
         // setup screen
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -429,6 +436,8 @@ impl State {
             deffered_num_indices,
             deffered_texture,
             deffered_bind_group,
+
+            font_vertex,
         }
     }
 
