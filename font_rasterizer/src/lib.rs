@@ -64,101 +64,6 @@ const SCREEN_VERTICES: &[ScreenVertex] = &[
 
 const SCREEN_INDICES: &[u16] = &[0, 1, 2, 2, 1, 3];
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct DefferedVertex {
-    position: [f32; 3],
-    color: [f32; 3],
-}
-
-impl DefferedVertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<DefferedVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-            ],
-        }
-    }
-}
-
-const DEFFERED_VERTICES: &[DefferedVertex] = &[
-    DefferedVertex {
-        position: [0.0, -0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    }, // A
-    DefferedVertex {
-        position: [-0.5, 0.2, 0.0],
-        color: [1.0, 0.0, 0.0],
-    }, // B
-    DefferedVertex {
-        position: [0.5, 0.2, 0.0],
-        color: [1.0, 0.0, 0.0],
-    }, // C
-    DefferedVertex {
-        position: [-0.5, -0.2, 0.0],
-        color: [1.0, 0.0, 0.0],
-    }, // D
-    DefferedVertex {
-        position: [0.5, -0.2, 0.0],
-        color: [1.0, 0.0, 0.0],
-    }, // E
-    DefferedVertex {
-        position: [0.0, 0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    }, // F
-    // ミニ三角
-    DefferedVertex {
-        position: [0.0, -0.05, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    DefferedVertex {
-        position: [-0.05, 0.02, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    DefferedVertex {
-        position: [0.05, 0.02, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    DefferedVertex {
-        position: [-0.05, -0.02, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    DefferedVertex {
-        position: [0.05, -0.02, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    DefferedVertex {
-        position: [0.0, 0.05, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    // ここからややこしいやつ
-    DefferedVertex {
-        position: [-0.8, -0.8, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    DefferedVertex {
-        position: [-0.8, 0.8, 0.0],
-        color: [1.0, 0.0, 1.0],
-    },
-    DefferedVertex {
-        position: [0.8, 0.0, 0.0],
-        color: [1.0, 1.0, 0.0],
-    },
-];
-
-const DEFFERED_INDICES: &[u16] = &[0, 2, 1, 3, 4, 5, 6, 8, 7, 9, 10, 11, 12, 14, 13];
-
 struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -289,7 +194,7 @@ impl State {
                 vertex: wgpu::VertexState {
                     module: &deffered_shader,
                     entry_point: "vs_main",
-                    buffers: &[DefferedVertex::desc()],
+                    buffers: &[FontVertex::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &deffered_shader,
