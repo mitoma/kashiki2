@@ -134,12 +134,12 @@ impl OutlineBuilder for FontVertexBuilder {
         self.main_index.push(post_index);
     }
 
-    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-        todo!()
+    fn curve_to(&mut self, _x1: f32, _y1: f32, _x2: f32, _y2: f32, _x: f32, _y: f32) {
+        todo!("実装予定無し！(OpenTypeをサポートしたいときには必要かもね)")
     }
 
     fn close(&mut self) {
-        //
+        // noop
     }
 }
 

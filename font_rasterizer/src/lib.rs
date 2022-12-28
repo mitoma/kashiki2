@@ -15,7 +15,6 @@ use wasm_bindgen::prelude::*;
 mod font_vertex;
 mod rasterizer_pipeline;
 mod screen_texture;
-mod uniforms;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -133,7 +132,7 @@ impl State {
 
         let rasterizer_pipeline = RasterizerPipeline::new(&device, size.width, size.height);
 
-        let font_vertex = FontVertex::new_char('闇').unwrap();
+        let font_vertex = FontVertex::new_char('あ').unwrap();
         let overlap_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Overlap Vertex Buffer"),
             contents: bytemuck::cast_slice(&font_vertex.0),
@@ -184,6 +183,8 @@ impl State {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
+            self.rasterizer_pipeline =
+                RasterizerPipeline::new(&self.device, new_size.width, new_size.height)
         }
     }
 

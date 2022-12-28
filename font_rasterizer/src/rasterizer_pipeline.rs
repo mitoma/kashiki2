@@ -234,6 +234,11 @@ pub struct Uniforms {
     time: f32,
 }
 
+/// オーバーレイ用の BindGroup。
+/// Uniforms として現在時刻のみ渡している。
+/// 
+/// 今後の展望
+/// カメラ位置などを乗せたいですねぇ。
 pub struct OverlapBindGroup {
     uniforms: Uniforms,
     layout: wgpu::BindGroupLayout,
@@ -293,6 +298,14 @@ impl OverlapBindGroup {
     }
 }
 
+/// アウトライン用の BindGroup。
+/// Overlay 情報の書き込まれた Texture と Sampler のみを受け取る。
+/// 
+/// テクスチャの RGBA の意味
+/// R: 重ね合わせの数
+/// G: 有用な情報なし
+/// B: 有用な情報なし
+/// A: 透明度情報(意味があるかどうか不明)
 pub struct OutlineBindGroup {
     layout: wgpu::BindGroupLayout,
 }
