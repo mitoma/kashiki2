@@ -1,9 +1,7 @@
-use std::time::SystemTime;
-
-use wgpu::util::DeviceExt;
-
 use crate::{
     font_vertex::FontVertex,
+    outline_bind_group::OutlineBindGroup,
+    overlap_bind_group::OverlapBindGroup,
     screen_texture::{self, ScreenTexture},
 };
 
@@ -33,7 +31,7 @@ impl RasterizerPipeline {
     pub(crate) fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
         // overlap
         let overlap_texture =
-            screen_texture::ScreenTexture::new(&device, (width, height), Some("Overlap Texture"));
+            screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
 
         let overlap_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Overlap Shader"),
@@ -102,7 +100,7 @@ impl RasterizerPipeline {
 
         // outline
         let outline_texture =
-            screen_texture::ScreenTexture::new(&device, (width, height), Some("Outline Texture"));
+            screen_texture::ScreenTexture::new(device, (width, height), Some("Outline Texture"));
 
         let outline_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Outline Shader"),
@@ -227,133 +225,3 @@ const SCREEN_VERTICES: &[ScreenVertex] = &[
 ];
 
 const SCREEN_INDICES: &[u16] = &[0, 1, 2, 2, 1, 3];
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Uniforms {
-    time: f32,
-}
-
-/// オーバーレイ用の BindGroup。
-/// Uniforms として現在時刻のみ渡している。
-/// 
-/// 今後の展望
-/// カメラ位置などを乗せたいですねぇ。
-pub struct OverlapBindGroup {
-    uniforms: Uniforms,
-    layout: wgpu::BindGroupLayout,
-}
-
-impl OverlapBindGroup {
-    pub fn new(device: &wgpu::Device) -> Self {
-        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("Overlap Bind Group Layout"),
-        });
-
-        let uniforms = Uniforms {
-            time: SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as f32
-                / 100.0,
-        };
-
-        Self { uniforms, layout }
-    }
-
-    pub fn update(&mut self) {
-        let d = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default();
-        self.uniforms.time = (d.as_millis() % 10000000) as f32 / 1000.0;
-    }
-
-    pub fn to_bind_group(&self, device: &wgpu::Device) -> wgpu::BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &self.layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: self.to_wgpu_buffer(device).as_entire_binding(),
-            }],
-            label: Some("uniform_bind_group"),
-        })
-    }
-
-    fn to_wgpu_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[self.uniforms]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        })
-    }
-}
-
-/// アウトライン用の BindGroup。
-/// Overlay 情報の書き込まれた Texture と Sampler のみを受け取る。
-/// 
-/// テクスチャの RGBA の意味
-/// R: 重ね合わせの数
-/// G: 有用な情報なし
-/// B: 有用な情報なし
-/// A: 透明度情報(意味があるかどうか不明)
-pub struct OutlineBindGroup {
-    layout: wgpu::BindGroupLayout,
-}
-
-impl OutlineBindGroup {
-    fn new(device: &wgpu::Device) -> Self {
-        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-            ],
-            label: Some("Outline Bind Group Layout"),
-        });
-        Self { layout }
-    }
-
-    pub fn to_bind_group(
-        &self,
-        device: &wgpu::Device,
-        overlap_texture: &ScreenTexture,
-    ) -> wgpu::BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &self.layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&overlap_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&overlap_texture.sampler),
-                },
-            ],
-            label: Some("Outline Bind Group"),
-        })
-    }
-}

@@ -1,5 +1,6 @@
 // Vertex shader
 struct Uniforms {
+    u_view_proj: mat4x4<f32>,
     u_time: f32,
 };
 
@@ -55,7 +56,7 @@ fn vs_main(
 
     var out: VertexOutput;
     out.color = model.color;
-    out.clip_position = moved;
+    out.clip_position = u_buffer.u_view_proj * moved;
     return out;
 }
 

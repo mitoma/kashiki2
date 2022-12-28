@@ -13,6 +13,8 @@ use winit::{
 use wasm_bindgen::prelude::*;
 
 mod font_vertex;
+mod overlap_bind_group;
+mod outline_bind_group;
 mod rasterizer_pipeline;
 mod screen_texture;
 
