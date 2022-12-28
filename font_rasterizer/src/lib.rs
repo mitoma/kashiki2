@@ -2,7 +2,6 @@ use std::iter;
 
 use font_vertex::FontVertex;
 use rasterizer_pipeline::RasterizerPipeline;
-use uniforms::Uniforms;
 use wgpu::util::DeviceExt;
 use winit::{
     event::*,
@@ -77,13 +76,13 @@ struct State {
 
     rasterizer_pipeline: RasterizerPipeline,
 
-    vertex_buffer: wgpu::Buffer,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
+    overlap_vertex_buffer: wgpu::Buffer,
+    overlap_index_buffer: wgpu::Buffer,
+    overlap_num_indices: u32,
 
-    deffered_vertex_buffer: wgpu::Buffer,
-    deffered_index_buffer: wgpu::Buffer,
-    deffered_num_indices: u32,
+    outline_vertex_buffer: wgpu::Buffer,
+    outline_index_buffer: wgpu::Buffer,
+    outline_num_indices: u32,
 
     font_vertex: (Vec<FontVertex>, Vec<u16>),
 }
@@ -134,30 +133,30 @@ impl State {
 
         let rasterizer_pipeline = RasterizerPipeline::new(&device, size.width, size.height);
 
-        let font_vertex = FontVertex::new_char('あ').unwrap();
-        let deffered_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Deffered Vertex Buffer"),
+        let font_vertex = FontVertex::new_char('闇').unwrap();
+        let overlap_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Overlap Vertex Buffer"),
             contents: bytemuck::cast_slice(&font_vertex.0),
             usage: wgpu::BufferUsages::VERTEX,
         });
-        let deffered_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Deffered Index Buffer"),
+        let overlap_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Overlap Index Buffer"),
             contents: bytemuck::cast_slice(&font_vertex.1),
             usage: wgpu::BufferUsages::INDEX,
         });
-        let deffered_num_indices = font_vertex.1.len() as u32;
+        let overlap_num_indices = font_vertex.1.len() as u32;
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
+        let outline_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Outline Vertex Buffer"),
             contents: bytemuck::cast_slice(SCREEN_VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
+        let outline_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Outline Index Buffer"),
             contents: bytemuck::cast_slice(SCREEN_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
-        let num_indices = SCREEN_INDICES.len() as u32;
+        let outline_num_indices = SCREEN_INDICES.len() as u32;
 
         Self {
             surface,
@@ -167,13 +166,13 @@ impl State {
             size,
             rasterizer_pipeline,
 
-            vertex_buffer,
-            index_buffer,
-            num_indices,
+            overlap_vertex_buffer,
+            overlap_index_buffer,
+            overlap_num_indices,
 
-            deffered_vertex_buffer,
-            deffered_index_buffer,
-            deffered_num_indices,
+            outline_vertex_buffer,
+            outline_index_buffer,
+            outline_num_indices,
 
             font_vertex,
         }
@@ -210,7 +209,7 @@ impl State {
             .to_bind_group(&self.device);
 
         {
-            let mut deffered_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Overlay Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &self.rasterizer_pipeline.overlap_texture.view,
@@ -228,14 +227,14 @@ impl State {
                 depth_stencil_attachment: None,
             });
 
-            deffered_render_pass.set_pipeline(&self.rasterizer_pipeline.overlap_render_pipeline);
-            deffered_render_pass.set_bind_group(0, overlap_bind_group, &[]);
-            deffered_render_pass.set_vertex_buffer(0, self.deffered_vertex_buffer.slice(..));
-            deffered_render_pass.set_index_buffer(
-                self.deffered_index_buffer.slice(..),
+            overlay_render_pass.set_pipeline(&self.rasterizer_pipeline.overlap_render_pipeline);
+            overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
+            overlay_render_pass.set_vertex_buffer(0, self.overlap_vertex_buffer.slice(..));
+            overlay_render_pass.set_index_buffer(
+                self.overlap_index_buffer.slice(..),
                 wgpu::IndexFormat::Uint16,
             );
-            deffered_render_pass.draw_indexed(0..self.deffered_num_indices, 0, 0..1);
+            overlay_render_pass.draw_indexed(0..self.overlap_num_indices, 0, 0..1);
         }
 
         let output = self.surface.get_current_texture()?;
@@ -248,7 +247,7 @@ impl State {
             .outline_bind_group
             .to_bind_group(&self.device, &self.rasterizer_pipeline.overlap_texture);
         {
-            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            let mut outline_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
@@ -265,11 +264,14 @@ impl State {
                 })],
                 depth_stencil_attachment: None,
             });
-            render_pass.set_pipeline(&self.rasterizer_pipeline.outline_render_pipeline);
-            render_pass.set_bind_group(0, outline_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            outline_render_pass.set_pipeline(&self.rasterizer_pipeline.outline_render_pipeline);
+            outline_render_pass.set_bind_group(0, outline_bind_group, &[]);
+            outline_render_pass.set_vertex_buffer(0, self.outline_vertex_buffer.slice(..));
+            outline_render_pass.set_index_buffer(
+                self.outline_index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            outline_render_pass.draw_indexed(0..self.outline_num_indices, 0, 0..1);
         }
 
         self.queue.submit(iter::once(encoder.finish()));
