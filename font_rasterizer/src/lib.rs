@@ -1,6 +1,7 @@
 use std::iter;
 
 use font_vertex::FontVertex;
+use rasterizer_pipeline::RasterizerPipeline;
 use uniforms::Uniforms;
 use wgpu::util::DeviceExt;
 use winit::{
@@ -13,9 +14,9 @@ use winit::{
 use wasm_bindgen::prelude::*;
 
 mod font_vertex;
+mod rasterizer_pipeline;
 mod screen_texture;
 mod uniforms;
-mod rasterizer_pipeline;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -73,22 +74,18 @@ struct State {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
-    render_pipeline: wgpu::RenderPipeline,
+
+    rasterizer_pipeline: RasterizerPipeline,
+
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
 
-    deffered_render_pipeline: wgpu::RenderPipeline,
     deffered_vertex_buffer: wgpu::Buffer,
     deffered_index_buffer: wgpu::Buffer,
     deffered_num_indices: u32,
-    deffered_texture: screen_texture::ScreenTexture,
-    deffered_bind_group: wgpu::BindGroup,
 
     font_vertex: (Vec<FontVertex>, Vec<u16>),
-
-    uniforms: uniforms::Uniforms,
-    uniform_bind_group_layout: wgpu::BindGroupLayout,
 }
 
 impl State {
@@ -135,208 +132,20 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        // setup uniform
-
-        // uniforms
-        let uniform_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("uniform_bind_group_layout"),
-            });
-        let uniforms = Uniforms::new();
-
-        // setup deffered
-        let deffered_texture = screen_texture::ScreenTexture::new(
-            &device,
-            (size.width, size.height),
-            Some("computed_texture"),
-        );
-
-        let deffered_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("deffered_bind_group_layout"),
-            });
-
-        let deffered_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &deffered_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&deffered_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&deffered_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
-
-        let deffered_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Deffered Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("deffered_shader.wgsl").into()),
-        });
-
-        let deffered_render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Deffered Render Pipeline Layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-        let deffered_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Deffered Render Pipeline"),
-                layout: Some(&deffered_render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &deffered_shader,
-                    entry_point: "vs_main",
-                    buffers: &[FontVertex::desc()],
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &deffered_shader,
-                    entry_point: "fs_main",
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: config.format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::SrcAlpha,
-                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                                operation: wgpu::BlendOperation::Add,
-                            },
-                            alpha: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::One,
-                                dst_factor: wgpu::BlendFactor::One,
-                                operation: wgpu::BlendOperation::Add,
-                            },
-                        }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: None,
-                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                    // or Features::POLYGON_MODE_POINT
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: None,
-            });
+        let rasterizer_pipeline = RasterizerPipeline::new(&device, size.width, size.height);
 
         let font_vertex = FontVertex::new_char('あ').unwrap();
-
         let deffered_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Deffered Vertex Buffer"),
             contents: bytemuck::cast_slice(&font_vertex.0),
-            //contents: bytemuck::cast_slice(&DEFFERED_VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let deffered_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Deffered Index Buffer"),
             contents: bytemuck::cast_slice(&font_vertex.1),
-            //contents: bytemuck::cast_slice(&DEFFERED_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
         let deffered_num_indices = font_vertex.1.len() as u32;
-        //let deffered_num_indices = DEFFERED_INDICES.len() as u32;
-
-        // setup screen
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-        });
-
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&deffered_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: "vs_main",
-                buffers: &[ScreenVertex::desc()],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: "fs_main",
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState {
-                        color: wgpu::BlendComponent::REPLACE,
-                        alpha: wgpu::BlendComponent::REPLACE,
-                    }),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                // or Features::POLYGON_MODE_POINT
-                polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            // If the pipeline will be used with a multiview render pass, this
-            // indicates how many array layers the attachments will have.
-            multiview: None,
-        });
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -356,21 +165,17 @@ impl State {
             queue,
             config,
             size,
-            render_pipeline,
+            rasterizer_pipeline,
+
             vertex_buffer,
             index_buffer,
             num_indices,
 
-            deffered_render_pipeline,
             deffered_vertex_buffer,
             deffered_index_buffer,
             deffered_num_indices,
-            deffered_texture,
-            deffered_bind_group,
 
             font_vertex,
-            uniforms,
-            uniform_bind_group_layout,
         }
     }
 
@@ -390,39 +195,25 @@ impl State {
 
     fn update(&mut self) {}
 
-    fn create_uniform_bind_group(&self) -> wgpu::BindGroup {
-        self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &self.uniform_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: self
-                    .uniforms
-                    .to_wgpu_buffer(&self.device)
-                    .as_entire_binding(),
-            }],
-            label: Some("uniform_bind_group"),
-        })
-    }
-
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        self.rasterizer_pipeline.overlap_bind_group.update();
+
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
 
-        let deffered_view = self
-            .deffered_texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        self.uniforms.update_view_proj();
-        let bind_group = self.create_uniform_bind_group();
+        let overlap_bind_group = &self
+            .rasterizer_pipeline
+            .overlap_bind_group
+            .to_bind_group(&self.device);
 
         {
             let mut deffered_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Deffered Render Pass"),
+                label: Some("Overlay Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &deffered_view,
+                    view: &self.rasterizer_pipeline.overlap_texture.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -437,8 +228,8 @@ impl State {
                 depth_stencil_attachment: None,
             });
 
-            deffered_render_pass.set_pipeline(&self.deffered_render_pipeline);
-            deffered_render_pass.set_bind_group(0, &bind_group, &[]);
+            deffered_render_pass.set_pipeline(&self.rasterizer_pipeline.overlap_render_pipeline);
+            deffered_render_pass.set_bind_group(0, overlap_bind_group, &[]);
             deffered_render_pass.set_vertex_buffer(0, self.deffered_vertex_buffer.slice(..));
             deffered_render_pass.set_index_buffer(
                 self.deffered_index_buffer.slice(..),
@@ -452,6 +243,10 @@ impl State {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
+        let outline_bind_group = &self
+            .rasterizer_pipeline
+            .outline_bind_group
+            .to_bind_group(&self.device, &self.rasterizer_pipeline.overlap_texture);
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -470,9 +265,8 @@ impl State {
                 })],
                 depth_stencil_attachment: None,
             });
-
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.deffered_bind_group, &[]);
+            render_pass.set_pipeline(&self.rasterizer_pipeline.outline_render_pipeline);
+            render_pass.set_bind_group(0, outline_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);

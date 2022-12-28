@@ -18,15 +18,15 @@ use crate::{
 /// 2 つめはポリゴンの重ねた結果からフォントの輪郭を抽出する処理
 pub(crate) struct RasterizerPipeline {
     // 1 ステージ目(overlap)
-    overlap_bind_group: OverlapBindGroup,
-    overlap_render_pipeline_layout: wgpu::PipelineLayout,
-    overlap_render_pipeline: wgpu::RenderPipeline,
-    overlap_texture: ScreenTexture,
+    pub(crate) overlap_bind_group: OverlapBindGroup,
+    pub(crate) overlap_render_pipeline_layout: wgpu::PipelineLayout,
+    pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
+    pub(crate) overlap_texture: ScreenTexture,
     // 2 ステージ目(outline)
-    outline_bind_group: OutlineBindGroup,
-    outline_render_pipeline_layout: wgpu::PipelineLayout,
-    outline_render_pipeline: wgpu::RenderPipeline,
-    outline_texture: ScreenTexture,
+    pub(crate) outline_bind_group: OutlineBindGroup,
+    pub(crate) outline_render_pipeline_layout: wgpu::PipelineLayout,
+    pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
+    pub(crate) outline_texture: ScreenTexture,
 }
 
 impl RasterizerPipeline {
