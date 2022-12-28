@@ -69,12 +69,20 @@ impl FontVertexBuilder {
     }
 
     fn build(&mut self, rect: Rect) -> (Vec<FontVertex>, Vec<u16>) {
+        let mut is_first = true;
         let vertex = self
             .main_vertex
             .iter()
             .map(|InternalFontVertex { x, y, wait }| {
-                let x = (*x / rect.width() as f32) - 0.5;
-                let y = (*y / rect.height() as f32) - 0.5;
+                let (x, y) = if is_first {
+                    is_first = false;
+                    (0.0, 0.0)
+                } else {
+                    (
+                        (*x / rect.width() as f32) - 0.5,
+                        (*y / rect.height() as f32) - 0.5,
+                    )
+                };
                 println!("x:{}, y:{}, wait:{:?}", x, y, wait);
                 FontVertex {
                     position: [x, y, 0.0],
@@ -83,7 +91,7 @@ impl FontVertexBuilder {
             })
             .collect();
         println!("index:{:?}", &self.main_index);
-        (vertex, self.main_index.clone().into_iter().collect())
+        (vertex, self.main_index.clone())
     }
 }
 
