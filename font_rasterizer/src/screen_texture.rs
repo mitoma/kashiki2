@@ -2,10 +2,12 @@ pub struct ScreenTexture {
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
+    pub texture_format: wgpu::TextureFormat,
 }
 
 impl ScreenTexture {
     pub fn new(device: &wgpu::Device, size: (u32, u32), label: Option<&str>) -> Self {
+        let texture_format = wgpu::TextureFormat::Bgra8UnormSrgb;
         let size = wgpu::Extent3d {
             width: size.0,
             height: size.1,
@@ -18,7 +20,7 @@ impl ScreenTexture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Bgra8UnormSrgb,
+            format: texture_format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_DST,
@@ -39,6 +41,7 @@ impl ScreenTexture {
             texture,
             view,
             sampler,
+            texture_format,
         }
     }
 }

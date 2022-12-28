@@ -15,6 +15,7 @@ use wasm_bindgen::prelude::*;
 mod font_vertex;
 mod screen_texture;
 mod uniforms;
+mod rasterizer_pipeline;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -154,7 +155,6 @@ impl State {
         let uniforms = Uniforms::new();
 
         // setup deffered
-
         let deffered_texture = screen_texture::ScreenTexture::new(
             &device,
             (size.width, size.height),
