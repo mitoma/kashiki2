@@ -1,3 +1,29 @@
+// ここはシェーダーで使う便利関数を書くスペース
+fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
+    let a: vec3<f32> = normalize(axis);
+    let s: f32 = sin(angle);
+    let c: f32 = cos(angle);
+    let r: f32 = 1.0 - c;
+    let m: mat3x3<f32> = mat3x3<f32>(
+        vec3<f32>(
+            a.x * a.x * r + c,
+            a.y * a.x * r + a.z * s,
+            a.z * a.x * r - a.y * s
+        ),
+        vec3<f32>(
+            a.x * a.y * r - a.z * s,
+            a.y * a.y * r + c,
+            a.z * a.y * r + a.x * s
+        ),
+        vec3<f32>(
+            a.x * a.z * r + a.y * s,
+            a.y * a.z * r - a.x * s,
+            a.z * a.z * r + c
+        )
+    );
+    return m * p;
+}
+
 // Vertex shader
 struct Uniforms {
     u_view_proj: mat4x4<f32>,
@@ -61,30 +87,4 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
     return vec4<f32>(in.color, UNIT);
-}
-
-// ここからシェーダーで使う便利関数を書くスペース
-fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
-    let a: vec3<f32> = normalize(axis);
-    let s: f32 = sin(angle);
-    let c: f32 = cos(angle);
-    let r: f32 = 1.0 - c;
-    let m: mat3x3<f32> = mat3x3<f32>(
-        vec3<f32>(
-            a.x * a.x * r + c,
-            a.y * a.x * r + a.z * s,
-            a.z * a.x * r - a.y * s
-        ),
-        vec3<f32>(
-            a.x * a.y * r - a.z * s,
-            a.y * a.y * r + c,
-            a.z * a.y * r + a.x * s
-        ),
-        vec3<f32>(
-            a.x * a.z * r + a.y * s,
-            a.y * a.z * r - a.x * s,
-            a.z * a.z * r + c
-        )
-    );
-    return m * p;
 }
