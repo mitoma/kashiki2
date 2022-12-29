@@ -40,7 +40,7 @@ fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
 
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
-    @location(0) position: vec3<f32>,
+    @location(0) position: vec2<f32>,
     @location(1) color: vec3<f32>,
 };
 
@@ -56,7 +56,7 @@ fn vs_main(
     let moved = vec4<f32>(
         model.position.x * (1f + sin(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.05),
         model.position.y * (1f + cos(u_buffer.u_time * 5f + model.position.y / 0.01) * 0.05),
-        model.position.z + (cos(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.02),
+        (cos(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.02),
         1.0
     );
     let rotated: vec4<f32> = vec4<f32>(rotate(moved.xyz, u_buffer.u_time * 0.5, vec3<f32>(0.0, 1.0, 0.0)), 1.0);

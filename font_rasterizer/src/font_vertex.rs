@@ -6,7 +6,7 @@ const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct FontVertex {
-    pub(crate) position: [f32; 3],
+    pub(crate) position: [f32; 2],
     pub(crate) wait: [f32; 3],
 }
 
@@ -25,10 +25,10 @@ impl FontVertex {
                 wgpu::VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32x2,
                 },
                 wgpu::VertexAttribute {
-                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x3,
                 },
@@ -85,7 +85,7 @@ impl FontVertexBuilder {
                 };
                 println!("x:{}, y:{}, wait:{:?}", x, y, wait);
                 FontVertex {
-                    position: [x, y, 0.0],
+                    position: [x, y],
                     wait: [1.0, wait.0, wait.1],
                 }
             })
