@@ -4,8 +4,14 @@ struct Uniforms {
     u_time: f32,
 };
 
+struct Instances {
+    s_models: array<mat4x4<f32>>,
+};
+
 @group(0) @binding(0)
 var<uniform> u_buffer: Uniforms;
+@group(0) @binding(1)
+var<storage, read> i_buffer: Instances;
 
 fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
     let a: vec3<f32> = normalize(axis);
@@ -33,6 +39,7 @@ fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
 }
 
 struct VertexInput {
+    @builtin(instance_index) instance_index: u32,
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
 };
@@ -56,7 +63,7 @@ fn vs_main(
 
     var out: VertexOutput;
     out.color = model.color;
-    out.clip_position = u_buffer.u_view_proj * rotated;
+    out.clip_position = u_buffer.u_view_proj * i_buffer.s_models[model.instance_index] * rotated;
     return out;
 }
 

@@ -1,7 +1,9 @@
 use std::iter;
 
 use camera::{Camera, CameraOperation};
+use cgmath::Rotation3;
 use font_vertex::FontVertex;
+use instances::{Instance, Instances};
 use rasterizer_pipeline::RasterizerPipeline;
 use wgpu::util::DeviceExt;
 use winit::{
@@ -15,6 +17,7 @@ use wasm_bindgen::prelude::*;
 
 mod camera;
 mod font_vertex;
+mod instances;
 mod outline_bind_group;
 mod overlap_bind_group;
 mod rasterizer_pipeline;
@@ -91,6 +94,7 @@ struct State {
     outline_num_indices: u32,
 
     font_vertex: (Vec<FontVertex>, Vec<u16>),
+    instances: Instances,
 }
 
 impl State {
@@ -153,6 +157,27 @@ impl State {
         let rasterizer_pipeline = RasterizerPipeline::new(&device, size.width, size.height);
 
         let font_vertex = FontVertex::new_char('あ').unwrap();
+
+        let mut is = Vec::new();
+
+        for x in -50..50 {
+            for y in -50..50 {
+                let instance = Instance::new(
+                    cgmath::Vector3 {
+                        x: 1.2 * x as f32,
+                        y: 1.2 * y as f32,
+                        z: 0.0,
+                    },
+                    cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_z(),
+                        cgmath::Deg(0.0),
+                    ),
+                );
+                is.push(instance);
+            }
+        }
+        let instances = Instances::new(is);
+
         let overlap_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Overlap Vertex Buffer"),
             contents: bytemuck::cast_slice(&font_vertex.0),
@@ -197,6 +222,7 @@ impl State {
             outline_num_indices,
 
             font_vertex,
+            instances,
         }
     }
 
@@ -241,6 +267,14 @@ impl State {
                         self.update_camera(&CameraOperation::Down);
                         true
                     }
+                    VirtualKeyCode::PageUp => {
+                        self.update_camera(&CameraOperation::Forward);
+                        true
+                    }
+                    VirtualKeyCode::PageDown => {
+                        self.update_camera(&CameraOperation::Backward);
+                        true
+                    }
                     _ => false,
                 }
             }
@@ -270,7 +304,7 @@ impl State {
         let overlap_bind_group = &self
             .rasterizer_pipeline
             .overlap_bind_group
-            .to_bind_group(&self.device);
+            .to_bind_group(&self.device, &self.instances);
 
         {
             let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -298,7 +332,11 @@ impl State {
                 self.overlap_index_buffer.slice(..),
                 wgpu::IndexFormat::Uint16,
             );
-            overlay_render_pass.draw_indexed(0..self.overlap_num_indices, 0, 0..1);
+            overlay_render_pass.draw_indexed(
+                0..self.overlap_num_indices,
+                0,
+                0..self.instances.len() as _,
+            );
         }
 
         let output = self.surface.get_current_texture()?;
