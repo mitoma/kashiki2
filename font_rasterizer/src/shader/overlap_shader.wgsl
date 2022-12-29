@@ -47,16 +47,16 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     let moved = vec4<f32>(
-        model.position.x * (1f + sin(u_buffer.u_time * 10f + model.position.x / 0.01) * 0.05),
-        model.position.y * (1f + cos(u_buffer.u_time * 10f + model.position.y / 0.01) * 0.05),
-        model.position.z / 2.0,
+        model.position.x * (1f + sin(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.05),
+        model.position.y * (1f + cos(u_buffer.u_time * 5f + model.position.y / 0.01) * 0.05),
+        model.position.z + (cos(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.02),
         1.0
     );
-    let rotated: vec4<f32> = vec4<f32>(rotate(moved.xyz, u_buffer.u_time, vec3<f32>(0.0, 0.0, 0.001)), 1.0);
+    let rotated: vec4<f32> = vec4<f32>(rotate(moved.xyz, u_buffer.u_time * 0.5, vec3<f32>(0.0, 1.0, 0.0)), 1.0);
 
     var out: VertexOutput;
     out.color = model.color;
-    out.clip_position = u_buffer.u_view_proj * moved;
+    out.clip_position = u_buffer.u_view_proj * rotated;
     return out;
 }
 

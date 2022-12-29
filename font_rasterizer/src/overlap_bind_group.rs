@@ -1,5 +1,7 @@
 //use std::time::SystemTime;
 
+use std::time::SystemTime;
+
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
@@ -58,11 +60,12 @@ impl OverlapBindGroup {
         Self { uniforms, layout }
     }
 
-    pub fn update(&mut self) {
-        //        let d = SystemTime::now()
-        //            .duration_since(SystemTime::UNIX_EPOCH)
-        //            .unwrap_or_default();
-        //        self.uniforms.time = (d.as_millis() % 10000000) as f32 / 1000.0;
+    pub fn update(&mut self, view_proj: [[f32; 4]; 4]) {
+        self.uniforms.view_proj = view_proj;
+        let d = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default();
+        self.uniforms.time = (d.as_millis() % 10000000) as f32 / 1000.0;
     }
 
     pub fn to_bind_group(&self, device: &wgpu::Device) -> wgpu::BindGroup {

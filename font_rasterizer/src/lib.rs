@@ -1,5 +1,6 @@
 use std::iter;
 
+use camera::{Camera, CameraOperation};
 use font_vertex::FontVertex;
 use rasterizer_pipeline::RasterizerPipeline;
 use wgpu::util::DeviceExt;
@@ -12,6 +13,7 @@ use winit::{
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+mod camera;
 mod font_vertex;
 mod outline_bind_group;
 mod overlap_bind_group;
@@ -75,6 +77,9 @@ struct State {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
 
+    camera: camera::Camera,
+    camera_controller: camera::CameraController,
+
     rasterizer_pipeline: RasterizerPipeline,
 
     overlap_vertex_buffer: wgpu::Buffer,
@@ -132,6 +137,19 @@ impl State {
         };
         surface.configure(&device, &config);
 
+        // Camera
+        let camera = camera::Camera::new(
+            (0.0, 1.0, 2.0).into(),
+            (0.0, 0.0, 0.0).into(),
+            cgmath::Vector3::unit_y(),
+            config.width as f32 / config.height as f32,
+            // fovy は視野角。ここでは45度を指定
+            45.0,
+            0.1,
+            100.0,
+        );
+        let camera_controller = camera::CameraController::new(0.2);
+
         let rasterizer_pipeline = RasterizerPipeline::new(&device, size.width, size.height);
 
         let font_vertex = FontVertex::new_char('あ').unwrap();
@@ -165,6 +183,9 @@ impl State {
             queue,
             config,
             size,
+
+            camera,
+            camera_controller,
             rasterizer_pipeline,
 
             overlap_vertex_buffer,
@@ -192,14 +213,54 @@ impl State {
 
     #[allow(unused_variables)]
     fn input(&mut self, event: &WindowEvent) -> bool {
-        false
+        match event {
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(code),
+                        ..
+                    },
+                ..
+            } => {
+                println!("{:?}", code);
+                match code {
+                    VirtualKeyCode::Right => {
+                        self.update_camera(&CameraOperation::Right);
+                        true
+                    }
+                    VirtualKeyCode::Left => {
+                        self.update_camera(&CameraOperation::Left);
+                        true
+                    }
+                    VirtualKeyCode::Up => {
+                        self.update_camera(&CameraOperation::Up);
+                        true
+                    }
+                    VirtualKeyCode::Down => {
+                        self.update_camera(&CameraOperation::Down);
+                        true
+                    }
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
     }
 
-    fn update(&mut self) {}
+    fn update_camera(&mut self, operation: &CameraOperation) {
+        self.camera_controller.process(operation);
+    }
+
+    fn update(&mut self) {
+        self.camera_controller.update_camera(&mut self.camera);
+        self.rasterizer_pipeline
+            .overlap_bind_group
+            .update(self.camera.build_view_projection_matrix().into());
+        self.camera_controller.reset_state();
+    }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        self.rasterizer_pipeline.overlap_bind_group.update();
-
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
