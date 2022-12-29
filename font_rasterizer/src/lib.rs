@@ -13,8 +13,8 @@ use winit::{
 use wasm_bindgen::prelude::*;
 
 mod font_vertex;
-mod overlap_bind_group;
 mod outline_bind_group;
+mod overlap_bind_group;
 mod rasterizer_pipeline;
 mod screen_texture;
 
@@ -257,10 +257,10 @@ impl State {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
                         }),
                         store: true,
                     },

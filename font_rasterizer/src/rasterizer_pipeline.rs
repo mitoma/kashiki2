@@ -17,12 +17,10 @@ use crate::{
 pub(crate) struct RasterizerPipeline {
     // 1 ステージ目(overlap)
     pub(crate) overlap_bind_group: OverlapBindGroup,
-    pub(crate) overlap_render_pipeline_layout: wgpu::PipelineLayout,
     pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
     pub(crate) overlap_texture: ScreenTexture,
     // 2 ステージ目(outline)
     pub(crate) outline_bind_group: OutlineBindGroup,
-    pub(crate) outline_render_pipeline_layout: wgpu::PipelineLayout,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
     pub(crate) outline_texture: ScreenTexture,
 }
@@ -165,12 +163,10 @@ impl RasterizerPipeline {
             // overlap
             overlap_bind_group,
             overlap_texture,
-            overlap_render_pipeline_layout,
             overlap_render_pipeline,
             // outline
             outline_texture,
             outline_bind_group,
-            outline_render_pipeline_layout,
             outline_render_pipeline,
         }
     }
