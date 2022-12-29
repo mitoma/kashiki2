@@ -13,35 +13,10 @@ var<uniform> u_buffer: Uniforms;
 @group(0) @binding(1)
 var<storage, read> i_buffer: Instances;
 
-fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
-    let a: vec3<f32> = normalize(axis);
-    let s: f32 = sin(angle);
-    let c: f32 = cos(angle);
-    let r: f32 = 1.0 - c;
-    let m: mat3x3<f32> = mat3x3<f32>(
-        vec3<f32>(
-            a.x * a.x * r + c,
-            a.y * a.x * r + a.z * s,
-            a.z * a.x * r - a.y * s
-        ),
-        vec3<f32>(
-            a.x * a.y * r - a.z * s,
-            a.y * a.y * r + c,
-            a.z * a.y * r + a.x * s
-        ),
-        vec3<f32>(
-            a.x * a.z * r + a.y * s,
-            a.y * a.z * r - a.x * s,
-            a.z * a.z * r + c
-        )
-    );
-    return m * p;
-}
-
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec2<f32>,
-    @location(1) color: vec3<f32>,
+    @location(1) wait: vec2<f32>,
 };
 
 struct VertexOutput {
@@ -62,7 +37,7 @@ fn vs_main(
     let rotated: vec4<f32> = vec4<f32>(rotate(moved.xyz, u_buffer.u_time * 0.5, vec3<f32>(0.0, 1.0, 0.0)), 1.0);
 
     var out: VertexOutput;
-    out.color = model.color;
+    out.color = vec3<f32>(1f, model.wait.xy);
     out.clip_position = u_buffer.u_view_proj * i_buffer.s_models[model.instance_index] * rotated;
     return out;
 }
@@ -86,4 +61,30 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
     return vec4<f32>(in.color, UNIT);
+}
+
+// ここからシェーダーで使う便利関数を書くスペース
+fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
+    let a: vec3<f32> = normalize(axis);
+    let s: f32 = sin(angle);
+    let c: f32 = cos(angle);
+    let r: f32 = 1.0 - c;
+    let m: mat3x3<f32> = mat3x3<f32>(
+        vec3<f32>(
+            a.x * a.x * r + c,
+            a.y * a.x * r + a.z * s,
+            a.z * a.x * r - a.y * s
+        ),
+        vec3<f32>(
+            a.x * a.y * r - a.z * s,
+            a.y * a.y * r + c,
+            a.z * a.y * r + a.x * s
+        ),
+        vec3<f32>(
+            a.x * a.z * r + a.y * s,
+            a.y * a.z * r - a.x * s,
+            a.z * a.z * r + c
+        )
+    );
+    return m * p;
 }
