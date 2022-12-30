@@ -654,6 +654,7 @@ dependencies = [
  "env_logger",
  "fs_extra",
  "glob",
+ "instant",
  "log",
  "pollster",
  "ttf-parser 0.17.1",
