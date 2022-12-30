@@ -1,5 +1,6 @@
 use crate::{
     font_vertex::FontVertex,
+    instances::InstanceRaw,
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_texture::{self, ScreenTexture},
@@ -52,7 +53,7 @@ impl RasterizerPipeline {
                 vertex: wgpu::VertexState {
                     module: &overlap_shader,
                     entry_point: "vs_main",
-                    buffers: &[FontVertex::desc()],
+                    buffers: &[FontVertex::desc(), InstanceRaw::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &overlap_shader,

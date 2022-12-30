@@ -56,19 +56,7 @@ impl OverlapBindGroup {
                     },
                     count: None,
                 },
-                // Instance
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: true },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
             ],
-
             label: Some("Overlap Bind Group Layout"),
         });
 
@@ -85,7 +73,7 @@ impl OverlapBindGroup {
         self.uniforms.time = (d.as_millis() % 10000000) as f32 / 1000.0;
     }
 
-    pub fn to_bind_group(&self, device: &wgpu::Device, instances: &Instances) -> wgpu::BindGroup {
+    pub fn to_bind_group(&self, device: &wgpu::Device) -> wgpu::BindGroup {
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
             contents: bytemuck::cast_slice(&[self.uniforms]),
@@ -94,16 +82,10 @@ impl OverlapBindGroup {
 
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: instances.to_wgpu_buffer(device).as_entire_binding(),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
             label: Some("Overlap Bind Group"),
         })
     }

@@ -30,19 +30,20 @@ struct Uniforms {
     u_time: f32,
 };
 
-struct Instances {
-    s_models: array<mat4x4<f32>>,
-};
-
 @group(0) @binding(0)
 var<uniform> u_buffer: Uniforms;
-@group(0) @binding(1)
-var<storage, read> i_buffer: Instances;
 
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec2<f32>,
     @location(1) wait: vec2<f32>,
+};
+
+struct InstancesInput {
+    @location(5) model_matrix_0: vec4<f32>,
+    @location(6) model_matrix_1: vec4<f32>,
+    @location(7) model_matrix_2: vec4<f32>,
+    @location(8) model_matrix_3: vec4<f32>,
 };
 
 struct VertexOutput {
@@ -53,7 +54,15 @@ struct VertexOutput {
 @vertex
 fn vs_main(
     model: VertexInput,
+    instances: InstancesInput,
 ) -> VertexOutput {
+    let instance_matrix = mat4x4<f32>(
+        instances.model_matrix_0,
+        instances.model_matrix_1,
+        instances.model_matrix_2,
+        instances.model_matrix_3,
+    );
+
     let moved = vec4<f32>(
         model.position.x * (1f + sin(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.05),
         model.position.y * (1f + cos(u_buffer.u_time * 5f + model.position.y / 0.01) * 0.05),
@@ -64,7 +73,7 @@ fn vs_main(
 
     var out: VertexOutput;
     out.color = vec3<f32>(1f, model.wait.xy);
-    out.clip_position = u_buffer.u_view_proj * i_buffer.s_models[model.instance_index] * rotated;
+    out.clip_position = u_buffer.u_view_proj * instance_matrix * rotated;
     return out;
 }
 

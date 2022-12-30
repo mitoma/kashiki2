@@ -79,7 +79,7 @@ impl ToBuffer for Instances {
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-struct InstanceRaw {
+pub(crate) struct InstanceRaw {
     model: [[f32; 4]; 4],
 }
 

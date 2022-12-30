@@ -316,7 +316,9 @@ impl State {
         let overlap_bind_group = &self
             .rasterizer_pipeline
             .overlap_bind_group
-            .to_bind_group(&self.device, &self.instances);
+            .to_bind_group(&self.device);
+
+        let instance_buffer = self.instances.to_wgpu_buffer(&self.device);
 
         {
             let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -340,6 +342,7 @@ impl State {
             overlay_render_pass.set_pipeline(&self.rasterizer_pipeline.overlap_render_pipeline);
             overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
             overlay_render_pass.set_vertex_buffer(0, self.overlap_vertex_buffer.slice(..));
+            overlay_render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
             overlay_render_pass.set_index_buffer(
                 self.overlap_index_buffer.slice(..),
                 wgpu::IndexFormat::Uint32,
