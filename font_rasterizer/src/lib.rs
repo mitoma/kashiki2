@@ -4,7 +4,7 @@ use camera::CameraOperation;
 use cgmath::Rotation3;
 use font_vertex::FontVertex;
 use instances::{Instance, Instances};
-use log::info;
+use log::{debug, info};
 use rasterizer_pipeline::RasterizerPipeline;
 use wgpu::util::DeviceExt;
 use winit::{
@@ -257,6 +257,21 @@ impl State {
     #[allow(unused_variables)]
     fn input(&mut self, event: &WindowEvent) -> bool {
         match event {
+            WindowEvent::CursorMoved { position, .. } => {
+                let center_x = self.config.width as f64 / 2.0;
+                let center_y = self.config.height as f64 / 2.0;
+                if position.x > center_x {
+                    self.update_camera(&CameraOperation::Left);
+                } else if position.x < center_x {
+                    self.update_camera(&CameraOperation::Right);
+                }
+                if position.y > center_y {
+                    self.update_camera(&CameraOperation::Up);
+                } else if position.y < center_y {
+                    self.update_camera(&CameraOperation::Down);
+                }
+                true
+            }
             WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
@@ -266,7 +281,7 @@ impl State {
                     },
                 ..
             } => {
-                println!("{:?}", code);
+                debug!("Keycode: {:?}", code);
                 match code {
                     VirtualKeyCode::Right => {
                         self.update_camera(&CameraOperation::Right);
