@@ -23,11 +23,17 @@ pub(crate) struct RasterizerPipeline {
     // 2 ステージ目(outline)
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
-    pub(crate) outline_texture: ScreenTexture,
+    // outline texture は今は使わずに画面に直接出す
+    //pub(crate) outline_texture: ScreenTexture,
 }
 
 impl RasterizerPipeline {
-    pub(crate) fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
+    pub(crate) fn new(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        outline_texture_format: wgpu::TextureFormat,
+    ) -> Self {
         // overlap
         let overlap_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
@@ -98,8 +104,8 @@ impl RasterizerPipeline {
             });
 
         // outline
-        let outline_texture =
-            screen_texture::ScreenTexture::new(device, (width, height), Some("Outline Texture"));
+        //let outline_texture =
+        //    screen_texture::ScreenTexture::new(device, (width, height), Some("Outline Texture"));
 
         let outline_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Outline Shader"),
@@ -128,7 +134,7 @@ impl RasterizerPipeline {
                     module: &outline_shader,
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: outline_texture.texture_format,
+                        format: outline_texture_format,
                         blend: Some(wgpu::BlendState {
                             color: wgpu::BlendComponent::REPLACE,
                             alpha: wgpu::BlendComponent::REPLACE,
@@ -166,7 +172,7 @@ impl RasterizerPipeline {
             overlap_texture,
             overlap_render_pipeline,
             // outline
-            outline_texture,
+            //outline_texture,
             outline_bind_group,
             outline_render_pipeline,
         }

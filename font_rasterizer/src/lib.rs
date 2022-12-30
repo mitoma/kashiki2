@@ -155,7 +155,8 @@ impl State {
         );
         let camera_controller = camera::CameraController::new(0.2);
 
-        let rasterizer_pipeline = RasterizerPipeline::new(&device, size.width, size.height);
+        let rasterizer_pipeline =
+            RasterizerPipeline::new(&device, size.width, size.height, config.format);
 
         let font_vertex = match FontVertex::new_chars(vec![
             0x20 as char..=0x7e as char,
@@ -244,8 +245,12 @@ impl State {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
-            self.rasterizer_pipeline =
-                RasterizerPipeline::new(&self.device, new_size.width, new_size.height)
+            self.rasterizer_pipeline = RasterizerPipeline::new(
+                &self.device,
+                new_size.width,
+                new_size.height,
+                self.config.format,
+            )
         }
     }
 
