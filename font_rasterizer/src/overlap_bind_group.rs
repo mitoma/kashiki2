@@ -1,5 +1,5 @@
 use cgmath::SquareMatrix;
-use instant::{Instant, SystemTime};
+use instant::SystemTime;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]

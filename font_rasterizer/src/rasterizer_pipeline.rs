@@ -3,8 +3,22 @@ use crate::{
     instances::InstanceRaw,
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
+    screen_bind_group::ScreenBindGroup,
     screen_texture::{self, ScreenTexture},
 };
+
+pub(crate) enum Quarity {
+    /// 2 倍サンプリングする(アンチエイリアスあり)
+    VeryHigh,
+    /// 1.5 倍サンプリングする(アンチエイリアスあり)
+    High,
+    /// アンリエイリアスしない(アンチエイリアスなし)
+    Middle,
+    /// 0.75倍サンプリング
+    Low,
+    /// 0.5倍サンプリング
+    VeryLow,
+}
 
 /// フォントをラスタライズするためのパイプラインを提供する。
 ///
@@ -23,8 +37,12 @@ pub(crate) struct RasterizerPipeline {
     // 2 ステージ目(outline)
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
-    // outline texture は今は使わずに画面に直接出す
-    //pub(crate) outline_texture: ScreenTexture,
+    pub(crate) outline_texture: ScreenTexture,
+
+    // default screen pipeline
+    // 画面に表示する用のパイプライン
+    pub(crate) default_screen_render_pipeline: wgpu::RenderPipeline,
+    pub(crate) default_screen_bind_group: ScreenBindGroup,
 }
 
 impl RasterizerPipeline {
@@ -32,8 +50,17 @@ impl RasterizerPipeline {
         device: &wgpu::Device,
         width: u32,
         height: u32,
-        outline_texture_format: wgpu::TextureFormat,
+        screen_texture_format: wgpu::TextureFormat,
+        quarity: Quarity,
     ) -> Self {
+        let (width, height) = match quarity {
+            Quarity::VeryHigh => (width * 2, height * 2),
+            Quarity::High => (width + width / 2, height + height / 2),
+            Quarity::Middle => (width, height),
+            Quarity::Low => (width - width / 4, height - height / 4),
+            Quarity::VeryLow => (width / 2, height / 2),
+        };
+
         // overlap
         let overlap_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
@@ -104,8 +131,8 @@ impl RasterizerPipeline {
             });
 
         // outline
-        //let outline_texture =
-        //    screen_texture::ScreenTexture::new(device, (width, height), Some("Outline Texture"));
+        let outline_texture =
+            screen_texture::ScreenTexture::new(device, (width, height), Some("Outline Texture"));
 
         let outline_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Outline Shader"),
@@ -134,7 +161,60 @@ impl RasterizerPipeline {
                     module: &outline_shader,
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: outline_texture_format,
+                        format: outline_texture.texture_format,
+                        blend: Some(wgpu::BlendState {
+                            color: wgpu::BlendComponent::REPLACE,
+                            alpha: wgpu::BlendComponent::REPLACE,
+                        }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
+                    // or Features::POLYGON_MODE_POINT
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    // Requires Features::DEPTH_CLIP_CONTROL
+                    unclipped_depth: false,
+                    // Requires Features::CONSERVATIVE_RASTERIZATION
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                // If the pipeline will be used with a multiview render pass, this
+                // indicates how many array layers the attachments will have.
+                multiview: None,
+            });
+
+        // default screen render pipeline
+        let screen_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Outline Shader"),
+            source: wgpu::ShaderSource::Wgsl(include_str!("shader/screen_shader.wgsl").into()),
+        });
+
+        let default_screen_bind_group = ScreenBindGroup::new(device);
+
+        let default_screen_render_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Default Screen Render Pipeline"),
+                layout: Some(&outline_render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &screen_shader,
+                    entry_point: "vs_main",
+                    buffers: &[ScreenVertex::desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &screen_shader,
+                    entry_point: "fs_main",
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: screen_texture_format,
                         blend: Some(wgpu::BlendState {
                             color: wgpu::BlendComponent::REPLACE,
                             alpha: wgpu::BlendComponent::REPLACE,
@@ -168,13 +248,17 @@ impl RasterizerPipeline {
 
         Self {
             // overlap
-            overlap_bind_group,
             overlap_texture,
+            overlap_bind_group,
             overlap_render_pipeline,
             // outline
-            //outline_texture,
+            outline_texture,
             outline_bind_group,
             outline_render_pipeline,
+
+            // default
+            default_screen_render_pipeline,
+            default_screen_bind_group,
         }
     }
 }
