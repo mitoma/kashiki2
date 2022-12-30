@@ -1,11 +1,6 @@
-//use std::time::SystemTime;
-
-use std::time::SystemTime;
-
 use cgmath::SquareMatrix;
+use instant::{Instant, SystemTime};
 use wgpu::util::DeviceExt;
-
-use crate::instances::Instances;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -30,12 +25,11 @@ impl Default for Uniforms {
     fn default() -> Self {
         Self {
             view_proj: cgmath::Matrix4::identity().into(),
-            time: 0.0,
-            //            time: SystemTime::now()
-            //                .duration_since(SystemTime::UNIX_EPOCH)
-            //                .unwrap_or_default()
-            //                .as_millis() as f32
-            //                / 100.0,
+            time: SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as f32
+                / 100.0,
             padding: [0; 3],
         }
     }
