@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, iter};
 
 use camera::CameraOperation;
-use cgmath::Rotation3;
-use font_vertex::FontVertex;
+use cgmath::{num_traits::Signed, Rotation3};
+use font_vertex::{FontVertex, FontVertexBuffer};
 use instances::{Instance, Instances};
 use log::{debug, info};
 use rasterizer_pipeline::RasterizerPipeline;
@@ -87,9 +87,7 @@ struct State {
 
     rasterizer_pipeline: RasterizerPipeline,
 
-    overlap_vertex_buffer: wgpu::Buffer,
-    overlap_index_buffer: wgpu::Buffer,
-    overlap_num_indices: u32,
+    font_vertex_buffer: FontVertexBuffer,
 
     outline_vertex_buffer: wgpu::Buffer,
     outline_index_buffer: wgpu::Buffer,
@@ -99,8 +97,7 @@ struct State {
     screen_index_buffer: wgpu::Buffer,
     screen_num_indices: u32,
 
-    font_vertex: (Vec<FontVertex>, BTreeMap<char, Vec<u32>>),
-    instances: Instances,
+    instances: Vec<Instances>,
 }
 
 impl State {
@@ -168,21 +165,28 @@ impl State {
             rasterizer_pipeline::Quarity::High,
         );
 
-        let font_vertex = match FontVertex::new_chars(vec![
-            0x20 as char..=0x7e as char,
-            /* ひらがな */ '\u{3040}'..='\u{309F}',
-            /* カタカナ */ '\u{30A0}'..='\u{30FF}',
-        ]) {
-            Ok(font_vertex) => font_vertex,
-            e => {
+        let font_vertex_buffer = match FontVertexBuffer::new_buffer(
+            &device,
+            vec![
+                0x20 as char..=0x7e as char,
+                /* ひらがな */ '\u{3040}'..='\u{309F}',
+                /* カタカナ */ '\u{30A0}'..='\u{30FF}',
+                '炊'..='炊',
+            ],
+        ) {
+            Ok(font_vertex_buffer) => font_vertex_buffer,
+            Err(e) => {
                 info!("err:{:?}", e);
                 std::process::exit(2)
             }
         };
 
-        let mut is = Vec::new();
+        let cs = ('あ'..='お').collect::<Vec<char>>();
 
-        for x in -50..50 {
+        let mut instances2 = Vec::new();
+        {
+            let x = 0;
+            let mut is = Vec::new();
             for y in -50..50 {
                 let instance = Instance::new(
                     cgmath::Vector3 {
@@ -197,21 +201,11 @@ impl State {
                 );
                 is.push(instance);
             }
-        }
-        let instances = Instances::new(is);
+            let cs_num = (x as i32).abs() % (cs.len() as i32);
+            let instances = Instances::new('あ', is);
 
-        let overlap_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Overlap Vertex Buffer"),
-            contents: bytemuck::cast_slice(&font_vertex.0),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let idx = font_vertex.1.get(&'あ').unwrap();
-        let overlap_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Overlap Index Buffer"),
-            contents: bytemuck::cast_slice(idx),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-        let overlap_num_indices = idx.len() as u32;
+            instances2.push(instances);
+        }
 
         let outline_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Outline Vertex Buffer"),
@@ -249,9 +243,7 @@ impl State {
             camera_controller,
             rasterizer_pipeline,
 
-            overlap_vertex_buffer,
-            overlap_index_buffer,
-            overlap_num_indices,
+            font_vertex_buffer,
 
             outline_vertex_buffer,
             outline_index_buffer,
@@ -261,8 +253,7 @@ impl State {
             screen_index_buffer,
             screen_num_indices,
 
-            font_vertex,
-            instances,
+            instances: instances2,
         }
     }
 
@@ -372,7 +363,11 @@ impl State {
                 .overlap_bind_group
                 .to_bind_group(&self.device);
 
-            let instance_buffer = self.instances.to_wgpu_buffer(&self.device);
+            let instance_buffer = self
+                .instances
+                .iter()
+                .map(|i| (i.c, (i.len() - 1, i.to_wgpu_buffer(&self.device))))
+                .collect::<BTreeMap<char, (usize, wgpu::Buffer)>>();
 
             {
                 let mut overlay_render_pass =
@@ -396,17 +391,20 @@ impl State {
 
                 overlay_render_pass.set_pipeline(&self.rasterizer_pipeline.overlap_render_pipeline);
                 overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
-                overlay_render_pass.set_vertex_buffer(0, self.overlap_vertex_buffer.slice(..));
-                overlay_render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
+                overlay_render_pass
+                    .set_vertex_buffer(0, self.font_vertex_buffer.vertex_buffer.slice(..));
                 overlay_render_pass.set_index_buffer(
-                    self.overlap_index_buffer.slice(..),
+                    self.font_vertex_buffer.index_buffer.slice(..),
                     wgpu::IndexFormat::Uint32,
                 );
-                overlay_render_pass.draw_indexed(
-                    0..self.overlap_num_indices,
-                    0,
-                    0..self.instances.len() as _,
-                );
+                for (c, (len, buffer)) in instance_buffer.iter() {
+                    overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));
+                    overlay_render_pass.draw_indexed(
+                        self.font_vertex_buffer.range(*c).unwrap(),
+                        0,
+                        0..*len as _,
+                    );
+                }
             }
         }
 

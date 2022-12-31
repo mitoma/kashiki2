@@ -1,10 +1,12 @@
 use std::{
     collections::{BTreeMap, HashSet},
-    ops::RangeInclusive,
+    ops::{Range, RangeInclusive},
 };
 
+use anyhow::Context;
 use log::{debug, info};
 use ttf_parser::{Face, OutlineBuilder, Rect};
+use wgpu::util::DeviceExt;
 
 const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-Regular.ttf");
 
@@ -49,7 +51,9 @@ struct FontVertexBuilder {
     vertex_swap: bool,
 
     flushed_vertex: Vec<FontVertex>,
-    flushed_index: BTreeMap<char, Vec<u32>>,
+    flushed_index: Vec<u32>,
+
+    index_range: BTreeMap<char, Range<u32>>,
 }
 
 impl FontVertexBuilder {
@@ -63,7 +67,8 @@ impl FontVertexBuilder {
                 position: [0.0; 2],
                 wait: [0.0; 2],
             }],
-            flushed_index: BTreeMap::new(),
+            flushed_index: Vec::new(),
+            index_range: BTreeMap::new(),
         }
     }
 
@@ -78,6 +83,9 @@ impl FontVertexBuilder {
     }
 
     fn flush(&mut self, c: char, rect: Rect) {
+        let range = self.flushed_index.len() as u32
+            ..(self.flushed_index.len() + self.main_index.len()) as u32;
+
         let mut vertex = self
             .main_vertex
             .iter()
@@ -91,26 +99,21 @@ impl FontVertexBuilder {
             })
             .collect();
         self.flushed_vertex.append(&mut vertex);
-        self.flushed_index.insert(c, self.main_index.clone());
+        self.flushed_index.append(&mut self.main_index);
+        self.index_range.insert(c, range);
         self.main_vertex.clear();
         self.main_index.clear();
     }
 
-    fn build(self) -> (Vec<FontVertex>, BTreeMap<char, Vec<u32>>) {
+    fn build(self) -> (Vec<FontVertex>, Vec<u32>, BTreeMap<char, Range<u32>>) {
         info!(
-            "vertex:{}, index:{}, polygon:{}",
+            "vertex:{}, index:{}, polygon:{}, char:{}",
             self.flushed_vertex.len(),
-            self.flushed_index
-                .values()
-                .map(|is| is.len())
-                .sum::<usize>(),
-            self.flushed_index
-                .values()
-                .map(|is| is.len())
-                .sum::<usize>()
-                / 3,
+            self.flushed_index.len(),
+            self.flushed_index.len() / 3,
+            self.index_range.len(),
         );
-        (self.flushed_vertex, self.flushed_index)
+        (self.flushed_vertex, self.flushed_index, self.index_range)
     }
 }
 
@@ -160,10 +163,39 @@ impl OutlineBuilder for FontVertexBuilder {
     }
 }
 
-impl FontVertex {
-    pub(crate) fn new_chars(
+pub(crate) struct FontVertexBuffer {
+    pub(crate) vertex_buffer: wgpu::Buffer,
+    pub(crate) index_buffer: wgpu::Buffer,
+    index_range: BTreeMap<char, Range<u32>>,
+}
+
+impl FontVertexBuffer {
+    pub(crate) fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<FontVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                // 文字情報なので xy の座標だけでよい
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                // ベジエか直線かの情報が必要なので [f32; 2] を使っている。
+                // 本質的には 2 bit でいいはずなので調整余地あり
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+            ],
+        }
+    }
+
+    pub(crate) fn new_buffer(
+        device: &wgpu::Device,
         chars: Vec<RangeInclusive<char>>,
-    ) -> anyhow::Result<(Vec<FontVertex>, BTreeMap<char, Vec<u32>>)> {
+    ) -> anyhow::Result<Self> {
         let face = Face::parse(FONT_DATA, 0)?;
 
         let chars: HashSet<char> = chars
@@ -183,6 +215,30 @@ impl FontVertex {
                     continue};
             builder.flush(c, rect);
         }
-        Ok(builder.build())
+        let (vertex_buffer, index_buffer, index_range) = builder.build();
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Overlap Vertex Buffer"),
+            contents: bytemuck::cast_slice(&vertex_buffer),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Overlap Index Buffer"),
+            contents: bytemuck::cast_slice(&index_buffer),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+
+        Ok(Self {
+            vertex_buffer,
+            index_buffer,
+            index_range,
+        })
+    }
+
+    pub(crate) fn range(&self, c: char) -> anyhow::Result<Range<u32>> {
+        self.index_range
+            .get(&c)
+            .map(|r| r.clone())
+            .with_context(|| "get char")
     }
 }

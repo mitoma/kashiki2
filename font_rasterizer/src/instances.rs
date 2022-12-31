@@ -12,12 +12,13 @@ impl Instance {
 }
 
 pub struct Instances {
+    pub(crate) c: char,
     values: Vec<Instance>,
 }
 
 impl Instances {
-    pub fn new(values: Vec<Instance>) -> Self {
-        Self { values }
+    pub fn new(c: char, values: Vec<Instance>) -> Self {
+        Self { c, values }
     }
 
     pub fn len(&self) -> usize {
