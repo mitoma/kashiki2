@@ -143,6 +143,10 @@ impl CameraController {
         }
     }
 
+    pub fn update_camera_aspect(&self, camera: &mut Camera, width: u32, height: u32) {
+        camera.aspect = width as f32 / height as f32;
+    }
+
     pub fn update_camera(&self, camera: &mut Camera) {
         // ターゲットからカメラの座標を引く(カメラから見たターゲットの向き)
         let forward = camera.target - camera.eye;

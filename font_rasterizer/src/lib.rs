@@ -149,14 +149,14 @@ impl State {
 
         // Camera
         let camera = camera::Camera::new(
-            (0.0, 1.0, 2.0).into(),
+            (0.0, 0.0, 50.0).into(),
             (0.0, 0.0, 0.0).into(),
             cgmath::Vector3::unit_y(),
             config.width as f32 / config.height as f32,
             // fovy は視野角。ここでは45度を指定
             45.0,
             0.1,
-            100.0,
+            200.0,
         );
         let camera_controller = camera::CameraController::new(0.2);
 
@@ -271,6 +271,11 @@ impl State {
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
+            self.camera_controller.update_camera_aspect(
+                &mut self.camera,
+                new_size.width,
+                new_size.height,
+            );
             self.surface.configure(&self.device, &self.config);
             self.rasterizer_pipeline = RasterizerPipeline::new(
                 &self.device,
@@ -579,4 +584,52 @@ pub async fn run() {
             _ => {}
         }
     });
+}
+
+mod test {
+    #[test]
+    fn generate_color_table() {
+        // good color scheme.
+        // https://ethanschoonover.com/solarized/
+        let schemes = vec![
+            ("base03", 10, 43, 54),
+            ("base02", 19, 54, 66),
+            ("base01", 88, 110, 117),
+            ("base00", 101, 123, 131),
+            ("base0", 131, 148, 150),
+            ("base1", 147, 161, 161),
+            ("base2", 238, 232, 213),
+            ("base3", 253, 246, 227),
+            ("yellow", 181, 137, 0),
+            ("orange", 203, 75, 22),
+            ("red", 220, 50, 47),
+            ("magenta", 211, 54, 130),
+            ("violet", 108, 113, 196),
+            ("blue", 38, 139, 210),
+            ("cyan", 42, 161, 152),
+            ("green", 133, 153, 0),
+        ];
+
+        schemes.iter().for_each(|scheme| {
+            println!(
+                "let {:10} = vec4<f32>({:.10}, {:.10}, {:.10}, 1.0);",
+                scheme.0,
+                linear_to_srgb(scheme.1),
+                linear_to_srgb(scheme.2),
+                linear_to_srgb(scheme.3)
+            );
+        });
+    }
+
+    // こちらの記事を参考に linear の RGB 情報を sRGB に変換
+    // http://www.psy.ritsumei.ac.jp/~akitaoka/RGBtoXYZ_etal01.html
+    // https://en.wikipedia.org/wiki/SRGB
+    fn linear_to_srgb(value: u32) -> f32 {
+        let value: f32 = value as f32 / 255.0;
+        if value <= 0.04045 {
+            value / 12.92
+        } else {
+            ((value + 0.055) / 1.055).powf(2.4)
+        }
+    }
 }
