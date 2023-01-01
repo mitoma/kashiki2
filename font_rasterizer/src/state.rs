@@ -1,11 +1,11 @@
+use std::collections::HashSet;
 use std::iter;
 
 use crate::camera::{Camera, CameraController, CameraOperation};
 use crate::font_vertex_buffer::FontVertexBuffer;
-use crate::instances::{Instance, Instances};
+use crate::instances::Instances;
 use crate::rasterizer_pipeline::{Quarity, RasterizerPipeline};
 use crate::text::SingleLineText;
-use cgmath::Rotation3;
 use log::{debug, info};
 use winit::{event::*, window::Window};
 
@@ -30,6 +30,15 @@ pub(crate) struct State {
 
 impl State {
     pub(crate) async fn new(window: &Window) -> Self {
+        // テストデータ
+        let sample_text =
+            "あけまして\nおめでとうございます\n今年は兎🐇年ですね\n豚🐖年は無いのですね\n🥺🥺🥺\nABCDEFG　HOGE\n🥂☄🦀🐢🍇\n"
+                .to_string();
+        // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
+        let chars = sample_text.chars().collect::<HashSet<_>>();
+        let chars = chars.iter().map(|c| *c..=*c).collect::<Vec<_>>();
+
+        // ここから本来の処理
         let quarity = Quarity::VeryHigh;
 
         let size = window.inner_size();
@@ -90,19 +99,7 @@ impl State {
         let rasterizer_pipeline =
             RasterizerPipeline::new(&device, size.width, size.height, config.format, quarity);
 
-        let font_vertex_buffer = match FontVertexBuffer::new_buffer(
-            &device,
-            vec![
-                0x20 as char..=0x7e as char,
-                /* ひらがな */ '\u{3040}'..='\u{309F}',
-                /* カタカナ */ '\u{30A0}'..='\u{30FF}',
-                '一'..='龠',
-                '🐢'..='🐢',
-                '🐖'..='🐖',
-                '🐇'..='🐇',
-                '🥺'..='🥺',
-            ],
-        ) {
+        let font_vertex_buffer = match FontVertexBuffer::new_buffer(&device, chars) {
             Ok(font_vertex_buffer) => font_vertex_buffer,
             Err(e) => {
                 info!("err:{:?}", e);
@@ -110,11 +107,7 @@ impl State {
             }
         };
 
-        let instances2 = SingleLineText(
-            "あけまして\nおめでとうございます\n今年は兎🐇年ですね\n豚🐖年は無いのですね\n🥺🥺🥺"
-                .to_string(),
-        )
-        .to_instances();
+        let instances2 = SingleLineText(sample_text).to_instances();
 
         Self {
             surface,
