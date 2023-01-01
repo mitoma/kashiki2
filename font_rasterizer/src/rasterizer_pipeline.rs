@@ -38,17 +38,21 @@ pub(crate) struct RasterizerPipeline {
     // 1 ステージ目(overlap)
     pub(crate) overlap_bind_group: OverlapBindGroup,
     pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
+
+    // 1 ステージ目のアウトプット(≒ 2 ステージ目のインプット)
     pub(crate) overlap_texture: ScreenTexture,
+
     // 2 ステージ目(outline)
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
-    pub(crate) outline_texture: ScreenTexture,
     pub(crate) outline_vertex_buffer: ScreenVertexBuffer,
 
-    // default screen pipeline
+    // 2 ステージ目のアウトプット(≒ 3 ステージ目のインプット)
+    pub(crate) outline_texture: ScreenTexture,
+
     // 画面に表示する用のパイプライン
-    pub(crate) default_screen_render_pipeline: wgpu::RenderPipeline,
-    pub(crate) default_screen_bind_group: ScreenBindGroup,
+    pub(crate) screen_bind_group: ScreenBindGroup,
+    pub(crate) screen_render_pipeline: wgpu::RenderPipeline,
     pub(crate) screen_vertex_buffer: ScreenVertexBuffer,
 }
 
@@ -207,9 +211,9 @@ impl RasterizerPipeline {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader/screen_shader.wgsl").into()),
         });
 
-        let default_screen_bind_group = ScreenBindGroup::new(device);
+        let screen_bind_group = ScreenBindGroup::new(device);
 
-        let default_screen_render_pipeline =
+        let screen_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Default Screen Render Pipeline"),
                 layout: Some(&outline_render_pipeline_layout),
@@ -267,8 +271,8 @@ impl RasterizerPipeline {
             outline_vertex_buffer,
 
             // default
-            default_screen_render_pipeline,
-            default_screen_bind_group,
+            screen_render_pipeline,
+            screen_bind_group,
             screen_vertex_buffer,
         }
     }
@@ -323,7 +327,7 @@ impl RasterizerPipeline {
         screen_view: wgpu::TextureView,
     ) {
         let screen_bind_group = &self
-            .default_screen_bind_group
+            .screen_bind_group
             .to_bind_group(&device, &self.outline_texture);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -343,7 +347,7 @@ impl RasterizerPipeline {
                 })],
                 depth_stencil_attachment: None,
             });
-            screen_render_pass.set_pipeline(&self.default_screen_render_pipeline);
+            screen_render_pass.set_pipeline(&self.screen_render_pipeline);
             screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
             screen_render_pass
                 .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
