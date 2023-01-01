@@ -4,7 +4,6 @@ use crate::camera::{Camera, CameraController, CameraOperation};
 use crate::font_vertex_buffer::FontVertexBuffer;
 use crate::instances::{Instance, Instances};
 use crate::rasterizer_pipeline::{Quarity, RasterizerPipeline};
-use crate::screen_vertex_buffer::ScreenVertexBuffer;
 use cgmath::Rotation3;
 use log::{debug, info};
 use winit::{event::*, window::Window};
@@ -16,6 +15,8 @@ pub(crate) struct State {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
 
+    quarity: Quarity,
+
     camera: Camera,
     camera_controller: CameraController,
 
@@ -23,13 +24,13 @@ pub(crate) struct State {
 
     font_vertex_buffer: FontVertexBuffer,
 
-    screen_buffer: ScreenVertexBuffer,
-
     instances: Vec<Instances>,
 }
 
 impl State {
     pub(crate) async fn new(window: &Window) -> Self {
+        let quarity = Quarity::VeryLow;
+
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -85,13 +86,8 @@ impl State {
         );
         let camera_controller = CameraController::new(0.2);
 
-        let rasterizer_pipeline = RasterizerPipeline::new(
-            &device,
-            size.width,
-            size.height,
-            config.format,
-            Quarity::High,
-        );
+        let rasterizer_pipeline =
+            RasterizerPipeline::new(&device, size.width, size.height, config.format, quarity);
 
         let font_vertex_buffer = match FontVertexBuffer::new_buffer(
             &device,
@@ -134,23 +130,19 @@ impl State {
             instances2.push(instances);
         }
 
-        // screen
-        let screen_buffer = ScreenVertexBuffer::new_buffer(&device);
-
         Self {
             surface,
             device,
             queue,
             config,
             size,
+            quarity,
 
             camera,
             camera_controller,
             rasterizer_pipeline,
 
             font_vertex_buffer,
-
-            screen_buffer,
 
             instances: instances2,
         }
@@ -176,7 +168,7 @@ impl State {
                 new_size.width,
                 new_size.height,
                 self.config.format,
-                Quarity::High,
+                self.quarity,
             )
         }
     }
@@ -316,43 +308,13 @@ impl State {
                 .outline_stage(&self.device, &mut encoder);
         }
 
-        // screen
         let screen_output = self.surface.get_current_texture()?;
-        let screen_view = screen_output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let screen_bind_group = &self
-            .rasterizer_pipeline
-            .default_screen_bind_group
-            .to_bind_group(&self.device, &self.rasterizer_pipeline.outline_texture);
-        // Screen Render Pass
         {
-            let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Screen Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &screen_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 0.0,
-                        }),
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-            screen_render_pass
-                .set_pipeline(&self.rasterizer_pipeline.default_screen_render_pipeline);
-            screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
-            screen_render_pass.set_vertex_buffer(0, self.screen_buffer.vertex_buffer.slice(..));
-            screen_render_pass.set_index_buffer(
-                self.screen_buffer.index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-            screen_render_pass.draw_indexed(self.screen_buffer.index_range.clone(), 0, 0..1);
+            let screen_view = screen_output
+                .texture
+                .create_view(&wgpu::TextureViewDescriptor::default());
+            self.rasterizer_pipeline
+                .screen_stage(&self.device, &mut encoder, screen_view);
         }
 
         self.queue.submit(iter::once(encoder.finish()));

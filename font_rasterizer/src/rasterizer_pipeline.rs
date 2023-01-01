@@ -8,6 +8,7 @@ use crate::{
     screen_vertex_buffer::ScreenVertexBuffer,
 };
 
+#[derive(Clone, Copy)]
 pub(crate) enum Quarity {
     /// 2 倍サンプリングする(アンチエイリアスあり)
     VeryHigh,
@@ -30,6 +31,9 @@ pub(crate) enum Quarity {
 ///
 /// 1 つめはフォントを構成するポリゴンを重ねていく処理
 /// 2 つめはポリゴンの重ねた結果からフォントの輪郭を抽出する処理
+/// 3 つめは輪郭を抽出したテクスチャをスクリーンに描画する処理
+///   2 が 3 よりも解像度が高ければオーバーサンプリングでクオリティが高くなり
+///   その逆であればドット絵の品質になるよう調整
 pub(crate) struct RasterizerPipeline {
     // 1 ステージ目(overlap)
     pub(crate) overlap_bind_group: OverlapBindGroup,
@@ -45,6 +49,7 @@ pub(crate) struct RasterizerPipeline {
     // 画面に表示する用のパイプライン
     pub(crate) default_screen_render_pipeline: wgpu::RenderPipeline,
     pub(crate) default_screen_bind_group: ScreenBindGroup,
+    pub(crate) screen_vertex_buffer: ScreenVertexBuffer,
 }
 
 impl RasterizerPipeline {
@@ -248,6 +253,7 @@ impl RasterizerPipeline {
                 // indicates how many array layers the attachments will have.
                 multiview: None,
             });
+        let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(&device);
 
         Self {
             // overlap
@@ -263,6 +269,7 @@ impl RasterizerPipeline {
             // default
             default_screen_render_pipeline,
             default_screen_bind_group,
+            screen_vertex_buffer,
         }
     }
 
@@ -306,6 +313,45 @@ impl RasterizerPipeline {
                 0,
                 0..1,
             );
+        }
+    }
+
+    pub(crate) fn screen_stage(
+        &self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+        screen_view: wgpu::TextureView,
+    ) {
+        let screen_bind_group = &self
+            .default_screen_bind_group
+            .to_bind_group(&device, &self.outline_texture);
+        {
+            let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Screen Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &screen_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+            screen_render_pass.set_pipeline(&self.default_screen_render_pipeline);
+            screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
+            screen_render_pass
+                .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
+            screen_render_pass.set_index_buffer(
+                self.screen_vertex_buffer.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
         }
     }
 }
