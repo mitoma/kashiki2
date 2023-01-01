@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use cgmath::Rotation3;
 use log::debug;
 
-use crate::instances::{Instance, Instances};
+use crate::{
+    instances::{Instance, Instances},
+    SolarizedColor,
+};
 
 pub(crate) struct SingleLineText(pub(crate) String);
 
@@ -26,6 +29,16 @@ impl SingleLineText {
                 instances.insert(c, Instances::new(c, Vec::new()));
             }
             let instance = instances.get_mut(&c).unwrap();
+
+            let color = if c.is_ascii() {
+                SolarizedColor::BASE0.get_color()
+            } else if c < '一' {
+                SolarizedColor::GREEN.get_color()
+            } else if c < '\u{1F600}' {
+                SolarizedColor::VIOLET.get_color()
+            } else {
+                SolarizedColor::YELLOW.get_color()
+            };
             let i = Instance::new(
                 cgmath::Vector3 {
                     x: 1.3 * x as f32,
@@ -33,6 +46,7 @@ impl SingleLineText {
                     z: 0.0,
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+                color,
             );
             instance.push(i);
             x += 1;

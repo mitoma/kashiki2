@@ -62,11 +62,13 @@ struct InstancesInput {
     @location(6) model_matrix_1: vec4<f32>,
     @location(7) model_matrix_2: vec4<f32>,
     @location(8) model_matrix_3: vec4<f32>,
+    @location(9) color: vec3<f32>,
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec3<f32>,
+    @location(0) wait: vec3<f32>,
+    @location(1) color: vec3<f32>,
 };
 
 @vertex
@@ -90,7 +92,8 @@ fn vs_main(
     let rotated: vec4<f32> = vec4<f32>(rotate(moved.xyz, u_buffer.u_time * 0.5, vec3<f32>(0.0, 1.0, 0.0)), 1.0);
 
     var out: VertexOutput;
-    out.color = vec3<f32>(1f, model.wait.xy);
+    out.wait = vec3<f32>(1f, model.wait.xy);
+    out.color = instances.color;
     out.clip_position = u_buffer.u_view_proj * instance_matrix * moved;
     return out;
 }
@@ -109,9 +112,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     //}
 
     // G, B のいずれかが 0 でないとき
-    let in_bezier = pow((in.color.g / 2.0 + in.color.b), 2.0) < in.color.b;
+    let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
     if !in_bezier {
-        return vec4<f32>(base0, 0.0);
+        return vec4<f32>(in.color, 0.0);
     }
-    return vec4<f32>(base0, UNIT);
+    return vec4<f32>(in.color, UNIT);
 }
