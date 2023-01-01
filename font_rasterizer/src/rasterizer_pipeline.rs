@@ -1,10 +1,11 @@
 use crate::{
-    font_vertex::FontVertexBuffer,
+    font_vertex_buffer::FontVertexBuffer,
     instances::InstanceRaw,
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_bind_group::ScreenBindGroup,
     screen_texture::{self, ScreenTexture},
+    screen_vertex_buffer::ScreenVertexBuffer,
 };
 
 pub(crate) enum Quarity {
@@ -155,7 +156,7 @@ impl RasterizerPipeline {
                 vertex: wgpu::VertexState {
                     module: &outline_shader,
                     entry_point: "vs_main",
-                    buffers: &[ScreenVertex::desc()],
+                    buffers: &[ScreenVertexBuffer::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &outline_shader,
@@ -208,7 +209,7 @@ impl RasterizerPipeline {
                 vertex: wgpu::VertexState {
                     module: &screen_shader,
                     entry_point: "vs_main",
-                    buffers: &[ScreenVertex::desc()],
+                    buffers: &[ScreenVertexBuffer::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &screen_shader,
@@ -262,53 +263,3 @@ impl RasterizerPipeline {
         }
     }
 }
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct ScreenVertex {
-    position: [f32; 3],
-    tex_coords: [f32; 2],
-}
-
-impl ScreenVertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<ScreenVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-            ],
-        }
-    }
-}
-
-const SCREEN_VERTICES: &[ScreenVertex] = &[
-    ScreenVertex {
-        position: [-1.0, -1.0, 0.0],
-        tex_coords: [0.0, 1.0],
-    }, // A
-    ScreenVertex {
-        position: [1.0, -1.0, 0.0],
-        tex_coords: [1.0, 1.0],
-    }, // B
-    ScreenVertex {
-        position: [-1.0, 1.0, 0.0],
-        tex_coords: [0.0, 0.0],
-    }, // C
-    ScreenVertex {
-        position: [1.0, 1.0, 0.0],
-        tex_coords: [1.0, 0.0],
-    }, // D
-];
-
-const SCREEN_INDICES: &[u16] = &[0, 1, 2, 2, 1, 3];

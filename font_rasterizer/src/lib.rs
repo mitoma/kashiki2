@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, iter};
 
 use camera::CameraOperation;
-use cgmath::{num_traits::Signed, Rotation3};
-use font_vertex::{FontVertex, FontVertexBuffer};
+use cgmath::Rotation3;
+use font_vertex_buffer::FontVertexBuffer;
 use instances::{Instance, Instances};
 use log::{debug, info};
 use rasterizer_pipeline::RasterizerPipeline;
-use wgpu::util::DeviceExt;
+use screen_vertex_buffer::ScreenVertexBuffer;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -17,63 +17,14 @@ use winit::{
 use wasm_bindgen::prelude::*;
 
 mod camera;
-mod font_vertex;
+mod font_vertex_buffer;
 mod instances;
 mod outline_bind_group;
 mod overlap_bind_group;
 mod rasterizer_pipeline;
 mod screen_bind_group;
 mod screen_texture;
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct ScreenVertex {
-    position: [f32; 3],
-    tex_coords: [f32; 2],
-}
-
-impl ScreenVertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<ScreenVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    offset: 0,
-                    shader_location: 0,
-                    format: wgpu::VertexFormat::Float32x3,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
-                },
-            ],
-        }
-    }
-}
-
-const SCREEN_VERTICES: &[ScreenVertex] = &[
-    ScreenVertex {
-        position: [-1.0, -1.0, 0.0],
-        tex_coords: [0.0, 1.0],
-    }, // A
-    ScreenVertex {
-        position: [1.0, -1.0, 0.0],
-        tex_coords: [1.0, 1.0],
-    }, // B
-    ScreenVertex {
-        position: [-1.0, 1.0, 0.0],
-        tex_coords: [0.0, 0.0],
-    }, // C
-    ScreenVertex {
-        position: [1.0, 1.0, 0.0],
-        tex_coords: [1.0, 0.0],
-    }, // D
-];
-
-const SCREEN_INDICES: &[u16] = &[0, 1, 2, 2, 1, 3];
+mod screen_vertex_buffer;
 
 struct State {
     surface: wgpu::Surface,
@@ -89,13 +40,9 @@ struct State {
 
     font_vertex_buffer: FontVertexBuffer,
 
-    outline_vertex_buffer: wgpu::Buffer,
-    outline_index_buffer: wgpu::Buffer,
-    outline_num_indices: u32,
+    outline_buffer: ScreenVertexBuffer,
 
-    screen_vertex_buffer: wgpu::Buffer,
-    screen_index_buffer: wgpu::Buffer,
-    screen_num_indices: u32,
+    screen_buffer: ScreenVertexBuffer,
 
     instances: Vec<Instances>,
 }
@@ -173,6 +120,7 @@ impl State {
                 /* カタカナ */ '\u{30A0}'..='\u{30FF}',
                 '炊'..='炊',
                 '🐢'..='🐢',
+                '🐖'..='🐖',
             ],
         ) {
             Ok(font_vertex_buffer) => font_vertex_buffer,
@@ -181,8 +129,6 @@ impl State {
                 std::process::exit(2)
             }
         };
-
-        let cs = ('あ'..='お').collect::<Vec<char>>();
 
         let mut instances2 = Vec::new();
         {
@@ -202,35 +148,16 @@ impl State {
                 );
                 is.push(instance);
             }
-            let instances = Instances::new('🐢', is);
+            let instances = Instances::new('🐖', is);
 
             instances2.push(instances);
         }
 
-        let outline_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Outline Vertex Buffer"),
-            contents: bytemuck::cast_slice(SCREEN_VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let outline_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Outline Index Buffer"),
-            contents: bytemuck::cast_slice(SCREEN_INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-        let outline_num_indices = SCREEN_INDICES.len() as u32;
+        // outline
+        let outline_buffer = ScreenVertexBuffer::new_buffer(&device).unwrap();
 
         // screen
-        let screen_vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Outline Vertex Buffer"),
-            contents: bytemuck::cast_slice(SCREEN_VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        let screen_index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Outline Index Buffer"),
-            contents: bytemuck::cast_slice(SCREEN_INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-        let screen_num_indices = SCREEN_INDICES.len() as u32;
+        let screen_buffer = ScreenVertexBuffer::new_buffer(&device).unwrap();
 
         Self {
             surface,
@@ -245,13 +172,9 @@ impl State {
 
             font_vertex_buffer,
 
-            outline_vertex_buffer,
-            outline_index_buffer,
-            outline_num_indices,
+            outline_buffer,
 
-            screen_vertex_buffer,
-            screen_index_buffer,
-            screen_num_indices,
+            screen_buffer,
 
             instances: instances2,
         }
@@ -440,12 +363,13 @@ impl State {
                     });
                 outline_render_pass.set_pipeline(&self.rasterizer_pipeline.outline_render_pipeline);
                 outline_render_pass.set_bind_group(0, outline_bind_group, &[]);
-                outline_render_pass.set_vertex_buffer(0, self.outline_vertex_buffer.slice(..));
+                outline_render_pass
+                    .set_vertex_buffer(0, self.outline_buffer.vertex_buffer.slice(..));
                 outline_render_pass.set_index_buffer(
-                    self.outline_index_buffer.slice(..),
+                    self.outline_buffer.index_buffer.slice(..),
                     wgpu::IndexFormat::Uint16,
                 );
-                outline_render_pass.draw_indexed(0..self.outline_num_indices, 0, 0..1);
+                outline_render_pass.draw_indexed(self.outline_buffer.index_range.clone(), 0, 0..1);
             }
         }
 
@@ -480,12 +404,12 @@ impl State {
             screen_render_pass
                 .set_pipeline(&self.rasterizer_pipeline.default_screen_render_pipeline);
             screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
-            screen_render_pass.set_vertex_buffer(0, self.screen_vertex_buffer.slice(..));
+            screen_render_pass.set_vertex_buffer(0, self.screen_buffer.vertex_buffer.slice(..));
             screen_render_pass.set_index_buffer(
-                self.screen_index_buffer.slice(..),
+                self.screen_buffer.index_buffer.slice(..),
                 wgpu::IndexFormat::Uint16,
             );
-            screen_render_pass.draw_indexed(0..self.screen_num_indices, 0, 0..1);
+            screen_render_pass.draw_indexed(self.screen_buffer.index_range.clone(), 0, 0..1);
         }
 
         self.queue.submit(iter::once(encoder.finish()));
@@ -584,6 +508,7 @@ pub async fn run() {
     });
 }
 
+#[cfg(test)]
 mod test {
     #[test]
     fn generate_color_table() {
