@@ -9,6 +9,7 @@ use ttf_parser::{Face, OutlineBuilder, Rect};
 use wgpu::util::DeviceExt;
 
 const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/NotoEmoji-Regular.ttf");
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -192,11 +193,21 @@ impl FontVertexBuffer {
         }
     }
 
+    fn build(builder: &mut FontVertexBuilder, c: char, f: &Face) -> anyhow::Result<Rect> {
+        let glyph_id = f
+            .glyph_index(c)
+            .with_context(|| format!("no glyph. char:{}", c))?;
+        f.outline_glyph(glyph_id, builder)
+            .with_context(|| format!("ougline glyph is failed. char:{}", c))
+    }
+
     pub(crate) fn new_buffer(
         device: &wgpu::Device,
         chars: Vec<RangeInclusive<char>>,
     ) -> anyhow::Result<Self> {
         let face = Face::parse(FONT_DATA, 0)?;
+        let emoji_face = Face::parse(EMOJI_FONT_DATA, 0)?;
+        let faces = vec![face, emoji_face];
 
         let chars: HashSet<char> = chars
             .into_iter()
@@ -205,13 +216,11 @@ impl FontVertexBuffer {
 
         let mut builder = FontVertexBuilder::new();
         for c in chars {
-            let Some(glyph_id) = face.glyph_index(c) else {
-                debug!("no glyph. char:{}", c);
-                continue};
-            let Some(rect) = face
-                .outline_glyph(glyph_id, &mut builder)
-                else {
-                    debug!("ougline glyph is failed. char:{}", c);
+            let Some(rect) = faces
+                .iter()
+                .flat_map(|face| Self::build(&mut builder, c, face))
+                .next() else {
+                    debug!("font にない文字です。 char:{}", c);
                     continue};
             builder.flush(c, rect);
         }

@@ -146,7 +146,7 @@ impl State {
 
         // Camera
         let camera = camera::Camera::new(
-            (0.0, 0.0, 50.0).into(),
+            (0.0, 0.0, 2.0).into(),
             (0.0, 0.0, 0.0).into(),
             cgmath::Vector3::unit_y(),
             config.width as f32 / config.height as f32,
@@ -172,6 +172,7 @@ impl State {
                 /* ひらがな */ '\u{3040}'..='\u{309F}',
                 /* カタカナ */ '\u{30A0}'..='\u{30FF}',
                 '炊'..='炊',
+                '🐢'..='🐢',
             ],
         ) {
             Ok(font_vertex_buffer) => font_vertex_buffer,
@@ -185,9 +186,9 @@ impl State {
 
         let mut instances2 = Vec::new();
         {
-            let x = 0;
+            let y = 0;
             let mut is = Vec::new();
-            for y in -50..50 {
+            for x in -50..50 {
                 let instance = Instance::new(
                     cgmath::Vector3 {
                         x: 1.2 * x as f32,
@@ -201,8 +202,7 @@ impl State {
                 );
                 is.push(instance);
             }
-            let cs_num = (x as i32).abs() % (cs.len() as i32);
-            let instances = Instances::new('あ', is);
+            let instances = Instances::new('🐢', is);
 
             instances2.push(instances);
         }
