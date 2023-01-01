@@ -39,6 +39,7 @@ pub(crate) struct RasterizerPipeline {
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
     pub(crate) outline_texture: ScreenTexture,
+    pub(crate) outline_vertex_buffer: ScreenVertexBuffer,
 
     // default screen pipeline
     // 画面に表示する用のパイプライン
@@ -193,6 +194,7 @@ impl RasterizerPipeline {
                 // indicates how many array layers the attachments will have.
                 multiview: None,
             });
+        let outline_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
         // default screen render pipeline
         let screen_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -256,10 +258,54 @@ impl RasterizerPipeline {
             outline_texture,
             outline_bind_group,
             outline_render_pipeline,
+            outline_vertex_buffer,
 
             // default
             default_screen_render_pipeline,
             default_screen_bind_group,
+        }
+    }
+
+    pub(crate) fn outline_stage(&self, device: &wgpu::Device, encoder: &mut wgpu::CommandEncoder) {
+        let outline_view = self
+            .outline_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let outline_bind_group = self
+            .outline_bind_group
+            .to_bind_group(device, &self.overlap_texture);
+
+        {
+            let mut outline_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &outline_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+            outline_render_pass.set_pipeline(&self.outline_render_pipeline);
+            outline_render_pass.set_bind_group(0, &outline_bind_group, &[]);
+            outline_render_pass
+                .set_vertex_buffer(0, self.outline_vertex_buffer.vertex_buffer.slice(..));
+            outline_render_pass.set_index_buffer(
+                self.outline_vertex_buffer.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            outline_render_pass.draw_indexed(
+                self.outline_vertex_buffer.index_range.clone(),
+                0,
+                0..1,
+            );
         }
     }
 }

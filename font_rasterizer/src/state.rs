@@ -23,8 +23,6 @@ pub(crate) struct State {
 
     font_vertex_buffer: FontVertexBuffer,
 
-    outline_buffer: ScreenVertexBuffer,
-
     screen_buffer: ScreenVertexBuffer,
 
     instances: Vec<Instances>,
@@ -136,11 +134,8 @@ impl State {
             instances2.push(instances);
         }
 
-        // outline
-        let outline_buffer = ScreenVertexBuffer::new_buffer(&device).unwrap();
-
         // screen
-        let screen_buffer = ScreenVertexBuffer::new_buffer(&device).unwrap();
+        let screen_buffer = ScreenVertexBuffer::new_buffer(&device);
 
         Self {
             surface,
@@ -155,8 +150,6 @@ impl State {
 
             font_vertex_buffer,
 
-            outline_buffer,
-
             screen_buffer,
 
             instances: instances2,
@@ -166,7 +159,7 @@ impl State {
     pub(crate) fn redraw(&mut self) {
         self.resize(self.size)
     }
-    
+
     pub(crate) fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
@@ -319,45 +312,8 @@ impl State {
         }
 
         {
-            let outline_view = self
-                .rasterizer_pipeline
-                .outline_texture
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor::default());
-
-            let outline_bind_group = &self
-                .rasterizer_pipeline
-                .outline_bind_group
-                .to_bind_group(&self.device, &self.rasterizer_pipeline.overlap_texture);
-            {
-                let mut outline_render_pass =
-                    encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Render Pass"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &outline_view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.0,
-                                    g: 0.0,
-                                    b: 0.0,
-                                    a: 0.0,
-                                }),
-                                store: true,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                    });
-                outline_render_pass.set_pipeline(&self.rasterizer_pipeline.outline_render_pipeline);
-                outline_render_pass.set_bind_group(0, outline_bind_group, &[]);
-                outline_render_pass
-                    .set_vertex_buffer(0, self.outline_buffer.vertex_buffer.slice(..));
-                outline_render_pass.set_index_buffer(
-                    self.outline_buffer.index_buffer.slice(..),
-                    wgpu::IndexFormat::Uint16,
-                );
-                outline_render_pass.draw_indexed(self.outline_buffer.index_range.clone(), 0, 0..1);
-            }
+            self.rasterizer_pipeline
+                .outline_stage(&self.device, &mut encoder);
         }
 
         // screen

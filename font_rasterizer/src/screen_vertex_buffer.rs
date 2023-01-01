@@ -29,7 +29,7 @@ impl ScreenVertexBuffer {
         }
     }
 
-    pub(crate) fn new_buffer(device: &wgpu::Device) -> anyhow::Result<Self> {
+    pub(crate) fn new_buffer(device: &wgpu::Device) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Screen Vertex Buffer"),
             contents: bytemuck::cast_slice(SCREEN_VERTICES),
@@ -40,11 +40,11 @@ impl ScreenVertexBuffer {
             contents: bytemuck::cast_slice(SCREEN_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
-        Ok(Self {
+        Self {
             vertex_buffer,
             index_buffer,
             index_range: 0..SCREEN_INDICES.len() as u32,
-        })
+        }
     }
 }
 
