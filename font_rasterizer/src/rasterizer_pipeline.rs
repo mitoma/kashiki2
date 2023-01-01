@@ -107,14 +107,10 @@ impl RasterizerPipeline {
                     targets: &[Some(wgpu::ColorTargetState {
                         format: overlap_texture.texture_format,
                         blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::SrcAlpha,
-                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                                operation: wgpu::BlendOperation::Add,
-                            },
+                            color: wgpu::BlendComponent::REPLACE,
                             alpha: wgpu::BlendComponent {
                                 src_factor: wgpu::BlendFactor::One,
-                                dst_factor: wgpu::BlendFactor::One,
+                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
                                 operation: wgpu::BlendOperation::Add,
                             },
                         }),

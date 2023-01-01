@@ -51,15 +51,15 @@ let HARFUNIT: f32 = 0.001953125;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // 赤色成分にテクスチャの重なりの情報を持たせている
-    let color = textureSample(t_diffuse, s_diffuse, in.tex_coords).r;
+    // アルファ成分にテクスチャの重なりの情報を持たせている
+    let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
 
     // 奇数かどうかを判定し、奇数なら色をつける
-    let odd_color = color % (2.0 * UNIT);
+    let odd_color = color.a % (2.0 * UNIT);
     let dist = distance(odd_color, UNIT);
     if UNIT - HARFUNIT < dist && dist < UNIT + HARFUNIT {
         return base03;
     } else {
-        return base0;
+        return vec4<f32>(color.rgb, 1f);
     }
 }
