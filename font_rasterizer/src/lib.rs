@@ -19,6 +19,7 @@ mod screen_bind_group;
 mod screen_texture;
 mod screen_vertex_buffer;
 mod state;
+mod text;
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {

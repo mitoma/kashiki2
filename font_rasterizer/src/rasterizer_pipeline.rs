@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
+
 use crate::{
     font_vertex_buffer::FontVertexBuffer,
-    instances::InstanceRaw,
+    instances::{InstanceRaw, Instances},
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_bind_group::ScreenBindGroup,
@@ -274,6 +276,55 @@ impl RasterizerPipeline {
             screen_render_pipeline,
             screen_bind_group,
             screen_vertex_buffer,
+        }
+    }
+
+    pub(crate) fn overlap_stage(
+        &self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+        font_vertex_buffer: &FontVertexBuffer,
+        instances: &Vec<Instances>,
+    ) {
+        let overlap_bind_group = &self.overlap_bind_group.to_bind_group(&device);
+
+        let instance_buffer = instances
+            .iter()
+            .map(|i| (i.c, (i.len(), i.to_wgpu_buffer(&device))))
+            .collect::<BTreeMap<char, (usize, wgpu::Buffer)>>();
+
+        {
+            let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Overlap Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &self.overlap_texture.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: None,
+            });
+
+            overlay_render_pass.set_pipeline(&self.overlap_render_pipeline);
+            overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
+            overlay_render_pass.set_vertex_buffer(0, font_vertex_buffer.vertex_buffer.slice(..));
+            overlay_render_pass.set_index_buffer(
+                font_vertex_buffer.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint32,
+            );
+            for (c, (len, buffer)) in instance_buffer.iter() {
+                if let Ok(range) = font_vertex_buffer.range(*c) {
+                    overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));
+                    overlay_render_pass.draw_indexed(range, 0, 0..*len as _);
+                }
+            }
         }
     }
 

@@ -1,9 +1,10 @@
-use std::{collections::BTreeMap, iter};
+use std::iter;
 
 use crate::camera::{Camera, CameraController, CameraOperation};
 use crate::font_vertex_buffer::FontVertexBuffer;
 use crate::instances::{Instance, Instances};
 use crate::rasterizer_pipeline::{Quarity, RasterizerPipeline};
+use crate::text::SingleLineText;
 use cgmath::Rotation3;
 use log::{debug, info};
 use winit::{event::*, window::Window};
@@ -29,7 +30,7 @@ pub(crate) struct State {
 
 impl State {
     pub(crate) async fn new(window: &Window) -> Self {
-        let quarity = Quarity::VeryLow;
+        let quarity = Quarity::VeryHigh;
 
         let size = window.inner_size();
 
@@ -75,7 +76,7 @@ impl State {
 
         // Camera
         let camera = Camera::new(
-            (0.0, 0.0, 2.0).into(),
+            (0.0, 0.0, 15.0).into(),
             (0.0, 0.0, 0.0).into(),
             cgmath::Vector3::unit_y(),
             config.width as f32 / config.height as f32,
@@ -95,9 +96,11 @@ impl State {
                 0x20 as char..=0x7e as char,
                 /* ひらがな */ '\u{3040}'..='\u{309F}',
                 /* カタカナ */ '\u{30A0}'..='\u{30FF}',
-                '炊'..='炊',
+                '一'..='龠',
                 '🐢'..='🐢',
                 '🐖'..='🐖',
+                '🐇'..='🐇',
+                '🥺'..='🥺',
             ],
         ) {
             Ok(font_vertex_buffer) => font_vertex_buffer,
@@ -107,28 +110,11 @@ impl State {
             }
         };
 
-        let mut instances2 = Vec::new();
-        {
-            let y = 0;
-            let mut is = Vec::new();
-            for x in -50..50 {
-                let instance = Instance::new(
-                    cgmath::Vector3 {
-                        x: 1.2 * x as f32,
-                        y: 1.2 * y as f32,
-                        z: 0.0,
-                    },
-                    cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_z(),
-                        cgmath::Deg(0.0),
-                    ),
-                );
-                is.push(instance);
-            }
-            let instances = Instances::new('🐖', is);
-
-            instances2.push(instances);
-        }
+        let instances2 = SingleLineText(
+            "あけまして\nおめでとうございます\n今年は兎🐇年ですね\n豚🐖年は無いのですね\n🥺🥺🥺"
+                .to_string(),
+        )
+        .to_instances();
 
         Self {
             surface,
@@ -252,62 +238,19 @@ impl State {
                 label: Some("Render Encoder"),
             });
 
-        {
-            let overlap_bind_group = &self
-                .rasterizer_pipeline
-                .overlap_bind_group
-                .to_bind_group(&self.device);
+        // Overlap Stage
+        self.rasterizer_pipeline.overlap_stage(
+            &self.device,
+            &mut encoder,
+            &self.font_vertex_buffer,
+            &self.instances,
+        );
 
-            let instance_buffer = self
-                .instances
-                .iter()
-                .map(|i| (i.c, (i.len() - 1, i.to_wgpu_buffer(&self.device))))
-                .collect::<BTreeMap<char, (usize, wgpu::Buffer)>>();
+        // Outline Stage
+        self.rasterizer_pipeline
+            .outline_stage(&self.device, &mut encoder);
 
-            {
-                let mut overlay_render_pass =
-                    encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                        label: Some("Overlay Render Pass"),
-                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                            view: &self.rasterizer_pipeline.overlap_texture.view,
-                            resolve_target: None,
-                            ops: wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(wgpu::Color {
-                                    r: 0.0,
-                                    g: 0.0,
-                                    b: 0.0,
-                                    a: 0.0,
-                                }),
-                                store: true,
-                            },
-                        })],
-                        depth_stencil_attachment: None,
-                    });
-
-                overlay_render_pass.set_pipeline(&self.rasterizer_pipeline.overlap_render_pipeline);
-                overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
-                overlay_render_pass
-                    .set_vertex_buffer(0, self.font_vertex_buffer.vertex_buffer.slice(..));
-                overlay_render_pass.set_index_buffer(
-                    self.font_vertex_buffer.index_buffer.slice(..),
-                    wgpu::IndexFormat::Uint32,
-                );
-                for (c, (len, buffer)) in instance_buffer.iter() {
-                    overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));
-                    overlay_render_pass.draw_indexed(
-                        self.font_vertex_buffer.range(*c).unwrap(),
-                        0,
-                        0..*len as _,
-                    );
-                }
-            }
-        }
-
-        {
-            self.rasterizer_pipeline
-                .outline_stage(&self.device, &mut encoder);
-        }
-
+        // Screen Stage
         let screen_output = self.surface.get_current_texture()?;
         {
             let screen_view = screen_output

@@ -64,7 +64,7 @@ fn vs_main(
     );
 
     let moved = vec4<f32>(
-        model.position.x + (sin(u_buffer.u_time * 5f) * model.position.y * 0.5),
+        model.position.x + (sin(u_buffer.u_time * 5f + f32(model.instance_index) + model.position.x) * model.position.y * 0.5),
         model.position.y, //  * (1f + cos(u_buffer.u_time * 5f + model.position.y / 0.01) * 0.05) * /,
         0.0, //(cos(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.02),
         1.0
@@ -73,7 +73,7 @@ fn vs_main(
 
     var out: VertexOutput;
     out.color = vec3<f32>(1f, model.wait.xy);
-    out.clip_position = u_buffer.u_view_proj * instance_matrix * rotated;
+    out.clip_position = u_buffer.u_view_proj * instance_matrix * moved;
     return out;
 }
 
