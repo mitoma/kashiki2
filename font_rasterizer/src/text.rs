@@ -41,8 +41,8 @@ impl SingleLineText {
             };
             let i = Instance::new(
                 cgmath::Vector3 {
-                    x: 1.3 * x as f32,
-                    y: 1.5 * y as f32,
+                    x: 1.0 * x as f32,
+                    y: 1.0 * y as f32,
                     z: 0.0,
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),

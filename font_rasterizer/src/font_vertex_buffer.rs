@@ -1,11 +1,12 @@
 use std::{
     collections::{BTreeMap, HashSet},
     ops::{Range, RangeInclusive},
+    result,
 };
 
 use anyhow::Context;
 use log::{debug, info};
-use ttf_parser::{Face, OutlineBuilder, Rect};
+use ttf_parser::{Face, GlyphId, OutlineBuilder, Rect};
 use wgpu::util::DeviceExt;
 
 const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-Regular.ttf");
@@ -52,6 +53,44 @@ impl FontVertexBuilder {
         }
     }
 
+    fn add_debug_mark(&mut self) {
+        let (w1, w2) = self.next_wait();
+        let wait1 = [w1, w2];
+        let (w1, w2) = self.next_wait();
+        let wait2 = [w1, w2];
+        let (w1, w2) = self.next_wait();
+        let wait3 = [w1, w2];
+        let (w1, w2) = self.next_wait();
+        let wait4 = [w1, w2];
+        self.flushed_vertex.append(&mut vec![
+            FontVertex {
+                position: [-0.1, -0.1],
+                wait: wait1,
+            },
+            FontVertex {
+                position: [-0.1, 0.1],
+                wait: wait2,
+            },
+            FontVertex {
+                position: [0.1, -0.1],
+                wait: wait3,
+            },
+            FontVertex {
+                position: [0.1, 0.1],
+                wait: wait4,
+            },
+        ]);
+        self.flushed_index.append(&mut vec![
+            0,
+            self.current_main_index + 1,
+            self.current_main_index + 2,
+            0,
+            self.current_main_index + 3,
+            self.current_main_index + 4,
+        ]);
+        self.current_main_index += 4;
+    }
+
     #[inline]
     fn next_wait(&mut self) -> (f32, f32) {
         self.vertex_swap = !self.vertex_swap;
@@ -62,25 +101,57 @@ impl FontVertexBuilder {
         }
     }
 
-    fn flush(&mut self, c: char, rect: Rect) {
+    fn flush(&mut self, c: char, face: &Face, glyph_id: GlyphId, rect: Rect) {
         let range = self.flushed_index.len() as u32
             ..(self.flushed_index.len() + self.main_index.len()) as u32;
+        info!(
+            r#"
+            char: {}
+                global: [rect:{:?}, width:{}, height:{}]
+                glyph : [rect:{:?}, width:{}, height:{}]
+                em:{}
+
+            "#,
+            c,
+            face.global_bounding_box(),
+            face.global_bounding_box().width(),
+            face.global_bounding_box().height(),
+            rect,
+            rect.width(),
+            rect.height(),
+            face.units_per_em(),
+        );
+        let global = face.global_bounding_box();
 
         let mut vertex = self
             .main_vertex
             .iter()
             .map(|InternalFontVertex { x, y, wait }| {
-                let x = (*x / rect.width() as f32) - 0.5;
-                let y = (*y / rect.height() as f32) - 0.5;
+                let rect_width = rect.width() as f32;
+                let rect_xmin = rect.x_min as f32;
+                let global_width = global.width() as f32;
+                let rect_height = rect.height() as f32;
+                let global_height = global.height() as f32;
+                let capital_height = face.capital_height().unwrap() as f32;
+                let rect_em = (face.units_per_em() as f32 / 1024.0).sqrt();
+
+                let x = (*x - rect_xmin - rect_width / 2.0) / global_width / rect_em;
+                //                        / 2.0;
+                let y = (*y - capital_height / 2.0) / global_height / rect_em;
+                //                    - (rect.height() as f32 / global.height() as f32) / 2.0;
                 FontVertex {
                     position: [x, y],
                     wait: [wait.0, wait.1],
                 }
             })
             .collect();
+
         self.flushed_vertex.append(&mut vertex);
         self.flushed_index.append(&mut self.main_index);
-        self.index_range.insert(c, range);
+
+        self.add_debug_mark();
+
+        self.index_range.insert(c, range.start..range.end + 6);
         self.main_vertex.clear();
         self.main_index.clear();
     }
@@ -172,11 +243,16 @@ impl FontVertexBuffer {
         }
     }
 
-    fn build(builder: &mut FontVertexBuilder, c: char, f: &Face) -> anyhow::Result<Rect> {
+    fn build(
+        builder: &mut FontVertexBuilder,
+        c: char,
+        f: &Face,
+    ) -> anyhow::Result<(GlyphId, Rect)> {
         let glyph_id = f
             .glyph_index(c)
             .with_context(|| format!("no glyph. char:{}", c))?;
         f.outline_glyph(glyph_id, builder)
+            .map(|rect| (glyph_id, rect))
             .with_context(|| format!("ougline glyph is failed. char:{}", c))
     }
 
@@ -195,13 +271,13 @@ impl FontVertexBuffer {
 
         let mut builder = FontVertexBuilder::new();
         for c in chars {
-            let Some(rect) = faces
+            let Some((face,glyph_id, rect)) = faces
                 .iter()
-                .flat_map(|face| Self::build(&mut builder, c, face))
+                .flat_map(|face| Self::build(&mut builder, c, face).map(|(glyph_id, rect)|(face, glyph_id, rect)))
                 .next() else {
                     debug!("font にない文字です。 char:{}", c);
                     continue};
-            builder.flush(c, rect);
+            builder.flush(c, face, glyph_id, rect);
         }
         let (vertex_buffer, index_buffer, index_range) = builder.build();
 
