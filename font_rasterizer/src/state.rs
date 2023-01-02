@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::iter;
 
 use crate::camera::{Camera, CameraController, CameraOperation};
+use crate::color_theme::ColorMode;
 use crate::font_vertex_buffer::FontVertexBuffer;
 use crate::instances::Instances;
 use crate::rasterizer_pipeline::{Quarity, RasterizerPipeline};
@@ -30,9 +31,11 @@ pub(crate) struct State {
 
 impl State {
     pub(crate) async fn new(window: &Window) -> Self {
+        let color_mode = ColorMode::SolarizedLight;
+
         // テストデータ
         let sample_text =
-            "あけまして\nおめでとうございます\n今年は兎🐇年ですね\n豚🐖年は無いのですね\n🥺🥺🥺\nABCDEFG　HOGE\n🥂☄🦀🐢🍇\n"
+            "あけまして\nおめでとうございます\n今年は兎🐇年ですね\n豚🐖年は無いのですね\n🥺🥺🥺\nABCDEFG　HOGE\n🥂☄🦀�🍇\n"
                 .to_string();
         // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
         let chars = sample_text.chars().collect::<HashSet<_>>();
@@ -107,7 +110,7 @@ impl State {
             }
         };
 
-        let instances2 = SingleLineText(sample_text).to_instances();
+        let instances2 = SingleLineText(sample_text).to_instances(color_mode);
 
         Self {
             surface,

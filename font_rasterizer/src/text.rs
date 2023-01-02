@@ -4,14 +4,14 @@ use cgmath::Rotation3;
 use log::debug;
 
 use crate::{
+    color_theme::ColorMode,
     instances::{Instance, Instances},
-    SolarizedColor,
 };
 
 pub(crate) struct SingleLineText(pub(crate) String);
 
 impl SingleLineText {
-    pub(crate) fn to_instances(&self) -> Vec<Instances> {
+    pub(crate) fn to_instances(&self, color_mode: ColorMode) -> Vec<Instances> {
         let ix: Vec<_> = self.0.split('\n').collect();
         let max_length = ix.iter().map(|i| i.chars().count()).max().unwrap();
         let initial_x = -(max_length as i32 / 2);
@@ -31,13 +31,13 @@ impl SingleLineText {
             let instance = instances.get_mut(&c).unwrap();
 
             let color = if c.is_ascii() {
-                SolarizedColor::BASE0.get_color()
-            } else if c < '一' {
-                SolarizedColor::GREEN.get_color()
+                color_mode.yellow().get_color()
+            } else if c < 'あ' {
+                color_mode.text().get_color()
             } else if c < '\u{1F600}' {
-                SolarizedColor::VIOLET.get_color()
+                color_mode.text_comment().get_color()
             } else {
-                SolarizedColor::YELLOW.get_color()
+                color_mode.text_emphasized().get_color()
             };
             let i = Instance::new(
                 cgmath::Vector3 {
