@@ -1,14 +1,17 @@
 use std::collections::HashSet;
 use std::iter;
 
-use crate::camera::{Camera, CameraController, CameraOperation};
-use crate::color_theme::ColorMode;
-use crate::font_vertex_buffer::FontVertexBuffer;
-use crate::instances::Instances;
-use crate::rasterizer_pipeline::{Quarity, RasterizerPipeline};
-use crate::text::SingleLineText;
 use log::{debug, info};
 use winit::{event::*, window::Window};
+
+use crate::{
+    camera::{Camera, CameraController, CameraOperation},
+    color_theme::ColorMode,
+    font_vertex_buffer::FontVertexBuffer,
+    instances::Instances,
+    rasterizer_pipeline::{Quarity, RasterizerPipeline},
+    text::SingleLineText,
+};
 
 pub(crate) struct State {
     surface: wgpu::Surface,
@@ -235,6 +238,9 @@ impl State {
             });
 
         // Overlap Stage
+        self.rasterizer_pipeline
+            .overlap_bind_group
+            .update_buffer(&self.queue);
         self.rasterizer_pipeline.overlap_stage(
             &self.device,
             &mut encoder,

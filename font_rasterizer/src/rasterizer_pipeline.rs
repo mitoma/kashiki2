@@ -282,7 +282,7 @@ impl RasterizerPipeline {
         font_vertex_buffer: &FontVertexBuffer,
         instances: &Vec<Instances>,
     ) {
-        let overlap_bind_group = &self.overlap_bind_group.to_bind_group(&device);
+        let overlap_bind_group = &self.overlap_bind_group.bind_group;
 
         let instance_buffer = instances
             .iter()

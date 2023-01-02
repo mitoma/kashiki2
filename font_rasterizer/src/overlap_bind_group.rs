@@ -18,6 +18,8 @@ pub struct Uniforms {
 /// カメラ位置などを乗せたいですねぇ。
 pub struct OverlapBindGroup {
     uniforms: Uniforms,
+    buffer: wgpu::Buffer,
+    pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) layout: wgpu::BindGroupLayout,
 }
 
@@ -55,8 +57,26 @@ impl OverlapBindGroup {
         });
 
         let uniforms = Uniforms::default();
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[uniforms]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
+            label: Some("Overlap Bind Group"),
+        });
 
-        Self { uniforms, layout }
+        Self {
+            uniforms,
+            buffer,
+            bind_group,
+            layout,
+        }
     }
 
     pub fn update(&mut self, view_proj: [[f32; 4]; 4]) {
@@ -67,20 +87,7 @@ impl OverlapBindGroup {
         self.uniforms.time = (d.as_millis() % 10000000) as f32 / 1000.0;
     }
 
-    pub fn to_bind_group(&self, device: &wgpu::Device) -> wgpu::BindGroup {
-        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Uniform Buffer"),
-            contents: bytemuck::cast_slice(&[self.uniforms]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &self.layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("Overlap Bind Group"),
-        })
+    pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniforms]))
     }
 }

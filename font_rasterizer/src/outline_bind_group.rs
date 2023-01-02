@@ -4,10 +4,8 @@ use crate::screen_texture::ScreenTexture;
 /// Overlay 情報の書き込まれた Texture と Sampler のみを受け取る。
 ///
 /// テクスチャの RGBA の意味
-/// R: 重ね合わせの数
-/// G: 有用な情報なし
-/// B: 有用な情報なし
-/// A: 透明度情報(意味があるかどうか不明)
+/// R, G, B: 色情報
+/// A: 重ね合わせの数
 pub struct OutlineBindGroup {
     pub(crate) layout: wgpu::BindGroupLayout,
 }
