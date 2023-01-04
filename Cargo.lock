@@ -656,8 +656,10 @@ dependencies = [
  "glob",
  "instant",
  "log",
+ "nenobi 0.1.0 (git+https://github.com/mitoma/sandbox?branch=main)",
  "pollster",
  "ttf-parser 0.17.1",
+ "unicode-width",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -838,9 +840,9 @@ dependencies = [
 
 [[package]]
 name = "half"
-version = "2.1.0"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad6a9459c9c30b177b925162351f97e7d967c7ea8bab3b8352805327daf45554"
+checksum = "6c467d36af040b7b2681f5fddd27427f6da8d3d072f575a265e181d2f8e8d157"
 dependencies = [
  "crunchy",
 ]
@@ -1273,6 +1275,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nenobi"
+version = "0.1.0"
+source = "git+https://github.com/mitoma/sandbox?branch=main#e5f055c21a4bd31ffd9b66d7ace5704cf226bb54"
+dependencies = [
+ "instant",
+ "num-traits",
+]
+
+[[package]]
 name = "nix"
 version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1312,9 +1323,9 @@ dependencies = [
 
 [[package]]
 name = "nom"
-version = "7.1.1"
+version = "7.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8903e5a29a317527874d0402f867152a3d21c908bb0b933e416c65e301d4c36"
+checksum = "e5507769c4919c998e69e49c839d9dc6e693ede4cc4290d6ad8b41d4f09c548c"
 dependencies = [
  "memchr",
  "minimal-lexical",
@@ -1402,9 +1413,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.16.0"
+version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86f0b0d4bf799edbc74508c1e8bf170ff5f41238e5f8225603ca7caaae2b7860"
+checksum = "6f61fba1741ea2b3d6a1e3178721804bb716a68a6aeba1149b5d52e3d464ea66"
 
 [[package]]
 name = "owned_ttf_parser"
@@ -2335,7 +2346,7 @@ dependencies = [
  "env_logger",
  "image",
  "log",
- "nenobi",
+ "nenobi 0.1.0 (git+https://github.com/mitoma/nenobi?branch=main)",
  "pollster",
  "rusttype",
  "stroke_parser",

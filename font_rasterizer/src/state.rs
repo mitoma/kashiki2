@@ -5,7 +5,7 @@ use log::{debug, info};
 use winit::{event::*, window::Window};
 
 use crate::{
-    camera::{Camera, CameraController, CameraOperation},
+    camera::{Camera, CameraController, CameraOperation, EasingPoint3},
     color_theme::ColorMode,
     font_vertex_buffer::FontVertexBuffer,
     instances::Instances,
@@ -38,7 +38,7 @@ impl State {
 
         // テストデータ
         let sample_text =
-            "あけまして\nおめでとうございます\n今年は兎🐇年ですね\n豚🐖年は無いのですね\n🥺🥺🥺\nABCDEFG　HOGE\n🥂☄🦀�🍇\n"
+            "A Happy New Year\nAB国家CD\nあけまして\nおめでとうございます\n今年は兎🐇年ですね\n豚🐖年は無いのですね\n🥺🥺🥺\nAB　CDEFGHOGE\n🥂☄🦀🍇\n"
                 .to_string();
         // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
         let chars = sample_text.chars().collect::<HashSet<_>>();
@@ -91,7 +91,7 @@ impl State {
 
         // Camera
         let camera = Camera::new(
-            (0.0, 0.0, 15.0).into(),
+            EasingPoint3::new(0.0, 0.0, 15.0),
             (0.0, 0.0, 0.0).into(),
             cgmath::Vector3::unit_y(),
             config.width as f32 / config.height as f32,
@@ -100,7 +100,7 @@ impl State {
             0.1,
             200.0,
         );
-        let camera_controller = CameraController::new(0.2);
+        let camera_controller = CameraController::new(10.0);
 
         let rasterizer_pipeline =
             RasterizerPipeline::new(&device, size.width, size.height, config.format, quarity);
@@ -113,7 +113,7 @@ impl State {
             }
         };
 
-        let instances2 = SingleLineText(sample_text).to_instances(color_mode);
+        let instances2 = SingleLineText(sample_text).to_instances(color_mode, &font_vertex_buffer);
 
         Self {
             surface,

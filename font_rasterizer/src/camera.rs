@@ -1,4 +1,7 @@
 use cgmath::InnerSpace;
+use instant::Duration;
+use log::info;
+use nenobi::TimeBaseEasingValue;
 use winit::event::*;
 
 #[rustfmt::skip]
@@ -9,8 +12,66 @@ const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     0.0, 0.0, 0.5, 1.0,
 );
 
+pub struct EasingPoint3 {
+    x: TimeBaseEasingValue<f32>,
+    y: TimeBaseEasingValue<f32>,
+    z: TimeBaseEasingValue<f32>,
+}
+
+impl EasingPoint3 {
+    pub(crate) fn new(x: f32, y: f32, z: f32) -> Self {
+        Self {
+            x: TimeBaseEasingValue::new(x),
+            y: TimeBaseEasingValue::new(y),
+            z: TimeBaseEasingValue::new(z),
+        }
+    }
+
+    fn to_current_cgmath_point(&self) -> cgmath::Point3<f32> {
+        cgmath::Point3 {
+            x: self.x.current_value(),
+            y: self.y.current_value(),
+            z: self.z.current_value(),
+        }
+    }
+
+    fn to_last_cgmath_point(&self) -> cgmath::Point3<f32> {
+        cgmath::Point3 {
+            x: self.x.last_value(),
+            y: self.y.last_value(),
+            z: self.z.last_value(),
+        }
+    }
+
+    fn gc(&mut self) {
+        self.x.gc();
+        self.y.gc();
+        self.z.gc();
+    }
+
+    fn update(&mut self, p: cgmath::Point3<f32>) {
+        info!("call update:{:?}", p);
+        self.x.update(
+            p.x,
+            Duration::from_millis(1000),
+            nenobi::functions::back_out,
+        );
+        self.y.update(
+            p.y,
+            Duration::from_millis(1000),
+            nenobi::functions::back_out,
+        );
+        self.z.update(
+            p.z,
+            Duration::from_millis(1000),
+            nenobi::functions::back_out,
+        );
+        self.gc();
+    }
+}
+
 pub struct Camera {
-    eye: cgmath::Point3<f32>,
+    eye: EasingPoint3,
     target: cgmath::Point3<f32>,
     up: cgmath::Vector3<f32>,
     aspect: f32,
@@ -21,7 +82,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(
-        eye: cgmath::Point3<f32>,    // 視点の位置
+        eye: EasingPoint3,           // 視点の位置
         target: cgmath::Point3<f32>, // ターゲットの位置
         up: cgmath::Vector3<f32>,    // 上を指す単位行列 (x:0, y:1, z:0)
         aspect: f32,
@@ -41,7 +102,8 @@ impl Camera {
     }
 
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        let view = cgmath::Matrix4::look_at_rh(self.eye, self.target, self.up);
+        let view =
+            cgmath::Matrix4::look_at_rh(self.eye.to_current_cgmath_point(), self.target, self.up);
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
@@ -148,8 +210,9 @@ impl CameraController {
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {
+        let mut current_eye = camera.eye.to_last_cgmath_point();
         // ターゲットからカメラの座標を引く(カメラから見たターゲットの向き)
-        let forward = camera.target - camera.eye;
+        let forward = camera.target - current_eye;
         // 向きに対する単位行列
         let forward_norm = forward.normalize();
         // 向きへの距離
@@ -157,32 +220,33 @@ impl CameraController {
 
         if self.is_forward_pressed && forward_mag > self.speed {
             // カメラの位置に向きの単位行列 * 速度分足加える(近づく)
-            camera.eye += forward_norm * self.speed;
+            current_eye += forward_norm * self.speed;
         }
         if self.is_backward_pressed {
             // カメラの位置に向きの単位行列 * 速度分足引く(離れる)
-            camera.eye -= forward_norm * self.speed;
+            current_eye -= forward_norm * self.speed;
         }
 
         let right = forward_norm.cross(camera.up); // ターゲットへの単位行列と縦軸との外積をとる
 
         // なぜ再定義が必要？
-        let forward = camera.target - camera.eye;
+        let forward = camera.target - current_eye;
         let forward_mag = forward.magnitude();
 
         if self.is_right_pressed {
             // ターゲットから、カメラのほうの少し右を見る単位行列を作り、それに元の距離をかける
-            camera.eye = camera.target - (forward + right * self.speed).normalize() * forward_mag;
+            current_eye = camera.target - (forward + right * self.speed).normalize() * forward_mag;
         }
         if self.is_left_pressed {
-            camera.eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
+            current_eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
         }
 
         if self.is_up_pressed {
-            camera.eye += camera.up * self.speed;
+            current_eye += camera.up * self.speed;
         }
         if self.is_down_pressed {
-            camera.eye -= camera.up * self.speed;
+            current_eye -= camera.up * self.speed;
         }
+        camera.eye.update(current_eye);
     }
 }

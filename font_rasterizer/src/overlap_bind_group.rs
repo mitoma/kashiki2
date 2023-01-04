@@ -1,5 +1,6 @@
 use cgmath::SquareMatrix;
 use instant::SystemTime;
+use nenobi::EasingValue;
 use wgpu::util::DeviceExt;
 
 #[repr(C)]
