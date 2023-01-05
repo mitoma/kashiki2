@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 use std::iter;
 
-use log::{debug, info};
+use log::info;
 use winit::{event::*, window::Window};
 
 use crate::{
-    camera::{Camera, CameraController, CameraOperation, EasingPoint3},
+    camera::{Camera, CameraController, EasingPoint3},
     color_theme::ColorMode,
     font_vertex_buffer::FontVertexBuffer,
     instances::Instances,
@@ -158,66 +158,7 @@ impl State {
 
     #[allow(unused_variables)]
     pub(crate) fn input(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            WindowEvent::CursorMoved { position, .. } => {
-                let center_x = self.config.width as f64 / 2.0;
-                let center_y = self.config.height as f64 / 2.0;
-                if position.x > center_x {
-                    self.update_camera(&CameraOperation::Left);
-                } else if position.x < center_x {
-                    self.update_camera(&CameraOperation::Right);
-                }
-                if position.y > center_y {
-                    self.update_camera(&CameraOperation::Up);
-                } else if position.y < center_y {
-                    self.update_camera(&CameraOperation::Down);
-                }
-                true
-            }
-            WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        state: ElementState::Pressed,
-                        virtual_keycode: Some(code),
-                        ..
-                    },
-                ..
-            } => {
-                debug!("Keycode: {:?}", code);
-                match code {
-                    VirtualKeyCode::Right => {
-                        self.update_camera(&CameraOperation::Right);
-                        true
-                    }
-                    VirtualKeyCode::Left => {
-                        self.update_camera(&CameraOperation::Left);
-                        true
-                    }
-                    VirtualKeyCode::Up => {
-                        self.update_camera(&CameraOperation::Up);
-                        true
-                    }
-                    VirtualKeyCode::Down => {
-                        self.update_camera(&CameraOperation::Down);
-                        true
-                    }
-                    VirtualKeyCode::PageUp => {
-                        self.update_camera(&CameraOperation::Forward);
-                        true
-                    }
-                    VirtualKeyCode::PageDown => {
-                        self.update_camera(&CameraOperation::Backward);
-                        true
-                    }
-                    _ => false,
-                }
-            }
-            _ => false,
-        }
-    }
-
-    fn update_camera(&mut self, operation: &CameraOperation) {
-        self.camera_controller.process(operation);
+        self.camera_controller.process_event(event)
     }
 
     pub(crate) fn update(&mut self) {

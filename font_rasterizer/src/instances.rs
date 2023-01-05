@@ -55,7 +55,7 @@ impl Instance {
             model: (cgmath::Matrix4::from_translation(self.position)
                 * cgmath::Matrix4::from(self.rotation))
             .into(),
-            color: self.color.clone(),
+            color: self.color,
         }
     }
 }

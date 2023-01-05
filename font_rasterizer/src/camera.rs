@@ -1,6 +1,6 @@
 use cgmath::InnerSpace;
 use instant::Duration;
-use log::info;
+use log::debug;
 use nenobi::TimeBaseEasingValue;
 use winit::event::*;
 
@@ -108,6 +108,7 @@ impl Camera {
     }
 }
 
+#[derive(PartialEq)]
 pub enum CameraOperation {
     Up,
     Down,
@@ -115,6 +116,7 @@ pub enum CameraOperation {
     Right,
     Forward,
     Backward,
+    None,
 }
 
 pub struct CameraController {
@@ -148,6 +150,7 @@ impl CameraController {
             CameraOperation::Left => self.is_left_pressed = true,
             CameraOperation::Forward => self.is_forward_pressed = true,
             CameraOperation::Backward => self.is_backward_pressed = true,
+            CameraOperation::None => {}
         }
     }
 
@@ -161,47 +164,31 @@ impl CameraController {
     }
 
     pub fn process_event(&mut self, event: &WindowEvent) -> bool {
-        match event {
+        let op = match event {
             WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
-                        state,
-                        virtual_keycode: Some(keycode),
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(code),
                         ..
                     },
                 ..
             } => {
-                let is_pressed = *state == ElementState::Pressed;
-                match keycode {
-                    VirtualKeyCode::Q => {
-                        self.is_up_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::E => {
-                        self.is_down_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::W | VirtualKeyCode::Up => {
-                        self.is_forward_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::A | VirtualKeyCode::Left => {
-                        self.is_left_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::S | VirtualKeyCode::Down => {
-                        self.is_backward_pressed = is_pressed;
-                        true
-                    }
-                    VirtualKeyCode::D | VirtualKeyCode::Right => {
-                        self.is_right_pressed = is_pressed;
-                        true
-                    }
-                    _ => false,
+                debug!("Keycode: {:?}", code);
+                match code {
+                    VirtualKeyCode::Right => CameraOperation::Right,
+                    VirtualKeyCode::Left => CameraOperation::Left,
+                    VirtualKeyCode::Up => CameraOperation::Up,
+                    VirtualKeyCode::Down => CameraOperation::Down,
+                    VirtualKeyCode::PageUp => CameraOperation::Forward,
+                    VirtualKeyCode::PageDown => CameraOperation::Backward,
+                    _ => CameraOperation::None,
                 }
             }
-            _ => false,
-        }
+            _ => CameraOperation::None,
+        };
+        self.process(&op);
+        op != CameraOperation::None
     }
 
     pub fn update_camera_aspect(&self, camera: &mut Camera, width: u32, height: u32) {

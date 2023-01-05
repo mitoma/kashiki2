@@ -45,7 +45,7 @@ impl GlyphWidth {
         }
     }
 
-    pub(crate) fn to_f32(&self) -> f32 {
+    pub(crate) fn to_f32(self) -> f32 {
         match self {
             GlyphWidth::Regular => 0.5,
             GlyphWidth::Wide => 1.0,
@@ -148,7 +148,7 @@ impl FontVertexBuilder {
     fn flush(&mut self, c: char, face: &Face, glyph_id: GlyphId, rect: Rect) {
         let range = self.flushed_index.len() as u32
             ..(self.flushed_index.len() + self.main_index.len()) as u32;
-        let glyph_width = GlyphWidth::get_width(c, glyph_id, &face);
+        let glyph_width = GlyphWidth::get_width(c, glyph_id, face);
         info!(
             r#"
             char: {}
@@ -199,14 +199,7 @@ impl FontVertexBuilder {
         self.main_index.clear();
     }
 
-    fn build(
-        self,
-    ) -> (
-        Vec<FontVertex>,
-        Vec<u32>,
-        BTreeMap<char, Range<u32>>,
-        BTreeMap<char, GlyphWidth>,
-    ) {
+    fn build(self) -> VertexResult {
         info!(
             "vertex:{}, index:{}, polygon:{}, char:{}",
             self.flushed_vertex.len(),
@@ -214,12 +207,12 @@ impl FontVertexBuilder {
             self.flushed_index.len() / 3,
             self.index_range.len(),
         );
-        (
-            self.flushed_vertex,
-            self.flushed_index,
-            self.index_range,
-            self.glyph_width,
-        )
+        VertexResult {
+            vertex: self.flushed_vertex,
+            index: self.flushed_index,
+            index_range: self.index_range,
+            glyph_width: self.glyph_width,
+        }
     }
 }
 
@@ -267,6 +260,13 @@ impl OutlineBuilder for FontVertexBuilder {
     fn close(&mut self) {
         // noop
     }
+}
+
+struct VertexResult {
+    vertex: Vec<FontVertex>,
+    index: Vec<u32>,
+    index_range: BTreeMap<char, Range<u32>>,
+    glyph_width: BTreeMap<char, GlyphWidth>,
 }
 
 pub(crate) struct FontVertexBuffer {
@@ -335,16 +335,21 @@ impl FontVertexBuffer {
                     continue};
             builder.flush(c, face, glyph_id, rect);
         }
-        let (vertex_buffer, index_buffer, index_range, glyph_width) = builder.build();
+        let VertexResult {
+            vertex,
+            index,
+            index_range,
+            glyph_width,
+        } = builder.build();
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Overlap Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertex_buffer),
+            contents: bytemuck::cast_slice(&vertex),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Overlap Index Buffer"),
-            contents: bytemuck::cast_slice(&index_buffer),
+            contents: bytemuck::cast_slice(&index),
             usage: wgpu::BufferUsages::INDEX,
         });
 
@@ -359,14 +364,14 @@ impl FontVertexBuffer {
     pub(crate) fn range(&self, c: char) -> anyhow::Result<Range<u32>> {
         self.index_range
             .get(&c)
-            .map(|r| r.clone())
+            .cloned()
             .with_context(|| "get char")
     }
 
     pub(crate) fn width(&self, c: char) -> GlyphWidth {
         self.glyph_width
             .get(&c)
-            .map(|r| *r)
+            .cloned()
             .unwrap_or(GlyphWidth::Regular)
     }
 }

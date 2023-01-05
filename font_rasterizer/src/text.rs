@@ -49,9 +49,9 @@ impl SingleLineText {
             let glyph_width = font_vertex_buffer.width(c);
             x += glyph_width.left();
 
-            if !instances.contains_key(&c) {
-                instances.insert(c, Instances::new(c, Vec::new()));
-            }
+            instances
+                .entry(c)
+                .or_insert_with(|| Instances::new(c, Vec::new()));
             let instance = instances.get_mut(&c).unwrap();
             let color = if c.is_ascii() {
                 color_mode.yellow().get_color()
@@ -64,8 +64,8 @@ impl SingleLineText {
             };
             let i = Instance::new(
                 cgmath::Vector3 {
-                    x: 0.75 * x as f32,
-                    y: 1.0 * y as f32,
+                    x: 0.75 * x,
+                    y: 1.0 * y,
                     z: 0.0,
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),

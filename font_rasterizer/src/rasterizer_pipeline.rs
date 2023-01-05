@@ -10,6 +10,7 @@ use crate::{
     screen_vertex_buffer::ScreenVertexBuffer,
 };
 
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub(crate) enum Quarity {
     /// 2 倍サンプリングする(アンチエイリアスあり)
@@ -255,7 +256,7 @@ impl RasterizerPipeline {
                 // indicates how many array layers the attachments will have.
                 multiview: None,
             });
-        let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(&device);
+        let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
         Self {
             // overlap
@@ -280,13 +281,13 @@ impl RasterizerPipeline {
         device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         font_vertex_buffer: &FontVertexBuffer,
-        instances: &Vec<Instances>,
+        instances: &[Instances],
     ) {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
 
         let instance_buffer = instances
             .iter()
-            .map(|i| (i.c, (i.len(), i.to_wgpu_buffer(&device))))
+            .map(|i| (i.c, (i.len(), i.to_wgpu_buffer(device))))
             .collect::<BTreeMap<char, (usize, wgpu::Buffer)>>();
 
         {
@@ -375,7 +376,7 @@ impl RasterizerPipeline {
     ) {
         let screen_bind_group = &self
             .screen_bind_group
-            .to_bind_group(&device, &self.outline_texture);
+            .to_bind_group(device, &self.outline_texture);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
