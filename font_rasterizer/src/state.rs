@@ -8,12 +8,13 @@ use crate::{
     camera::{Camera, CameraController, EasingPoint3},
     color_theme::ColorMode,
     font_vertex_buffer::FontVertexBuffer,
-    instances::Instances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
     text::SingleLineText,
 };
 
 pub(crate) struct State {
+    color_mode: ColorMode,
+
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -29,13 +30,11 @@ pub(crate) struct State {
 
     font_vertex_buffer: FontVertexBuffer,
 
-    instances: Vec<Instances>,
+    single_line_text: SingleLineText,
 }
 
 impl State {
     pub(crate) async fn new(window: &Window) -> Self {
-        let color_mode = ColorMode::SolarizedLight;
-
         // テストデータ
         let sample_text = include_str!("../data/memo.md").to_string();
         // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
@@ -89,7 +88,7 @@ impl State {
 
         // Camera
         let camera = Camera::new(
-            EasingPoint3::new(0.0, 0.0, 15.0),
+            EasingPoint3::new(0.0, 0.0, 100.0),
             (0.0, 0.0, 0.0).into(),
             cgmath::Vector3::unit_y(),
             config.width as f32 / config.height as f32,
@@ -111,9 +110,11 @@ impl State {
             }
         };
 
-        let instances2 = SingleLineText(sample_text).to_instances(color_mode, &font_vertex_buffer);
+        let single_line_text = SingleLineText::new(sample_text);
 
         Self {
+            color_mode: ColorMode::SolarizedDark,
+
             surface,
             device,
             queue,
@@ -127,7 +128,7 @@ impl State {
 
             font_vertex_buffer,
 
-            instances: instances2,
+            single_line_text,
         }
     }
 
@@ -181,10 +182,14 @@ impl State {
             .overlap_bind_group
             .update_buffer(&self.queue);
         self.rasterizer_pipeline.overlap_stage(
-            &self.device,
             &mut encoder,
             &self.font_vertex_buffer,
-            &self.instances,
+            &self.single_line_text.to_instances(
+                self.color_mode,
+                &self.font_vertex_buffer,
+                &self.device,
+                &self.queue,
+            ),
         );
 
         // Outline Stage

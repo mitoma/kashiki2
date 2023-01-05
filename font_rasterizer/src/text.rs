@@ -9,14 +9,25 @@ use crate::{
     instances::{Instance, Instances},
 };
 
-pub(crate) struct SingleLineText(pub(crate) String);
+pub(crate) struct SingleLineText(String, BTreeMap<char, Instances>, bool);
 
 impl SingleLineText {
+    pub(crate) fn new(value: String) -> Self {
+        Self(value, BTreeMap::new(), true)
+    }
+
     pub(crate) fn to_instances(
-        &self,
+        &mut self,
         color_mode: ColorMode,
         font_vertex_buffer: &FontVertexBuffer,
-    ) -> Vec<Instances> {
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> Vec<&Instances> {
+        if !self.2 {
+            return self.1.values().collect();
+        }
+        self.2 = false;
+
         let lines: Vec<_> = self.0.split('\n').collect();
         let width = lines
             .iter()
@@ -34,7 +45,6 @@ impl SingleLineText {
         let mut x: f32 = initial_x;
         let mut y: f32 = height / 2.0;
         debug!("text x:{}, y:{}", x, y);
-        let mut instances: BTreeMap<char, Instances> = BTreeMap::new();
         for c in self.0.chars() {
             if c == '\n' {
                 x = initial_x;
@@ -49,10 +59,10 @@ impl SingleLineText {
             let glyph_width = font_vertex_buffer.width(c);
             x += glyph_width.left();
 
-            instances
+            self.1
                 .entry(c)
-                .or_insert_with(|| Instances::new(c, Vec::new()));
-            let instance = instances.get_mut(&c).unwrap();
+                .or_insert_with(|| Instances::new(c, Vec::new(), device));
+            let instance = self.1.get_mut(&c).unwrap();
             let color = if c.is_ascii() {
                 color_mode.yellow().get_color()
             } else if c < 'あ' {
@@ -74,6 +84,11 @@ impl SingleLineText {
             instance.push(i);
             x += glyph_width.right();
         }
-        instances.into_values().collect()
+        self.1
+            .values_mut()
+            .into_iter()
+            .for_each(|i| i.update_buffer(queue));
+
+        self.1.values().collect()
     }
 }

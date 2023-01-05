@@ -1,4 +1,4 @@
-use wgpu::util::DeviceExt;
+use log::debug;
 
 pub struct Instance {
     position: cgmath::Vector3<f32>,
@@ -23,11 +23,24 @@ impl Instance {
 pub struct Instances {
     pub(crate) c: char,
     values: Vec<Instance>,
+    buffer: wgpu::Buffer,
+    updated: bool,
 }
 
 impl Instances {
-    pub fn new(c: char, values: Vec<Instance>) -> Self {
-        Self { c, values }
+    pub fn new(c: char, values: Vec<Instance>, device: &wgpu::Device) -> Self {
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Instances Buffer"),
+            size: 65536,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        Self {
+            c,
+            values,
+            buffer,
+            updated: false,
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -35,17 +48,26 @@ impl Instances {
     }
 
     pub fn push(&mut self, instance: Instance) {
+        self.updated = true;
         self.values.push(instance)
     }
 
-    pub fn to_wgpu_buffer(&self, device: &wgpu::Device) -> wgpu::Buffer {
-        let value_raws: Vec<InstanceRaw> = self.values.iter().map(|v| v.to_raw()).collect();
+    pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
+        if self.updated {
+            let value_raws: Vec<InstanceRaw> = self.values.iter().map(|v| v.to_raw()).collect();
+            debug!(
+                "before update. char:{}, buffer len:{}, value_size:{}",
+                self.c,
+                self.buffer.size(),
+                value_raws.len()
+            );
+            queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(value_raws.as_slice()));
+            self.updated = false;
+        }
+    }
 
-        device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Instances Buffer"),
-            contents: bytemuck::cast_slice(value_raws.as_slice()),
-            usage: wgpu::BufferUsages::VERTEX,
-        })
+    pub fn to_wgpu_buffer(&self) -> &wgpu::Buffer {
+        &self.buffer
     }
 }
 

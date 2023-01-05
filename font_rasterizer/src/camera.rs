@@ -52,17 +52,17 @@ impl EasingPoint3 {
     fn update(&mut self, p: cgmath::Point3<f32>) {
         self.x.update(
             p.x,
-            Duration::from_millis(1000),
+            Duration::from_millis(300),
             nenobi::functions::back_out,
         );
         self.y.update(
             p.y,
-            Duration::from_millis(1000),
+            Duration::from_millis(300),
             nenobi::functions::back_out,
         );
         self.z.update(
             p.z,
-            Duration::from_millis(1000),
+            Duration::from_millis(300),
             nenobi::functions::back_out,
         );
         self.gc();
@@ -116,6 +116,7 @@ pub enum CameraOperation {
     Right,
     Forward,
     Backward,
+    CangeTarget(cgmath::Point3<f32>),
     None,
 }
 
@@ -127,6 +128,7 @@ pub struct CameraController {
     is_backward_pressed: bool,
     is_left_pressed: bool,
     is_right_pressed: bool,
+    next_target: Option<cgmath::Point3<f32>>,
 }
 
 impl CameraController {
@@ -139,6 +141,7 @@ impl CameraController {
             is_backward_pressed: false,
             is_left_pressed: false,
             is_right_pressed: false,
+            next_target: None,
         }
     }
 
@@ -150,6 +153,7 @@ impl CameraController {
             CameraOperation::Left => self.is_left_pressed = true,
             CameraOperation::Forward => self.is_forward_pressed = true,
             CameraOperation::Backward => self.is_backward_pressed = true,
+            CameraOperation::CangeTarget(next_target) => self.next_target = Some(*next_target),
             CameraOperation::None => {}
         }
     }
@@ -196,6 +200,9 @@ impl CameraController {
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {
+        if let Some(next_target) = self.next_target {
+            camera.target = next_target;
+        }
         let mut current_eye = camera.eye.to_last_cgmath_point();
         // ターゲットからカメラの座標を引く(カメラから見たターゲットの向き)
         let forward = camera.target - current_eye;

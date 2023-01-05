@@ -278,17 +278,16 @@ impl RasterizerPipeline {
 
     pub(crate) fn overlap_stage(
         &self,
-        device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
         font_vertex_buffer: &FontVertexBuffer,
-        instances: &[Instances],
+        instances: &[&Instances],
     ) {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
 
         let instance_buffer = instances
             .iter()
-            .map(|i| (i.c, (i.len(), i.to_wgpu_buffer(device))))
-            .collect::<BTreeMap<char, (usize, wgpu::Buffer)>>();
+            .map(|i| (i.c, (i.len(), i.to_wgpu_buffer())))
+            .collect::<BTreeMap<char, (usize, &wgpu::Buffer)>>();
 
         {
             let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

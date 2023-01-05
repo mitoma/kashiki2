@@ -84,7 +84,7 @@ fn vs_main(
     );
 
     let moved = vec4<f32>(
-        model.position.x + (sin(u_buffer.u_time * 5f + f32(model.instance_index) + model.position.x) * model.position.y * 0.5),
+        model.position.x + (sin(u_buffer.u_time * 5f + model.position.x) * model.position.y * 0.2),
         model.position.y, //  * (1f + cos(u_buffer.u_time * 5f + model.position.y / 0.01) * 0.05) * /,
         0.0, //(cos(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.02),
         1.0

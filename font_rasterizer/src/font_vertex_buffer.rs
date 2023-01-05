@@ -81,7 +81,7 @@ struct FontVertexBuilder {
 
 impl FontVertexBuilder {
     fn new() -> Self {
-        FontVertexBuilder {
+        Self {
             main_vertex: Vec::new(),
             main_index: Vec::new(),
             current_main_index: 0,
@@ -93,6 +93,14 @@ impl FontVertexBuilder {
             flushed_index: Vec::new(),
             index_range: BTreeMap::new(),
             glyph_width: BTreeMap::new(),
+        }
+    }
+
+    fn new_with_offset(current_main_index: u32) -> Self {
+        Self {
+            current_main_index,
+            flushed_vertex: Vec::new(),
+            ..Self::new()
         }
     }
 
@@ -212,6 +220,7 @@ impl FontVertexBuilder {
             index: self.flushed_index,
             index_range: self.index_range,
             glyph_width: self.glyph_width,
+            last_index: self.current_main_index,
         }
     }
 }
@@ -267,6 +276,7 @@ struct VertexResult {
     index: Vec<u32>,
     index_range: BTreeMap<char, Range<u32>>,
     glyph_width: BTreeMap<char, GlyphWidth>,
+    last_index: u32,
 }
 
 pub(crate) struct FontVertexBuffer {
@@ -274,6 +284,7 @@ pub(crate) struct FontVertexBuffer {
     pub(crate) index_buffer: wgpu::Buffer,
     index_range: BTreeMap<char, Range<u32>>,
     glyph_width: BTreeMap<char, GlyphWidth>,
+    last_index: u32,
 }
 
 impl FontVertexBuffer {
@@ -340,6 +351,7 @@ impl FontVertexBuffer {
             index,
             index_range,
             glyph_width,
+            last_index,
         } = builder.build();
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -358,7 +370,57 @@ impl FontVertexBuffer {
             index_buffer,
             index_range,
             glyph_width,
+            last_index,
         })
+    }
+
+    pub(crate) fn update_buffer(
+        &mut self,
+        queue: &wgpu::Queue,
+        chars: &[char],
+    ) -> anyhow::Result<()> {
+        let face = Face::parse(FONT_DATA, 0)?;
+        let emoji_face = Face::parse(EMOJI_FONT_DATA, 0)?;
+        let faces = vec![face, emoji_face];
+
+        let mut builder = FontVertexBuilder::new_with_offset(self.last_index);
+        for c in chars.iter().cloned() {
+            if self.index_range.contains_key(&c) {
+                continue;
+            }
+            let Some((face,glyph_id, rect)) = faces
+            .iter()
+            .flat_map(|face| Self::build(&mut builder, c, face).map(|(glyph_id, rect)|(face, glyph_id, rect)))
+            .next() else {
+                debug!("font にない文字です。 char:{}", c);
+                continue};
+            builder.flush(c, face, glyph_id, rect);
+        }
+
+        let VertexResult {
+            vertex,
+            index,
+            mut index_range,
+            mut glyph_width,
+            last_index,
+        } = builder.build();
+
+        let current_vertex_offset = self.vertex_buffer.size();
+        queue.write_buffer(
+            &self.vertex_buffer,
+            current_vertex_offset,
+            bytemuck::cast_slice(&vertex),
+        );
+        let current_index_offset = self.index_buffer.size();
+        queue.write_buffer(
+            &self.index_buffer,
+            current_index_offset,
+            bytemuck::cast_slice(&index),
+        );
+        self.index_range.append(&mut index_range);
+        self.glyph_width.append(&mut glyph_width);
+        self.last_index = last_index;
+        Ok(())
     }
 
     pub(crate) fn range(&self, c: char) -> anyhow::Result<Range<u32>> {
