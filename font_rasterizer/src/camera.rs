@@ -50,7 +50,6 @@ impl EasingPoint3 {
     }
 
     fn update(&mut self, p: cgmath::Point3<f32>) {
-        info!("call update:{:?}", p);
         self.x.update(
             p.x,
             Duration::from_millis(1000),
