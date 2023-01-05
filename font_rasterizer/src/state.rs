@@ -37,9 +37,7 @@ impl State {
         let color_mode = ColorMode::SolarizedLight;
 
         // テストデータ
-        let sample_text =
-            "A Happy New Year\nAB国家CD\nあけまして\nおめでとうございます\n今年は兎🐇年ですね\n豚🐖年は無いのですね\n🥺🥺🥺\nAB　CDEFGHOGE\n🥂☄🦀🍇\n"
-                .to_string();
+        let sample_text = include_str!("../data/memo.md").to_string();
         // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
         let chars = sample_text.chars().collect::<HashSet<_>>();
         let chars = chars.iter().map(|c| *c..=*c).collect::<Vec<_>>();
