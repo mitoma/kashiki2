@@ -32,6 +32,19 @@ impl GlyphWidth {
         }
     }
 
+    pub(crate) fn left(&self) -> f32 {
+        match self {
+            GlyphWidth::Regular => -0.25,
+            GlyphWidth::Wide => 0.0,
+        }
+    }
+    pub(crate) fn right(&self) -> f32 {
+        match self {
+            GlyphWidth::Regular => 0.75,
+            GlyphWidth::Wide => 1.0,
+        }
+    }
+
     pub(crate) fn to_f32(&self) -> f32 {
         match self {
             GlyphWidth::Regular => 0.5,
