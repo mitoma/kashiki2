@@ -49,6 +49,8 @@ pub(crate) struct RasterizerPipeline {
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
     pub(crate) outline_vertex_buffer: ScreenVertexBuffer,
+    // 背景色。 2 ステージ目で使われる。
+    pub(crate) bg_color: wgpu::Color,
 
     // 2 ステージ目のアウトプット(≒ 3 ステージ目のインプット)
     pub(crate) outline_texture: ScreenTexture,
@@ -66,6 +68,7 @@ impl RasterizerPipeline {
         height: u32,
         screen_texture_format: wgpu::TextureFormat,
         quarity: Quarity,
+        bg_color: wgpu::Color,
     ) -> Self {
         let (width, height) = match quarity {
             Quarity::VeryHigh => (width * 2, height * 2),
@@ -173,7 +176,11 @@ impl RasterizerPipeline {
                     targets: &[Some(wgpu::ColorTargetState {
                         format: outline_texture.texture_format,
                         blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
+                            color: wgpu::BlendComponent {
+                                src_factor: wgpu::BlendFactor::One,
+                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                                operation: wgpu::BlendOperation::Add,
+                            },
                             alpha: wgpu::BlendComponent::REPLACE,
                         }),
                         write_mask: wgpu::ColorWrites::ALL,
@@ -268,6 +275,7 @@ impl RasterizerPipeline {
             outline_bind_group,
             outline_render_pipeline,
             outline_vertex_buffer,
+            bg_color,
 
             // default
             screen_render_pipeline,
@@ -342,12 +350,7 @@ impl RasterizerPipeline {
                     view: &outline_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 0.0,
-                        }),
+                        load: wgpu::LoadOp::Clear(self.bg_color),
                         store: true,
                     },
                 })],

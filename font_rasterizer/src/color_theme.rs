@@ -5,6 +5,18 @@ pub(crate) enum ColorMode {
     SolarizedDark,
 }
 
+impl From<SolarizedColor> for wgpu::Color {
+    fn from(value: SolarizedColor) -> Self {
+        let [r, g, b] = value.get_color();
+        Self {
+            r: r as f64,
+            g: g as f64,
+            b: b as f64,
+            a: 1.0,
+        }
+    }
+}
+
 #[allow(dead_code)]
 impl ColorMode {
     pub(crate) fn text(&self) -> SolarizedColor {

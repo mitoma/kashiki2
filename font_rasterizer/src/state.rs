@@ -46,6 +46,7 @@ impl State {
 
         // ここから本来の処理
         let quarity = Quarity::VeryHigh;
+        let color_mode = ColorMode::SolarizedDark;
 
         let size = window.inner_size();
 
@@ -102,8 +103,14 @@ impl State {
         );
         let camera_controller = CameraController::new(10.0);
 
-        let rasterizer_pipeline =
-            RasterizerPipeline::new(&device, size.width, size.height, config.format, quarity);
+        let rasterizer_pipeline = RasterizerPipeline::new(
+            &device,
+            size.width,
+            size.height,
+            config.format,
+            quarity,
+            color_mode.background().into(),
+        );
 
         let font_vertex_buffer = match FontVertexBuffer::new_buffer(&device, chars) {
             Ok(font_vertex_buffer) => font_vertex_buffer,
@@ -116,7 +123,7 @@ impl State {
         let single_line_text = MultiLineText::new(sample_text);
 
         Self {
-            color_mode: ColorMode::SolarizedDark,
+            color_mode,
 
             surface,
             device,
@@ -158,6 +165,7 @@ impl State {
                 new_size.height,
                 self.config.format,
                 self.quarity,
+                self.color_mode.background().into(),
             )
         }
     }
