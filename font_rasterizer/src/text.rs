@@ -16,7 +16,7 @@ impl SingleLineText {
         Self(value, BTreeMap::new(), true)
     }
 
-    pub(crate) fn to_instances(
+    pub(crate) fn generate_instances(
         &mut self,
         color_mode: ColorMode,
         font_vertex_buffer: &FontVertexBuffer,

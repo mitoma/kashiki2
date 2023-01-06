@@ -3,7 +3,7 @@ use std::{
     ops::{Range, RangeInclusive},
 };
 
-use anyhow::Context;
+use anyhow::{Context, Ok};
 use log::{debug, info};
 use ttf_parser::{Face, GlyphId, OutlineBuilder, Rect};
 use unicode_width::UnicodeWidthChar;
@@ -75,8 +75,7 @@ struct FontVertexBuilder {
     flushed_vertex: Vec<FontVertex>,
     flushed_index: Vec<u32>,
 
-    index_range: BTreeMap<char, Range<u32>>,
-    glyph_width: BTreeMap<char, GlyphWidth>,
+    range_and_width: BTreeMap<char, (Range<u32>, GlyphWidth)>,
 }
 
 impl FontVertexBuilder {
@@ -91,16 +90,7 @@ impl FontVertexBuilder {
                 wait: [0.0; 2],
             }],
             flushed_index: Vec::new(),
-            index_range: BTreeMap::new(),
-            glyph_width: BTreeMap::new(),
-        }
-    }
-
-    fn new_with_offset(current_main_index: u32) -> Self {
-        Self {
-            current_main_index,
-            flushed_vertex: Vec::new(),
-            ..Self::new()
+            range_and_width: BTreeMap::new(),
         }
     }
 
@@ -201,8 +191,8 @@ impl FontVertexBuilder {
         //self.add_debug_mark();
         //self.index_range.insert(c, range.start..range.end + 6);
 
-        self.index_range.insert(c, range.start..range.end);
-        self.glyph_width.insert(c, glyph_width);
+        self.range_and_width
+            .insert(c, (range.start..range.end, glyph_width));
         self.main_vertex.clear();
         self.main_index.clear();
     }
@@ -213,14 +203,12 @@ impl FontVertexBuilder {
             self.flushed_vertex.len(),
             self.flushed_index.len(),
             self.flushed_index.len() / 3,
-            self.index_range.len(),
+            self.range_and_width.len(),
         );
         VertexResult {
             vertex: self.flushed_vertex,
             index: self.flushed_index,
-            index_range: self.index_range,
-            glyph_width: self.glyph_width,
-            last_index: self.current_main_index,
+            range_and_width: self.range_and_width,
         }
     }
 }
@@ -274,20 +262,45 @@ impl OutlineBuilder for FontVertexBuilder {
 struct VertexResult {
     vertex: Vec<FontVertex>,
     index: Vec<u32>,
-    index_range: BTreeMap<char, Range<u32>>,
-    glyph_width: BTreeMap<char, GlyphWidth>,
-    last_index: u32,
+    range_and_width: BTreeMap<char, (Range<u32>, GlyphWidth)>,
 }
 
+#[derive(Default)]
 pub(crate) struct FontVertexBuffer {
-    pub(crate) vertex_buffer: wgpu::Buffer,
-    pub(crate) index_buffer: wgpu::Buffer,
-    index_range: BTreeMap<char, Range<u32>>,
-    glyph_width: BTreeMap<char, GlyphWidth>,
-    last_index: u32,
+    buffer_index: BTreeMap<char, BufferIndexEntry>,
+    buffers: Vec<(wgpu::Buffer, wgpu::Buffer)>,
+}
+
+struct BufferIndexEntry {
+    buffer_index: usize,
+    range: Range<u32>,
+    glyph_width: GlyphWidth,
+}
+
+#[derive(Debug)]
+pub(crate) struct DrawInfo<'a> {
+    pub(crate) vertex: &'a wgpu::Buffer,
+    pub(crate) index: &'a wgpu::Buffer,
+    pub(crate) index_range: &'a Range<u32>,
+    pub(crate) glyph_width: &'a GlyphWidth,
 }
 
 impl FontVertexBuffer {
+    pub(crate) fn draw_info(&self, c: &char) -> anyhow::Result<DrawInfo> {
+        let index = &self
+            .buffer_index
+            .get(c)
+            .with_context(|| format!("get char from buffer index. c:{}", c))?;
+        let (vertex_index, index_index) = &self.buffers[index.buffer_index];
+        let draw_info = DrawInfo {
+            vertex: vertex_index,
+            index: index_index,
+            index_range: &index.range,
+            glyph_width: &index.glyph_width,
+        };
+        Ok(draw_info)
+    }
+
     pub(crate) fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<FontVertex>() as wgpu::BufferAddress,
@@ -331,6 +344,9 @@ impl FontVertexBuffer {
         let emoji_face = Face::parse(EMOJI_FONT_DATA, 0)?;
         let faces = vec![face, emoji_face];
 
+        let mut result = Self::default();
+        let current_buffer_index = result.buffers.len();
+
         let chars: HashSet<char> = chars
             .into_iter()
             .flat_map(|char_range| char_range.collect::<Vec<_>>())
@@ -349,9 +365,7 @@ impl FontVertexBuffer {
         let VertexResult {
             vertex,
             index,
-            index_range,
-            glyph_width,
-            last_index,
+            range_and_width,
         } = builder.build();
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -365,74 +379,27 @@ impl FontVertexBuffer {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        Ok(Self {
-            vertex_buffer,
-            index_buffer,
-            index_range,
-            glyph_width,
-            last_index,
-        })
-    }
-
-    pub(crate) fn update_buffer(
-        &mut self,
-        queue: &wgpu::Queue,
-        chars: &[char],
-    ) -> anyhow::Result<()> {
-        let face = Face::parse(FONT_DATA, 0)?;
-        let emoji_face = Face::parse(EMOJI_FONT_DATA, 0)?;
-        let faces = vec![face, emoji_face];
-
-        let mut builder = FontVertexBuilder::new_with_offset(self.last_index);
-        for c in chars.iter().cloned() {
-            if self.index_range.contains_key(&c) {
-                continue;
-            }
-            let Some((face,glyph_id, rect)) = faces
-            .iter()
-            .flat_map(|face| Self::build(&mut builder, c, face).map(|(glyph_id, rect)|(face, glyph_id, rect)))
-            .next() else {
-                debug!("font にない文字です。 char:{}", c);
-                continue};
-            builder.flush(c, face, glyph_id, rect);
-        }
-
-        let VertexResult {
-            vertex,
-            index,
-            mut index_range,
-            mut glyph_width,
-            last_index,
-        } = builder.build();
-
-        let current_vertex_offset = self.vertex_buffer.size();
-        queue.write_buffer(
-            &self.vertex_buffer,
-            current_vertex_offset,
-            bytemuck::cast_slice(&vertex),
-        );
-        let current_index_offset = self.index_buffer.size();
-        queue.write_buffer(
-            &self.index_buffer,
-            current_index_offset,
-            bytemuck::cast_slice(&index),
-        );
-        self.index_range.append(&mut index_range);
-        self.glyph_width.append(&mut glyph_width);
-        self.last_index = last_index;
-        Ok(())
-    }
-
-    pub(crate) fn range(&self, c: char) -> anyhow::Result<Range<u32>> {
-        self.index_range
-            .get(&c)
-            .cloned()
-            .with_context(|| "get char")
+        result.buffers.push((vertex_buffer, index_buffer));
+        range_and_width
+            .into_iter()
+            .for_each(|(c, (range, glyph_width))| {
+                result.buffer_index.insert(
+                    c,
+                    BufferIndexEntry {
+                        buffer_index: current_buffer_index,
+                        range,
+                        glyph_width,
+                    },
+                );
+            });
+        Ok(result)
     }
 
     pub(crate) fn width(&self, c: char) -> GlyphWidth {
-        self.glyph_width
-            .get(&c)
+        let draw_info = self.draw_info(&c);
+        debug!("char:{}, draw_info:{:?}", c, draw_info);
+        draw_info
+            .map(|i| i.glyph_width)
             .cloned()
             .unwrap_or(GlyphWidth::Regular)
     }

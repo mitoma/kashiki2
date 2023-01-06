@@ -184,7 +184,7 @@ impl State {
         self.rasterizer_pipeline.overlap_stage(
             &mut encoder,
             &self.font_vertex_buffer,
-            &self.single_line_text.to_instances(
+            &self.single_line_text.generate_instances(
                 self.color_mode,
                 &self.font_vertex_buffer,
                 &self.device,
