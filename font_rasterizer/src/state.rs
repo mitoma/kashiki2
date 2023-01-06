@@ -9,7 +9,7 @@ use crate::{
     color_theme::ColorMode,
     font_vertex_buffer::FontVertexBuffer,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
-    text::SingleLineText,
+    text::MultiLineText,
 };
 
 pub(crate) struct State {
@@ -30,7 +30,7 @@ pub(crate) struct State {
 
     font_vertex_buffer: FontVertexBuffer,
 
-    single_line_text: SingleLineText,
+    single_line_text: MultiLineText,
 }
 
 impl State {
@@ -110,7 +110,7 @@ impl State {
             }
         };
 
-        let single_line_text = SingleLineText::new(sample_text);
+        let single_line_text = MultiLineText::new(sample_text);
 
         Self {
             color_mode: ColorMode::SolarizedDark,

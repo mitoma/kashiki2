@@ -9,9 +9,9 @@ use crate::{
     instances::{Instance, Instances},
 };
 
-pub(crate) struct SingleLineText(String, BTreeMap<char, Instances>, bool);
+pub(crate) struct MultiLineText(String, BTreeMap<char, Instances>, bool);
 
-impl SingleLineText {
+impl MultiLineText {
     pub(crate) fn new(value: String) -> Self {
         Self(value, BTreeMap::new(), true)
     }
