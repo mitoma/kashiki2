@@ -30,7 +30,7 @@ pub(crate) struct State {
 
     font_vertex_buffer: FontVertexBuffer,
 
-    single_line_text: MultiLineText,
+    multi_line_text: MultiLineText,
 
     target: usize,
 }
@@ -38,7 +38,7 @@ pub(crate) struct State {
 impl State {
     pub(crate) async fn new(window: &Window) -> Self {
         // テストデータ
-        //        let sample_text = include_str!("../data/memo.md").to_string();
+        //let sample_text = include_str!("../data/memo.md").to_string();
         let sample_text = include_str!("../data/gingatetsudono_yoru.txt").to_string();
         // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
         let chars = sample_text.chars().collect::<HashSet<_>>();
@@ -120,7 +120,7 @@ impl State {
             }
         };
 
-        let single_line_text = MultiLineText::new(sample_text);
+        let multi_line_text = MultiLineText::new(sample_text);
 
         Self {
             color_mode,
@@ -138,7 +138,7 @@ impl State {
 
             font_vertex_buffer,
 
-            single_line_text,
+            multi_line_text,
 
             target: 0,
         }
@@ -192,7 +192,13 @@ impl State {
                 match code {
                     VirtualKeyCode::A => {
                         self.target = 0;
-                        self.single_line_text
+                        self.font_vertex_buffer
+                            .add_buffer(
+                                &self.device,
+                                "ハローワールド".chars().into_iter().collect(),
+                            )
+                            .unwrap();
+                        self.multi_line_text
                             .update_value("ハローワールド".to_string());
                         CameraOperation::None
                     }
@@ -200,7 +206,7 @@ impl State {
                         if self.target >= 1 {
                             self.target -= 1;
                         }
-                        if let Ok(target_vec) = self.single_line_text.get_target(self.target) {
+                        if let Ok(target_vec) = self.multi_line_text.get_target(self.target) {
                             let point = cgmath::point3(target_vec.x, target_vec.y, target_vec.z);
                             CameraOperation::CangeTarget(point)
                         } else {
@@ -209,7 +215,7 @@ impl State {
                     }
                     VirtualKeyCode::L => {
                         self.target += 1;
-                        if let Ok(target_vec) = self.single_line_text.get_target(self.target) {
+                        if let Ok(target_vec) = self.multi_line_text.get_target(self.target) {
                             let point = cgmath::point3(target_vec.x, target_vec.y, target_vec.z);
                             CameraOperation::CangeTarget(point)
                         } else {
@@ -247,7 +253,7 @@ impl State {
         self.rasterizer_pipeline.overlap_stage(
             &mut encoder,
             &self.font_vertex_buffer,
-            &self.single_line_text.generate_instances(
+            &self.multi_line_text.generate_instances(
                 self.color_mode,
                 &self.font_vertex_buffer,
                 &self.device,

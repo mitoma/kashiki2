@@ -336,21 +336,24 @@ impl FontVertexBuffer {
             .with_context(|| format!("ougline glyph is failed. char:{}", c))
     }
 
-    pub(crate) fn new_buffer(
+    pub(crate) fn add_buffer(
+        &mut self,
         device: &wgpu::Device,
-        chars: Vec<RangeInclusive<char>>,
-    ) -> anyhow::Result<Self> {
+        chars: HashSet<char>,
+    ) -> anyhow::Result<()> {
+        self.update_buffer(device, chars)
+    }
+
+    fn update_buffer(&mut self, device: &wgpu::Device, chars: HashSet<char>) -> anyhow::Result<()> {
         let face = Face::parse(FONT_DATA, 0)?;
         let emoji_face = Face::parse(EMOJI_FONT_DATA, 0)?;
         let faces = vec![face, emoji_face];
+        let current_buffer_index = self.buffers.len();
 
-        let mut result = Self::default();
-        let current_buffer_index = result.buffers.len();
-
-        let chars: HashSet<char> = chars
+        let chars = chars
             .into_iter()
-            .flat_map(|char_range| char_range.collect::<Vec<_>>())
-            .collect();
+            .filter(|c| !self.buffer_index.contains_key(c))
+            .collect::<HashSet<_>>();
 
         let mut builder = FontVertexBuilder::new();
         for c in chars {
@@ -379,11 +382,11 @@ impl FontVertexBuffer {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        result.buffers.push((vertex_buffer, index_buffer));
+        self.buffers.push((vertex_buffer, index_buffer));
         range_and_width
             .into_iter()
             .for_each(|(c, (range, glyph_width))| {
-                result.buffer_index.insert(
+                self.buffer_index.insert(
                     c,
                     BufferIndexEntry {
                         buffer_index: current_buffer_index,
@@ -392,6 +395,19 @@ impl FontVertexBuffer {
                     },
                 );
             });
+        Ok(())
+    }
+
+    pub(crate) fn new_buffer(
+        device: &wgpu::Device,
+        chars: Vec<RangeInclusive<char>>,
+    ) -> anyhow::Result<Self> {
+        let mut result = Self::default();
+        let chars: HashSet<char> = chars
+            .into_iter()
+            .flat_map(|char_range| char_range.collect::<Vec<_>>())
+            .collect();
+        result.update_buffer(device, chars)?;
         Ok(result)
     }
 
