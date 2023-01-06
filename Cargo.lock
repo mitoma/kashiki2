@@ -1277,7 +1277,7 @@ dependencies = [
 [[package]]
 name = "nenobi"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#e5f055c21a4bd31ffd9b66d7ace5704cf226bb54"
+source = "git+https://github.com/mitoma/sandbox?branch=main#2765c5c19bda7f4b2e87ab9cf5b81a9b8b1568e3"
 dependencies = [
  "instant",
  "num-traits",

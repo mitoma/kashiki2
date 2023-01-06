@@ -60,6 +60,7 @@ impl MultiLineText {
         if !self.updated {
             return self.instances.values().collect();
         }
+        self.instances.clear();
         self.updated = false;
 
         let lines: Vec<_> = self.value.split('\n').collect();

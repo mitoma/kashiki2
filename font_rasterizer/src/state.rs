@@ -182,6 +182,12 @@ impl State {
             } => {
                 debug!("Keycode: {:?}", code);
                 match code {
+                    VirtualKeyCode::A => {
+                        self.target = 0;
+                        self.single_line_text
+                            .update_value("ハローワールド".to_string());
+                        CameraOperation::None
+                    }
                     VirtualKeyCode::H => {
                         if self.target >= 1 {
                             self.target -= 1;
