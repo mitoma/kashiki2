@@ -5,7 +5,7 @@ use log::{debug, info};
 use winit::{event::*, window::Window};
 
 use crate::{
-    camera::{Camera, CameraController, CameraOperation, EasingPoint3},
+    camera::{Camera, CameraController, CameraOperation},
     color_theme::ColorMode,
     font_vertex_buffer::FontVertexBuffer,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
@@ -38,7 +38,8 @@ pub(crate) struct State {
 impl State {
     pub(crate) async fn new(window: &Window) -> Self {
         // テストデータ
-        let sample_text = include_str!("../data/memo.md").to_string();
+        //        let sample_text = include_str!("../data/memo.md").to_string();
+        let sample_text = include_str!("../data/gingatetsudono_yoru.txt").to_string();
         // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
         let chars = sample_text.chars().collect::<HashSet<_>>();
         let chars = chars.iter().map(|c| *c..=*c).collect::<Vec<_>>();
@@ -90,7 +91,7 @@ impl State {
 
         // Camera
         let camera = Camera::new(
-            EasingPoint3::new(0.0, 0.0, 100.0),
+            (0.0, 0.0, 100.0).into(),
             (0.0, 0.0, 0.0).into(),
             cgmath::Vector3::unit_y(),
             config.width as f32 / config.height as f32,

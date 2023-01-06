@@ -29,7 +29,7 @@ impl Instances {
     pub fn new(c: char, values: Vec<Instance>, device: &wgpu::Device) -> Self {
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Instances Buffer"),
-            size: 65536,
+            size: 65536 * 10,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });

@@ -52,26 +52,32 @@ impl EasingPoint3 {
     fn update(&mut self, p: cgmath::Point3<f32>) {
         self.x.update(
             p.x,
-            Duration::from_millis(300),
-            nenobi::functions::back_out,
+            Duration::from_millis(1000),
+            nenobi::functions::cubic_in_out,
         );
         self.y.update(
             p.y,
-            Duration::from_millis(300),
-            nenobi::functions::back_out,
+            Duration::from_millis(1000),
+            nenobi::functions::cubic_in_out,
         );
         self.z.update(
             p.z,
-            Duration::from_millis(300),
-            nenobi::functions::back_out,
+            Duration::from_millis(1000),
+            nenobi::functions::cubic_in_out,
         );
         self.gc();
     }
 }
 
+impl Into<EasingPoint3> for (f32, f32, f32) {
+    fn into(self) -> EasingPoint3 {
+        EasingPoint3::new(self.0, self.1, self.2)
+    }
+}
+
 pub struct Camera {
     eye: EasingPoint3,
-    target: cgmath::Point3<f32>,
+    target: EasingPoint3,
     up: cgmath::Vector3<f32>,
     aspect: f32,
     fovy: f32,
@@ -81,9 +87,9 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(
-        eye: EasingPoint3,           // 視点の位置
-        target: cgmath::Point3<f32>, // ターゲットの位置
-        up: cgmath::Vector3<f32>,    // 上を指す単位行列 (x:0, y:1, z:0)
+        eye: EasingPoint3,        // 視点の位置
+        target: EasingPoint3,     // ターゲットの位置
+        up: cgmath::Vector3<f32>, // 上を指す単位行列 (x:0, y:1, z:0)
         aspect: f32,
         fovy: f32,
         znear: f32,
@@ -101,8 +107,11 @@ impl Camera {
     }
 
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        let view =
-            cgmath::Matrix4::look_at_rh(self.eye.to_current_cgmath_point(), self.target, self.up);
+        let view = cgmath::Matrix4::look_at_rh(
+            self.eye.to_current_cgmath_point(),
+            self.target.to_current_cgmath_point(),
+            self.up,
+        );
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
@@ -201,11 +210,12 @@ impl CameraController {
 
     pub fn update_camera(&self, camera: &mut Camera) {
         if let Some(next_target) = self.next_target {
-            camera.target = next_target;
+            camera.target.update(next_target);
         }
         let mut current_eye = camera.eye.to_last_cgmath_point();
+        let current_target = camera.target.to_last_cgmath_point();
         // ターゲットからカメラの座標を引く(カメラから見たターゲットの向き)
-        let forward = camera.target - current_eye;
+        let forward = current_target - current_eye;
         // 向きに対する単位行列
         let forward_norm = forward.normalize();
         // 向きへの距離
@@ -223,15 +233,15 @@ impl CameraController {
         let right = forward_norm.cross(camera.up); // ターゲットへの単位行列と縦軸との外積をとる
 
         // なぜ再定義が必要？
-        let forward = camera.target - current_eye;
+        let forward = current_target - current_eye;
         let forward_mag = forward.magnitude();
 
         if self.is_right_pressed {
             // ターゲットから、カメラのほうの少し右を見る単位行列を作り、それに元の距離をかける
-            current_eye = camera.target - (forward + right * self.speed).normalize() * forward_mag;
+            current_eye = current_target - (forward + right * self.speed).normalize() * forward_mag;
         }
         if self.is_left_pressed {
-            current_eye = camera.target - (forward - right * self.speed).normalize() * forward_mag;
+            current_eye = current_target - (forward - right * self.speed).normalize() * forward_mag;
         }
 
         if self.is_up_pressed {
