@@ -61,6 +61,10 @@ impl Instances {
     pub fn to_wgpu_buffer(&self) -> &wgpu::Buffer {
         &self.buffer
     }
+
+    pub fn nth_position(&self, count: usize) -> cgmath::Vector3<f32> {
+        self.values[count].position
+    }
 }
 
 impl Instance {

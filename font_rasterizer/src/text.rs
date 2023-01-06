@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use anyhow::Context;
 use cgmath::Rotation3;
 use log::debug;
 
@@ -9,11 +10,44 @@ use crate::{
     instances::{Instance, Instances},
 };
 
-pub(crate) struct MultiLineText(String, BTreeMap<char, Instances>, bool);
+pub(crate) struct MultiLineText {
+    value: String,
+    instances: BTreeMap<char, Instances>,
+    updated: bool,
+}
 
 impl MultiLineText {
     pub(crate) fn new(value: String) -> Self {
-        Self(value, BTreeMap::new(), true)
+        Self {
+            value,
+            instances: BTreeMap::new(),
+            updated: true,
+        }
+    }
+
+    pub(crate) fn update_value(&mut self, value: String) {
+        self.value = value;
+        self.updated = true;
+    }
+
+    pub(crate) fn get_target(&self, count: usize) -> anyhow::Result<cgmath::Vector3<f32>> {
+        let mut target_char = self
+            .value
+            .chars()
+            .into_iter()
+            .nth(count)
+            .with_context(|| "get nth char")?;
+        if !self.instances.contains_key(&target_char) {
+            target_char = self.value.chars().next().unwrap();
+        }
+        let instance_count = self
+            .value
+            .chars()
+            .into_iter()
+            .take(count)
+            .filter(|c| *c == target_char)
+            .count();
+        Ok(self.instances[&target_char].nth_position(instance_count))
     }
 
     pub(crate) fn generate_instances(
@@ -23,12 +57,12 @@ impl MultiLineText {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Vec<&Instances> {
-        if !self.2 {
-            return self.1.values().collect();
+        if !self.updated {
+            return self.instances.values().collect();
         }
-        self.2 = false;
+        self.updated = false;
 
-        let lines: Vec<_> = self.0.split('\n').collect();
+        let lines: Vec<_> = self.value.split('\n').collect();
         let width = lines
             .iter()
             .map(|i| {
@@ -40,12 +74,12 @@ impl MultiLineText {
             .unwrap_or(40.0);
         let width = if width > 40.0 { 40.0 } else { width };
 
-        let height = self.0.chars().filter(|c| *c == '\n').count() as f32;
+        let height = self.value.chars().filter(|c| *c == '\n').count() as f32;
         let initial_x = -width / 2.0;
         let mut x: f32 = initial_x;
         let mut y: f32 = height / 2.0;
         debug!("text x:{}, y:{}", x, y);
-        for c in self.0.chars() {
+        for c in self.value.chars() {
             if c == '\n' {
                 x = initial_x;
                 y -= 1.0;
@@ -59,10 +93,10 @@ impl MultiLineText {
             let glyph_width = font_vertex_buffer.width(c);
             x += glyph_width.left();
 
-            self.1
+            self.instances
                 .entry(c)
                 .or_insert_with(|| Instances::new(c, Vec::new(), device));
-            let instance = self.1.get_mut(&c).unwrap();
+            let instance = self.instances.get_mut(&c).unwrap();
             let color = if c.is_ascii() {
                 color_mode.yellow().get_color()
             } else if c < 'あ' {
@@ -84,11 +118,11 @@ impl MultiLineText {
             instance.push(i);
             x += glyph_width.right();
         }
-        self.1
+        self.instances
             .values_mut()
             .into_iter()
             .for_each(|i| i.update_buffer(queue));
 
-        self.1.values().collect()
+        self.instances.values().collect()
     }
 }

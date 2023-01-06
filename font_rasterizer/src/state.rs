@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 use std::iter;
 
-use log::info;
+use log::{debug, info};
 use winit::{event::*, window::Window};
 
 use crate::{
-    camera::{Camera, CameraController, EasingPoint3},
+    camera::{Camera, CameraController, CameraOperation, EasingPoint3},
     color_theme::ColorMode,
     font_vertex_buffer::FontVertexBuffer,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
@@ -31,6 +31,8 @@ pub(crate) struct State {
     font_vertex_buffer: FontVertexBuffer,
 
     single_line_text: MultiLineText,
+
+    target: usize,
 }
 
 impl State {
@@ -129,6 +131,8 @@ impl State {
             font_vertex_buffer,
 
             single_line_text,
+
+            target: 0,
         }
     }
 
@@ -159,7 +163,51 @@ impl State {
 
     #[allow(unused_variables)]
     pub(crate) fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_event(event)
+        let op = self.camera_controller.process_event(event);
+
+        if op {
+            return op;
+        }
+
+        let op = match event {
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(code),
+                        ..
+                    },
+                ..
+            } => {
+                debug!("Keycode: {:?}", code);
+                match code {
+                    VirtualKeyCode::H => {
+                        if self.target >= 1 {
+                            self.target -= 1;
+                        }
+                        if let Ok(target_vec) = self.single_line_text.get_target(self.target) {
+                            let point = cgmath::point3(target_vec.x, target_vec.y, target_vec.z);
+                            CameraOperation::CangeTarget(point)
+                        } else {
+                            CameraOperation::None
+                        }
+                    }
+                    VirtualKeyCode::L => {
+                        self.target += 1;
+                        if let Ok(target_vec) = self.single_line_text.get_target(self.target) {
+                            let point = cgmath::point3(target_vec.x, target_vec.y, target_vec.z);
+                            CameraOperation::CangeTarget(point)
+                        } else {
+                            CameraOperation::None
+                        }
+                    }
+                    _ => CameraOperation::None,
+                }
+            }
+            _ => CameraOperation::None,
+        };
+        self.camera_controller.process(&op);
+        op != CameraOperation::None
     }
 
     pub(crate) fn update(&mut self) {
