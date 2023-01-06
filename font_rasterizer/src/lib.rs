@@ -1,7 +1,7 @@
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
+    window::{Fullscreen, WindowBuilder},
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -76,6 +76,18 @@ pub async fn run() {
                                 },
                             ..
                         } => *control_flow = ControlFlow::Exit,
+                        WindowEvent::KeyboardInput {
+                            input:
+                                KeyboardInput {
+                                    state: ElementState::Pressed,
+                                    virtual_keycode: Some(VirtualKeyCode::F11),
+                                    ..
+                                },
+                            ..
+                        } => match window.fullscreen() {
+                            Some(_) => window.set_fullscreen(None),
+                            None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                        },
                         WindowEvent::Resized(physical_size) => {
                             state.resize(*physical_size);
                         }
