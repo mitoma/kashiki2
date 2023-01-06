@@ -69,9 +69,9 @@ impl EasingPoint3 {
     }
 }
 
-impl Into<EasingPoint3> for (f32, f32, f32) {
-    fn into(self) -> EasingPoint3 {
-        EasingPoint3::new(self.0, self.1, self.2)
+impl From<(f32, f32, f32)> for EasingPoint3 {
+    fn from((x, y, z): (f32, f32, f32)) -> Self {
+        Self::new(x, y, z)
     }
 }
 
