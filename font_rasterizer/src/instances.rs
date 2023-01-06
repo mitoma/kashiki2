@@ -1,5 +1,3 @@
-use log::debug;
-
 pub struct Instance {
     position: cgmath::Vector3<f32>,
     rotation: cgmath::Quaternion<f32>,
@@ -55,12 +53,6 @@ impl Instances {
     pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
         if self.updated {
             let value_raws: Vec<InstanceRaw> = self.values.iter().map(|v| v.to_raw()).collect();
-            debug!(
-                "before update. char:{}, buffer len:{}, value_size:{}",
-                self.c,
-                self.buffer.size(),
-                value_raws.len()
-            );
             queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(value_raws.as_slice()));
             self.updated = false;
         }

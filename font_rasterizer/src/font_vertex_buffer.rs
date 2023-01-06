@@ -397,7 +397,6 @@ impl FontVertexBuffer {
 
     pub(crate) fn width(&self, c: char) -> GlyphWidth {
         let draw_info = self.draw_info(&c);
-        debug!("char:{}, draw_info:{:?}", c, draw_info);
         draw_info
             .map(|i| i.glyph_width)
             .cloned()
