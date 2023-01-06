@@ -77,6 +77,17 @@ impl RasterizerPipeline {
             Quarity::Low => (width - width / 4, height - height / 4),
             Quarity::VeryLow => (width / 2, height / 2),
         };
+        // GPU の上限によってはテクスチャのサイズを制限する
+        let max = device.limits().max_texture_dimension_2d;
+        let (width, height) = if width > max || height > max {
+            if width > height {
+                (max, height * max / width)
+            } else {
+                (width * max / height, max)
+            }
+        } else {
+            (width, height)
+        };
 
         // overlap
         let overlap_texture =
