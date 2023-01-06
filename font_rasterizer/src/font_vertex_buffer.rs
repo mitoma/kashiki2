@@ -381,6 +381,11 @@ impl FontVertexBuffer {
             contents: bytemuck::cast_slice(&index),
             usage: wgpu::BufferUsages::INDEX,
         });
+        info!(
+            "vertex_buffer_length:{}, index_buffer_length:{}",
+            vertex_buffer.size(),
+            index_buffer.size()
+        );
 
         self.buffers.push((vertex_buffer, index_buffer));
         range_and_width
