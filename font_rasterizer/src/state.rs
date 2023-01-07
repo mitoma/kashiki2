@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::iter;
 
-use cgmath::num_traits::ToPrimitive;
 use log::{debug, info};
 use winit::{dpi::PhysicalPosition, event::*, window::Window};
 
@@ -10,7 +9,7 @@ use crate::{
     color_theme::ColorMode,
     font_vertex_buffer::FontVertexBuffer,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
-    text::{MultiLineText, PlaneTextReader},
+    text::PlaneTextReader,
 };
 
 pub(crate) struct State {
@@ -190,9 +189,9 @@ impl State {
     fn calc_opearation(&mut self, x: f64, y: f64) -> CameraOperation {
         if y.abs() > x.abs() {
             if y > 0.0 {
-                self.target = self.target.saturating_sub(5)
+                self.target = self.target.saturating_sub(1)
             } else {
-                self.target = self.target.saturating_add(5)
+                self.target = self.target.saturating_add(1)
             }
             self.get_camera_operation()
         } else {
@@ -212,38 +211,16 @@ impl State {
                 button: MouseButton::Left,
                 ..
             } => CameraOperation::Forward,
-            WindowEvent::Touch(touch) => {
-                match touch.phase {
-                    TouchPhase::Started => {
-                        self.touch_position = Some(touch.location);
-                        CameraOperation::None
-                    }
-                    TouchPhase::Moved => {
-                        if let Some(touch_position) = self.touch_position {
-                            let x = touch.location.x - touch_position.x;
-                            let y = touch.location.y - touch_position.y;
-                            self.touch_position = Some(touch.location);
-                            self.calc_opearation(x, y)
-                        } else {
-                            CameraOperation::None
-                        }
-                    }
-                    TouchPhase::Ended => {
-                        if let Some(touch_position) = self.touch_position {
-                            let x = touch.location.x - touch_position.x;
-                            let y = touch.location.y - touch_position.y;
-                            self.touch_position = None;
-                            self.calc_opearation(x, y)
-                        } else {
-                            CameraOperation::None
-                        }
-                    }
-                    TouchPhase::Cancelled => {
-                        self.touch_position = None;
-                        CameraOperation::None
-                    }
-                };
-                CameraOperation::None
+            WindowEvent::CursorMoved { position, .. } => {
+                if let Some(position) = self.touch_position {
+                    let x = position.x - position.x;
+                    let y = position.y - position.y;
+                    self.touch_position = Some(position);
+                    self.calc_opearation(x, y)
+                } else {
+                    self.touch_position = Some(*position);
+                    CameraOperation::None
+                }
             }
             WindowEvent::MouseWheel { delta, .. } => match delta {
                 // native (windows) ではこちら

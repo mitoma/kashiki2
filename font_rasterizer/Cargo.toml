@@ -15,8 +15,7 @@ env_logger = "0.9"
 log = "0.4"
 pollster = "0.2"
 wgpu = "0.14"
-#winit = "0.27"
-winit = { git = "https://github.com/rust-windowing/winit", branch = "master" }
+winit = "0.27"
 
 ttf-parser = "0.17"
 cgmath = "0.18"
