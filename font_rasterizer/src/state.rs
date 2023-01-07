@@ -193,6 +193,7 @@ impl State {
                 ..
             } => CameraOperation::Forward,
             WindowEvent::MouseWheel { delta, .. } => match delta {
+                // native (windows) ではこちら
                 MouseScrollDelta::LineDelta(x, y) => {
                     info!("line delta. ({}, {})", x, y);
                     if y.abs() > x.abs() {
@@ -210,9 +211,10 @@ impl State {
                         }
                     }
                 }
+                // wasm ではこちら
                 MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => {
                     info!("pixel delta");
-                    if y > x {
+                    if y.abs() > x.abs() {
                         self.target += *y as usize * 5;
                         self.get_camera_operation()
                     } else {
