@@ -212,10 +212,10 @@ impl State {
                 ..
             } => CameraOperation::Forward,
             WindowEvent::CursorMoved { position, .. } => {
-                if let Some(position) = self.touch_position {
-                    let x = position.x - position.x;
-                    let y = position.y - position.y;
-                    self.touch_position = Some(position);
+                if let Some(pre_position) = self.touch_position {
+                    let x = position.x - pre_position.x;
+                    let y = position.y - pre_position.y;
+                    self.touch_position = Some(*position);
                     self.calc_opearation(x, y)
                 } else {
                     self.touch_position = Some(*position);
