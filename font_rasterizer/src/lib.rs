@@ -1,3 +1,5 @@
+use instant::{Duration, Instant};
+use log::info;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -58,12 +60,30 @@ pub async fn run() {
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = State::new(&window).await;
 
+    let mut pre_click = Instant::now();
+
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::WindowEvent {
                 ref event,
                 window_id,
             } if window_id == window.id() => {
+                if let WindowEvent::MouseInput {
+                    state: ElementState::Pressed,
+                    button: MouseButton::Left,
+                    ..
+                } = event
+                {
+                    info!("click!");
+                    let now = Instant::now();
+                    if now - pre_click < Duration::from_millis(500) {
+                        match window.fullscreen() {
+                            Some(_) => window.set_fullscreen(None),
+                            None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                        }
+                    }
+                    pre_click = now;
+                }
                 if !state.input(event) {
                     match event {
                         WindowEvent::CloseRequested
