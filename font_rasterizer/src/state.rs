@@ -35,6 +35,7 @@ pub(crate) struct State {
     plane_text_reader: PlaneTextReader,
 
     target: usize,
+    touch_position: Option<PhysicalPosition<f64>>,
 }
 
 impl State {
@@ -144,6 +145,7 @@ impl State {
             plane_text_reader,
 
             target: 0,
+            touch_position: None,
         }
     }
 
@@ -185,6 +187,23 @@ impl State {
         }
     }
 
+    fn calc_opearation(&mut self, x: f64, y: f64) -> CameraOperation {
+        if y.abs() > x.abs() {
+            if y > 0.0 {
+                self.target = self.target.saturating_sub(5)
+            } else {
+                self.target = self.target.saturating_add(5)
+            }
+            self.get_camera_operation()
+        } else {
+            if x > 0.0 {
+                CameraOperation::Right
+            } else {
+                CameraOperation::Left
+            }
+        }
+    }
+
     #[allow(unused_variables)]
     pub(crate) fn input(&mut self, event: &WindowEvent) -> bool {
         let op = match event {
@@ -193,42 +212,49 @@ impl State {
                 button: MouseButton::Left,
                 ..
             } => CameraOperation::Forward,
+            WindowEvent::Touch(touch) => {
+                match touch.phase {
+                    TouchPhase::Started => {
+                        self.touch_position = Some(touch.location);
+                        CameraOperation::None
+                    }
+                    TouchPhase::Moved => {
+                        if let Some(touch_position) = self.touch_position {
+                            let x = touch.location.x - touch_position.x;
+                            let y = touch.location.y - touch_position.y;
+                            self.touch_position = Some(touch.location);
+                            self.calc_opearation(x, y)
+                        } else {
+                            CameraOperation::None
+                        }
+                    }
+                    TouchPhase::Ended => {
+                        if let Some(touch_position) = self.touch_position {
+                            let x = touch.location.x - touch_position.x;
+                            let y = touch.location.y - touch_position.y;
+                            self.touch_position = None;
+                            self.calc_opearation(x, y)
+                        } else {
+                            CameraOperation::None
+                        }
+                    }
+                    TouchPhase::Cancelled => {
+                        self.touch_position = None;
+                        CameraOperation::None
+                    }
+                };
+                CameraOperation::None
+            }
             WindowEvent::MouseWheel { delta, .. } => match delta {
                 // native (windows) ではこちら
                 MouseScrollDelta::LineDelta(x, y) => {
                     info!("line delta. ({}, {})", x, y);
-                    if y.abs() > x.abs() {
-                        if *y > 0.0 {
-                            self.target = self.target.saturating_sub(5)
-                        } else {
-                            self.target = self.target.saturating_add(5)
-                        }
-                        self.get_camera_operation()
-                    } else {
-                        if *x > 0.0 {
-                            CameraOperation::Right
-                        } else {
-                            CameraOperation::Left
-                        }
-                    }
+                    self.calc_opearation(*x as f64, *y as f64)
                 }
                 // wasm ではこちら
                 MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => {
                     info!("pixel delta");
-                    if y.abs() > x.abs() {
-                        if *y > 0.0 {
-                            self.target = self.target.saturating_sub(5);
-                        } else {
-                            self.target = self.target.saturating_add(5);
-                        }
-                        self.get_camera_operation()
-                    } else {
-                        if *x > 0.0 {
-                            CameraOperation::Right
-                        } else {
-                            CameraOperation::Left
-                        }
-                    }
+                    self.calc_opearation(*x, *y)
                 }
             },
             WindowEvent::KeyboardInput {
