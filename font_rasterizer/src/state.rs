@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::iter;
 
+use cgmath::num_traits::ToPrimitive;
 use log::{debug, info};
 use winit::{dpi::PhysicalPosition, event::*, window::Window};
 
@@ -215,7 +216,11 @@ impl State {
                 MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => {
                     info!("pixel delta");
                     if y.abs() > x.abs() {
-                        self.target += *y as usize * 5;
+                        if *y > 0.0 {
+                            self.target = self.target.saturating_sub(5);
+                        } else {
+                            self.target = self.target.saturating_add(5);
+                        }
                         self.get_camera_operation()
                     } else {
                         if *x > 0.0 {
