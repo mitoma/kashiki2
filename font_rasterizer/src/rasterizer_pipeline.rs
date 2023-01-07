@@ -192,7 +192,7 @@ impl RasterizerPipeline {
                                 dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
                                 operation: wgpu::BlendOperation::Add,
                             },
-                            alpha: wgpu::BlendComponent::REPLACE,
+                            alpha: wgpu::BlendComponent::OVER,
                         }),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
