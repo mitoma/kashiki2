@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use anyhow::Context;
-use cgmath::Rotation3;
-use log::debug;
+use cgmath::{num_traits::ToPrimitive, Rotation3};
+use log::{debug, info};
 
 use crate::{
     color_theme::ColorMode,
@@ -98,15 +98,6 @@ impl MultiLineText {
                 .entry(c)
                 .or_insert_with(|| Instances::new(c, Vec::new(), device));
             let instance = self.instances.get_mut(&c).unwrap();
-            let color = if c.is_ascii() {
-                color_mode.yellow().get_color()
-            } else if c < 'あ' {
-                color_mode.text().get_color()
-            } else if c < '\u{1F600}' {
-                color_mode.text_comment().get_color()
-            } else {
-                color_mode.text_emphasized().get_color()
-            };
             let i = Instance::new(
                 cgmath::Vector3 {
                     x: 0.75 * x,
@@ -114,7 +105,7 @@ impl MultiLineText {
                     z: 0.0,
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-                color,
+                get_color(color_mode, c),
             );
             instance.push(i);
             x += glyph_width.right();
@@ -125,5 +116,137 @@ impl MultiLineText {
             .for_each(|i| i.update_buffer(queue));
 
         self.instances.values().collect()
+    }
+}
+
+pub(crate) struct PlaneTextReader {
+    value: String,
+    instances: BTreeMap<char, Instances>,
+    updated: bool,
+}
+
+impl PlaneTextReader {
+    const MAX_WIDTH: f32 = 40.0;
+
+    fn bound(&self, font_vertex_buffer: &FontVertexBuffer) -> (f32, f32) {
+        let mut max_width = 0.0;
+        let mut max_height = 0.0;
+        for line in self.value.lines() {
+            let mut width = 0.0;
+            for c in line.chars() {
+                if width > Self::MAX_WIDTH {
+                    width = 0.0;
+                    max_height += 1.0;
+                }
+                let glyph_width = font_vertex_buffer.width(c);
+                width += glyph_width.to_f32();
+            }
+            max_height += 1.0;
+            if width > max_width {
+                max_width = width;
+            }
+        }
+        (max_width, max_height)
+    }
+
+    pub(crate) fn get_target_and_camera(
+        &self,
+        line_num: usize,
+        font_vertex_buffer: &FontVertexBuffer,
+    ) -> anyhow::Result<(cgmath::Point3<f32>, cgmath::Point3<f32>, usize)> {
+        let line_num = (line_num as f32).min(self.bound(font_vertex_buffer).1);
+        Ok((
+            (0.0, -line_num, 0.0).into(),
+            (0.0, -line_num, 50.0).into(),
+            line_num.to_usize().unwrap_or_default(),
+        ))
+    }
+
+    pub(crate) fn new(value: String) -> Self {
+        Self {
+            value,
+            instances: BTreeMap::new(),
+            updated: true,
+        }
+    }
+
+    pub(crate) fn update_value(&mut self, value: String) {
+        self.value = value;
+        self.updated = true;
+    }
+
+    pub(crate) fn generate_instances(
+        &mut self,
+        color_mode: ColorMode,
+        font_vertex_buffer: &FontVertexBuffer,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> Vec<&Instances> {
+        if !self.updated {
+            return self.instances.values().collect();
+        }
+
+        self.instances.clear();
+        self.updated = false;
+
+        let lines: Vec<_> = self.value.split('\n').collect();
+
+        let (width, height) = self.bound(font_vertex_buffer);
+        let initial_x = -width / 2.0;
+
+        let mut x: f32 = initial_x;
+        let mut y: f32 = 0.0;
+        for line in lines {
+            for c in line.chars() {
+                if x > width / 2.0 {
+                    x = initial_x;
+                    y -= 1.0;
+                }
+                let glyph_width = font_vertex_buffer.width(c);
+                x += glyph_width.left();
+
+                self.instances
+                    .entry(c)
+                    .or_insert_with(|| Instances::new(c, Vec::new(), device));
+                let instance = self.instances.get_mut(&c).unwrap();
+                let i = Instance::new(
+                    cgmath::Vector3 {
+                        x: 0.75 * x,
+                        y: 1.0 * y,
+                        z: 0.01 * x * x,
+                    },
+                    cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_z(),
+                        cgmath::Deg(0.0),
+                    ),
+                    get_color(color_mode, c),
+                );
+                x += glyph_width.right();
+
+                instance.push(i);
+            }
+            x = initial_x;
+            y -= 1.0;
+        }
+        info!("height:{}, last_y:{}", height, y);
+
+        self.instances
+            .values_mut()
+            .into_iter()
+            .for_each(|i| i.update_buffer(queue));
+
+        self.instances.values().collect()
+    }
+}
+
+fn get_color(color_mode: ColorMode, c: char) -> [f32; 3] {
+    if c.is_ascii() {
+        color_mode.yellow().get_color()
+    } else if ('あ'..'一').contains(&c) {
+        color_mode.text().get_color()
+    } else if c < '\u{1F600}' {
+        color_mode.text_emphasized().get_color()
+    } else {
+        color_mode.text_comment().get_color()
     }
 }

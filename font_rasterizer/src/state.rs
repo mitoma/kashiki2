@@ -2,14 +2,14 @@ use std::collections::HashSet;
 use std::iter;
 
 use log::{debug, info};
-use winit::{event::*, window::Window};
+use winit::{dpi::PhysicalPosition, event::*, window::Window};
 
 use crate::{
     camera::{Camera, CameraController, CameraOperation},
     color_theme::ColorMode,
     font_vertex_buffer::FontVertexBuffer,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
-    text::MultiLineText,
+    text::{MultiLineText, PlaneTextReader},
 };
 
 pub(crate) struct State {
@@ -30,7 +30,8 @@ pub(crate) struct State {
 
     font_vertex_buffer: FontVertexBuffer,
 
-    multi_line_text: MultiLineText,
+    //multi_line_text: MultiLineText,
+    plane_text_reader: PlaneTextReader,
 
     target: usize,
 }
@@ -39,7 +40,8 @@ impl State {
     pub(crate) async fn new(window: &Window) -> Self {
         // テストデータ
         //let sample_text = include_str!("../data/memo.md").to_string();
-        let sample_text = include_str!("../data/gingatetsudono_yoru.txt").to_string();
+        //let sample_text = include_str!("../data/gingatetsudono_yoru.txt").to_string();
+        let sample_text = include_str!("../data/chumonno_oi_ryoriten.txt").to_string();
         // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
         let chars = sample_text.chars().collect::<HashSet<_>>();
         let chars = chars.iter().map(|c| *c..=*c).collect::<Vec<_>>();
@@ -92,7 +94,7 @@ impl State {
 
         // Camera
         let camera = Camera::new(
-            (0.0, 0.0, 100.0).into(),
+            (0.0, 0.0, 50.0).into(),
             (0.0, 0.0, 0.0).into(),
             cgmath::Vector3::unit_y(),
             config.width as f32 / config.height as f32,
@@ -120,7 +122,7 @@ impl State {
             }
         };
 
-        let multi_line_text = MultiLineText::new(sample_text);
+        let plane_text_reader = PlaneTextReader::new(sample_text);
 
         Self {
             color_mode,
@@ -138,7 +140,7 @@ impl State {
 
             font_vertex_buffer,
 
-            multi_line_text,
+            plane_text_reader,
 
             target: 0,
         }
@@ -170,15 +172,58 @@ impl State {
         }
     }
 
+    fn get_camera_operation(&mut self) -> CameraOperation {
+        if let Ok((target, eye, self_target)) = self
+            .plane_text_reader
+            .get_target_and_camera(self.target, &self.font_vertex_buffer)
+        {
+            self.target = self_target;
+            CameraOperation::CangeTargetAndEye(target, eye)
+        } else {
+            CameraOperation::None
+        }
+    }
+
     #[allow(unused_variables)]
     pub(crate) fn input(&mut self, event: &WindowEvent) -> bool {
-        let op = self.camera_controller.process_event(event);
-
-        if op {
-            return op;
-        }
-
         let op = match event {
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Left,
+                ..
+            } => CameraOperation::Forward,
+            WindowEvent::MouseWheel { delta, .. } => match delta {
+                MouseScrollDelta::LineDelta(x, y) => {
+                    info!("line delta. ({}, {})", x, y);
+                    if y.abs() > x.abs() {
+                        if *y > 0.0 {
+                            self.target = self.target.saturating_sub(5)
+                        } else {
+                            self.target = self.target.saturating_add(5)
+                        }
+                        self.get_camera_operation()
+                    } else {
+                        if *x > 0.0 {
+                            CameraOperation::Right
+                        } else {
+                            CameraOperation::Left
+                        }
+                    }
+                }
+                MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => {
+                    info!("pixel delta");
+                    if y > x {
+                        self.target += *y as usize * 5;
+                        self.get_camera_operation()
+                    } else {
+                        if *x > 0.0 {
+                            CameraOperation::Right
+                        } else {
+                            CameraOperation::Left
+                        }
+                    }
+                }
+            },
             WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
@@ -190,37 +235,27 @@ impl State {
             } => {
                 debug!("Keycode: {:?}", code);
                 match code {
-                    VirtualKeyCode::A => {
-                        self.target = 0;
-                        self.font_vertex_buffer
-                            .add_buffer(
-                                &self.device,
-                                "ハローワールド".chars().into_iter().collect(),
-                            )
-                            .unwrap();
-                        self.multi_line_text
-                            .update_value("ハローワールド".to_string());
-                        CameraOperation::None
-                    }
-                    VirtualKeyCode::H => {
+                    VirtualKeyCode::K | VirtualKeyCode::Up => {
                         if self.target >= 1 {
                             self.target -= 1;
                         }
-                        if let Ok(target_vec) = self.multi_line_text.get_target(self.target) {
-                            let point = cgmath::point3(target_vec.x, target_vec.y, target_vec.z);
-                            CameraOperation::CangeTarget(point)
-                        } else {
-                            CameraOperation::None
-                        }
+                        self.get_camera_operation()
                     }
-                    VirtualKeyCode::L => {
+                    VirtualKeyCode::J | VirtualKeyCode::Down => {
                         self.target += 1;
-                        if let Ok(target_vec) = self.multi_line_text.get_target(self.target) {
-                            let point = cgmath::point3(target_vec.x, target_vec.y, target_vec.z);
-                            CameraOperation::CangeTarget(point)
+                        self.get_camera_operation()
+                    }
+                    VirtualKeyCode::PageUp => {
+                        if self.target >= 10 {
+                            self.target -= 10;
                         } else {
-                            CameraOperation::None
+                            self.target = 0;
                         }
+                        self.get_camera_operation()
+                    }
+                    VirtualKeyCode::PageDown => {
+                        self.target += 10;
+                        self.get_camera_operation()
                     }
                     _ => CameraOperation::None,
                 }
@@ -253,7 +288,7 @@ impl State {
         self.rasterizer_pipeline.overlap_stage(
             &mut encoder,
             &self.font_vertex_buffer,
-            &self.multi_line_text.generate_instances(
+            &self.plane_text_reader.generate_instances(
                 self.color_mode,
                 &self.font_vertex_buffer,
                 &self.device,

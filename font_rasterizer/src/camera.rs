@@ -1,8 +1,6 @@
 use cgmath::InnerSpace;
 use instant::Duration;
-use log::debug;
 use nenobi::TimeBaseEasingValue;
-use winit::event::*;
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -50,21 +48,12 @@ impl EasingPoint3 {
     }
 
     fn update(&mut self, p: cgmath::Point3<f32>) {
-        self.x.update(
-            p.x,
-            Duration::from_millis(1000),
-            nenobi::functions::cubic_in_out,
-        );
-        self.y.update(
-            p.y,
-            Duration::from_millis(1000),
-            nenobi::functions::cubic_in_out,
-        );
-        self.z.update(
-            p.z,
-            Duration::from_millis(1000),
-            nenobi::functions::cubic_in_out,
-        );
+        self.x
+            .update(p.x, Duration::from_millis(500), nenobi::functions::back_out);
+        self.y
+            .update(p.y, Duration::from_millis(500), nenobi::functions::back_out);
+        self.z
+            .update(p.z, Duration::from_millis(500), nenobi::functions::back_out);
         self.gc();
     }
 }
@@ -126,6 +115,7 @@ pub enum CameraOperation {
     Forward,
     Backward,
     CangeTarget(cgmath::Point3<f32>),
+    CangeTargetAndEye(cgmath::Point3<f32>, cgmath::Point3<f32>),
     None,
 }
 
@@ -138,6 +128,7 @@ pub struct CameraController {
     is_left_pressed: bool,
     is_right_pressed: bool,
     next_target: Option<cgmath::Point3<f32>>,
+    next_eye: Option<cgmath::Point3<f32>>,
 }
 
 impl CameraController {
@@ -151,6 +142,7 @@ impl CameraController {
             is_left_pressed: false,
             is_right_pressed: false,
             next_target: None,
+            next_eye: None,
         }
     }
 
@@ -163,6 +155,10 @@ impl CameraController {
             CameraOperation::Forward => self.is_forward_pressed = true,
             CameraOperation::Backward => self.is_backward_pressed = true,
             CameraOperation::CangeTarget(next_target) => self.next_target = Some(*next_target),
+            CameraOperation::CangeTargetAndEye(next_target, next_eye) => {
+                self.next_target = Some(*next_target);
+                self.next_eye = Some(*next_eye);
+            }
             CameraOperation::None => {}
         }
     }
@@ -174,34 +170,8 @@ impl CameraController {
         self.is_backward_pressed = false;
         self.is_left_pressed = false;
         self.is_right_pressed = false;
-    }
-
-    pub fn process_event(&mut self, event: &WindowEvent) -> bool {
-        let op = match event {
-            WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        state: ElementState::Pressed,
-                        virtual_keycode: Some(code),
-                        ..
-                    },
-                ..
-            } => {
-                debug!("Keycode: {:?}", code);
-                match code {
-                    VirtualKeyCode::Right => CameraOperation::Right,
-                    VirtualKeyCode::Left => CameraOperation::Left,
-                    VirtualKeyCode::Up => CameraOperation::Up,
-                    VirtualKeyCode::Down => CameraOperation::Down,
-                    VirtualKeyCode::PageUp => CameraOperation::Forward,
-                    VirtualKeyCode::PageDown => CameraOperation::Backward,
-                    _ => CameraOperation::None,
-                }
-            }
-            _ => CameraOperation::None,
-        };
-        self.process(&op);
-        op != CameraOperation::None
+        self.next_eye = None;
+        self.next_target = None;
     }
 
     pub fn update_camera_aspect(&self, camera: &mut Camera, width: u32, height: u32) {
@@ -212,6 +182,10 @@ impl CameraController {
         if let Some(next_target) = self.next_target {
             camera.target.update(next_target);
         }
+        if let Some(next_eye) = self.next_eye {
+            camera.eye.update(next_eye);
+        }
+
         let mut current_eye = camera.eye.to_last_cgmath_point();
         let current_target = camera.target.to_last_cgmath_point();
         // ターゲットからカメラの座標を引く(カメラから見たターゲットの向き)
