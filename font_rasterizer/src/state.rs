@@ -267,6 +267,8 @@ impl State {
                         self.target += 10;
                         self.get_camera_operation()
                     }
+                    VirtualKeyCode::Left => CameraOperation::Left,
+                    VirtualKeyCode::Right => CameraOperation::Right,
                     _ => CameraOperation::None,
                 }
             }
