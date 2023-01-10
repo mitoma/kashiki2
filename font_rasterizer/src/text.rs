@@ -228,7 +228,12 @@ impl PlaneTextReader {
             x = initial_x;
             y -= 1.0;
         }
-        info!("height:{}, last_y:{}", height, y);
+        info!(
+            "height:{}, last_y:{}, instance_count:{}",
+            height,
+            y,
+            self.instances.values().map(|i| i.len()).sum::<usize>()
+        );
 
         self.instances
             .values_mut()
