@@ -40,9 +40,9 @@ pub(crate) struct State {
 impl State {
     pub(crate) async fn new(window: &Window) -> Self {
         // テストデータ
-        //let sample_text = include_str!("../data/memo.md").to_string();
+        let sample_text = include_str!("../data/memo.md").to_string();
         //let sample_text = include_str!("../data/gingatetsudono_yoru.txt").to_string();
-        let sample_text = include_str!("../data/chumonno_oi_ryoriten.txt").to_string();
+        //let sample_text = include_str!("../data/chumonno_oi_ryoriten.txt").to_string();
         // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
         let chars = sample_text.chars().collect::<HashSet<_>>();
 
@@ -159,6 +159,8 @@ impl State {
                 new_size.height,
             );
             self.surface.configure(&self.device, &self.config);
+
+            // サイズ変更時にはパイプラインを作り直す
             self.rasterizer_pipeline = RasterizerPipeline::new(
                 &self.device,
                 new_size.width,
@@ -289,34 +291,27 @@ impl State {
                 label: Some("Render Encoder"),
             });
 
-        // Overlap Stage
+        // run all stage
         self.rasterizer_pipeline
             .overlap_bind_group
             .update_buffer(&self.queue);
-        self.rasterizer_pipeline.overlap_stage(
-            &mut encoder,
+        let instances = self.plane_text_reader.generate_instances(
+            self.color_mode,
             &self.glyph_vertex_buffer,
-            &self.plane_text_reader.generate_instances(
-                self.color_mode,
-                &self.glyph_vertex_buffer,
-                &self.device,
-                &self.queue,
-            ),
+            &self.device,
+            &self.queue,
         );
-
-        // Outline Stage
-        self.rasterizer_pipeline
-            .outline_stage(&self.device, &mut encoder);
-
-        // Screen Stage
         let screen_output = self.surface.get_current_texture()?;
-        {
-            let screen_view = screen_output
-                .texture
-                .create_view(&wgpu::TextureViewDescriptor::default());
-            self.rasterizer_pipeline
-                .screen_stage(&self.device, &mut encoder, screen_view);
-        }
+        let screen_view = screen_output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        self.rasterizer_pipeline.run_all_stage(
+            &mut encoder,
+            &self.device,
+            &self.glyph_vertex_buffer,
+            &instances,
+            screen_view,
+        );
 
         self.queue.submit(iter::once(encoder.finish()));
         screen_output.present();

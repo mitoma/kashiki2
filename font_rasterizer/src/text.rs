@@ -113,7 +113,7 @@ impl MultiLineText {
         self.instances
             .values_mut()
             .into_iter()
-            .for_each(|i| i.update_buffer(queue));
+            .for_each(|i| i.update_buffer(device, queue));
 
         self.instances.values().collect()
     }
@@ -238,7 +238,7 @@ impl PlaneTextReader {
         self.instances
             .values_mut()
             .into_iter()
-            .for_each(|i| i.update_buffer(queue));
+            .for_each(|i| i.update_buffer(device, queue));
 
         self.instances.values().collect()
     }

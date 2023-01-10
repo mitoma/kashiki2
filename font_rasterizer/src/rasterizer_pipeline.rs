@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     font_buffer::GlyphVertexBuffer,
-    instances::{InstanceRaw, GlyphInstances},
+    instances::{GlyphInstances, InstanceRaw},
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_bind_group::ScreenBindGroup,
@@ -12,7 +12,7 @@ use crate::{
 
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
-pub(crate) enum Quarity {
+pub enum Quarity {
     /// 2 倍サンプリングする(アンチエイリアスあり)
     VeryHigh,
     /// 1.5 倍サンプリングする(アンチエイリアスあり)
@@ -295,6 +295,19 @@ impl RasterizerPipeline {
         }
     }
 
+    pub(crate) fn run_all_stage(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        device: &wgpu::Device,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+        instances: &[&GlyphInstances],
+        screen_view: wgpu::TextureView,
+    ) {
+        self.overlap_stage(encoder, glyph_vertex_buffer, instances);
+        self.outline_stage(encoder, device);
+        self.screen_stage(encoder, device, screen_view);
+    }
+
     pub(crate) fn overlap_stage(
         &self,
         encoder: &mut wgpu::CommandEncoder,
@@ -347,7 +360,7 @@ impl RasterizerPipeline {
         }
     }
 
-    pub(crate) fn outline_stage(&self, device: &wgpu::Device, encoder: &mut wgpu::CommandEncoder) {
+    pub(crate) fn outline_stage(&self, encoder: &mut wgpu::CommandEncoder, device: &wgpu::Device) {
         let outline_view = self
             .outline_texture
             .texture
@@ -387,8 +400,8 @@ impl RasterizerPipeline {
 
     pub(crate) fn screen_stage(
         &self,
-        device: &wgpu::Device,
         encoder: &mut wgpu::CommandEncoder,
+        device: &wgpu::Device,
         screen_view: wgpu::TextureView,
     ) {
         let screen_bind_group = &self

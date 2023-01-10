@@ -1,3 +1,5 @@
+use log::info;
+
 pub struct GlyphInstance {
     position: cgmath::Vector3<f32>,
     rotation: cgmath::Quaternion<f32>,
@@ -32,21 +34,27 @@ impl GlyphInstance {
 pub struct GlyphInstances {
     pub(crate) c: char,
     values: Vec<GlyphInstance>,
+    buffer_size: u64,
     buffer: wgpu::Buffer,
     updated: bool,
 }
 
+const DEFAULT_BUFFER_UNIT: u64 = 256;
+
 impl GlyphInstances {
     pub fn new(c: char, values: Vec<GlyphInstance>, device: &wgpu::Device) -> Self {
+        let buffer_size = (values.len() as u64 / DEFAULT_BUFFER_UNIT) + 1;
+
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(&format!("Instances Buffer. char:{}", c)),
-            size: 65536 * 10,
+            size: std::mem::size_of::<InstanceRaw>() as u64 * buffer_size * DEFAULT_BUFFER_UNIT,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         Self {
             c,
             values,
+            buffer_size,
             buffer,
             updated: false,
         }
@@ -61,10 +69,32 @@ impl GlyphInstances {
         self.values.push(instance)
     }
 
-    pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
+    pub fn clear(&mut self) {
+        self.updated = true;
+        self.values.clear();
+    }
+
+    pub fn update_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         if self.updated {
             let value_raws: Vec<InstanceRaw> = self.values.iter().map(|v| v.to_raw()).collect();
+
+            // バッファサイズが既存のバッファを上回る場合はバッファを作り直す。
+            let buffer_size = (self.values.len() as u64 / DEFAULT_BUFFER_UNIT) + 1;
+            if self.buffer_size < buffer_size {
+                info!("buffer recreate. char={}, size={}", self.c, buffer_size);
+                self.buffer.destroy();
+                self.buffer_size = buffer_size;
+                self.buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some(&format!("Instances Buffer. char:{}", self.c)),
+                    size: std::mem::size_of::<InstanceRaw>() as u64
+                        * buffer_size
+                        * DEFAULT_BUFFER_UNIT,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                });
+            }
             queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(value_raws.as_slice()));
+
             self.updated = false;
         }
     }
