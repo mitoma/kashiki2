@@ -1,29 +1,16 @@
-use instant::{Duration, Instant};
-use log::info;
+use font_rusterizer::{
+    color_theme::ColorTheme, default_state::SimpleState, rasterizer_pipeline::Quarity,
+};
 use winit::{
-    event::*,
+    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Fullscreen, WindowBuilder},
 };
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
-use crate::state::State;
-
-mod camera;
-pub mod color_theme;
-pub mod default_state;
-mod font_buffer;
-mod instances;
-mod outline_bind_group;
-mod overlap_bind_group;
-pub mod rasterizer_pipeline;
-mod screen_bind_group;
-mod screen_texture;
-mod screen_vertex_buffer;
-mod state;
-mod text;
+fn main() {
+    std::env::set_var("RUST_LOG", "font_rusterizer=debug");
+    pollster::block_on(run());
+}
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
@@ -37,7 +24,11 @@ pub async fn run() {
     }
 
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_title("text reader")
+        .with_transparent(true)
+        .build(&event_loop)
+        .unwrap();
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -57,11 +48,7 @@ pub async fn run() {
             })
             .expect("Couldn't append canvas to document body.");
     }
-
-    // State::new uses async code, so we're going to wait for it to finish
-    let mut state = State::new(&window).await;
-
-    let mut pre_click = Instant::now();
+    let mut state = SimpleState::new(&window, Quarity::High, ColorTheme::SolarizedDark).await;
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -69,22 +56,6 @@ pub async fn run() {
                 ref event,
                 window_id,
             } if window_id == window.id() => {
-                if let WindowEvent::MouseInput {
-                    state: ElementState::Pressed,
-                    button: MouseButton::Left,
-                    ..
-                } = event
-                {
-                    info!("click!");
-                    let now = Instant::now();
-                    if now - pre_click < Duration::from_millis(500) {
-                        match window.fullscreen() {
-                            Some(_) => window.set_fullscreen(None),
-                            None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
-                        }
-                    }
-                    pre_click = now;
-                }
                 if !state.input(event) {
                     match event {
                         WindowEvent::CloseRequested

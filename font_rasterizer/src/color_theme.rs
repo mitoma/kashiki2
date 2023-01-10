@@ -1,6 +1,6 @@
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
-pub(crate) enum ColorTheme {
+pub enum ColorTheme {
     SolarizedLight,
     SolarizedDark,
 }

@@ -10,7 +10,6 @@ use crate::{
     screen_vertex_buffer::ScreenVertexBuffer,
 };
 
-#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub enum Quarity {
     /// 2 倍サンプリングする(アンチエイリアスあり)
