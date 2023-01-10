@@ -1,11 +1,28 @@
 use font_rusterizer::{
-    color_theme::ColorTheme, default_state::SimpleState, rasterizer_pipeline::Quarity,
+    color_theme::ColorTheme,
+    default_state::{SimpleState, SimpleStateCallback},
+    instances::GlyphInstances,
+    rasterizer_pipeline::Quarity,
 };
+use log::info;
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Fullscreen, WindowBuilder},
 };
+
+struct Pog;
+impl SimpleStateCallback for Pog {
+    fn input(&mut self, event: &WindowEvent) -> bool {
+        println!("call input");
+        false
+    }
+
+    fn render(&mut self) -> ([[f32; 4]; 4], &[&GlyphInstances]) {
+        println!("call render");
+        ([[0.0; 4]; 4], &[])
+    }
+}
 
 fn main() {
     std::env::set_var("RUST_LOG", "font_rusterizer=debug");
@@ -48,7 +65,13 @@ pub async fn run() {
             })
             .expect("Couldn't append canvas to document body.");
     }
-    let mut state = SimpleState::new(&window, Quarity::High, ColorTheme::SolarizedDark).await;
+    let mut state = SimpleState::new(
+        &window,
+        Quarity::High,
+        ColorTheme::SolarizedDark,
+        Box::new(Pog {}),
+    )
+    .await;
 
     event_loop.run(move |event, _, control_flow| {
         match event {

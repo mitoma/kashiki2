@@ -15,7 +15,7 @@ mod camera;
 pub mod color_theme;
 pub mod default_state;
 mod font_buffer;
-mod instances;
+pub mod instances;
 mod outline_bind_group;
 mod overlap_bind_group;
 pub mod rasterizer_pipeline;

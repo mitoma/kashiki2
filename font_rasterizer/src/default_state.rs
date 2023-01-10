@@ -6,8 +6,14 @@ use crate::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
+    instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
 };
+
+pub trait SimpleStateCallback {
+    fn input(&mut self, event: &WindowEvent) -> bool;
+    fn render(&mut self) -> ([[f32; 4]; 4], &[&GlyphInstances]);
+}
 
 pub struct SimpleState {
     quarity: Quarity,
@@ -24,10 +30,17 @@ pub struct SimpleState {
 
     rasterizer_pipeline: RasterizerPipeline,
     glyph_vertex_buffer: GlyphVertexBuffer,
+
+    simple_state_callback: Box<dyn SimpleStateCallback>,
 }
 
 impl SimpleState {
-    pub async fn new(window: &Window, quarity: Quarity, color_theme: ColorTheme) -> Self {
+    pub async fn new(
+        window: &Window,
+        quarity: Quarity,
+        color_theme: ColorTheme,
+        simple_state_callback: Box<dyn SimpleStateCallback>,
+    ) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -109,6 +122,7 @@ impl SimpleState {
             rasterizer_pipeline,
 
             glyph_vertex_buffer,
+            simple_state_callback,
         }
     }
 
@@ -141,7 +155,7 @@ impl SimpleState {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        false
+        self.simple_state_callback.input(event)
     }
 
     pub fn update(&mut self) {
@@ -165,13 +179,15 @@ impl SimpleState {
         let screen_view = screen_output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let r = self.simple_state_callback.render();
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.device,
             &self.queue,
             &self.glyph_vertex_buffer,
             view_proj,
-            &[],
+            r.1,
             screen_view,
         );
 
