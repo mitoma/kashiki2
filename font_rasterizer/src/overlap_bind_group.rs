@@ -13,9 +13,6 @@ pub struct Uniforms {
 
 /// オーバーラップ用の BindGroup。
 /// Uniforms として現在時刻のみ渡している。
-///
-/// 今後の展望
-/// カメラ位置などを乗せたいですねぇ。
 pub struct OverlapBindGroup {
     uniforms: Uniforms,
     buffer: wgpu::Buffer,
