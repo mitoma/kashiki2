@@ -6,14 +6,14 @@ use winit::{dpi::PhysicalPosition, event::*, window::Window};
 
 use crate::{
     camera::{Camera, CameraController, CameraOperation},
-    color_theme::ColorMode,
+    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
     text::PlaneTextReader,
 };
 
 pub(crate) struct State {
-    color_mode: ColorMode,
+    color_theme: ColorTheme,
 
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -48,7 +48,7 @@ impl State {
 
         // ここから本来の処理
         let quarity = Quarity::VeryHigh;
-        let color_mode = ColorMode::SolarizedDark;
+        let color_theme = ColorTheme::SolarizedDark;
 
         let size = window.inner_size();
 
@@ -111,7 +111,7 @@ impl State {
             size.height,
             config.format,
             quarity,
-            color_mode.background().into(),
+            color_theme.background().into(),
         );
 
         let mut glyph_vertex_buffer = GlyphVertexBuffer::default();
@@ -122,7 +122,7 @@ impl State {
         let plane_text_reader = PlaneTextReader::new(sample_text);
 
         Self {
-            color_mode,
+            color_theme,
 
             surface,
             device,
@@ -167,7 +167,7 @@ impl State {
                 new_size.height,
                 self.config.format,
                 self.quarity,
-                self.color_mode.background().into(),
+                self.color_theme.background().into(),
             )
         }
     }
@@ -294,7 +294,7 @@ impl State {
             .update_buffer(&self.queue);
         let view_proj = self.camera.build_view_projection_matrix().into();
         let instances = self.plane_text_reader.generate_instances(
-            self.color_mode,
+            self.color_theme,
             &self.glyph_vertex_buffer,
             &self.device,
             &self.queue,

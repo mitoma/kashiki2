@@ -1,6 +1,6 @@
 #[allow(dead_code)]
 #[derive(Clone, Copy)]
-pub(crate) enum ColorMode {
+pub(crate) enum ColorTheme {
     SolarizedLight,
     SolarizedDark,
 }
@@ -18,39 +18,39 @@ impl From<SolarizedColor> for wgpu::Color {
 }
 
 #[allow(dead_code)]
-impl ColorMode {
+impl ColorTheme {
     pub(crate) fn text(&self) -> SolarizedColor {
         match self {
-            ColorMode::SolarizedLight => SolarizedColor::Base00,
-            ColorMode::SolarizedDark => SolarizedColor::Base0,
+            ColorTheme::SolarizedLight => SolarizedColor::Base00,
+            ColorTheme::SolarizedDark => SolarizedColor::Base0,
         }
     }
 
     pub(crate) fn text_comment(&self) -> SolarizedColor {
         match self {
-            ColorMode::SolarizedLight => SolarizedColor::Base1,
-            ColorMode::SolarizedDark => SolarizedColor::Base01,
+            ColorTheme::SolarizedLight => SolarizedColor::Base1,
+            ColorTheme::SolarizedDark => SolarizedColor::Base01,
         }
     }
 
     pub(crate) fn text_emphasized(&self) -> SolarizedColor {
         match self {
-            ColorMode::SolarizedLight => SolarizedColor::Base01,
-            ColorMode::SolarizedDark => SolarizedColor::Base1,
+            ColorTheme::SolarizedLight => SolarizedColor::Base01,
+            ColorTheme::SolarizedDark => SolarizedColor::Base1,
         }
     }
 
     pub(crate) fn background(&self) -> SolarizedColor {
         match self {
-            ColorMode::SolarizedLight => SolarizedColor::Base3,
-            ColorMode::SolarizedDark => SolarizedColor::Base03,
+            ColorTheme::SolarizedLight => SolarizedColor::Base3,
+            ColorTheme::SolarizedDark => SolarizedColor::Base03,
         }
     }
 
     pub(crate) fn background_highlights(&self) -> SolarizedColor {
         match self {
-            ColorMode::SolarizedLight => SolarizedColor::Base2,
-            ColorMode::SolarizedDark => SolarizedColor::Base02,
+            ColorTheme::SolarizedLight => SolarizedColor::Base2,
+            ColorTheme::SolarizedDark => SolarizedColor::Base02,
         }
     }
 

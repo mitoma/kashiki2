@@ -5,7 +5,7 @@ use cgmath::{num_traits::ToPrimitive, Rotation3};
 use log::{debug, info};
 
 use crate::{
-    color_theme::ColorMode,
+    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
 };
@@ -52,7 +52,7 @@ impl MultiLineText {
 
     pub(crate) fn generate_instances(
         &mut self,
-        color_mode: ColorMode,
+        color_theme: ColorTheme,
         glyph_vertex_buffer: &GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -105,7 +105,7 @@ impl MultiLineText {
                     z: 0.0,
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-                get_color(color_mode, c),
+                get_color(color_theme, c),
             );
             instance.push(i);
             x += glyph_width.right();
@@ -177,7 +177,7 @@ impl PlaneTextReader {
 
     pub(crate) fn generate_instances(
         &mut self,
-        color_mode: ColorMode,
+        color_theme: ColorTheme,
         glyph_vertex_buffer: &GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -219,7 +219,7 @@ impl PlaneTextReader {
                         cgmath::Vector3::unit_z(),
                         cgmath::Deg(0.0),
                     ),
-                    get_color(color_mode, c),
+                    get_color(color_theme, c),
                 );
                 x += glyph_width.right();
 
@@ -244,14 +244,14 @@ impl PlaneTextReader {
     }
 }
 
-fn get_color(color_mode: ColorMode, c: char) -> [f32; 3] {
+fn get_color(color_theme: ColorTheme, c: char) -> [f32; 3] {
     if c.is_ascii() {
-        color_mode.yellow().get_color()
+        color_theme.yellow().get_color()
     } else if ('あ'..'一').contains(&c) {
-        color_mode.text().get_color()
+        color_theme.text().get_color()
     } else if c < '\u{1F600}' {
-        color_mode.text_emphasized().get_color()
+        color_theme.text_emphasized().get_color()
     } else {
-        color_mode.text_comment().get_color()
+        color_theme.text_comment().get_color()
     }
 }
