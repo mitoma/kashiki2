@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    font_vertex_buffer::FontVertexBuffer,
+    font_buffer::GlyphVertexBuffer,
     instances::{InstanceRaw, Instances},
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
@@ -114,7 +114,7 @@ impl RasterizerPipeline {
                 vertex: wgpu::VertexState {
                     module: &overlap_shader,
                     entry_point: "vs_main",
-                    buffers: &[FontVertexBuffer::desc(), InstanceRaw::desc()],
+                    buffers: &[GlyphVertexBuffer::desc(), InstanceRaw::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &overlap_shader,
@@ -298,7 +298,7 @@ impl RasterizerPipeline {
     pub(crate) fn overlap_stage(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        font_vertex_buffer: &FontVertexBuffer,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
         instances: &[&Instances],
     ) {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
@@ -330,11 +330,13 @@ impl RasterizerPipeline {
             overlay_render_pass.set_pipeline(&self.overlap_render_pipeline);
             overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
             for (c, (len, buffer)) in instance_buffer.iter() {
-                if let Ok(draw_info) = font_vertex_buffer.draw_info(c) {
+                if let Ok(draw_info) = glyph_vertex_buffer.draw_info(c) {
+                    // グリフの座標情報
                     overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
+                    // インスタンスの位置
+                    overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));
                     overlay_render_pass
                         .set_index_buffer(draw_info.index.slice(..), wgpu::IndexFormat::Uint32);
-                    overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));
                     overlay_render_pass.draw_indexed(
                         draw_info.index_range.clone(),
                         0,

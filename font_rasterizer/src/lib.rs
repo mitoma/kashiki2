@@ -14,7 +14,6 @@ use crate::state::State;
 mod camera;
 mod color_theme;
 mod font_buffer;
-mod font_vertex_buffer;
 mod instances;
 mod outline_bind_group;
 mod overlap_bind_group;

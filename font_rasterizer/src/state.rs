@@ -7,7 +7,7 @@ use winit::{dpi::PhysicalPosition, event::*, window::Window};
 use crate::{
     camera::{Camera, CameraController, CameraOperation},
     color_theme::ColorMode,
-    font_vertex_buffer::FontVertexBuffer,
+    font_buffer::GlyphVertexBuffer,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
     text::PlaneTextReader,
 };
@@ -28,7 +28,7 @@ pub(crate) struct State {
 
     rasterizer_pipeline: RasterizerPipeline,
 
-    font_vertex_buffer: FontVertexBuffer,
+    glyph_vertex_buffer: GlyphVertexBuffer,
 
     //multi_line_text: MultiLineText,
     plane_text_reader: PlaneTextReader,
@@ -45,7 +45,6 @@ impl State {
         let sample_text = include_str!("../data/chumonno_oi_ryoriten.txt").to_string();
         // フォント情報の読み込みを動的にしたり切り替えるのはいずれやる必要あり
         let chars = sample_text.chars().collect::<HashSet<_>>();
-        let chars = chars.iter().map(|c| *c..=*c).collect::<Vec<_>>();
 
         // ここから本来の処理
         let quarity = Quarity::VeryHigh;
@@ -95,7 +94,7 @@ impl State {
 
         // Camera
         let camera = Camera::new(
-            (0.0, 0.0, 50.0).into(),
+            (0.0, 0.0, 10.0).into(),
             (0.0, 0.0, 0.0).into(),
             cgmath::Vector3::unit_y(),
             config.width as f32 / config.height as f32,
@@ -115,13 +114,10 @@ impl State {
             color_mode.background().into(),
         );
 
-        let font_vertex_buffer = match FontVertexBuffer::new_buffer(&device, chars) {
-            Ok(font_vertex_buffer) => font_vertex_buffer,
-            Err(e) => {
-                info!("err:{:?}", e);
-                std::process::exit(2)
-            }
-        };
+        let mut glyph_vertex_buffer = GlyphVertexBuffer::default();
+        glyph_vertex_buffer
+            .append_glyph(&device, &queue, chars)
+            .unwrap();
 
         let plane_text_reader = PlaneTextReader::new(sample_text);
 
@@ -139,7 +135,7 @@ impl State {
             camera_controller,
             rasterizer_pipeline,
 
-            font_vertex_buffer,
+            glyph_vertex_buffer,
 
             plane_text_reader,
 
@@ -177,7 +173,7 @@ impl State {
     fn get_camera_operation(&mut self) -> CameraOperation {
         if let Ok((target, eye, self_target)) = self
             .plane_text_reader
-            .get_target_and_camera(self.target, &self.font_vertex_buffer)
+            .get_target_and_camera(self.target, &self.glyph_vertex_buffer)
         {
             self.target = self_target;
             CameraOperation::CangeTargetAndEye(target, eye)
@@ -299,10 +295,10 @@ impl State {
             .update_buffer(&self.queue);
         self.rasterizer_pipeline.overlap_stage(
             &mut encoder,
-            &self.font_vertex_buffer,
+            &self.glyph_vertex_buffer,
             &self.plane_text_reader.generate_instances(
                 self.color_mode,
-                &self.font_vertex_buffer,
+                &self.glyph_vertex_buffer,
                 &self.device,
                 &self.queue,
             ),

@@ -10,8 +10,6 @@ use ttf_parser::{Face, OutlineBuilder};
 use unicode_width::UnicodeWidthChar;
 use wgpu::BufferUsages;
 
-use crate::font_vertex_buffer::FontVertex;
-
 const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/NotoEmoji-Regular.ttf");
 
@@ -256,18 +254,19 @@ impl VertexBuffer {
         let wgpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(&label),
             size: BUFFER_SIZE,
-            usage: BufferUsages::VERTEX,
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         queue.write_buffer(&wgpu_buffer, 0, bytemuck::cast_slice(&[ZERO_VERTEX]));
         Self {
-            offset: std::mem::size_of::<FontVertex>() as u64,
+            offset: std::mem::size_of::<Vertex>() as u64,
             wgpu_buffer,
         }
     }
 
     fn next_index_position(&self) -> u64 {
-        self.offset / std::mem::size_of::<FontVertex>() as u64
+        // buffer の最初には常に原点の座標が入っているので index その分ずらす必要がある
+        self.offset / std::mem::size_of::<Vertex>() as u64 - 1
     }
 }
 
@@ -285,7 +284,7 @@ impl IndexBuffer {
         let wgpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(&label),
             size: BUFFER_SIZE,
-            usage: BufferUsages::INDEX,
+            usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         Self {
@@ -326,7 +325,7 @@ impl GlyphVertexBuffer {
 
     pub(crate) fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<GlyphVertex>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 // 文字情報なので xy の座標だけでよい
@@ -346,7 +345,7 @@ impl GlyphVertexBuffer {
         }
     }
 
-    fn update_buffer(
+    pub(crate) fn append_glyph(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -385,14 +384,24 @@ impl GlyphVertexBuffer {
                 glyphs.push(glyph);
                 continue;
             };
+
+            debug!(
+                "glyph vertex_size:{}, index_size:{}",
+                glyph.vertex_size(),
+                glyph.index_size()
+            );
+
             let vertex_buffer = self.vertex_buffers.get_mut(vertex_buffer_index).unwrap();
             let next_index_position = vertex_buffer.next_index_position();
+            debug!("pre vertex offset:{}", vertex_buffer.offset);
             queue.write_buffer(
                 &vertex_buffer.wgpu_buffer,
                 vertex_buffer.offset,
                 bytemuck::cast_slice(&glyph.vertex),
             );
             vertex_buffer.offset += glyph.vertex_size();
+            debug!("post vertex offset:{}", vertex_buffer.offset);
+            debug!("next_index_position :{}", next_index_position);
 
             let index_buffer = self.index_buffers.get_mut(index_buffer_index).unwrap();
             let range_start = index_buffer.next_range_position();
@@ -416,6 +425,17 @@ impl GlyphVertexBuffer {
             index_buffer.offset += glyph.index_size();
             let range_end = index_buffer.next_range_position();
 
+            debug!(
+                "char:{},  vertex_len:{}, vertex:{:?}, data_len: {}, data: {:?}, range:{}..{}",
+                glyph.c,
+                glyph.vertex.len(),
+                glyph.vertex,
+                data.len(),
+                data,
+                range_start,
+                range_end
+            );
+
             self.buffer_index.insert(
                 glyph.c,
                 BufferIndexEntry {
@@ -426,6 +446,12 @@ impl GlyphVertexBuffer {
                 },
             );
         }
+
+        debug!(
+            "vertex_buffers:{}, index_buffers:{}",
+            self.vertex_buffers.len(),
+            self.index_buffers.len()
+        );
 
         Ok(())
     }

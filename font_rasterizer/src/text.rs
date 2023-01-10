@@ -6,7 +6,7 @@ use log::{debug, info};
 
 use crate::{
     color_theme::ColorMode,
-    font_vertex_buffer::FontVertexBuffer,
+    font_buffer::GlyphVertexBuffer,
     instances::{Instance, Instances},
 };
 
@@ -53,7 +53,7 @@ impl MultiLineText {
     pub(crate) fn generate_instances(
         &mut self,
         color_mode: ColorMode,
-        font_vertex_buffer: &FontVertexBuffer,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Vec<&Instances> {
@@ -68,7 +68,7 @@ impl MultiLineText {
             .iter()
             .map(|i| {
                 i.chars()
-                    .map(|c| font_vertex_buffer.width(c).to_f32())
+                    .map(|c| glyph_vertex_buffer.width(c).to_f32())
                     .sum::<f32>()
             })
             .max_by(|a, b| a.partial_cmp(b).unwrap())
@@ -91,7 +91,7 @@ impl MultiLineText {
                 y -= 1.0;
             }
 
-            let glyph_width = font_vertex_buffer.width(c);
+            let glyph_width = glyph_vertex_buffer.width(c);
             x += glyph_width.left();
 
             self.instances
@@ -128,7 +128,7 @@ pub(crate) struct PlaneTextReader {
 impl PlaneTextReader {
     const MAX_WIDTH: f32 = 40.0;
 
-    fn bound(&self, font_vertex_buffer: &FontVertexBuffer) -> (f32, f32) {
+    fn bound(&self, glyph_vertex_buffer: &GlyphVertexBuffer) -> (f32, f32) {
         let mut max_width = 0.0;
         let mut max_height = 0.0;
         for line in self.value.lines() {
@@ -138,7 +138,7 @@ impl PlaneTextReader {
                     width = 0.0;
                     max_height += 1.0;
                 }
-                let glyph_width = font_vertex_buffer.width(c);
+                let glyph_width = glyph_vertex_buffer.width(c);
                 width += glyph_width.to_f32();
             }
             max_height += 1.0;
@@ -152,9 +152,9 @@ impl PlaneTextReader {
     pub(crate) fn get_target_and_camera(
         &self,
         line_num: usize,
-        font_vertex_buffer: &FontVertexBuffer,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
     ) -> anyhow::Result<(cgmath::Point3<f32>, cgmath::Point3<f32>, usize)> {
-        let line_num = (line_num as f32).min(self.bound(font_vertex_buffer).1);
+        let line_num = (line_num as f32).min(self.bound(glyph_vertex_buffer).1);
         Ok((
             (0.0, -line_num, 0.0).into(),
             (0.0, -line_num, 50.0).into(),
@@ -178,7 +178,7 @@ impl PlaneTextReader {
     pub(crate) fn generate_instances(
         &mut self,
         color_mode: ColorMode,
-        font_vertex_buffer: &FontVertexBuffer,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Vec<&Instances> {
@@ -191,7 +191,7 @@ impl PlaneTextReader {
 
         let lines: Vec<_> = self.value.split('\n').collect();
 
-        let (width, height) = self.bound(font_vertex_buffer);
+        let (width, height) = self.bound(glyph_vertex_buffer);
         let initial_x = -width / 2.0;
 
         let mut x: f32 = initial_x;
@@ -202,7 +202,7 @@ impl PlaneTextReader {
                     x = initial_x;
                     y -= 1.0;
                 }
-                let glyph_width = font_vertex_buffer.width(c);
+                let glyph_width = glyph_vertex_buffer.width(c);
                 x += glyph_width.left();
 
                 self.instances
