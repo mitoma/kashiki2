@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::Context;
 
-use log::debug;
+use log::{debug, info};
 use ttf_parser::{Face, OutlineBuilder};
 use unicode_width::UnicodeWidthChar;
 use wgpu::BufferUsages;
@@ -405,7 +405,7 @@ impl GlyphVertexBuffer {
 
             let index_buffer = self.index_buffers.get_mut(index_buffer_index).unwrap();
             let range_start = index_buffer.next_range_position();
-            // vertex buffer の座標の番号分だけ index をずらす
+            // vertex buffer に既に入っている座標の分だけ index をずらす
             let data = glyph
                 .index
                 .iter()
@@ -447,8 +447,9 @@ impl GlyphVertexBuffer {
             );
         }
 
-        debug!(
-            "vertex_buffers:{}, index_buffers:{}",
+        info!(
+            "chars:{}, vertex_buffers:{}, index_buffers:{}",
+            self.buffer_index.len(),
             self.vertex_buffers.len(),
             self.index_buffers.len()
         );
