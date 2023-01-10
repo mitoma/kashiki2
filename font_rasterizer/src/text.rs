@@ -7,12 +7,12 @@ use log::{debug, info};
 use crate::{
     color_theme::ColorMode,
     font_buffer::GlyphVertexBuffer,
-    instances::{Instance, Instances},
+    instances::{GlyphInstance, GlyphInstances},
 };
 
 pub(crate) struct MultiLineText {
     value: String,
-    instances: BTreeMap<char, Instances>,
+    instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
 }
 
@@ -56,7 +56,7 @@ impl MultiLineText {
         glyph_vertex_buffer: &GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-    ) -> Vec<&Instances> {
+    ) -> Vec<&GlyphInstances> {
         if !self.updated {
             return self.instances.values().collect();
         }
@@ -96,9 +96,9 @@ impl MultiLineText {
 
             self.instances
                 .entry(c)
-                .or_insert_with(|| Instances::new(c, Vec::new(), device));
+                .or_insert_with(|| GlyphInstances::new(c, Vec::new(), device));
             let instance = self.instances.get_mut(&c).unwrap();
-            let i = Instance::new(
+            let i = GlyphInstance::new(
                 cgmath::Vector3 {
                     x: 0.75 * x,
                     y: 1.0 * y,
@@ -121,7 +121,7 @@ impl MultiLineText {
 
 pub(crate) struct PlaneTextReader {
     value: String,
-    instances: BTreeMap<char, Instances>,
+    instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
 }
 
@@ -181,7 +181,7 @@ impl PlaneTextReader {
         glyph_vertex_buffer: &GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-    ) -> Vec<&Instances> {
+    ) -> Vec<&GlyphInstances> {
         if !self.updated {
             return self.instances.values().collect();
         }
@@ -207,9 +207,9 @@ impl PlaneTextReader {
 
                 self.instances
                     .entry(c)
-                    .or_insert_with(|| Instances::new(c, Vec::new(), device));
+                    .or_insert_with(|| GlyphInstances::new(c, Vec::new(), device));
                 let instance = self.instances.get_mut(&c).unwrap();
-                let i = Instance::new(
+                let i = GlyphInstance::new(
                     cgmath::Vector3 {
                         x: 0.75 * x,
                         y: 1.0 * y,

@@ -1,10 +1,10 @@
-pub struct Instance {
+pub struct GlyphInstance {
     position: cgmath::Vector3<f32>,
     rotation: cgmath::Quaternion<f32>,
     color: [f32; 3],
 }
 
-impl Instance {
+impl GlyphInstance {
     pub fn new(
         position: cgmath::Vector3<f32>,
         rotation: cgmath::Quaternion<f32>,
@@ -18,17 +18,28 @@ impl Instance {
     }
 }
 
-pub struct Instances {
+impl GlyphInstance {
+    fn to_raw(&self) -> InstanceRaw {
+        InstanceRaw {
+            model: (cgmath::Matrix4::from_translation(self.position)
+                * cgmath::Matrix4::from(self.rotation))
+            .into(),
+            color: self.color,
+        }
+    }
+}
+
+pub struct GlyphInstances {
     pub(crate) c: char,
-    values: Vec<Instance>,
+    values: Vec<GlyphInstance>,
     buffer: wgpu::Buffer,
     updated: bool,
 }
 
-impl Instances {
-    pub fn new(c: char, values: Vec<Instance>, device: &wgpu::Device) -> Self {
+impl GlyphInstances {
+    pub fn new(c: char, values: Vec<GlyphInstance>, device: &wgpu::Device) -> Self {
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Instances Buffer"),
+            label: Some(&format!("Instances Buffer. char:{}", c)),
             size: 65536 * 10,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -45,7 +56,7 @@ impl Instances {
         self.values.len()
     }
 
-    pub fn push(&mut self, instance: Instance) {
+    pub fn push(&mut self, instance: GlyphInstance) {
         self.updated = true;
         self.values.push(instance)
     }
@@ -64,17 +75,6 @@ impl Instances {
 
     pub fn nth_position(&self, count: usize) -> cgmath::Vector3<f32> {
         self.values[count].position
-    }
-}
-
-impl Instance {
-    fn to_raw(&self) -> InstanceRaw {
-        InstanceRaw {
-            model: (cgmath::Matrix4::from_translation(self.position)
-                * cgmath::Matrix4::from(self.rotation))
-            .into(),
-            color: self.color,
-        }
     }
 }
 

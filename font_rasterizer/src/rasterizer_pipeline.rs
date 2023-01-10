@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     font_buffer::GlyphVertexBuffer,
-    instances::{InstanceRaw, Instances},
+    instances::{InstanceRaw, GlyphInstances},
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_bind_group::ScreenBindGroup,
@@ -299,7 +299,7 @@ impl RasterizerPipeline {
         &self,
         encoder: &mut wgpu::CommandEncoder,
         glyph_vertex_buffer: &GlyphVertexBuffer,
-        instances: &[&Instances],
+        instances: &[&GlyphInstances],
     ) {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
 
