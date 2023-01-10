@@ -278,9 +278,6 @@ impl State {
 
     pub(crate) fn update(&mut self) {
         self.camera_controller.update_camera(&mut self.camera);
-        self.rasterizer_pipeline
-            .overlap_bind_group
-            .update(self.camera.build_view_projection_matrix().into());
         self.camera_controller.reset_state();
     }
 
@@ -295,6 +292,7 @@ impl State {
         self.rasterizer_pipeline
             .overlap_bind_group
             .update_buffer(&self.queue);
+        let view_proj = self.camera.build_view_projection_matrix().into();
         let instances = self.plane_text_reader.generate_instances(
             self.color_mode,
             &self.glyph_vertex_buffer,
@@ -308,7 +306,9 @@ impl State {
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.device,
+            &self.queue,
             &self.glyph_vertex_buffer,
+            view_proj,
             &instances,
             screen_view,
         );

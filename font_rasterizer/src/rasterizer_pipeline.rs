@@ -296,13 +296,17 @@ impl RasterizerPipeline {
     }
 
     pub(crate) fn run_all_stage(
-        &self,
+        &mut self,
         encoder: &mut wgpu::CommandEncoder,
         device: &wgpu::Device,
+        queue: &wgpu::Queue,
         glyph_vertex_buffer: &GlyphVertexBuffer,
+        view_proj: [[f32; 4]; 4],
         instances: &[&GlyphInstances],
         screen_view: wgpu::TextureView,
     ) {
+        self.overlap_bind_group.update(view_proj);
+        self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_vertex_buffer, instances);
         self.outline_stage(encoder, device);
         self.screen_stage(encoder, device, screen_view);
