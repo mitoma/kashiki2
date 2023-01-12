@@ -4,7 +4,6 @@ use font_rusterizer::{
     instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
 };
-use log::info;
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},

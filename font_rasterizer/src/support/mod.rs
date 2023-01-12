@@ -1,33 +1,22 @@
-use instant::{Duration, Instant};
-use log::info;
+use crate::{
+    color_theme::ColorTheme,
+    default_state::{SimpleState, SimpleStateCallback},
+    rasterizer_pipeline::Quarity,
+};
 use winit::{
-    event::*,
+    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Fullscreen, WindowBuilder},
 };
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
+pub struct SimpleStateSupport {
+    pub window_title: String,
+    pub window_size: (u16, u16),
+    pub callback: Box<dyn SimpleStateCallback>,
+    pub quarity: Quarity,
+}
 
-use crate::state::State;
-
-mod camera;
-pub mod color_theme;
-pub mod default_state;
-mod font_buffer;
-pub mod instances;
-mod outline_bind_group;
-mod overlap_bind_group;
-pub mod rasterizer_pipeline;
-mod screen_bind_group;
-mod screen_texture;
-mod screen_vertex_buffer;
-mod state;
-pub mod support;
-mod text;
-
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-pub async fn run() {
+pub async fn run_support(support: SimpleStateSupport) {
     cfg_if::cfg_if! {
         if #[cfg(target_arch = "wasm32")] {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -38,7 +27,14 @@ pub async fn run() {
     }
 
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = WindowBuilder::new()
+        .with_title(support.window_title)
+        .with_inner_size(winit::dpi::LogicalSize {
+            width: support.window_size.0,
+            height: support.window_size.1,
+        })
+        .build(&event_loop)
+        .unwrap();
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -58,11 +54,13 @@ pub async fn run() {
             })
             .expect("Couldn't append canvas to document body.");
     }
-
-    // State::new uses async code, so we're going to wait for it to finish
-    let mut state = State::new(&window).await;
-
-    let mut pre_click = Instant::now();
+    let mut state = SimpleState::new(
+        &window,
+        support.quarity,
+        ColorTheme::SolarizedDark,
+        support.callback,
+    )
+    .await;
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -70,22 +68,6 @@ pub async fn run() {
                 ref event,
                 window_id,
             } if window_id == window.id() => {
-                if let WindowEvent::MouseInput {
-                    state: ElementState::Pressed,
-                    button: MouseButton::Left,
-                    ..
-                } = event
-                {
-                    info!("click!");
-                    let now = Instant::now();
-                    if now - pre_click < Duration::from_millis(500) {
-                        match window.fullscreen() {
-                            Some(_) => window.set_fullscreen(None),
-                            None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
-                        }
-                    }
-                    pre_click = now;
-                }
                 if !state.input(event) {
                     match event {
                         WindowEvent::CloseRequested
