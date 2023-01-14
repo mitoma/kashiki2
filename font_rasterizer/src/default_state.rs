@@ -3,7 +3,7 @@ use std::{collections::HashSet, iter};
 use winit::{event::*, window::Window};
 
 use crate::{
-    camera::{Camera, CameraController},
+    camera::Camera,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
@@ -26,9 +26,6 @@ pub struct SimpleState {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
-
-    camera: Camera,
-    camera_controller: CameraController,
 
     rasterizer_pipeline: RasterizerPipeline,
     glyph_vertex_buffer: GlyphVertexBuffer,
@@ -85,19 +82,6 @@ impl SimpleState {
         };
         surface.configure(&device, &config);
 
-        // Camera
-        let camera = Camera::new(
-            (0.0, 0.0, 10.0).into(),
-            (0.0, 0.0, 0.0).into(),
-            cgmath::Vector3::unit_y(),
-            config.width as f32 / config.height as f32,
-            // fovy は視野角。ここでは45度を指定
-            45.0,
-            0.1,
-            200.0,
-        );
-        let camera_controller = CameraController::new(10.0);
-
         let rasterizer_pipeline = RasterizerPipeline::new(
             &device,
             size.width,
@@ -119,8 +103,6 @@ impl SimpleState {
             size,
             quarity,
 
-            camera,
-            camera_controller,
             rasterizer_pipeline,
 
             glyph_vertex_buffer,
@@ -137,11 +119,6 @@ impl SimpleState {
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
-            self.camera_controller.update_camera_aspect(
-                &mut self.camera,
-                new_size.width,
-                new_size.height,
-            );
             self.surface.configure(&self.device, &self.config);
 
             self.simple_state_callback

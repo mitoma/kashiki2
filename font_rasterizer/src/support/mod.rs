@@ -11,11 +11,11 @@ use winit::{
 
 bitflags! {
     pub struct Flags: u32 {
-        const FULL_SCREEN = 0b00000001;
-        const EXIT_ON_ESC = 0b00000010;
+        const FULL_SCREEN  = 0b00000001;
+        const EXIT_ON_ESC  = 0b00000010;
         const TRANCEPARENT = 0b00000100;
-        const NO_TITLEBAR = 0b00001000;
-        const DEFAULT = Self::EXIT_ON_ESC.bits | Self::FULL_SCREEN.bits;
+        const NO_TITLEBAR  = 0b00001000;
+        const DEFAULT      = Self::EXIT_ON_ESC.bits | Self::FULL_SCREEN.bits;
     }
 }
 
@@ -68,17 +68,8 @@ pub async fn run_support(support: SimpleStateSupport) {
             })
             .expect("Couldn't append canvas to document body.");
     }
-    let mut state = SimpleState::new(
-        &window,
-        support.quarity,
-        if support.flags.contains(Flags::TRANCEPARENT) {
-            wgpu::Color::TRANSPARENT
-        } else {
-            support.bg_color
-        },
-        support.callback,
-    )
-    .await;
+    let mut state =
+        SimpleState::new(&window, support.quarity, support.bg_color, support.callback).await;
 
     event_loop.run(move |event, _, control_flow| {
         match event {
