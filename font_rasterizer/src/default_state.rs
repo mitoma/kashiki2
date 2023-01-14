@@ -106,8 +106,7 @@ impl SimpleState {
             quarity,
             color_theme.background().into(),
         );
-
-        let mut glyph_vertex_buffer = GlyphVertexBuffer::default();
+        let glyph_vertex_buffer = GlyphVertexBuffer::default();
         simple_state_callback.init(&device, &queue);
 
         Self {
