@@ -66,19 +66,43 @@ fn vs_main(
         instances.model_matrix_3,
     );
 
-    let r = (reverseBits(0x1u) | instances.motion) == 0x1u;
-    var hoge: f32 = 0f;
-    if instances.motion == 2u {
-        hoge = (sin(u_buffer.u_time * 5f + model.position.x) * model.position.y * 0.2);
-    };
+    let gain = (sin(u_buffer.u_time * 5f + model.position.x) * model.position.y * 0.2);
+    var x_gain: f32 = 0f;
+    var y_gain: f32 = 0f;
+    var z_gain: f32 = 0f;
+    var x_rotate: f32 = 0f;
+    var y_rotate: f32 = 0f;
+    var z_rotate: f32 = 0f;
 
-    let moved = vec4<f32>(
-        model.position.x + hoge,
-        model.position.y, //  * (1f + cos(u_buffer.u_time * 5f + model.position.y / 0.01) * 0.05) * /,
-        0.0, //(cos(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.02),
+    if (0x1u & instances.motion) == 0x1u {
+        x_gain += gain;
+    }
+    if (0x2u & instances.motion) == 0x2u {
+        y_gain += gain;
+    }
+    if (0x4u & instances.motion) == 0x4u {
+        z_gain += gain;
+    }
+    if (0x8u & instances.motion) == 0x8u {
+        x_rotate = 1.0f;
+    }
+    if (0x10u & instances.motion) == 0x10u {
+        y_rotate = 1.0f;
+    }
+    if (0x20u & instances.motion) == 0x20u {
+        z_rotate = 1.0f;
+    }
+
+    var moved = vec4<f32>(
+        model.position.x + x_gain,
+        model.position.y + y_gain,
+        0.0 + z_gain,
         1.0
     );
-    let rotated: vec4<f32> = vec4<f32>(rotate(moved.xyz, u_buffer.u_time * 0.5, vec3<f32>(0.0, 1.0, 0.0)), 1.0);
+
+    if x_rotate != 0f || y_rotate != 0f || z_rotate != 0f {
+        moved = vec4<f32>(rotate(moved.xyz, sin(u_buffer.u_time) * distance(moved.xy, vec2<f32>(0f, 0f)) * 3f, vec3<f32>(x_rotate, y_rotate, z_rotate)), 1.0);
+    }
 
     var out: VertexOutput;
     out.wait = vec3<f32>(1f, model.wait.xy);

@@ -3,14 +3,15 @@ use font_rusterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::SolarizedDark,
     default_state::SimpleStateCallback,
-    instances::{GlyphInstance, GlyphInstances},
+    instances::{GlyphInstance, GlyphInstances, MotionFlags},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, SimpleStateSupport},
 };
-use winit::event::WindowEvent;
+use log::info;
+use winit::event::{ElementState, MouseButton, WindowEvent};
 
 pub fn main() {
-    //std::env::set_var("RUST_LOG", "font_rusterizer=debug");
+    std::env::set_var("RUST_LOG", "support_test=debug");
     pollster::block_on(run());
 }
 
@@ -23,7 +24,7 @@ pub async fn run() {
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
         bg_color: SolarizedDark.background().into(),
-        flags: Flags::DEFAULT | Flags::TRANCEPARENT | Flags::NO_TITLEBAR,
+        flags: Flags::DEFAULT,
     };
     run_support(support).await;
 }
@@ -32,6 +33,43 @@ struct SingleCharCallback {
     camera: Camera,
     camera_controller: CameraController,
     glyphs: Vec<GlyphInstances>,
+    motion: MotionType,
+}
+
+#[derive(Debug)]
+enum MotionType {
+    None,
+    WaveX,
+    WaveY,
+    WaveZ,
+    RotateX,
+    RotateY,
+    RotateZ,
+}
+
+impl MotionType {
+    fn next(&self) -> Self {
+        match self {
+            Self::None => Self::WaveX,
+            Self::WaveX => Self::WaveY,
+            Self::WaveY => Self::WaveZ,
+            Self::WaveZ => Self::RotateX,
+            Self::RotateX => Self::RotateY,
+            Self::RotateY => Self::RotateZ,
+            Self::RotateZ => Self::None,
+        }
+    }
+    fn motion_flags(&self) -> MotionFlags {
+        match self {
+            Self::None => MotionFlags::empty(),
+            Self::WaveX => MotionFlags::WAVE_X,
+            Self::WaveY => MotionFlags::WAVE_Y,
+            Self::WaveZ => MotionFlags::WAVE_Z,
+            Self::RotateX => MotionFlags::ROTATE_X,
+            Self::RotateY => MotionFlags::ROTATE_Y,
+            Self::RotateZ => MotionFlags::ROTATE_Z,
+        }
+    }
 }
 
 impl SingleCharCallback {
@@ -49,6 +87,7 @@ impl SingleCharCallback {
             ),
             camera_controller: CameraController::new(10.0),
             glyphs: Vec::new(),
+            motion: MotionType::None,
         }
     }
 }
@@ -59,7 +98,7 @@ impl SimpleStateCallback for SingleCharCallback {
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             SolarizedDark.cyan().get_color(),
-            2,
+            self.motion.motion_flags(),
         );
         let mut instance = GlyphInstances::new('あ', Vec::new(), device);
         instance.push(value);
@@ -72,7 +111,32 @@ impl SimpleStateCallback for SingleCharCallback {
             .for_each(|i| i.update_buffer(device, queue));
     }
 
-    fn input(&mut self, _event: &WindowEvent) -> bool {
+    fn input(&mut self, event: &WindowEvent) -> bool {
+        match event {
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Left,
+                ..
+            } => {
+                self.motion = self.motion.next();
+                info!("next motion:{:?}", self.motion);
+                self.glyphs.iter_mut().for_each(|i| {
+                    if i.c == 'あ' {
+                        i.clear();
+                        i.push(GlyphInstance::new(
+                            (0.0, 0.0, 0.0).into(),
+                            cgmath::Quaternion::from_axis_angle(
+                                cgmath::Vector3::unit_z(),
+                                cgmath::Deg(0.0),
+                            ),
+                            SolarizedDark.cyan().get_color(),
+                            self.motion.motion_flags(),
+                        ))
+                    }
+                })
+            }
+            _ => {}
+        }
         false
     }
 

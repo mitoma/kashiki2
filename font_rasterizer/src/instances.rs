@@ -1,10 +1,22 @@
+use bitflags::bitflags;
 use log::info;
+
+bitflags! {
+    pub struct MotionFlags: u32 {
+        const WAVE_X =   0b_00000000_00000000_00000000_00000001;
+        const WAVE_Y =   0b_00000000_00000000_00000000_00000010;
+        const WAVE_Z =   0b_00000000_00000000_00000000_00000100;
+        const ROTATE_X = 0b_00000000_00000000_00000000_00001000;
+        const ROTATE_Y = 0b_00000000_00000000_00000000_00010000;
+        const ROTATE_Z = 0b_00000000_00000000_00000000_00100000;
+    }
+}
 
 pub struct GlyphInstance {
     position: cgmath::Vector3<f32>,
     rotation: cgmath::Quaternion<f32>,
     color: [f32; 3],
-    motion: u32,
+    motion: MotionFlags,
 }
 
 impl GlyphInstance {
@@ -12,7 +24,7 @@ impl GlyphInstance {
         position: cgmath::Vector3<f32>,
         rotation: cgmath::Quaternion<f32>,
         color: [f32; 3],
-        motion: u32,
+        motion: MotionFlags,
     ) -> Self {
         Self {
             position,
@@ -30,13 +42,13 @@ impl GlyphInstance {
                 * cgmath::Matrix4::from(self.rotation))
             .into(),
             color: self.color,
-            motion: self.motion,
+            motion: self.motion.bits,
         }
     }
 }
 
 pub struct GlyphInstances {
-    pub(crate) c: char,
+    pub c: char,
     values: Vec<GlyphInstance>,
     buffer_size: u64,
     buffer: wgpu::Buffer,
