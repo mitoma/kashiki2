@@ -1,10 +1,11 @@
 use cgmath::Rotation3;
 use font_rusterizer::{
     camera::Camera,
+    color_theme::{self, ColorTheme::SolarizedDark, SolarizedColor},
     default_state::SimpleStateCallback,
     instances::{GlyphInstance, GlyphInstances},
     rasterizer_pipeline::Quarity,
-    support::{run_support, SimpleStateSupport},
+    support::{run_support, Flags, SimpleStateSupport},
 };
 use winit::event::WindowEvent;
 
@@ -21,6 +22,8 @@ pub async fn run() {
         window_size: (800, 600),
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
+        bg_color: SolarizedDark.background().into(),
+        flags: Flags::DEFAULT,
     };
     run_support(support).await;
 }

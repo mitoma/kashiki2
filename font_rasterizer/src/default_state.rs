@@ -4,7 +4,6 @@ use winit::{event::*, window::Window};
 
 use crate::{
     camera::{Camera, CameraController},
-    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
@@ -19,7 +18,7 @@ pub trait SimpleStateCallback {
 
 pub struct SimpleState {
     quarity: Quarity,
-    color_theme: ColorTheme,
+    bg_color: wgpu::Color,
 
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -40,7 +39,7 @@ impl SimpleState {
     pub async fn new(
         window: &Window,
         quarity: Quarity,
-        color_theme: ColorTheme,
+        bg_color: wgpu::Color,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
     ) -> Self {
         let size = window.inner_size();
@@ -104,13 +103,13 @@ impl SimpleState {
             size.height,
             config.format,
             quarity,
-            color_theme.background().into(),
+            bg_color,
         );
         let glyph_vertex_buffer = GlyphVertexBuffer::default();
         simple_state_callback.init(&device, &queue);
 
         Self {
-            color_theme,
+            bg_color,
 
             surface,
             device,
@@ -151,7 +150,7 @@ impl SimpleState {
                 new_size.height,
                 self.config.format,
                 self.quarity,
-                self.color_theme.background().into(),
+                self.bg_color,
             )
         }
     }

@@ -19,70 +19,76 @@ impl From<SolarizedColor> for wgpu::Color {
 
 #[allow(dead_code)]
 impl ColorTheme {
-    pub(crate) fn text(&self) -> SolarizedColor {
+    pub fn text(&self) -> SolarizedColor {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base00,
             ColorTheme::SolarizedDark => SolarizedColor::Base0,
         }
     }
 
-    pub(crate) fn text_comment(&self) -> SolarizedColor {
+    pub fn text_comment(&self) -> SolarizedColor {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base1,
             ColorTheme::SolarizedDark => SolarizedColor::Base01,
         }
     }
 
-    pub(crate) fn text_emphasized(&self) -> SolarizedColor {
+    pub fn text_emphasized(&self) -> SolarizedColor {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base01,
             ColorTheme::SolarizedDark => SolarizedColor::Base1,
         }
     }
 
-    pub(crate) fn background(&self) -> SolarizedColor {
+    pub fn background(&self) -> SolarizedColor {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base3,
             ColorTheme::SolarizedDark => SolarizedColor::Base03,
         }
     }
 
-    pub(crate) fn background_highlights(&self) -> SolarizedColor {
+    pub fn background_highlights(&self) -> SolarizedColor {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base2,
             ColorTheme::SolarizedDark => SolarizedColor::Base02,
         }
     }
 
-    pub(crate) fn yellow(&self) -> SolarizedColor {
+    pub fn yellow(&self) -> SolarizedColor {
         SolarizedColor::Yellow
     }
-    pub(crate) fn orange(&self) -> SolarizedColor {
+
+    pub fn orange(&self) -> SolarizedColor {
         SolarizedColor::Orange
     }
-    pub(crate) fn red(&self) -> SolarizedColor {
+
+    pub fn red(&self) -> SolarizedColor {
         SolarizedColor::Red
     }
-    pub(crate) fn magenta(&self) -> SolarizedColor {
+
+    pub fn magenta(&self) -> SolarizedColor {
         SolarizedColor::Magenta
     }
-    pub(crate) fn violet(&self) -> SolarizedColor {
+
+    pub fn violet(&self) -> SolarizedColor {
         SolarizedColor::Violet
     }
 
-    pub(crate) fn blue(&self) -> SolarizedColor {
+    pub fn blue(&self) -> SolarizedColor {
         SolarizedColor::Blue
     }
-    pub(crate) fn cyan(&self) -> SolarizedColor {
+
+    pub fn cyan(&self) -> SolarizedColor {
         SolarizedColor::Cyan
     }
-    pub(crate) fn green(&self) -> SolarizedColor {
+
+    pub fn green(&self) -> SolarizedColor {
         SolarizedColor::Green
     }
 }
 
 #[allow(dead_code)]
-pub(crate) enum SolarizedColor {
+pub enum SolarizedColor {
     Base03,
     Base02,
     Base01,

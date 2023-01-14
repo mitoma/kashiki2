@@ -1,19 +1,31 @@
 use crate::{
-    color_theme::ColorTheme,
     default_state::{SimpleState, SimpleStateCallback},
     rasterizer_pipeline::Quarity,
 };
+use bitflags::bitflags;
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::{Fullscreen, WindowBuilder},
 };
 
+bitflags! {
+    pub struct Flags: u32 {
+        const FULL_SCREEN = 0b00000001;
+        const EXIT_ON_ESC = 0b00000010;
+        const TRANCEPARENT = 0b00000100;
+        const NO_TITLEBAR = 0b00001000;
+        const DEFAULT = Self::EXIT_ON_ESC.bits | Self::FULL_SCREEN.bits;
+    }
+}
+
 pub struct SimpleStateSupport {
     pub window_title: String,
     pub window_size: (u16, u16),
     pub callback: Box<dyn SimpleStateCallback>,
     pub quarity: Quarity,
+    pub bg_color: wgpu::Color,
+    pub flags: Flags,
 }
 
 pub async fn run_support(support: SimpleStateSupport) {
@@ -33,6 +45,8 @@ pub async fn run_support(support: SimpleStateSupport) {
             width: support.window_size.0,
             height: support.window_size.1,
         })
+        .with_transparent(support.flags.contains(Flags::TRANCEPARENT))
+        .with_decorations(!support.flags.contains(Flags::NO_TITLEBAR))
         .build(&event_loop)
         .unwrap();
 
@@ -57,7 +71,11 @@ pub async fn run_support(support: SimpleStateSupport) {
     let mut state = SimpleState::new(
         &window,
         support.quarity,
-        ColorTheme::SolarizedDark,
+        if support.flags.contains(Flags::TRANCEPARENT) {
+            wgpu::Color::TRANSPARENT
+        } else {
+            support.bg_color
+        },
         support.callback,
     )
     .await;
@@ -70,8 +88,8 @@ pub async fn run_support(support: SimpleStateSupport) {
             } if window_id == window.id() => {
                 if !state.input(event) {
                     match event {
-                        WindowEvent::CloseRequested
-                        | WindowEvent::KeyboardInput {
+                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                        WindowEvent::KeyboardInput {
                             input:
                                 KeyboardInput {
                                     state: ElementState::Pressed,
@@ -79,7 +97,11 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     ..
                                 },
                             ..
-                        } => *control_flow = ControlFlow::Exit,
+                        } => {
+                            if support.flags.contains(Flags::EXIT_ON_ESC) {
+                                *control_flow = ControlFlow::Exit
+                            }
+                        }
                         WindowEvent::KeyboardInput {
                             input:
                                 KeyboardInput {
@@ -88,10 +110,16 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     ..
                                 },
                             ..
-                        } => match window.fullscreen() {
-                            Some(_) => window.set_fullscreen(None),
-                            None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
-                        },
+                        } => {
+                            if support.flags.contains(Flags::FULL_SCREEN) {
+                                match window.fullscreen() {
+                                    Some(_) => window.set_fullscreen(None),
+                                    None => {
+                                        window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+                                    }
+                                }
+                            }
+                        }
                         WindowEvent::Resized(physical_size) => {
                             state.resize(*physical_size);
                         }
