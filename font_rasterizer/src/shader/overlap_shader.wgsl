@@ -45,6 +45,7 @@ struct InstancesInput {
     @location(7) model_matrix_2: vec4<f32>,
     @location(8) model_matrix_3: vec4<f32>,
     @location(9) color: vec3<f32>,
+    @location(10) motion: u32,
 };
 
 struct VertexOutput {
@@ -65,8 +66,14 @@ fn vs_main(
         instances.model_matrix_3,
     );
 
+    let r = (reverseBits(0x1u) | instances.motion) == 0x1u;
+    var hoge: f32 = 0f;
+    if instances.motion == 2u {
+        hoge = (sin(u_buffer.u_time * 5f + model.position.x) * model.position.y * 0.2);
+    };
+
     let moved = vec4<f32>(
-        model.position.x + (sin(u_buffer.u_time * 5f + model.position.x) * model.position.y * 0.2),
+        model.position.x + hoge,
         model.position.y, //  * (1f + cos(u_buffer.u_time * 5f + model.position.y / 0.01) * 0.05) * /,
         0.0, //(cos(u_buffer.u_time * 5f + model.position.x / 0.01) * 0.02),
         1.0

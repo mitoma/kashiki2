@@ -106,6 +106,7 @@ impl MultiLineText {
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
                 get_color(color_theme, c),
+                0,
             );
             instance.push(i);
             x += glyph_width.right();
@@ -220,6 +221,7 @@ impl PlaneTextReader {
                         cgmath::Deg(0.0),
                     ),
                     get_color(color_theme, c),
+                    0,
                 );
                 x += glyph_width.right();
 

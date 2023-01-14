@@ -59,6 +59,7 @@ impl SimpleStateCallback for SingleCharCallback {
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             SolarizedDark.cyan().get_color(),
+            2,
         );
         let mut instance = GlyphInstances::new('あ', Vec::new(), device);
         instance.push(value);
