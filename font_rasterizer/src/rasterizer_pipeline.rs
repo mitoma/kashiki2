@@ -22,6 +22,8 @@ pub enum Quarity {
     Low,
     /// 0.5倍サンプリング
     VeryLow,
+    /// 固定クオリティの設定
+    Fixed(u32, u32),
 }
 
 /// フォントをラスタライズするためのパイプラインを提供する。
@@ -75,6 +77,7 @@ impl RasterizerPipeline {
             Quarity::Middle => (width, height),
             Quarity::Low => (width - width / 4, height - height / 4),
             Quarity::VeryLow => (width / 2, height / 2),
+            Quarity::Fixed(width, height) => (width, height),
         };
         // GPU の上限によってはテクスチャのサイズを制限する
         let max = device.limits().max_texture_dimension_2d;
