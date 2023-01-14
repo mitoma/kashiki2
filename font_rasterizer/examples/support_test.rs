@@ -15,7 +15,7 @@ pub fn main() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let callback = Pog::default();
+    let callback = SingleCharCallback::default();
     let support = SimpleStateSupport {
         window_title: "Hello".to_string(),
         window_size: (800, 600),
@@ -26,9 +26,9 @@ pub async fn run() {
 }
 
 #[derive(Default)]
-struct Pog(Vec<GlyphInstances>);
+struct SingleCharCallback(Vec<GlyphInstances>);
 
-impl SimpleStateCallback for Pog {
+impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),
