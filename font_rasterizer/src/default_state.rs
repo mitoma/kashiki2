@@ -11,9 +11,10 @@ use crate::{
 
 pub trait SimpleStateCallback {
     fn init(&mut self, device: &wgpu::Device, queue: &wgpu::Queue);
+    fn resize(&mut self, width: u32, height: u32);
     fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue);
     fn input(&mut self, event: &WindowEvent) -> bool;
-    fn render(&mut self) -> ([[f32; 4]; 4], Vec<&GlyphInstances>);
+    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
 }
 
 pub struct SimpleState {
@@ -143,6 +144,9 @@ impl SimpleState {
             );
             self.surface.configure(&self.device, &self.config);
 
+            self.simple_state_callback
+                .resize(new_size.width, new_size.height);
+
             // サイズ変更時にはパイプラインを作り直す
             self.rasterizer_pipeline = RasterizerPipeline::new(
                 &self.device,
@@ -191,7 +195,7 @@ impl SimpleState {
             &self.device,
             &self.queue,
             &self.glyph_vertex_buffer,
-            camera,
+            camera.build_view_projection_matrix().into(),
             &glyph_instances,
             screen_view,
         );
