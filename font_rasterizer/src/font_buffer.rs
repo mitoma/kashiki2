@@ -351,15 +351,18 @@ impl GlyphVertexBuffer {
         queue: &wgpu::Queue,
         chars: HashSet<char>,
     ) -> anyhow::Result<()> {
-        let face = Face::parse(FONT_DATA, 0)?;
-        let emoji_face = Face::parse(EMOJI_FONT_DATA, 0)?;
-        let faces = vec![face, emoji_face];
-
         // 既にバッファに登録済みの char は除外する。
         let chars = chars
             .into_iter()
             .filter(|c| !self.buffer_index.contains_key(c))
             .collect::<HashSet<_>>();
+        if chars.is_empty() {
+            return Ok(());
+        }
+
+        let face = Face::parse(FONT_DATA, 0)?;
+        let emoji_face = Face::parse(EMOJI_FONT_DATA, 0)?;
+        let faces = vec![face, emoji_face];
 
         // char を全て Glyph 情報に変換する
         let mut glyphs = chars
@@ -461,7 +464,7 @@ impl GlyphVertexBuffer {
         self.vertex_buffers
             .iter()
             .enumerate()
-            .filter(|(idx, b)| b.capacity() >= size)
+            .filter(|(_, b)| b.capacity() >= size)
             .next()
             .map(|r| r.0)
     }
@@ -470,7 +473,7 @@ impl GlyphVertexBuffer {
         self.index_buffers
             .iter()
             .enumerate()
-            .filter(|(idx, b)| b.capacity() >= size)
+            .filter(|(_, b)| b.capacity() >= size)
             .next()
             .map(|r| r.0)
     }

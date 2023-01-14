@@ -1,4 +1,4 @@
-use std::iter;
+use std::{collections::HashSet, iter};
 
 use winit::{event::*, window::Window};
 
@@ -11,8 +11,10 @@ use crate::{
 };
 
 pub trait SimpleStateCallback {
+    fn init(&mut self, device: &wgpu::Device, queue: &wgpu::Queue);
+    fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue);
     fn input(&mut self, event: &WindowEvent) -> bool;
-    fn render(&mut self) -> ([[f32; 4]; 4], &[&GlyphInstances]);
+    fn render(&mut self) -> ([[f32; 4]; 4], Vec<&GlyphInstances>);
 }
 
 pub struct SimpleState {
@@ -39,7 +41,7 @@ impl SimpleState {
         window: &Window,
         quarity: Quarity,
         color_theme: ColorTheme,
-        simple_state_callback: Box<dyn SimpleStateCallback>,
+        mut simple_state_callback: Box<dyn SimpleStateCallback>,
     ) -> Self {
         let size = window.inner_size();
 
@@ -105,7 +107,8 @@ impl SimpleState {
             color_theme.background().into(),
         );
 
-        let glyph_vertex_buffer = GlyphVertexBuffer::default();
+        let mut glyph_vertex_buffer = GlyphVertexBuffer::default();
+        simple_state_callback.init(&device, &queue);
 
         Self {
             color_theme,
@@ -159,8 +162,7 @@ impl SimpleState {
     }
 
     pub fn update(&mut self) {
-        self.camera_controller.update_camera(&mut self.camera);
-        self.camera_controller.reset_state();
+        self.simple_state_callback.update(&self.device, &self.queue);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -174,20 +176,25 @@ impl SimpleState {
         self.rasterizer_pipeline
             .overlap_bind_group
             .update_buffer(&self.queue);
-        let view_proj = self.camera.build_view_projection_matrix().into();
         let screen_output = self.surface.get_current_texture()?;
         let screen_view = screen_output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let r = self.simple_state_callback.render();
+        let (camera, glyph_instances) = self.simple_state_callback.render();
+
+        let chars = glyph_instances.iter().map(|i| i.c).collect::<HashSet<_>>();
+        self.glyph_vertex_buffer
+            .append_glyph(&self.device, &self.queue, chars)
+            .unwrap();
+
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.device,
             &self.queue,
             &self.glyph_vertex_buffer,
-            view_proj,
-            r.1,
+            camera,
+            &glyph_instances,
             screen_view,
         );
 
