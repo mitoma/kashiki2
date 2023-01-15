@@ -3,12 +3,12 @@ use log::info;
 
 bitflags! {
     pub struct MotionFlags: u32 {
-        const WAVE_X =   0b_00000000_00000000_00000000_00000001;
-        const WAVE_Y =   0b_00000000_00000000_00000000_00000010;
-        const WAVE_Z =   0b_00000000_00000000_00000000_00000100;
-        const ROTATE_X = 0b_00000000_00000000_00000000_00001000;
-        const ROTATE_Y = 0b_00000000_00000000_00000000_00010000;
-        const ROTATE_Z = 0b_00000000_00000000_00000000_00100000;
+        const WAVE_X =   0b_0000_0000_0000_0000_0000_0000_0000_0001;
+        const WAVE_Y =   0b_0000_0000_0000_0000_0000_0000_0000_0010;
+        const WAVE_Z =   0b_0000_0000_0000_0000_0000_0000_0000_0100;
+        const ROTATE_X = 0b_0000_0000_0000_0000_0000_0000_0000_1000;
+        const ROTATE_Y = 0b_0000_0000_0000_0000_0000_0000_0001_0000;
+        const ROTATE_Z = 0b_0000_0000_0000_0000_0000_0000_0010_0000;
     }
 }
 
@@ -78,6 +78,10 @@ impl GlyphInstances {
 
     pub fn len(&self) -> usize {
         self.values.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
     }
 
     pub fn push(&mut self, instance: GlyphInstance) {

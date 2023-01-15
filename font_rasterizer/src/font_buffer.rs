@@ -21,8 +21,6 @@ pub(crate) enum GlyphWidth {
 
 impl GlyphWidth {
     fn get_width(c: char, face: &Face) -> Self {
-        let glyph_id = face.glyph_index(c);
-
         if let Some(glyph_id) = face.glyph_index(c) {
             if let Some(rect) = face.glyph_bounding_box(glyph_id) {
                 if face.global_bounding_box().width() < rect.width() * 2 {
@@ -464,8 +462,7 @@ impl GlyphVertexBuffer {
         self.vertex_buffers
             .iter()
             .enumerate()
-            .filter(|(_, b)| b.capacity() >= size)
-            .next()
+            .find(|(_, b)| b.capacity() >= size)
             .map(|r| r.0)
     }
 
@@ -473,8 +470,7 @@ impl GlyphVertexBuffer {
         self.index_buffers
             .iter()
             .enumerate()
-            .filter(|(_, b)| b.capacity() >= size)
-            .next()
+            .find(|(_, b)| b.capacity() >= size)
             .map(|r| r.0)
     }
 

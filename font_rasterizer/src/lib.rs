@@ -13,7 +13,6 @@ use crate::state::State;
 
 pub mod camera;
 pub mod color_theme;
-pub mod default_state;
 pub mod font_buffer;
 pub mod instances;
 mod outline_bind_group;

@@ -108,6 +108,7 @@ pub enum SolarizedColor {
 }
 
 impl SolarizedColor {
+    #[allow(clippy::excessive_precision)]
     pub fn get_color(&self) -> [f32; 3] {
         match self {
             SolarizedColor::Base03 => [0.0030352699, 0.0241576303, 0.0368894450],

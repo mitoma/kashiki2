@@ -2,10 +2,9 @@ use cgmath::Rotation3;
 use font_rusterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::SolarizedDark,
-    default_state::SimpleStateCallback,
     instances::{GlyphInstance, GlyphInstances, MotionFlags},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, SimpleStateSupport},
+    support::{run_support, Flags, SimpleStateSupport, SimpleStateCallback},
 };
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
