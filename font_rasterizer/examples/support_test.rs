@@ -1,10 +1,13 @@
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 use cgmath::Rotation3;
 use font_rusterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::SolarizedDark,
     instances::{GlyphInstance, GlyphInstances, MotionFlags},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, SimpleStateSupport, SimpleStateCallback},
+    support::{run_support, Flags, SimpleStateCallback, SimpleStateSupport},
 };
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
