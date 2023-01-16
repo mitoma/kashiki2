@@ -2,7 +2,7 @@
 use wasm_bindgen::prelude::*;
 
 use cgmath::Rotation3;
-use font_rusterizer::{
+use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::SolarizedDark,
     instances::{GlyphInstance, GlyphInstances, MotionFlags},
