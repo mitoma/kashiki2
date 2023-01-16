@@ -1,3 +1,3 @@
 [workspace]
-members = ["text_buffer", "stroke_parser", "wgpu_gui", "font_rasterizer"]
+members = ["text_buffer", "stroke_parser", "wgpu_gui", "font_rasterizer", "font_rasterizer_example"]
 resolver = "2"

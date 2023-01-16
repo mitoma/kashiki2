@@ -1,5 +1,5 @@
 [package]
-name = "font_rusterizer"
+name = "font_rasterizer"
 version = "0.1.0"
 authors = ["Ryo Mitoma <mutetheradio@gmail.com>"]
 edition = "2021"

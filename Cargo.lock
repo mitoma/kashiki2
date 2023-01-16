@@ -642,7 +642,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
-name = "font_rusterizer"
+name = "font_rasterizer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -664,6 +664,19 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "wgpu 0.14.2",
+ "winit 0.27.5",
+]
+
+[[package]]
+name = "font_rasterizer_example"
+version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "env_logger",
+ "font_rasterizer",
+ "log",
+ "pollster",
  "wgpu 0.14.2",
  "winit 0.27.5",
 ]

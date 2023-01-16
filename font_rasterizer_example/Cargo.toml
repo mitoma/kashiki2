@@ -1,0 +1,15 @@
+[package]
+name = "font_rasterizer_example"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+font_rasterizer = { version = "0.1.0", path = "../font_rasterizer" }
+env_logger = "0.9"
+log = "0.4"
+pollster = "0.2"
+cgmath = "0.18"
+winit = "0.27"
+wgpu = "0.14"
