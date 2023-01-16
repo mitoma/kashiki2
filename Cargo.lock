@@ -1857,7 +1857,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "text_buffer",
- "winit 0.26.1",
+ "winit 0.27.5",
 ]
 
 [[package]]

@@ -9,6 +9,7 @@ use winit::{
 fn main() {
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new().build(&event_loop).unwrap();
+    window.set_ime_allowed(true);
 
     let mut editor = text_buffer::editor::Editor::default();
 
