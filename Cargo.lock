@@ -673,10 +673,15 @@ name = "font_rasterizer_example"
 version = "0.1.0"
 dependencies = [
  "cgmath",
+ "console_error_panic_hook",
+ "console_log",
  "env_logger",
  "font_rasterizer",
  "log",
  "pollster",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "wgpu 0.14.2",
  "winit 0.27.5",
 ]
