@@ -658,6 +658,7 @@ dependencies = [
  "instant",
  "log",
  "nenobi 0.1.0 (git+https://github.com/mitoma/sandbox?branch=main)",
+ "once_cell",
  "pollster",
  "ttf-parser 0.17.1",
  "unicode-width",

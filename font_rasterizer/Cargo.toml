@@ -24,6 +24,7 @@ cgmath = "0.18"
 instant = { version = "0.1", features = [ "wasm-bindgen" ] }
 nenobi = { git = "https://github.com/mitoma/sandbox", branch = "main" }
 unicode-width = "0.1.7"
+once_cell = "1.16"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"

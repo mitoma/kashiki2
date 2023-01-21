@@ -10,3 +10,4 @@ mod screen_texture;
 mod screen_vertex_buffer;
 pub mod support;
 mod text;
+pub mod time;

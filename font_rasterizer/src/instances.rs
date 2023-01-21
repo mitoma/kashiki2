@@ -17,6 +17,7 @@ pub struct GlyphInstance {
     rotation: cgmath::Quaternion<f32>,
     color: [f32; 3],
     motion: MotionFlags,
+    start_time: u32,
 }
 
 impl GlyphInstance {
@@ -25,12 +26,14 @@ impl GlyphInstance {
         rotation: cgmath::Quaternion<f32>,
         color: [f32; 3],
         motion: MotionFlags,
+        start_time: u32,
     ) -> Self {
         Self {
             position,
             rotation,
             color,
             motion,
+            start_time,
         }
     }
 }
@@ -43,6 +46,7 @@ impl GlyphInstance {
             .into(),
             color: self.color,
             motion: self.motion.bits,
+            start_time: self.start_time,
         }
     }
 }
@@ -134,6 +138,7 @@ pub(crate) struct InstanceRaw {
     model: [[f32; 4]; 4],
     color: [f32; 3],
     motion: u32,
+    start_time: u32,
 }
 
 impl InstanceRaw {
@@ -175,9 +180,16 @@ impl InstanceRaw {
                     shader_location: 9,
                     format: wgpu::VertexFormat::Float32x3,
                 },
+                // Action
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 19]>() as wgpu::BufferAddress,
                     shader_location: 10,
+                    format: wgpu::VertexFormat::Uint32,
+                },
+                // Action Started At
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 20]>() as wgpu::BufferAddress,
+                    shader_location: 11,
                     format: wgpu::VertexFormat::Uint32,
                 },
             ],

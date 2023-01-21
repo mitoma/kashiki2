@@ -8,6 +8,7 @@ use font_rasterizer::{
     instances::{GlyphInstance, GlyphInstances, MotionFlags},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, SimpleStateCallback, SimpleStateSupport},
+    time::now_millis,
 };
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
@@ -101,6 +102,7 @@ impl SimpleStateCallback for SingleCharCallback {
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             SolarizedDark.cyan().get_color(),
             self.motion.motion_flags(),
+            now_millis(),
         );
         let mut instance = GlyphInstances::new('あ', Vec::new(), device);
         instance.push(value);
@@ -133,6 +135,7 @@ impl SimpleStateCallback for SingleCharCallback {
                             ),
                             SolarizedDark.cyan().get_color(),
                             self.motion.motion_flags(),
+                            now_millis(),
                         ))
                     }
                 })

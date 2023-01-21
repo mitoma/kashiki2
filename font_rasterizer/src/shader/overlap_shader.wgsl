@@ -27,7 +27,7 @@ fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
 // Vertex shader
 struct Uniforms {
     u_view_proj: mat4x4<f32>,
-    u_time: f32,
+    u_time: u32,
 };
 
 @group(0) @binding(0)
@@ -46,6 +46,7 @@ struct InstancesInput {
     @location(8) model_matrix_3: vec4<f32>,
     @location(9) color: vec3<f32>,
     @location(10) motion: u32,
+    @location(11) start_time: u32,
 };
 
 struct VertexOutput {
@@ -66,7 +67,7 @@ fn vs_main(
         instances.model_matrix_3,
     );
 
-    let gain = (sin(u_buffer.u_time * 5f + model.position.x) * model.position.y * 0.2);
+    let gain = (sin(f32(u_buffer.u_time) / 1000f + model.position.x) * model.position.y * 0.2);
     var x_gain: f32 = 0f;
     var y_gain: f32 = 0f;
     var z_gain: f32 = 0f;
@@ -101,7 +102,7 @@ fn vs_main(
     );
 
     if x_rotate != 0f || y_rotate != 0f || z_rotate != 0f {
-        moved = vec4<f32>(rotate(moved.xyz, sin(u_buffer.u_time) * distance(moved.xy, vec2<f32>(0f, 0f)) * 3f, vec3<f32>(x_rotate, y_rotate, z_rotate)), 1.0);
+        moved = vec4<f32>(rotate(moved.xyz, sin(f32(u_buffer.u_time) / 1000f) * distance(moved.xy, vec2<f32>(0f, 0f)) * 3f, vec3<f32>(x_rotate, y_rotate, z_rotate)), 1.0);
     }
 
     var out: VertexOutput;

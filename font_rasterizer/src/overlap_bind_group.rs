@@ -1,12 +1,14 @@
-use cgmath::SquareMatrix;
+use cgmath::{num_traits::ToPrimitive, SquareMatrix};
 use instant::SystemTime;
 use wgpu::util::DeviceExt;
+
+use crate::time::now_millis;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Uniforms {
     view_proj: [[f32; 4]; 4],
-    time: f32,
+    time: u32,
     // padding が必要らしい。正直意味わかんねぇな。
     padding: [u32; 3],
 }
@@ -24,11 +26,7 @@ impl Default for Uniforms {
     fn default() -> Self {
         Self {
             view_proj: cgmath::Matrix4::identity().into(),
-            time: SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis() as f32
-                / 100.0,
+            time: now_millis(),
             padding: [0; 3],
         }
     }
@@ -81,7 +79,7 @@ impl OverlapBindGroup {
         let d = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap_or_default();
-        self.uniforms.time = (d.as_millis() % 10000000) as f32 / 1000.0;
+        self.uniforms.time = now_millis();
     }
 
     pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
