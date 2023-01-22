@@ -21,6 +21,12 @@ let BACK_C1: f32 = 1.70158;
 let BACK_C3: f32 = 2.70158;
 let EXPO: f32 = 2.09439510239;
 
+/// value の n ビット目が立っているかどうか調べる
+/// n は 0 - 31 の範囲
+fn bit_check(value: u32, n: u32) -> bool {
+    return (value & (1u << n)) != 0u;
+}
+
 // easing function
 fn internal_easing_func(value: f32, easing_type: u32) -> f32 {
     if easing_type == EASING_LINER {
@@ -38,27 +44,25 @@ fn internal_easing_func(value: f32, easing_type: u32) -> f32 {
     } else if easing_type == EASING_EXPO {
         return pow(2f, 10f * value - 10f);
     } else if easing_type == EASING_CIRC {
-        return 1f - sqrt(1f - pow(2f, value));
+        return 1f - sqrt(1f - pow(value, 2f));
     } else if easing_type == EASING_BACK {
         return BACK_C3 * value * value * value - BACK_C1 * value * value;
     } else if easing_type == EASING_ELASTIC {
-        return -pow(2f, 10f * value - 10f) * sin(value * 10f - 10.75 * EXPO);
+        return -pow(2f, 10f * value - 10f) * sin((value * 10f - 10.75) * EXPO);
     } else if easing_type == EASING_BOUNCE {
-        var result = 0f;
         let x = 1f - value;
         if x < 1f / BOUNCE_D1 {
-            result = 1f * x * x;
+            return 1f - (BOUNCE_N1 * x * x);
         } else if x < 2f / BOUNCE_D1 {
-            let x = x - 1.5 / BOUNCE_D1;
-            result = BOUNCE_N1 * x * x + 0.75;
+            let x = x - (1.5 / BOUNCE_D1);
+            return 1f - (BOUNCE_N1 * x * x + 0.75);
         } else if x < 2.5f / BOUNCE_D1 {
             let x = x - (2.25 / BOUNCE_D1);
-            result = BOUNCE_N1 * x * x + 0.9375;
+            return 1f - (BOUNCE_N1 * x * x + 0.9375);
         } else {
             let x = x - (2.625 / BOUNCE_D1);
-            result = BOUNCE_N1 * x * x + 0.984375;
-        };
-        return 1f - result;
+            return 1f - (BOUNCE_N1 * x * x + 0.984375);
+        }
     }
     // fallback liner
     return value;
@@ -175,22 +179,22 @@ fn vs_main(
     var y_rotate: f32 = 0f;
     var z_rotate: f32 = 0f;
 
-    if (0x1u & instances.motion) == 0x1u {
+    if bit_check(instances.motion, 0u) {
         x_gain += gain;
     }
-    if (0x2u & instances.motion) == 0x2u {
+    if bit_check(instances.motion, 1u) {
         y_gain += gain;
     }
-    if (0x4u & instances.motion) == 0x4u {
+    if bit_check(instances.motion, 2u) {
         z_gain += gain;
     }
-    if (0x8u & instances.motion) == 0x8u {
+    if bit_check(instances.motion, 3u) {
         x_rotate = 1.0f;
     }
-    if (0x10u & instances.motion) == 0x10u {
+    if bit_check(instances.motion, 4u) {
         y_rotate = 1.0f;
     }
-    if (0x20u & instances.motion) == 0x20u {
+    if bit_check(instances.motion, 5u) {
         z_rotate = 1.0f;
     }
 
