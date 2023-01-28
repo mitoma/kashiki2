@@ -7,7 +7,8 @@ use log::{debug, info};
 use crate::{
     color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
-    instances::{GlyphInstance, GlyphInstances, MotionFlags},
+    instances::{GlyphInstance, GlyphInstances},
+    motion::MotionFlags,
     time::now_millis,
 };
 
@@ -107,7 +108,7 @@ impl MultiLineText {
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
                 get_color(color_theme, c),
-                MotionFlags::empty(),
+                MotionFlags::ZERO_MOTION,
                 now_millis(),
             );
             instance.push(i);
@@ -223,7 +224,7 @@ impl PlaneTextReader {
                         cgmath::Deg(0.0),
                     ),
                     get_color(color_theme, c),
-                    MotionFlags::empty(),
+                    MotionFlags::ZERO_MOTION,
                     now_millis(),
                 );
                 x += glyph_width.right();

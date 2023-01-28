@@ -1,67 +1,6 @@
-use bitflags::bitflags;
 use log::info;
 
-// motion 仕様
-// | bit |
-// |   1 | ease_in
-// |   2 | ease_out
-// |     |
-// |    1    |     2    |
-// | ease_in | ease_out | ease_in | ease_out |
-// | easing function type                    |
-//
-
-// easing_function
-// 0000_0000: liner
-// in
-// 1000_0001: sin
-// 1000_0010: quad
-// 1000_0011: cubic
-// 1000_0100: quart
-// 1000_0101: quint
-// 1000_0110: expo
-// 1000_0111: circ
-// 1000_1000: back
-// 1000_1001: elastic
-// 1000_1010: bounce
-// out
-// 0100_0001: sin
-// 0100_0010: quad
-// 0100_0011: cubic
-// 0100_0100: quart
-// 0100_0101: quint
-// 0100_0110: expo
-// 0100_0111: circ
-// 0100_1000: back
-// 0100_1001: elastic
-// 0100_1010: bounce
-// in-out
-// 1100_0001: sin
-// 1100_0010: quad
-// 1100_0011: cubic
-// 1100_0100: quart
-// 1100_0101: quint
-// 1100_0110: expo
-// 1100_0111: circ
-// 1100_1000: back
-// 1100_1001: elastic
-// 1100_1010: bounce
-
-bitflags! {
-    pub struct MotionFlags: u32 {
-        const WAVE_X =    0b_0000_0000_0000_0000_0000_0000_0000_0001;
-        const WAVE_Y =    0b_0000_0000_0000_0000_0000_0000_0000_0010;
-        const WAVE_Z =    0b_0000_0000_0000_0000_0000_0000_0000_0100;
-        const ROTATE_X =  0b_0000_0000_0000_0000_0000_0000_0000_1000;
-        const ROTATE_Y =  0b_0000_0000_0000_0000_0000_0000_0001_0000;
-        const ROTATE_Z =  0b_0000_0000_0000_0000_0000_0000_0010_0000;
-
-        // 2,147,483,648
-        const EASE_IN  =  0b_1000_0000_0000_0000_0000_0000_0000_0000;
-        // 1,073,741,824
-        const EASE_OUT =  0b_0100_0000_0000_0000_0000_0000_0000_0000;
-    }
-}
+use crate::motion::MotionFlags;
 
 pub struct GlyphInstance {
     position: cgmath::Vector3<f32>,
@@ -96,7 +35,7 @@ impl GlyphInstance {
                 * cgmath::Matrix4::from(self.rotation))
             .into(),
             color: self.color,
-            motion: self.motion.bits,
+            motion: self.motion.into(),
             start_time: self.start_time,
         }
     }

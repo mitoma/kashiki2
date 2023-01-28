@@ -27,6 +27,15 @@ fn bit_check(value: u32, n: u32) -> bool {
     return (value & (1u << n)) != 0u;
 }
 
+/// 0000_0000_0000_0000_0000_0000_0000_0000
+/// u32 から一部の値を数値として取ってくる
+/// upper 
+fn bit_range(value: u32, upper: u32, lower: u32) -> u32 {
+    let left_shift = 31u - upper;
+    let right_shift = left_shift + lower;
+    return (value << left_shift) >> right_shift;
+}
+
 // easing function
 fn internal_easing_func(value: f32, easing_type: u32) -> f32 {
     if easing_type == EASING_LINER {
@@ -158,55 +167,98 @@ fn vs_main(
         instances.model_matrix_2,
         instances.model_matrix_3,
     );
-    let duration: u32 = 500u;
+    let motion = instances.motion;
+    let has_motion = bit_check(instances.motion, 31u);
+    let ease_in = bit_check(instances.motion, 30u);
+    let ease_out = bit_check(instances.motion, 29u);
+    let is_loop = bit_check(motion, 28u);
+
+    // motion detail
+    let set_minus = bit_check(motion, 27u);
+    let to_current = bit_check(motion, 26u);
+    let use_distance = bit_check(motion, 25u);
+
+    let easing_type = bit_range(motion, 23u, 20u);
+    let duration = bit_range(motion, 19u, 12u) * 10u;
+    let gain = f32(bit_range(motion, 11u, 8u)) * 0.1f;
+    let distance = distance(model.position.xy, vec2(0f, 0f));
+
     var v = 0f;
-    let mogmog = u_buffer.u_time - instances.start_time;
-    if mogmog <= 0u {
+    var easing_position = u_buffer.u_time - instances.start_time;
+    if is_loop {
+        if (easing_position / duration) % 2u == 0u {
+            easing_position = easing_position % duration;
+        } else {
+            easing_position = duration - (easing_position % duration);
+        }
+    }
+
+    if easing_position <= 0u {
         v = 0f;
-    } else if mogmog >= duration {
+    } else if easing_position >= duration {
         v = 1f;
     } else {
-        v = f32(mogmog) / f32(duration);
+        v = f32(easing_position) / f32(duration);
     }
-    v = easing_function(v, EASING_BOUNCE, true, true);
 
-    let gain = v / 2f;
-    //let gain = (sin(v * DOUBLE_PI) * model.position.y * 0.5);
+    var calced_gain = 0f;
+    if to_current {
+        // to_current が true の場合は動作が収束の方向に向かう
+        calced_gain = easing_function(1f - v, easing_type, ease_out, ease_in) * gain;
+    } else {
+        calced_gain = easing_function(v, easing_type, ease_in, ease_out) * gain;
+    }
+
+    if use_distance {
+        calced_gain = calced_gain * distance;
+    }
+    if set_minus {
+        calced_gain = -calced_gain;
+    }
+
     var x_gain: f32 = 0f;
     var y_gain: f32 = 0f;
     var z_gain: f32 = 0f;
     var x_rotate: f32 = 0f;
     var y_rotate: f32 = 0f;
     var z_rotate: f32 = 0f;
+    var strech_x: f32 = 1f;
+    var strech_y: f32 = 1f;
 
-    if bit_check(instances.motion, 0u) {
-        x_gain += gain;
+    if bit_check(motion, 0u) {
+        x_gain += calced_gain;
     }
-    if bit_check(instances.motion, 1u) {
-        y_gain += gain;
+    if bit_check(motion, 1u) {
+        y_gain += calced_gain;
     }
-    if bit_check(instances.motion, 2u) {
-        z_gain += gain;
+    if bit_check(motion, 2u) {
+        z_gain += calced_gain;
     }
-    if bit_check(instances.motion, 3u) {
+    if bit_check(motion, 3u) {
         x_rotate = 1.0f;
     }
-    if bit_check(instances.motion, 4u) {
+    if bit_check(motion, 4u) {
         y_rotate = 1.0f;
     }
-    if bit_check(instances.motion, 5u) {
+    if bit_check(motion, 5u) {
         z_rotate = 1.0f;
+    }
+    if bit_check(motion, 6u) {
+        strech_x += calced_gain;
+    }
+    if bit_check(motion, 7u) {
+        strech_y += calced_gain;
     }
 
     var moved = vec4<f32>(
-        model.position.x + x_gain,
-        model.position.y + y_gain,
+        (model.position.x * strech_x) + x_gain,
+        (model.position.y * strech_y) + y_gain,
         0.0 + z_gain,
         1.0
     );
 
     if x_rotate != 0f || y_rotate != 0f || z_rotate != 0f {
-        moved = vec4<f32>(rotate(moved.xyz, sin(v * 3.14 * 2f) * distance(moved.xy, vec2<f32>(0f, 0f)) * 4f, vec3<f32>(x_rotate, y_rotate, z_rotate)), 1.0);
+        moved = vec4<f32>(rotate(moved.xyz, calced_gain * DOUBLE_PI, vec3<f32>(x_rotate, y_rotate, z_rotate)), 1.0);
     }
 
     var out: VertexOutput;

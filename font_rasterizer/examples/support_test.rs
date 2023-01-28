@@ -5,7 +5,8 @@ use cgmath::Rotation3;
 use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::SolarizedDark,
-    instances::{GlyphInstance, GlyphInstances, MotionFlags},
+    instances::{GlyphInstance, GlyphInstances},
+    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
@@ -36,41 +37,32 @@ struct SingleCharCallback {
     camera: Camera,
     camera_controller: CameraController,
     glyphs: Vec<GlyphInstances>,
-    motion: MotionType,
+    motion: MyMotion,
 }
 
 #[derive(Debug)]
-enum MotionType {
+enum MyMotion {
     None,
     WaveX,
-    WaveY,
-    WaveZ,
-    RotateX,
-    RotateY,
-    RotateZ,
 }
 
-impl MotionType {
+impl MyMotion {
     fn next(&self) -> Self {
         match self {
             Self::None => Self::WaveX,
-            Self::WaveX => Self::WaveY,
-            Self::WaveY => Self::WaveZ,
-            Self::WaveZ => Self::RotateX,
-            Self::RotateX => Self::RotateY,
-            Self::RotateY => Self::RotateZ,
-            Self::RotateZ => Self::None,
+            Self::WaveX => Self::None,
         }
     }
     fn motion_flags(&self) -> MotionFlags {
         match self {
-            Self::None => MotionFlags::empty(),
-            Self::WaveX => MotionFlags::WAVE_X,
-            Self::WaveY => MotionFlags::WAVE_Y,
-            Self::WaveZ => MotionFlags::WAVE_Z,
-            Self::RotateX => MotionFlags::ROTATE_X,
-            Self::RotateY => MotionFlags::ROTATE_Y,
-            Self::RotateZ => MotionFlags::ROTATE_Z,
+            Self::None => MotionFlags::ZERO_MOTION,
+            Self::WaveX => MotionFlags::new(
+                MotionType::Loop(EasingFuncType::Quart),
+                MotionDetail::TO_CURRENT,
+                30,
+                2,
+                MotionTarget::WAVE_Y | MotionTarget::STRETCH_X,
+            ),
         }
     }
 }
@@ -90,7 +82,7 @@ impl SingleCharCallback {
             ),
             camera_controller: CameraController::new(10.0),
             glyphs: Vec::new(),
-            motion: MotionType::None,
+            motion: MyMotion::None,
         }
     }
 }
