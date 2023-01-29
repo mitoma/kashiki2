@@ -57,10 +57,10 @@ impl MyMotion {
         match self {
             Self::None => MotionFlags::ZERO_MOTION,
             Self::WaveX => MotionFlags::new(
-                MotionType::Loop(EasingFuncType::Quart),
-                MotionDetail::TO_CURRENT,
-                30,
-                2,
+                MotionType::EaseOut(EasingFuncType::Bounce, true),
+                MotionDetail::TO_CURRENT | MotionDetail::USE_DISTANCE,
+                100,
+                10,
                 MotionTarget::WAVE_Y | MotionTarget::STRETCH_X,
             ),
         }

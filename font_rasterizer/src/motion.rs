@@ -93,28 +93,34 @@ impl From<MotionFlags> for u32 {
 
 pub enum MotionType {
     None,
-    EaseIn(EasingFuncType),
-    EaseOut(EasingFuncType),
-    EaseInOut(EasingFuncType),
-    Loop(EasingFuncType),
+    EaseIn(EasingFuncType, bool),
+    EaseOut(EasingFuncType, bool),
+    EaseInOut(EasingFuncType, bool),
 }
 
 impl MotionType {
     fn mask(&self) -> u32 {
         match self {
             MotionType::None => 0b_0000_0000,
-            MotionType::EaseIn { .. } => 0b_0000_1100,
-            MotionType::EaseOut(_) => 0b_0000_1010,
-            MotionType::EaseInOut(_) => 0b_0000_1110,
-            MotionType::Loop(_) => 0b_0000_1111,
+            MotionType::EaseIn(_, l) => 0b_0000_1100 + Self::loopbit(*l),
+            MotionType::EaseOut(_, l) => 0b_0000_1010 + Self::loopbit(*l),
+            MotionType::EaseInOut(_, l) => 0b_0000_1110 + Self::loopbit(*l),
         }
     }
+
+    fn loopbit(l: bool) -> u32 {
+        if l {
+            1
+        } else {
+            0
+        }
+    }
+
     fn easing_func_mask(&self) -> u32 {
         match self {
-            MotionType::EaseIn(func) => func.mask(),
-            MotionType::EaseOut(func) => func.mask(),
-            MotionType::EaseInOut(func) => func.mask(),
-            MotionType::Loop(func) => func.mask(),
+            MotionType::EaseIn(func, _) => func.mask(),
+            MotionType::EaseOut(func, _) => func.mask(),
+            MotionType::EaseInOut(func, _) => func.mask(),
             _ => 0,
         }
     }
@@ -179,7 +185,7 @@ mod test {
     #[test]
     fn motion() {
         let flags = MotionFlags::new(
-            MotionType::EaseOut(EasingFuncType::Bounce),
+            MotionType::EaseOut(EasingFuncType::Bounce, false),
             MotionDetail::empty(),
             100,
             1,
