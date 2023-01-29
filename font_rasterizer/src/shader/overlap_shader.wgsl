@@ -175,7 +175,7 @@ fn vs_main(
 
     // motion detail
     let set_minus = bit_check(motion, 27u);
-    let to_current = bit_check(motion, 26u);
+    var to_current = bit_check(motion, 26u);
     let use_distance = bit_check(motion, 25u);
 
     let easing_type = bit_range(motion, 23u, 20u);
@@ -186,11 +186,10 @@ fn vs_main(
     var v = 0f;
     var easing_position = u_buffer.u_time - instances.start_time;
     if is_loop {
-        if (easing_position / duration) % 2u == 0u {
-            easing_position = easing_position % duration;
-        } else {
-            easing_position = duration - (easing_position % duration);
+        if (easing_position / duration) % 2u == 1u {
+            to_current = !to_current;
         }
+        easing_position = easing_position % duration;
     }
 
     if easing_position <= 0u {

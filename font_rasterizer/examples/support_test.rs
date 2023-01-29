@@ -58,10 +58,10 @@ impl MyMotion {
             Self::None => MotionFlags::ZERO_MOTION,
             Self::WaveX => MotionFlags::new(
                 MotionType::EaseOut(EasingFuncType::Bounce, true),
-                MotionDetail::TO_CURRENT | MotionDetail::USE_DISTANCE,
+                MotionDetail::TO_CURRENT | MotionDetail::SET_MINUS,
                 100,
                 10,
-                MotionTarget::WAVE_Y | MotionTarget::STRETCH_X,
+                MotionTarget::WAVE_Y | MotionTarget::STRETCH_X | MotionTarget::ROTATE_Y,
             ),
         }
     }
