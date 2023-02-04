@@ -103,6 +103,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "bezier_converter"
+version = "0.1.0"
+source = "git+https://github.com/mitoma/sandbox?branch=main#386cd704ec5b00bfcd5a5efbe39399d3682ef6e9"
+dependencies = [
+ "cgmath",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -646,6 +654,7 @@ name = "font_rasterizer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bezier_converter",
  "bitflags",
  "bytemuck",
  "cfg-if 1.0.0",
@@ -1297,7 +1306,7 @@ dependencies = [
 [[package]]
 name = "nenobi"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#2765c5c19bda7f4b2e87ab9cf5b81a9b8b1568e3"
+source = "git+https://github.com/mitoma/sandbox?branch=main#386cd704ec5b00bfcd5a5efbe39399d3682ef6e9"
 dependencies = [
  "instant",
  "num-traits",

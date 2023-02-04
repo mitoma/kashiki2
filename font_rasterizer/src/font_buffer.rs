@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::Context;
 
+use bezier_converter::CubicBezier;
 use log::{debug, info};
 use ttf_parser::{Face, OutlineBuilder};
 use unicode_width::UnicodeWidthChar;
@@ -207,8 +208,24 @@ impl OutlineBuilder for GlyphVertexBuilder {
         self.current_index += 2;
     }
 
-    fn curve_to(&mut self, _x1: f32, _y1: f32, _x2: f32, _y2: f32, _x: f32, _y: f32) {
-        todo!("実装予定無し！(OpenTypeをサポートしたいときには必要かもね)")
+    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+        // 3 次ベジエを 2 次ベジエに近似する
+        let last = &self.vertex[(self.current_index - 1) as usize];
+        let cb = CubicBezier {
+            x0: last.x,
+            y0: last.y,
+            x1: x,
+            y1: y,
+            cx0: x1,
+            cy0: y1,
+            cx1: x2,
+            cy1: y2,
+        };
+        let qbs = cb.to_quadratic();
+        debug!("cubic to quadratic: 1 -> {}", qbs.len());
+        for qb in qbs.iter() {
+            self.quad_to(qb.cx0, qb.cy0, qb.x1, qb.y1)
+        }
     }
 
     fn close(&mut self) {
