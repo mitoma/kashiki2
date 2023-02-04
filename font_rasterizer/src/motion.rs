@@ -167,9 +167,9 @@ bitflags! {
 
 bitflags! {
     pub struct MotionTarget: u8 {
-        const WAVE_X =      0b_0000_0001;
-        const WAVE_Y =      0b_0000_0010;
-        const WAVE_Z =      0b_0000_0100;
+        const MOVE_X =      0b_0000_0001;
+        const MOVE_Y =      0b_0000_0010;
+        const MOVE_Z =      0b_0000_0100;
         const ROTATE_X =    0b_0000_1000;
         const ROTATE_Y =    0b_0001_0000;
         const ROTATE_Z =    0b_0010_0000;
@@ -189,7 +189,7 @@ mod test {
             MotionDetail::empty(),
             100,
             1,
-            MotionTarget::WAVE_X | MotionTarget::WAVE_Y,
+            MotionTarget::MOVE_X | MotionTarget::MOVE_Y,
         );
         println!("{:#034b}", flags.0);
     }
