@@ -176,9 +176,8 @@ fn vs_main(
     let is_loop = bit_check(motion, 28u);
 
     // motion detail
-    let set_minus = bit_check(motion, 27u);
-    var to_current = bit_check(motion, 26u);
-    let use_distance = bit_check(motion, 25u);
+    var to_current = bit_check(motion, 27u);
+    let use_distance = bit_check(motion, 26u);
 
     let easing_type = bit_range(motion, 19u, 16u);
     let duration = instances.duration;
@@ -212,9 +211,6 @@ fn vs_main(
 
     if use_distance {
         calced_gain = calced_gain * distance;
-    }
-    if set_minus {
-        calced_gain = -calced_gain;
     }
 
     var x_gain: f32 = 0f;

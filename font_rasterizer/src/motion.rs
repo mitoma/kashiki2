@@ -7,9 +7,9 @@ use bitflags::bitflags;
 /// 29 : ease_out
 /// 28 : loop
 /// ----
-/// 27 : set_minus
-/// 26 : to_current
-/// 25 : use_distance
+/// 27 : to_current
+/// 26 : use_distance
+/// 25 :
 /// 24 :
 /// ----
 /// 23 :
@@ -153,9 +153,8 @@ impl EasingFuncType {
 
 bitflags! {
     pub struct MotionDetail :u8{
-        const SET_MINUS    = 0b_0000_1000;
-        const TO_CURRENT   = 0b_0000_0100;
-        const USE_DISTANCE = 0b_0000_0010;
+        const TO_CURRENT   = 0b_0000_1000;
+        const USE_DISTANCE = 0b_0000_0100;
     }
 }
 
