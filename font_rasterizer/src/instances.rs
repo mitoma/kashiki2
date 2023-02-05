@@ -1,3 +1,5 @@
+use cgmath::num_traits::ToPrimitive;
+use instant::Duration;
 use log::info;
 
 use crate::motion::MotionFlags;
@@ -9,7 +11,7 @@ pub struct GlyphInstance {
     motion: MotionFlags,
     start_time: u32,
     gain: f32,
-    duration: u32,
+    duration: Duration,
 }
 
 impl GlyphInstance {
@@ -20,7 +22,7 @@ impl GlyphInstance {
         motion: MotionFlags,
         start_time: u32,
         gain: f32,
-        duration: u32,
+        duration: Duration,
     ) -> Self {
         Self {
             position,
@@ -44,7 +46,7 @@ impl GlyphInstance {
             motion: self.motion.into(),
             start_time: self.start_time,
             gain: self.gain,
-            duration: self.duration,
+            duration: self.duration.as_millis().to_u32().unwrap(),
         }
     }
 }

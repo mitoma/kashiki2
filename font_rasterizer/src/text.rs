@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::Context;
 use cgmath::{num_traits::ToPrimitive, Rotation3};
+use instant::Duration;
 use log::{debug, info};
 
 use crate::{
@@ -111,7 +112,7 @@ impl MultiLineText {
                 MotionFlags::ZERO_MOTION,
                 now_millis(),
                 0.0,
-                0,
+                Duration::from_millis(0),
             );
             instance.push(i);
             x += glyph_width.right();
@@ -229,7 +230,7 @@ impl PlaneTextReader {
                     MotionFlags::ZERO_MOTION,
                     now_millis(),
                     0.0,
-                    0,
+                    Duration::from_millis(0),
                 );
                 x += glyph_width.right();
 

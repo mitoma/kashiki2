@@ -1,3 +1,4 @@
+use instant::Duration;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -101,7 +102,7 @@ impl SimpleStateCallback for SingleCharCallback {
             self.motion.motion_flags(),
             now_millis(),
             2.0,
-            1000,
+            Duration::from_millis(1000),
         );
         let mut instance = GlyphInstances::new('あ', Vec::new(), device);
         instance.push(value);
@@ -136,7 +137,7 @@ impl SimpleStateCallback for SingleCharCallback {
                             self.motion.motion_flags(),
                             now_millis(),
                             2.0,
-                            1000,
+                            Duration::from_millis(1000),
                         ))
                     }
                 })
