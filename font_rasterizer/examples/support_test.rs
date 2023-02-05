@@ -44,24 +44,29 @@ struct SingleCharCallback {
 enum MyMotion {
     None,
     WaveX,
+    WaveY,
 }
 
 impl MyMotion {
     fn next(&self) -> Self {
         match self {
             Self::None => Self::WaveX,
-            Self::WaveX => Self::None,
+            Self::WaveX => Self::WaveY,
+            Self::WaveY => Self::None,
         }
     }
     fn motion_flags(&self) -> MotionFlags {
         match self {
             Self::None => MotionFlags::ZERO_MOTION,
             Self::WaveX => MotionFlags::new(
-                MotionType::EaseOut(EasingFuncType::Sin, true),
-                MotionDetail::TO_CURRENT | MotionDetail::SET_MINUS,
-                100,
-                10,
-                MotionTarget::STRETCH_X | MotionTarget::ROTATE_Z,
+                MotionType::EaseOut(EasingFuncType::Sin, false),
+                MotionDetail::empty(),
+                MotionTarget::ROTATE_Z_PLUS,
+            ),
+            Self::WaveY => MotionFlags::new(
+                MotionType::EaseOut(EasingFuncType::Sin, false),
+                MotionDetail::USE_DISTANCE,
+                MotionTarget::ROTATE_Z_MINUX,
             ),
         }
     }
@@ -95,6 +100,8 @@ impl SimpleStateCallback for SingleCharCallback {
             SolarizedDark.cyan().get_color(),
             self.motion.motion_flags(),
             now_millis(),
+            2.0,
+            1000,
         );
         let mut instance = GlyphInstances::new('あ', Vec::new(), device);
         instance.push(value);
@@ -128,6 +135,8 @@ impl SimpleStateCallback for SingleCharCallback {
                             SolarizedDark.cyan().get_color(),
                             self.motion.motion_flags(),
                             now_millis(),
+                            2.0,
+                            1000,
                         ))
                     }
                 })

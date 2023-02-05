@@ -12,35 +12,35 @@ use bitflags::bitflags;
 /// 25 : use_distance
 /// 24 :
 /// ----
-/// 23 : 23 - 20 は easing function のタイプを指定
+/// 23 :
 /// 22 :
 /// 21 :
 /// 20 :
 /// ----
-/// 19 : 19 - 12 は duration を 0 ms - 2550 ms までの範囲で指定
+/// 19 : 19 - 16 は easing function のタイプを指定
 /// 18 :
 /// 17 :
 /// 16 :
 /// ----
-/// 15 :
-/// 14 :
-/// 13 :
-/// 12 :
+/// 15 : STRETCH_Y_MINUS
+/// 14 : STRETCH_Y_PLUS
+/// 13 : STRETCH_X_MINUS
+/// 12 : STRETCH_X_PLUS
 /// ----
-/// 11 : 11 - 08 は gain を 0倍 - 4倍 まで(0.25刻み)
-/// 10 :
-/// 09 :
-/// 08 :
+/// 11 : ROTATE_Z_MINUS
+/// 10 : ROTATE_Z_PLUS
+/// 09 : ROTATE_Y_MINUS
+/// 08 : ROTATE_Y_PLUS
 /// ----
-/// 07 : STRETCH_Y
-/// 06 : STRETCH_X
-/// 05 : ROTATE_Z
-/// 04 : ROTATE_Y
+/// 07 : ROTATE_X_MINUS
+/// 06 : ROTATE_X_PLUS
+/// 05 : MOVE_Z_MINUS
+/// 04 : MOVE_Z_PLUS
 /// ----
-/// 03 : ROTATE_X
-/// 02 : MOVE_Z
-/// 01 : MOVE_Y
-/// 00 : MOVE_X
+/// 03 : MOVE_Y_MINUS
+/// 02 : MOVE_Y_PLUS
+/// 01 : MOVE_X_MINUS
+/// 00 : MOVE_X_PLUS
 ///
 /// easing function
 /// 0000: liner
@@ -69,17 +69,11 @@ impl MotionFlags {
     pub fn new(
         motion_type: MotionType,
         motion_detail: MotionDetail,
-        duration: u8,
-        gain: u8,
         motion_target: MotionTarget,
     ) -> MotionFlags {
-        let gain = if gain >= 16 { 15 } else { gain };
-
         let value = (motion_type.mask() << 28)
             + ((motion_detail.bits as u32) << 24)
-            + (motion_type.easing_func_mask() << 20)
-            + ((duration as u32) << 12)
-            + ((gain as u32) << 8)
+            + (motion_type.easing_func_mask() << 16)
             + (motion_target.bits as u32);
         MotionFlags(value)
     }
@@ -166,15 +160,23 @@ bitflags! {
 }
 
 bitflags! {
-    pub struct MotionTarget: u8 {
-        const MOVE_X =      0b_0000_0001;
-        const MOVE_Y =      0b_0000_0010;
-        const MOVE_Z =      0b_0000_0100;
-        const ROTATE_X =    0b_0000_1000;
-        const ROTATE_Y =    0b_0001_0000;
-        const ROTATE_Z =    0b_0010_0000;
-        const STRETCH_X =   0b_0100_0000;
-        const STRETCH_Y =   0b_1000_0000;
+    pub struct MotionTarget: u16 {
+        const MOVE_X_PLUS     = 0b_0000_0000_0000_0001;
+        const MOVE_X_MINUS    = 0b_0000_0000_0000_0010;
+        const MOVE_Y_PLUS     = 0b_0000_0000_0000_0100;
+        const MOVE_Y_MINUS    = 0b_0000_0000_0000_1000;
+        const MOVE_Z_PLUS     = 0b_0000_0000_0001_0000;
+        const MOVE_Z_MINUS    = 0b_0000_0000_0010_0000;
+        const ROTATE_X_PLUS   = 0b_0000_0000_0100_0000;
+        const ROTATE_X_MINUX  = 0b_0000_0000_1000_0000;
+        const ROTATE_Y_PLUS   = 0b_0000_0001_0000_0000;
+        const ROTATE_Y_MINUX  = 0b_0000_0010_0000_0000;
+        const ROTATE_Z_PLUS   = 0b_0000_0100_0000_0000;
+        const ROTATE_Z_MINUX  = 0b_0000_1000_0000_0000;
+        const STRETCH_X_PLUS  = 0b_0001_0000_0000_0000;
+        const STRETCH_X_MINUS = 0b_0010_0000_0000_0000;
+        const STRETCH_Y_PLUS  = 0b_0100_0000_0000_0000;
+        const STRETCH_Y_MINUS = 0b_1000_0000_0000_0000;
     }
 }
 
@@ -187,9 +189,7 @@ mod test {
         let flags = MotionFlags::new(
             MotionType::EaseOut(EasingFuncType::Bounce, false),
             MotionDetail::empty(),
-            100,
-            1,
-            MotionTarget::MOVE_X | MotionTarget::MOVE_Y,
+            MotionTarget::MOVE_X_MINUS | MotionTarget::MOVE_Y_MINUS,
         );
         println!("{:#034b}", flags.0);
     }

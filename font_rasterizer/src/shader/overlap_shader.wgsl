@@ -148,6 +148,8 @@ struct InstancesInput {
     @location(9) color: vec3<f32>,
     @location(10) motion: u32,
     @location(11) start_time: u32,
+    @location(12) gain: f32,
+    @location(13) duration: u32,
 };
 
 struct VertexOutput {
@@ -178,9 +180,9 @@ fn vs_main(
     var to_current = bit_check(motion, 26u);
     let use_distance = bit_check(motion, 25u);
 
-    let easing_type = bit_range(motion, 23u, 20u);
-    let duration = bit_range(motion, 19u, 12u) * 10u;
-    let gain = f32(bit_range(motion, 11u, 8u)) * 0.1f;
+    let easing_type = bit_range(motion, 19u, 16u);
+    let duration = instances.duration;
+    let gain = instances.gain;
     let distance = distance(model.position.xy, vec2(0f, 0f));
 
     var v = 0f;
@@ -228,25 +230,49 @@ fn vs_main(
         x_gain += calced_gain;
     }
     if bit_check(motion, 1u) {
-        y_gain += calced_gain;
+        x_gain -= calced_gain;
     }
     if bit_check(motion, 2u) {
-        z_gain += calced_gain;
+        y_gain += calced_gain;
     }
     if bit_check(motion, 3u) {
-        x_rotate = 1.0f;
+        y_gain -= calced_gain;
     }
     if bit_check(motion, 4u) {
-        y_rotate = 1.0f;
+        z_gain += calced_gain;
     }
     if bit_check(motion, 5u) {
-        z_rotate = 1.0f;
+        z_gain -= calced_gain;
     }
     if bit_check(motion, 6u) {
-        strech_x += calced_gain;
+        x_rotate = 1.0f;
     }
     if bit_check(motion, 7u) {
+        x_rotate = -1.0f;
+    }
+    if bit_check(motion, 8u) {
+        y_rotate = 1.0f;
+    }
+    if bit_check(motion, 9u) {
+        y_rotate = -1.0f;
+    }
+    if bit_check(motion, 10u) {
+        z_rotate = 1.0f;
+    }
+    if bit_check(motion, 11u) {
+        z_rotate = -1.0f;
+    }
+    if bit_check(motion, 12u) {
+        strech_x += calced_gain;
+    }
+    if bit_check(motion, 13u) {
+        strech_x -= calced_gain;
+    }
+    if bit_check(motion, 14u) {
         strech_y += calced_gain;
+    }
+    if bit_check(motion, 15u) {
+        strech_y -= calced_gain;
     }
 
     var moved = vec4<f32>(

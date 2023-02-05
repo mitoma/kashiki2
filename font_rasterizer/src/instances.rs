@@ -8,6 +8,8 @@ pub struct GlyphInstance {
     color: [f32; 3],
     motion: MotionFlags,
     start_time: u32,
+    gain: f32,
+    duration: u32,
 }
 
 impl GlyphInstance {
@@ -17,6 +19,8 @@ impl GlyphInstance {
         color: [f32; 3],
         motion: MotionFlags,
         start_time: u32,
+        gain: f32,
+        duration: u32,
     ) -> Self {
         Self {
             position,
@@ -24,6 +28,8 @@ impl GlyphInstance {
             color,
             motion,
             start_time,
+            gain,
+            duration,
         }
     }
 }
@@ -37,6 +43,8 @@ impl GlyphInstance {
             color: self.color,
             motion: self.motion.into(),
             start_time: self.start_time,
+            gain: self.gain,
+            duration: self.duration,
         }
     }
 }
@@ -129,6 +137,8 @@ pub(crate) struct InstanceRaw {
     color: [f32; 3],
     motion: u32,
     start_time: u32,
+    gain: f32,
+    duration: u32,
 }
 
 impl InstanceRaw {
@@ -180,6 +190,18 @@ impl InstanceRaw {
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 20]>() as wgpu::BufferAddress,
                     shader_location: 11,
+                    format: wgpu::VertexFormat::Uint32,
+                },
+                // gain
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 21]>() as wgpu::BufferAddress,
+                    shader_location: 12,
+                    format: wgpu::VertexFormat::Float32,
+                },
+                // duration
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 22]>() as wgpu::BufferAddress,
+                    shader_location: 13,
                     format: wgpu::VertexFormat::Uint32,
                 },
             ],

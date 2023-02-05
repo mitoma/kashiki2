@@ -110,6 +110,8 @@ impl MultiLineText {
                 get_color(color_theme, c),
                 MotionFlags::ZERO_MOTION,
                 now_millis(),
+                0.0,
+                0,
             );
             instance.push(i);
             x += glyph_width.right();
@@ -226,6 +228,8 @@ impl PlaneTextReader {
                     get_color(color_theme, c),
                     MotionFlags::ZERO_MOTION,
                     now_millis(),
+                    0.0,
+                    0,
                 );
                 x += glyph_width.right();
 
