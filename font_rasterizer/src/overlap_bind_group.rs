@@ -1,5 +1,4 @@
-use cgmath::{num_traits::ToPrimitive, SquareMatrix};
-use instant::SystemTime;
+use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
 use crate::time::now_millis;
@@ -76,9 +75,6 @@ impl OverlapBindGroup {
 
     pub fn update(&mut self, view_proj: [[f32; 4]; 4]) {
         self.uniforms.view_proj = view_proj;
-        let d = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default();
         self.uniforms.time = now_millis();
     }
 

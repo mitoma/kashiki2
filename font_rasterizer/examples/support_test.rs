@@ -80,7 +80,7 @@ impl SingleCharCallback {
                 (0.0, 0.0, 1.0).into(),
                 (0.0, 0.0, 0.0).into(),
                 cgmath::Vector3::unit_y(),
-                800 as f32 / 600 as f32,
+                800_f32 / 600_f32,
                 // fovy は視野角。ここでは45度を指定
                 45.0,
                 0.1,
