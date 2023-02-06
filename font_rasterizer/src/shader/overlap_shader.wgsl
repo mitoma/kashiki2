@@ -177,12 +177,16 @@ fn vs_main(
 
     // motion detail
     var to_current = bit_check(motion, 27u);
-    let use_distance = bit_check(motion, 26u);
+    let use_x_distance = bit_check(motion, 26u);
+    let use_y_distance = bit_check(motion, 25u);
+    let use_xy_distance = bit_check(motion, 24u);
 
     let easing_type = bit_range(motion, 19u, 16u);
     let duration = instances.duration;
     let gain = instances.gain;
-    let distance = distance(model.position.xy, vec2(0f, 0f));
+    let x_distance = model.position.x;
+    let y_distance = model.position.y;
+    let xy_distance = distance(model.position.xy, vec2<f32>(0f, 0f));
 
     var v = 0f;
     var easing_position = u_buffer.u_time - instances.start_time;
@@ -209,8 +213,14 @@ fn vs_main(
         calced_gain = easing_function(v, easing_type, ease_in, ease_out) * gain;
     }
 
-    if use_distance {
-        calced_gain = calced_gain * distance;
+    if use_x_distance {
+        calced_gain = calced_gain * x_distance;
+    }
+    if use_y_distance {
+        calced_gain = calced_gain * y_distance;
+    }
+    if use_xy_distance {
+        calced_gain = calced_gain * xy_distance;
     }
 
     var x_gain: f32 = 0f;

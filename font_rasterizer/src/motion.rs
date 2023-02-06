@@ -153,8 +153,10 @@ impl EasingFuncType {
 
 bitflags! {
     pub struct MotionDetail :u8{
-        const TO_CURRENT   = 0b_0000_1000;
-        const USE_DISTANCE = 0b_0000_0100;
+        const TO_CURRENT      = 0b_0000_1000;
+        const USE_X_DISTANCE  = 0b_0000_0100;
+        const USE_Y_DISTANCE  = 0b_0000_0010;
+        const USE_XY_DISTANCE = 0b_0000_0001;
     }
 }
 
