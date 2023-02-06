@@ -66,7 +66,7 @@ impl MyMotion {
             ),
             Self::WaveY => MotionFlags::new(
                 MotionType::EaseOut(EasingFuncType::Sin, false),
-                MotionDetail::USE_DISTANCE,
+                MotionDetail::USE_XY_DISTANCE,
                 MotionTarget::ROTATE_Z_MINUX,
             ),
         }
