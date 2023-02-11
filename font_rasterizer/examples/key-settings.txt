@@ -1,0 +1,37 @@
+# key setting
+Backspace system:backspace
+Back system:backspace
+Delete system:delete
+Return system:return
+
+# allow setting.
+Right system:forward
+Left system:back
+Down system:next
+Up system:previous
+
+# emacs style keybinds
+C-A system:head
+C-E system:last
+C-F system:forward
+C-B system:back
+C-N system:next
+C-P system:previous
+A-S-Comma system:buffer-head
+A-S-Period system:buffer-last
+
+C-H system:backspace
+C-D system:delete
+C-M system:return
+C-Space system:mark
+S-Insert system:paste
+A-W system:copy
+C-K system:kill-ring
+C-W system:cut
+C-Y system:paste
+C-Z system:undo
+
+C-X C-C system:exit
+
+# 
+C-S-P system:command-pallet

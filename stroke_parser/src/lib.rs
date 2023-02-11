@@ -122,17 +122,13 @@ impl ActionStore {
         serde_json::to_string(&self.keybinds).unwrap()
     }
 
-    pub fn winit_event_to_action(&mut self, event: &Event<()>) -> Option<Action> {
+    pub fn winit_window_event_to_action(&mut self, event: &WindowEvent) -> Option<Action> {
         match event {
-            Event::WindowEvent {
-                event:
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(keycode),
-                                ..
-                            },
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(keycode),
                         ..
                     },
                 ..
@@ -156,17 +152,11 @@ impl ActionStore {
                 }
                 None
             }
-            Event::WindowEvent {
-                event: WindowEvent::ModifiersChanged(state),
-                ..
-            } => {
+            WindowEvent::ModifiersChanged(state) => {
                 self.current_modifier = keys::ModifiersState::from(*state);
                 None
             }
-            Event::WindowEvent {
-                event: WindowEvent::ReceivedCharacter(c),
-                ..
-            } => {
+            WindowEvent::ReceivedCharacter(c) => {
                 if c.is_control() {
                     // Enter や Backspace は Action で対応する？
                     None
@@ -174,6 +164,13 @@ impl ActionStore {
                     Some(Action::Keytype(*c))
                 }
             }
+            _ => None,
+        }
+    }
+
+    pub fn winit_event_to_action(&mut self, event: &Event<()>) -> Option<Action> {
+        match event {
+            Event::WindowEvent { event, .. } => self.winit_window_event_to_action(event),
             _ => None,
         }
     }

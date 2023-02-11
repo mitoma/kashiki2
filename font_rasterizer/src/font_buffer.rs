@@ -391,19 +391,6 @@ impl GlyphVertexBuffer {
             .map(|f| Face::parse(f, 0))
             .collect::<Result<Vec<Face>, _>>()?;
 
-        /*
-        let faces = self
-            .fonts
-            .iter()
-            .map(|f| Face::parse(f, 0))
-            .collect::<Result<Vec<Face>, _>>()?; */
-
-        /*
-        let face = Face::parse(FONT_DATA, 0)?;
-        let emoji_face = Face::parse(EMOJI_FONT_DATA, 0)?;
-        let faces = vec![face, emoji_face];
-         */
-
         // char を全て Glyph 情報に変換する
         let mut glyphs = chars
             .iter()

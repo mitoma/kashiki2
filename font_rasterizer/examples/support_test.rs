@@ -10,7 +10,7 @@ use font_rasterizer::{
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, SimpleStateCallback, SimpleStateSupport},
+    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
 use log::info;
@@ -123,7 +123,7 @@ impl SimpleStateCallback for SingleCharCallback {
             .for_each(|i| i.update_buffer(device, queue));
     }
 
-    fn input(&mut self, event: &WindowEvent) -> bool {
+    fn input(&mut self, event: &WindowEvent) -> InputResult {
         match event {
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -148,11 +148,11 @@ impl SimpleStateCallback for SingleCharCallback {
                             Duration::from_millis(1000),
                         ))
                     }
-                })
+                });
+                InputResult::InputConsumed
             }
-            _ => {}
+            _ => InputResult::Noop,
         }
-        false
     }
 
     fn resize(&mut self, width: u32, height: u32) {

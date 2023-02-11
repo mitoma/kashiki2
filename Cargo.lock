@@ -669,6 +669,8 @@ dependencies = [
  "nenobi 0.1.0 (git+https://github.com/mitoma/sandbox?branch=main)",
  "once_cell",
  "pollster",
+ "stroke_parser",
+ "text_buffer",
  "ttf-parser 0.17.1",
  "unicode-width",
  "wasm-bindgen",

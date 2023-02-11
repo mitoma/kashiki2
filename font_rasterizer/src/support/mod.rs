@@ -54,6 +54,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         .with_decorations(!support.flags.contains(Flags::NO_TITLEBAR))
         .build(&event_loop)
         .unwrap();
+    window.set_ime_allowed(true);
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -88,48 +89,51 @@ pub async fn run_support(support: SimpleStateSupport) {
                 ref event,
                 window_id,
             } if window_id == window.id() => {
-                if !state.input(event) {
-                    match event {
-                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                        WindowEvent::KeyboardInput {
-                            input:
-                                KeyboardInput {
-                                    state: ElementState::Pressed,
-                                    virtual_keycode: Some(VirtualKeyCode::Escape),
-                                    ..
-                                },
-                            ..
-                        } => {
-                            if support.flags.contains(Flags::EXIT_ON_ESC) {
-                                *control_flow = ControlFlow::Exit
+                match state.input(event) {
+                    InputResult::InputConsumed => {}
+                    InputResult::SendExit => *control_flow = ControlFlow::Exit,
+                    InputResult::Noop => {
+                        match event {
+                            WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                            WindowEvent::KeyboardInput {
+                                input:
+                                    KeyboardInput {
+                                        state: ElementState::Pressed,
+                                        virtual_keycode: Some(VirtualKeyCode::Escape),
+                                        ..
+                                    },
+                                ..
+                            } => {
+                                if support.flags.contains(Flags::EXIT_ON_ESC) {
+                                    *control_flow = ControlFlow::Exit
+                                }
                             }
-                        }
-                        WindowEvent::KeyboardInput {
-                            input:
-                                KeyboardInput {
-                                    state: ElementState::Pressed,
-                                    virtual_keycode: Some(VirtualKeyCode::F11),
-                                    ..
-                                },
-                            ..
-                        } => {
-                            if support.flags.contains(Flags::FULL_SCREEN) {
-                                match window.fullscreen() {
-                                    Some(_) => window.set_fullscreen(None),
-                                    None => {
-                                        window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+                            WindowEvent::KeyboardInput {
+                                input:
+                                    KeyboardInput {
+                                        state: ElementState::Pressed,
+                                        virtual_keycode: Some(VirtualKeyCode::F11),
+                                        ..
+                                    },
+                                ..
+                            } => {
+                                if support.flags.contains(Flags::FULL_SCREEN) {
+                                    match window.fullscreen() {
+                                        Some(_) => window.set_fullscreen(None),
+                                        None => window
+                                            .set_fullscreen(Some(Fullscreen::Borderless(None))),
                                     }
                                 }
                             }
+                            WindowEvent::Resized(physical_size) => {
+                                state.resize(*physical_size);
+                            }
+                            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                                // new_inner_size is &mut so w have to dereference it twice
+                                state.resize(**new_inner_size);
+                            }
+                            _ => {}
                         }
-                        WindowEvent::Resized(physical_size) => {
-                            state.resize(*physical_size);
-                        }
-                        WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                            // new_inner_size is &mut so w have to dereference it twice
-                            state.resize(**new_inner_size);
-                        }
-                        _ => {}
                     }
                 }
             }
@@ -155,6 +159,12 @@ pub async fn run_support(support: SimpleStateSupport) {
     });
 }
 
+pub enum InputResult {
+    InputConsumed,
+    SendExit,
+    Noop,
+}
+
 pub trait SimpleStateCallback {
     fn init(
         &mut self,
@@ -169,7 +179,7 @@ pub trait SimpleStateCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     );
-    fn input(&mut self, event: &WindowEvent) -> bool;
+    fn input(&mut self, event: &WindowEvent) -> InputResult;
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
 }
 
@@ -293,7 +303,7 @@ impl SimpleState {
         }
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
+    pub fn input(&mut self, event: &WindowEvent) -> InputResult {
         self.simple_state_callback.input(event)
     }
 
