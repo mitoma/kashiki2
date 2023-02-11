@@ -75,6 +75,19 @@ pub struct Camera {
 }
 
 impl Camera {
+    pub fn basic(aspect: (u32, u32)) -> Self {
+        Self::new(
+            (0.0, 0.0, 1.0).into(),
+            (0.0, 0.0, 0.0).into(),
+            cgmath::Vector3::unit_y(),
+            aspect.0 as f32 / aspect.1 as f32,
+            // fovy は視野角。ここでは45度を指定
+            45.0,
+            0.1,
+            200.0,
+        )
+    }
+
     pub fn new(
         eye: EasingPoint3,        // 視点の位置
         target: EasingPoint3,     // ターゲットの位置

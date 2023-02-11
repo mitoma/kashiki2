@@ -156,9 +156,19 @@ pub async fn run_support(support: SimpleStateSupport) {
 }
 
 pub trait SimpleStateCallback {
-    fn init(&mut self, device: &wgpu::Device, queue: &wgpu::Queue);
+    fn init(
+        &mut self,
+        glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    );
     fn resize(&mut self, width: u32, height: u32);
-    fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue);
+    fn update(
+        &mut self,
+        glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    );
     fn input(&mut self, event: &WindowEvent) -> bool;
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
 }
@@ -237,8 +247,8 @@ impl SimpleState {
             quarity,
             bg_color,
         );
-        let glyph_vertex_buffer = GlyphVertexBuffer::new(font_binaries);
-        simple_state_callback.init(&device, &queue);
+        let mut glyph_vertex_buffer = GlyphVertexBuffer::new(font_binaries);
+        simple_state_callback.init(&mut glyph_vertex_buffer, &device, &queue);
 
         Self {
             bg_color,
@@ -288,7 +298,8 @@ impl SimpleState {
     }
 
     pub fn update(&mut self) {
-        self.simple_state_callback.update(&self.device, &self.queue);
+        self.simple_state_callback
+            .update(&mut self.glyph_vertex_buffer, &self.device, &self.queue);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

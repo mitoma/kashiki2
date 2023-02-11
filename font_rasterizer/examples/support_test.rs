@@ -6,6 +6,7 @@ use cgmath::Rotation3;
 use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::SolarizedDark,
+    font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
@@ -82,16 +83,7 @@ impl MyMotion {
 impl SingleCharCallback {
     fn new() -> Self {
         Self {
-            camera: Camera::new(
-                (0.0, 0.0, 1.0).into(),
-                (0.0, 0.0, 0.0).into(),
-                cgmath::Vector3::unit_y(),
-                800_f32 / 600_f32,
-                // fovy は視野角。ここでは45度を指定
-                45.0,
-                0.1,
-                200.0,
-            ),
+            camera: Camera::basic((800, 600)),
             camera_controller: CameraController::new(10.0),
             glyphs: Vec::new(),
             motion: MyMotion::None,
@@ -100,7 +92,12 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, device: &wgpu::Device, _queue: &wgpu::Queue) {
+    fn init(
+        &mut self,
+        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+    ) {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
@@ -115,7 +112,12 @@ impl SimpleStateCallback for SingleCharCallback {
         self.glyphs.push(instance);
     }
 
-    fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+    fn update(
+        &mut self,
+        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) {
         self.glyphs
             .iter_mut()
             .for_each(|i| i.update_buffer(device, queue));
