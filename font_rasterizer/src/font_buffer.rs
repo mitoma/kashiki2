@@ -12,7 +12,7 @@ use unicode_width::UnicodeWidthChar;
 use wgpu::BufferUsages;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum GlyphWidth {
+pub enum GlyphWidth {
     Regular,
     Wide,
 }
@@ -33,20 +33,24 @@ impl GlyphWidth {
         }
     }
 
-    pub(crate) fn left(&self) -> f32 {
+    /// 描画時に左にどれぐらい移動させるか
+    pub fn left(&self) -> f32 {
         match self {
             GlyphWidth::Regular => -0.25,
             GlyphWidth::Wide => 0.0,
         }
     }
-    pub(crate) fn right(&self) -> f32 {
+
+    /// 描画時に右にどれぐらい移動させるか
+    pub fn right(&self) -> f32 {
         match self {
             GlyphWidth::Regular => 0.75,
             GlyphWidth::Wide => 1.0,
         }
     }
 
-    pub(crate) fn to_f32(self) -> f32 {
+    /// グリフ自体の横幅
+    pub fn to_f32(self) -> f32 {
         match self {
             GlyphWidth::Regular => 0.5,
             GlyphWidth::Wide => 1.0,
@@ -230,13 +234,6 @@ impl OutlineBuilder for GlyphVertexBuilder {
     }
 }
 
-pub(crate) struct GlyphVertexBuffer {
-    font_binaries: Vec<Vec<u8>>,
-    buffer_index: BTreeMap<char, BufferIndexEntry>,
-    vertex_buffers: Vec<VertexBuffer>,
-    index_buffers: Vec<IndexBuffer>,
-}
-
 struct BufferIndexEntry {
     vertex_buffer_index: usize,
     index_buffer_index: usize,
@@ -318,6 +315,13 @@ pub(crate) struct DrawInfo<'a> {
     pub(crate) glyph_width: &'a GlyphWidth,
 }
 
+pub struct GlyphVertexBuffer {
+    font_binaries: Vec<Vec<u8>>,
+    buffer_index: BTreeMap<char, BufferIndexEntry>,
+    vertex_buffers: Vec<VertexBuffer>,
+    index_buffers: Vec<IndexBuffer>,
+}
+
 impl GlyphVertexBuffer {
     pub fn new(font_binaries: Vec<Vec<u8>>) -> GlyphVertexBuffer {
         Self {
@@ -366,7 +370,7 @@ impl GlyphVertexBuffer {
         }
     }
 
-    pub(crate) fn append_glyph(
+    pub fn append_glyph(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -512,7 +516,7 @@ impl GlyphVertexBuffer {
             .map(|r| r.0)
     }
 
-    pub(crate) fn width(&self, c: char) -> GlyphWidth {
+    pub fn width(&self, c: char) -> GlyphWidth {
         let draw_info = self.draw_info(&c);
         draw_info
             .map(|i| i.glyph_width)
