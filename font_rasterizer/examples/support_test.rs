@@ -15,6 +15,9 @@ use font_rasterizer::{
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
+const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/NotoEmoji-Regular.ttf");
+
 pub fn main() {
     std::env::set_var("RUST_LOG", "support_test=debug");
     pollster::block_on(run());
@@ -22,6 +25,8 @@ pub fn main() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
+    let font_binaries = vec![FONT_DATA.to_vec(), EMOJI_FONT_DATA.to_vec()];
+
     let callback = SingleCharCallback::new();
     let support = SimpleStateSupport {
         window_title: "Hello".to_string(),
@@ -30,6 +35,7 @@ pub async fn run() {
         quarity: Quarity::VeryHigh,
         bg_color: SolarizedDark.background().into(),
         flags: Flags::DEFAULT,
+        font_binaries,
     };
     run_support(support).await;
 }

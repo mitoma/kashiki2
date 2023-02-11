@@ -11,9 +11,6 @@ use ttf_parser::{Face, OutlineBuilder};
 use unicode_width::UnicodeWidthChar;
 use wgpu::BufferUsages;
 
-const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-Regular.ttf");
-const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/NotoEmoji-Regular.ttf");
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum GlyphWidth {
     Regular,
@@ -233,8 +230,8 @@ impl OutlineBuilder for GlyphVertexBuilder {
     }
 }
 
-#[derive(Default)]
 pub(crate) struct GlyphVertexBuffer {
+    font_binaries: Vec<Vec<u8>>,
     buffer_index: BTreeMap<char, BufferIndexEntry>,
     vertex_buffers: Vec<VertexBuffer>,
     index_buffers: Vec<IndexBuffer>,
@@ -322,6 +319,15 @@ pub(crate) struct DrawInfo<'a> {
 }
 
 impl GlyphVertexBuffer {
+    pub fn new(font_binaries: Vec<Vec<u8>>) -> GlyphVertexBuffer {
+        Self {
+            font_binaries,
+            buffer_index: BTreeMap::default(),
+            vertex_buffers: Vec::new(),
+            index_buffers: Vec::new(),
+        }
+    }
+
     pub(crate) fn draw_info(&self, c: &char) -> anyhow::Result<DrawInfo> {
         let index = &self
             .buffer_index
@@ -375,9 +381,24 @@ impl GlyphVertexBuffer {
             return Ok(());
         }
 
+        let faces = self
+            .font_binaries
+            .iter()
+            .map(|f| Face::parse(f, 0))
+            .collect::<Result<Vec<Face>, _>>()?;
+
+        /*
+        let faces = self
+            .fonts
+            .iter()
+            .map(|f| Face::parse(f, 0))
+            .collect::<Result<Vec<Face>, _>>()?; */
+
+        /*
         let face = Face::parse(FONT_DATA, 0)?;
         let emoji_face = Face::parse(EMOJI_FONT_DATA, 0)?;
         let faces = vec![face, emoji_face];
+         */
 
         // char を全て Glyph 情報に変換する
         let mut glyphs = chars

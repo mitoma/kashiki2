@@ -30,6 +30,7 @@ pub struct SimpleStateSupport {
     pub quarity: Quarity,
     pub bg_color: wgpu::Color,
     pub flags: Flags,
+    pub font_binaries: Vec<Vec<u8>>,
 }
 
 pub async fn run_support(support: SimpleStateSupport) {
@@ -72,8 +73,14 @@ pub async fn run_support(support: SimpleStateSupport) {
             })
             .expect("Couldn't append canvas to document body.");
     }
-    let mut state =
-        SimpleState::new(&window, support.quarity, support.bg_color, support.callback).await;
+    let mut state = SimpleState::new(
+        &window,
+        support.quarity,
+        support.bg_color,
+        support.callback,
+        support.font_binaries,
+    )
+    .await;
 
     event_loop.run(move |event, _, control_flow| {
         match event {
@@ -178,6 +185,7 @@ impl SimpleState {
         quarity: Quarity,
         bg_color: wgpu::Color,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
+        font_binaries: Vec<Vec<u8>>,
     ) -> Self {
         let size = window.inner_size();
 
@@ -229,7 +237,7 @@ impl SimpleState {
             quarity,
             bg_color,
         );
-        let glyph_vertex_buffer = GlyphVertexBuffer::default();
+        let glyph_vertex_buffer = GlyphVertexBuffer::new(font_binaries);
         simple_state_callback.init(&device, &queue);
 
         Self {
