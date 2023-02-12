@@ -98,6 +98,11 @@ impl SimpleStateCallback for SingleCharCallback {
         ));
     }
 
+    fn resize(&mut self, width: u32, height: u32) {
+        self.camera_controller
+            .update_camera_aspect(&mut self.camera, width, height);
+    }
+
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
@@ -122,13 +127,6 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
-        match event {
-            WindowEvent::Ime(winit::event::Ime::Commit(string)) => self
-                .editor
-                .operation(&EditorOperation::InsertString(string.to_string())),
-            _ => {}
-        }
-
         let input_result = match self.store.winit_window_event_to_action(event) {
             Some(Action::Command(category, name)) if *category == "system" => {
                 let action = match &*name.to_string() {
@@ -154,14 +152,20 @@ impl SimpleStateCallback for SingleCharCallback {
                 self.editor.operation(&action);
                 InputResult::InputConsumed
             }
+            Some(Action::ImeInput(value)) => {
+                self.editor
+                    .operation(&EditorOperation::InsertString(value.to_string()));
+                InputResult::InputConsumed
+            }
+            Some(Action::ImePreedit(value, position)) => {
+                self.editor
+                    .operation(&EditorOperation::InsertString(value.to_string()));
+                InputResult::InputConsumed
+            }
+            Some(_) => InputResult::Noop,
             None => InputResult::Noop,
         };
         input_result
-    }
-
-    fn resize(&mut self, width: u32, height: u32) {
-        self.camera_controller
-            .update_camera_aspect(&mut self.camera, width, height);
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {

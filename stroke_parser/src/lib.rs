@@ -21,6 +21,10 @@ impl KeyWithModifier {
 pub enum Action {
     Command(CommandNamespace, CommandName),
     Keytype(char),
+    ImeEnable,
+    ImeDisable,
+    ImePreedit(String, Option<(usize, usize)>),
+    ImeInput(String),
 }
 
 impl Action {
@@ -164,6 +168,14 @@ impl ActionStore {
                     Some(Action::Keytype(*c))
                 }
             }
+            WindowEvent::Ime(ime) => match ime {
+                winit::event::Ime::Enabled => Some(Action::ImeEnable),
+                winit::event::Ime::Preedit(value, position) => {
+                    Some(Action::ImePreedit(value.to_string(), position.clone()))
+                }
+                winit::event::Ime::Commit(value) => Some(Action::ImeInput(value.to_string())),
+                winit::event::Ime::Disabled => Some(Action::ImeDisable),
+            },
             _ => None,
         }
     }
