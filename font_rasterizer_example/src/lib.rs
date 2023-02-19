@@ -1,3 +1,4 @@
+use instant::Duration;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -5,15 +6,25 @@ use cgmath::Rotation3;
 use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::SolarizedDark,
-    instances::{GlyphInstance, GlyphInstances, MotionFlags},
+    font_buffer::GlyphVertexBuffer,
+    instances::{GlyphInstance, GlyphInstances},
+    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, SimpleStateCallback, SimpleStateSupport},
+    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    time::now_millis,
 };
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
+const FONT_DATA: &[u8] =
+    include_bytes!("../../font_rasterizer/examples/font/HackGenConsole-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] =
+    include_bytes!("../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
+    let font_binaries = vec![FONT_DATA.to_vec(), EMOJI_FONT_DATA.to_vec()];
+
     let callback = SingleCharCallback::new();
     let support = SimpleStateSupport {
         window_title: "Hello".to_string(),
@@ -22,6 +33,7 @@ pub async fn run() {
         quarity: Quarity::VeryHigh,
         bg_color: SolarizedDark.background().into(),
         flags: Flags::DEFAULT,
+        font_binaries,
     };
     run_support(support).await;
 }
@@ -30,41 +42,37 @@ struct SingleCharCallback {
     camera: Camera,
     camera_controller: CameraController,
     glyphs: Vec<GlyphInstances>,
-    motion: MotionType,
+    motion: MyMotion,
 }
 
 #[derive(Debug)]
-enum MotionType {
+enum MyMotion {
     None,
     WaveX,
     WaveY,
-    WaveZ,
-    RotateX,
-    RotateY,
-    RotateZ,
 }
 
-impl MotionType {
+impl MyMotion {
     fn next(&self) -> Self {
         match self {
             Self::None => Self::WaveX,
             Self::WaveX => Self::WaveY,
-            Self::WaveY => Self::WaveZ,
-            Self::WaveZ => Self::RotateX,
-            Self::RotateX => Self::RotateY,
-            Self::RotateY => Self::RotateZ,
-            Self::RotateZ => Self::None,
+            Self::WaveY => Self::None,
         }
     }
     fn motion_flags(&self) -> MotionFlags {
         match self {
-            Self::None => MotionFlags::empty(),
-            Self::WaveX => MotionFlags::WAVE_X,
-            Self::WaveY => MotionFlags::WAVE_Y,
-            Self::WaveZ => MotionFlags::WAVE_Z,
-            Self::RotateX => MotionFlags::ROTATE_X,
-            Self::RotateY => MotionFlags::ROTATE_Y,
-            Self::RotateZ => MotionFlags::ROTATE_Z,
+            Self::None => MotionFlags::ZERO_MOTION,
+            Self::WaveX => MotionFlags::new(
+                MotionType::EaseOut(EasingFuncType::Sin, false),
+                MotionDetail::empty(),
+                MotionTarget::ROTATE_Z_PLUS,
+            ),
+            Self::WaveY => MotionFlags::new(
+                MotionType::EaseOut(EasingFuncType::Sin, false),
+                MotionDetail::USE_XY_DISTANCE,
+                MotionTarget::ROTATE_Z_MINUX,
+            ),
         }
     }
 }
@@ -72,43 +80,47 @@ impl MotionType {
 impl SingleCharCallback {
     fn new() -> Self {
         Self {
-            camera: Camera::new(
-                (0.0, 0.0, 1.0).into(),
-                (0.0, 0.0, 0.0).into(),
-                cgmath::Vector3::unit_y(),
-                800 as f32 / 600 as f32,
-                // fovy は視野角。ここでは45度を指定
-                45.0,
-                0.1,
-                200.0,
-            ),
+            camera: Camera::basic((800, 600)),
             camera_controller: CameraController::new(10.0),
             glyphs: Vec::new(),
-            motion: MotionType::None,
+            motion: MyMotion::None,
         }
     }
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, device: &wgpu::Device, _queue: &wgpu::Queue) {
+    fn init(
+        &mut self,
+        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+    ) {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             SolarizedDark.cyan().get_color(),
             self.motion.motion_flags(),
+            now_millis(),
+            2.0,
+            Duration::from_millis(1000),
         );
         let mut instance = GlyphInstances::new('あ', Vec::new(), device);
         instance.push(value);
         self.glyphs.push(instance);
     }
 
-    fn update(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+    fn update(
+        &mut self,
+        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) {
         self.glyphs
             .iter_mut()
             .for_each(|i| i.update_buffer(device, queue));
     }
 
-    fn input(&mut self, event: &WindowEvent) -> bool {
+    fn input(&mut self, event: &WindowEvent) -> InputResult {
         match event {
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -128,13 +140,16 @@ impl SimpleStateCallback for SingleCharCallback {
                             ),
                             SolarizedDark.cyan().get_color(),
                             self.motion.motion_flags(),
+                            now_millis(),
+                            2.0,
+                            Duration::from_millis(1000),
                         ))
                     }
-                })
+                });
+                InputResult::InputConsumed
             }
-            _ => {}
+            _ => InputResult::Noop,
         }
-        false
     }
 
     fn resize(&mut self, width: u32, height: u32) {

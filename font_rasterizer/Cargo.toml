@@ -15,7 +15,7 @@ env_logger = "0.9"
 log = "0.4"
 pollster = "0.2"
 wgpu = "0.14"
-winit = "0.27"
+winit = "0.28.1"
 bitflags = "1.3"
 
 ttf-parser = "0.17"

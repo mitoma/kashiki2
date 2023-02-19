@@ -51,6 +51,10 @@ fn main() {
                 let action = EditorOperation::InsertChar(c);
                 editor.operation(&action);
             }
+            Some(Action::ImeDisable) => {}
+            Some(Action::ImeEnable) => {}
+            Some(Action::ImePreedit(_, _)) => {}
+            Some(Action::ImeInput(_)) => {}
             None => {}
         }
 

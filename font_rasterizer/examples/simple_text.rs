@@ -16,8 +16,8 @@ use font_rasterizer::{
 use log::info;
 use winit::event::WindowEvent;
 
-const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-Regular.ttf");
-const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/NotoEmoji-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
     std::env::set_var("RUST_LOG", "simple_text=debug");
