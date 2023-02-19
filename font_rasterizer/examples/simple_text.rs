@@ -158,8 +158,7 @@ impl SimpleStateCallback for SingleCharCallback {
             }
             Some(Action::ImeInput(value)) => {
                 self.ime.update_value("".to_string());
-                self.editor
-                    .operation(&EditorOperation::InsertString(value));
+                self.editor.operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
             Some(Action::ImePreedit(value, position)) => {
