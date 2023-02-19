@@ -276,7 +276,7 @@ pub fn split_preedit_string(
     let splitted = value
         .chars()
         .scan(0_usize, |prev, c| {
-            *prev = *prev + c.len_utf8();
+            *prev += c.len_utf8();
             let prev = *prev;
             if prev <= start_bytes {
                 Some(Pos::First(c))

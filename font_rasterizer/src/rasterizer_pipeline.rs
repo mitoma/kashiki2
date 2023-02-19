@@ -326,7 +326,7 @@ impl RasterizerPipeline {
         for instance in instances.iter() {
             let instances = instance_buffers
                 .entry(instance.c)
-                .or_insert_with(|| Vec::new());
+                .or_insert_with(Vec::new);
             instances.push((instance.len(), instance.to_wgpu_buffer()));
         }
 

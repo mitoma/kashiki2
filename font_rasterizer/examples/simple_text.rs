@@ -82,7 +82,7 @@ impl SimpleStateCallback for SingleCharCallback {
         glyph_vertex_buffer
             .append_glyph(device, queue, self.reader.value.chars().collect())
             .unwrap();
-        let (width, height) = self.reader.bound(glyph_vertex_buffer);
+        let (width, _height) = self.reader.bound(glyph_vertex_buffer);
         self.camera_controller.process(
             &font_rasterizer::camera::CameraOperation::CangeTargetAndEye(
                 (0.0, 0.0, 0.0).into(),
@@ -120,7 +120,7 @@ impl SimpleStateCallback for SingleCharCallback {
             .generate_instances(self.color_theme, glyph_vertex_buffer, device, queue);
         self.ime
             .generate_instances(self.color_theme, glyph_vertex_buffer, device, queue);
-        let (width, height) = self.reader.bound(glyph_vertex_buffer);
+        let (width, _height) = self.reader.bound(glyph_vertex_buffer);
         self.camera_controller.process(
             &font_rasterizer::camera::CameraOperation::CangeTargetAndEye(
                 (0.0, 0.0, 0.0).into(),
@@ -159,7 +159,7 @@ impl SimpleStateCallback for SingleCharCallback {
             Some(Action::ImeInput(value)) => {
                 self.ime.update_value("".to_string());
                 self.editor
-                    .operation(&EditorOperation::InsertString(value.to_string()));
+                    .operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
             Some(Action::ImePreedit(value, position)) => {

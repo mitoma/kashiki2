@@ -171,7 +171,7 @@ impl ActionStore {
             WindowEvent::Ime(ime) => match ime {
                 winit::event::Ime::Enabled => Some(Action::ImeEnable),
                 winit::event::Ime::Preedit(value, position) => {
-                    Some(Action::ImePreedit(value.to_string(), position.clone()))
+                    Some(Action::ImePreedit(value.to_string(), *position))
                 }
                 winit::event::Ime::Commit(value) => Some(Action::ImeInput(value.to_string())),
                 winit::event::Ime::Disabled => Some(Action::ImeDisable),
