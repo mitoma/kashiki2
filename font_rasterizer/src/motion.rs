@@ -103,11 +103,7 @@ impl MotionType {
     }
 
     fn loopbit(l: bool) -> u32 {
-        if l {
-            1
-        } else {
-            0
-        }
+        u32::from(l)
     }
 
     fn easing_func_mask(&self) -> u32 {

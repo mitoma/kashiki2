@@ -297,6 +297,7 @@ impl RasterizerPipeline {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn run_all_stage(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -324,9 +325,7 @@ impl RasterizerPipeline {
 
         let mut instance_buffers = BTreeMap::new();
         for instance in instances.iter() {
-            let instances = instance_buffers
-                .entry(instance.c)
-                .or_insert_with(Vec::new);
+            let instances = instance_buffers.entry(instance.c).or_insert_with(Vec::new);
             instances.push((instance.len(), instance.to_wgpu_buffer()));
         }
 

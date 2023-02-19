@@ -44,7 +44,7 @@ impl PlaneTextReader {
         (max_width, max_height)
     }
 
-    pub(crate) fn get_target_and_camera(
+    pub fn get_target_and_camera(
         &self,
         line_num: usize,
         glyph_vertex_buffer: &GlyphVertexBuffer,
