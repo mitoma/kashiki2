@@ -1,23 +1,20 @@
-use instant::Duration;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
 use text_buffer::{action::EditorOperation, editor::Editor};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-use cgmath::Rotation3;
 use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::{self, SolarizedDark},
     font_buffer::GlyphVertexBuffer,
-    instances::{GlyphInstance, GlyphInstances},
+    instances::GlyphInstances,
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
-    time::now_millis,
-    ui::PlaneTextReader,
+    ui::{split_preedit_string, PlaneTextReader, SingleLineComponent},
 };
 use log::info;
-use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::event::WindowEvent;
 
 const FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../wgpu_gui/src/font/NotoEmoji-Regular.ttf");
@@ -51,6 +48,7 @@ struct SingleCharCallback {
     store: ActionStore,
     editor: Editor,
     reader: PlaneTextReader,
+    ime: SingleLineComponent,
 }
 
 impl SingleCharCallback {
@@ -69,6 +67,7 @@ impl SingleCharCallback {
             editor: text_buffer::editor::Editor::default(),
             store,
             reader: PlaneTextReader::new("".to_string()),
+            ime: SingleLineComponent::new("".to_string()),
         }
     }
 }
@@ -113,8 +112,13 @@ impl SimpleStateCallback for SingleCharCallback {
         glyph_vertex_buffer
             .append_glyph(device, queue, texts.chars().collect())
             .unwrap();
+        glyph_vertex_buffer
+            .append_glyph(device, queue, self.ime.value.chars().collect())
+            .unwrap();
         self.reader.update_value(texts);
         self.reader
+            .generate_instances(self.color_theme, glyph_vertex_buffer, device, queue);
+        self.ime
             .generate_instances(self.color_theme, glyph_vertex_buffer, device, queue);
         let (width, height) = self.reader.bound(glyph_vertex_buffer);
         self.camera_controller.process(
@@ -153,13 +157,23 @@ impl SimpleStateCallback for SingleCharCallback {
                 InputResult::InputConsumed
             }
             Some(Action::ImeInput(value)) => {
+                self.ime.update_value("".to_string());
                 self.editor
                     .operation(&EditorOperation::InsertString(value.to_string()));
                 InputResult::InputConsumed
             }
             Some(Action::ImePreedit(value, position)) => {
-                self.editor
-                    .operation(&EditorOperation::InsertString(value.to_string()));
+                match position {
+                    Some((start, end)) if start != end => {
+                        info!("start:{start}, end:{end}");
+                        let (first, center, last) = split_preedit_string(value, start, end);
+                        let preedit_str = format!("{}[{}]{}", first, center, last);
+                        self.ime.update_value(preedit_str);
+                    }
+                    _ => {
+                        self.ime.update_value(value);
+                    }
+                }
                 InputResult::InputConsumed
             }
             Some(_) => InputResult::Noop,
@@ -170,6 +184,14 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
         let instances = self.reader.get_instances();
-        (&self.camera, instances)
+        let ime_instances = self.ime.get_instances();
+        let mut v = Vec::new();
+        for i in instances {
+            v.push(i);
+        }
+        for i in ime_instances {
+            v.push(i);
+        }
+        (&self.camera, v)
     }
 }
