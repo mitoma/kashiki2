@@ -322,10 +322,13 @@ impl RasterizerPipeline {
     ) {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
 
-        let instance_buffer = instances
-            .iter()
-            .map(|i| (i.c, (i.len(), i.to_wgpu_buffer())))
-            .collect::<BTreeMap<char, (usize, &wgpu::Buffer)>>();
+        let mut instance_buffers = BTreeMap::new();
+        for instance in instances.iter() {
+            let instances = instance_buffers
+                .entry(instance.c)
+                .or_insert_with(|| Vec::new());
+            instances.push((instance.len(), instance.to_wgpu_buffer()));
+        }
 
         {
             let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -348,19 +351,21 @@ impl RasterizerPipeline {
 
             overlay_render_pass.set_pipeline(&self.overlap_render_pipeline);
             overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
-            for (c, (len, buffer)) in instance_buffer.iter() {
-                if let Ok(draw_info) = glyph_vertex_buffer.draw_info(c) {
-                    // グリフの座標情報
-                    overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
-                    // インスタンスの位置
-                    overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));
-                    overlay_render_pass
-                        .set_index_buffer(draw_info.index.slice(..), wgpu::IndexFormat::Uint32);
-                    overlay_render_pass.draw_indexed(
-                        draw_info.index_range.clone(),
-                        0,
-                        0..*len as _,
-                    );
+            for (c, instances) in instance_buffers.iter() {
+                for (len, buffer) in instances {
+                    if let Ok(draw_info) = glyph_vertex_buffer.draw_info(c) {
+                        // グリフの座標情報
+                        overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
+                        // インスタンスの位置
+                        overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));
+                        overlay_render_pass
+                            .set_index_buffer(draw_info.index.slice(..), wgpu::IndexFormat::Uint32);
+                        overlay_render_pass.draw_indexed(
+                            draw_info.index_range.clone(),
+                            0,
+                            0..*len as _,
+                        );
+                    }
                 }
             }
         }
