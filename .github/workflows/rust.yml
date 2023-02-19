@@ -2,25 +2,51 @@ name: Rust
 
 on: [push]
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  build-linux:
 
-    runs-on: ubuntu-latest
+  # check and build
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - target: x86_64-unknown-linux-gnu
+            os: linux
+            runs-on: ubuntu-20.04
+          - target: x86_64-pc-windows-gnu
+            os: windows
+            runs-on: windows-latest
+          - target: x86_64-apple-darwin
+            os: macos
+            runs-on: macos-latest
+
+    runs-on: ${{ matrix.job.runs-on }}
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v3
 
-  build-windows:
+      - uses: mitoma/sver-actions/setup@v1
+        with:
+          os: ${{ matrix.job.os }}
 
-    runs-on: windows-latest
-
-    steps:
-    - uses: actions/checkout@v1
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      # ci phase
+      - name: check all
+        uses: mitoma/sver-actions/exec@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          phase: check-${{ matrix.job.target }}
+          command: |
+            cargo fmt --all -- --check
+            cargo clippy -- -D warnings
+            cargo build
+            cargo test
+          cache_save_enable: true
+          cache_key: ${{ matrix.job.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          cache_restore-keys: ${{ matrix.job.target }}-cargo-
+          cache_path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target

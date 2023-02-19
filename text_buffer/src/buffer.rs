@@ -315,7 +315,7 @@ mod tests {
     fn buffer_move() {
         let mut sut = Buffer::default();
         let caret = &mut Caret::new(0, 0);
-        let _caret = sut.insert_string(caret, "あいうえお\nきかくけここ\nさしすせそ".to_string());
+        sut.insert_string(caret, "あいうえお\nきかくけここ\nさしすせそ".to_string());
 
         // forward
         caret.move_to(0, 0);
@@ -377,7 +377,7 @@ mod tests {
     #[test]
     fn buffer_backspace() {
         let mut sut = Buffer::default();
-        let _caret = sut.insert_string(
+        sut.insert_string(
             &mut Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
@@ -407,7 +407,7 @@ mod tests {
     #[test]
     fn buffer_delete() {
         let mut sut = Buffer::default();
-        let _caret = sut.insert_string(
+        sut.insert_string(
             &mut Caret::new(0, 0),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
@@ -473,7 +473,7 @@ mod tests {
         } else {
             assert!(false);
         }
-        if let Some(_) = sut.insert_enter(5) {
+        if sut.insert_enter(5).is_some() {
             assert!(false);
         } else {
             assert!(true);

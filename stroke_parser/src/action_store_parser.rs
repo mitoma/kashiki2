@@ -44,14 +44,9 @@ fn parse_keywithmodifier(line: String) -> Option<KeyWithModifier> {
         return None;
     }
 
-    let key = line
-        .rsplit('-')
-        .next()
-        .ok_or(())
-        .and_then(|command| {
-            serde_json::from_str::<keys::KeyCode>(&format!("\"{}\"", command))
-                .map_err(|_| ())
-        });
+    let key = line.rsplit('-').next().ok_or(()).and_then(|command| {
+        serde_json::from_str::<keys::KeyCode>(&format!("\"{}\"", command)).map_err(|_| ())
+    });
     let key = match key {
         Ok(key) => key,
         _ => return None,

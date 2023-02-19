@@ -1,5 +1,6 @@
 # key setting
 Backspace system:backspace
+Back system:backspace
 Delete system:delete
 Return system:return
 
@@ -34,11 +35,3 @@ C-X C-C system:exit
 
 # 
 C-S-P system:command-pallet
-
-# allow setting.
-C-A-Right   ui:right
-C-A-Left    ui:left
-C-A-Down    ui:forward
-C-A-Up      ui:backward
-C-A-S-Down  ui:down
-C-A-S-Up    ui:up

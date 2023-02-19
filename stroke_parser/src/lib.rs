@@ -21,6 +21,10 @@ impl KeyWithModifier {
 pub enum Action {
     Command(CommandNamespace, CommandName),
     Keytype(char),
+    ImeEnable,
+    ImeDisable,
+    ImePreedit(String, Option<(usize, usize)>),
+    ImeInput(String),
 }
 
 impl Action {
@@ -122,17 +126,13 @@ impl ActionStore {
         serde_json::to_string(&self.keybinds).unwrap()
     }
 
-    pub fn winit_event_to_action(&mut self, event: &Event<()>) -> Option<Action> {
+    pub fn winit_window_event_to_action(&mut self, event: &WindowEvent) -> Option<Action> {
         match event {
-            Event::WindowEvent {
-                event:
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(keycode),
-                                ..
-                            },
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode: Some(keycode),
                         ..
                     },
                 ..
@@ -156,17 +156,11 @@ impl ActionStore {
                 }
                 None
             }
-            Event::WindowEvent {
-                event: WindowEvent::ModifiersChanged(state),
-                ..
-            } => {
+            WindowEvent::ModifiersChanged(state) => {
                 self.current_modifier = keys::ModifiersState::from(*state);
                 None
             }
-            Event::WindowEvent {
-                event: WindowEvent::ReceivedCharacter(c),
-                ..
-            } => {
+            WindowEvent::ReceivedCharacter(c) => {
                 if c.is_control() {
                     // Enter や Backspace は Action で対応する？
                     None
@@ -174,6 +168,21 @@ impl ActionStore {
                     Some(Action::Keytype(*c))
                 }
             }
+            WindowEvent::Ime(ime) => match ime {
+                winit::event::Ime::Enabled => Some(Action::ImeEnable),
+                winit::event::Ime::Preedit(value, position) => {
+                    Some(Action::ImePreedit(value.to_string(), *position))
+                }
+                winit::event::Ime::Commit(value) => Some(Action::ImeInput(value.to_string())),
+                winit::event::Ime::Disabled => Some(Action::ImeDisable),
+            },
+            _ => None,
+        }
+    }
+
+    pub fn winit_event_to_action(&mut self, event: &Event<()>) -> Option<Action> {
+        match event {
+            Event::WindowEvent { event, .. } => self.winit_window_event_to_action(event),
             _ => None,
         }
     }
