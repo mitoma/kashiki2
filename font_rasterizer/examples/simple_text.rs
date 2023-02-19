@@ -91,9 +91,9 @@ impl SimpleStateCallback for SingleCharCallback {
         );
         self.camera_controller.update_camera(&mut self.camera);
         self.reader.update_motion(MotionFlags::new(
-            MotionType::EaseOut(EasingFuncType::Sin, true),
+            MotionType::EaseOut(EasingFuncType::Bounce, false),
             MotionDetail::TO_CURRENT,
-            MotionTarget::STRETCH_X_MINUS | MotionTarget::ROTATE_Z_PLUS,
+            MotionTarget::STRETCH_Y_PLUS,
         ));
     }
 
