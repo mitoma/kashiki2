@@ -1,4 +1,4 @@
-use cgmath::InnerSpace;
+use cgmath::{InnerSpace, Point3};
 use instant::Duration;
 use nenobi::TimeBaseEasingValue;
 
@@ -25,20 +25,20 @@ impl EasingPoint3 {
         }
     }
 
-    fn to_current_cgmath_point(&self) -> cgmath::Point3<f32> {
-        cgmath::Point3 {
-            x: self.x.current_value(),
-            y: self.y.current_value(),
-            z: self.z.current_value(),
-        }
+    fn current(&self) -> (f32, f32, f32) {
+        (
+            self.x.current_value(),
+            self.y.current_value(),
+            self.z.current_value(),
+        )
     }
 
-    fn to_last_cgmath_point(&self) -> cgmath::Point3<f32> {
-        cgmath::Point3 {
-            x: self.x.last_value(),
-            y: self.y.last_value(),
-            z: self.z.last_value(),
-        }
+    fn last(&self) -> (f32, f32, f32) {
+        (
+            self.x.last_value(),
+            self.y.last_value(),
+            self.z.last_value(),
+        )
     }
 
     fn gc(&mut self) {
@@ -110,8 +110,8 @@ impl Camera {
 
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let view = cgmath::Matrix4::look_at_rh(
-            self.eye.to_current_cgmath_point(),
-            self.target.to_current_cgmath_point(),
+            self.eye.current().into(),
+            self.target.current().into(),
             self.up,
         );
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
@@ -199,8 +199,8 @@ impl CameraController {
             camera.eye.update(next_eye);
         }
 
-        let mut current_eye = camera.eye.to_last_cgmath_point();
-        let current_target = camera.target.to_last_cgmath_point();
+        let mut current_eye: Point3<f32> = camera.eye.last().into();
+        let current_target: Point3<f32> = camera.target.last().into();
         // ターゲットからカメラの座標を引く(カメラから見たターゲットの向き)
         let forward = current_target - current_eye;
         // 向きに対する単位行列

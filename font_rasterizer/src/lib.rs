@@ -2,6 +2,7 @@ pub mod camera;
 pub mod color_theme;
 pub mod font_buffer;
 pub mod instances;
+pub mod layout_engine;
 pub mod motion;
 mod outline_bind_group;
 mod overlap_bind_group;
