@@ -32,9 +32,7 @@ impl World for HorizontalWorld {
     }
 
     fn look_at(&mut self, model_index: usize) {
-        let Some(model) = self.models.get(model_index) else {return};
-        
-
+        let Some(_model) = self.models.get(model_index) else {return};
     }
 }
 
