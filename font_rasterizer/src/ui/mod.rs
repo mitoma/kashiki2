@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cgmath::{num_traits::ToPrimitive, Rotation3};
+use cgmath::{num_traits::ToPrimitive, Point3, Quaternion, Rotation3};
 use instant::Duration;
 use log::info;
 
@@ -8,6 +8,7 @@ use crate::{
     color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
+    layout_engine::Model,
     motion::MotionFlags,
     time::now_millis,
 };
@@ -17,6 +18,25 @@ pub struct PlaneTextReader {
     motion: MotionFlags,
     instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
+    position: Point3<f32>,
+}
+
+impl Model for PlaneTextReader {
+    fn set_position(&mut self, position: cgmath::Point3<f32>) {
+        self.position = position;
+    }
+
+    fn position(&self) -> cgmath::Point3<f32> {
+        self.position
+    }
+
+    fn rotation(&self) -> cgmath::Quaternion<f32> {
+        Quaternion::<f32>::new(0.0, 0.0, 0.0, 0.0)
+    }
+
+    fn length(&self) -> f32 {
+        10.0
+    }
 }
 
 impl PlaneTextReader {
@@ -63,6 +83,7 @@ impl PlaneTextReader {
             instances: BTreeMap::new(),
             updated: true,
             motion: MotionFlags::ZERO_MOTION,
+            position: (0.0, 0.0, 0.0).into(),
         }
     }
 

@@ -1,6 +1,6 @@
 use cgmath::{Point3, Quaternion};
 
-use crate::camera::Camera;
+use crate::camera::{Camera, CameraController};
 
 pub trait World {
     fn add(&mut self, model: Box<dyn Model>);
@@ -11,7 +11,18 @@ pub trait World {
 
 pub struct HorizontalWorld {
     camera: Camera,
+    camera_controller: CameraController,
     models: Vec<Box<dyn Model>>,
+}
+
+impl HorizontalWorld {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self {
+            camera: Camera::basic((width, height)),
+            camera_controller: CameraController::new(10.0),
+            models: Vec::new(),
+        }
+    }
 }
 
 impl World for HorizontalWorld {
@@ -32,7 +43,8 @@ impl World for HorizontalWorld {
     }
 
     fn look_at(&mut self, model_index: usize) {
-        let Some(_model) = self.models.get(model_index) else {return};
+        let Some(model) = self.models.get(model_index) else {return};
+        self.camera_controller.look_at(&mut self.camera, model);
     }
 }
 

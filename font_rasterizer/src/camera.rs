@@ -2,6 +2,8 @@ use cgmath::{InnerSpace, Point3};
 use instant::Duration;
 use nenobi::TimeBaseEasingValue;
 
+use crate::layout_engine::Model;
+
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     1.0, 0.0, 0.0, 0.0,
@@ -238,5 +240,14 @@ impl CameraController {
             current_eye -= camera.up * self.speed;
         }
         camera.eye.update(current_eye);
+    }
+
+    pub fn look_at(&self, camera: &mut Camera, target: &Box<dyn Model>) {
+        let target_position: Point3<f32> = target.position().into();
+        let normal = cgmath::Vector3::<f32>::unit_z();
+        let camera_position = target_position + normal;
+
+        camera.target.update(camera_position);
+        camera.eye.update(camera_position);
     }
 }
