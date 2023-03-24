@@ -4,15 +4,14 @@ use text_buffer::{action::EditorOperation, editor::Editor};
 use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
-    camera::{Camera, CameraController},
+    camera::Camera,
     color_theme::ColorTheme::{self, SolarizedDark},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, World},
-    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
-    ui::{split_preedit_string, PlaneTextReader, SingleLineComponent},
+    ui::{split_preedit_string, PlaneTextReader},
 };
 use log::info;
 use winit::event::WindowEvent;
@@ -59,7 +58,7 @@ impl SingleCharCallback {
             .iter()
             .for_each(|k| store.register_keybind(k.clone()));
 
-        let world = Box::new(HorizontalWorld::new(800, 600));
+        let mut world = Box::new(HorizontalWorld::new(800, 600));
         let model = Box::new(PlaneTextReader::new("ジョブ次郎".to_string()));
         world.add(model);
 
@@ -148,15 +147,6 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        let instances = self.reader.get_instances();
-        let ime_instances = self.ime.get_instances();
-        let mut v = Vec::new();
-        for i in instances {
-            v.push(i);
-        }
-        for i in ime_instances {
-            v.push(i);
-        }
-        (&self.camera, v)
+        todo!("作りかけ")
     }
 }
