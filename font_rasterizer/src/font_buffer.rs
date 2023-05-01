@@ -7,7 +7,8 @@ use anyhow::Context;
 
 use bezier_converter::CubicBezier;
 use log::{debug, info};
-use ttf_parser::{Face, OutlineBuilder};
+use rustybuzz::Face;
+use ttf_parser::OutlineBuilder;
 use unicode_width::UnicodeWidthChar;
 use wgpu::BufferUsages;
 
@@ -388,8 +389,8 @@ impl GlyphVertexBuffer {
         let faces = self
             .font_binaries
             .iter()
-            .map(|f| Face::parse(f, 0))
-            .collect::<Result<Vec<Face>, _>>()?;
+            .flat_map(|f| Face::from_slice(f, 0))
+            .collect::<Vec<Face>>();
 
         // char を全て Glyph 情報に変換する
         let mut glyphs = chars
