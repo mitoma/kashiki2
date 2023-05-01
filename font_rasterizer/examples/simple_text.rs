@@ -131,7 +131,8 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
-        let input_result = match self.store.winit_window_event_to_action(event) {
+        
+        match self.store.winit_window_event_to_action(event) {
             Some(Action::Command(category, name)) if *category == "system" => {
                 let action = match &*name.to_string() {
                     "exit" => return InputResult::SendExit,
@@ -177,8 +178,7 @@ impl SimpleStateCallback for SingleCharCallback {
             }
             Some(_) => InputResult::Noop,
             None => InputResult::Noop,
-        };
-        input_result
+        }
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {

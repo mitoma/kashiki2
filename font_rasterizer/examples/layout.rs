@@ -83,20 +83,21 @@ impl SimpleStateCallback for SingleCharCallback {
             .unwrap();
     }
 
-    fn resize(&mut self, width: u32, height: u32) {
+    fn resize(&mut self, _width: u32, _height: u32) {
         // TODO update world aspect
     }
 
     fn update(
         &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
     ) {
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
-        let input_result = match self.store.winit_window_event_to_action(event) {
+        
+        match self.store.winit_window_event_to_action(event) {
             Some(Action::Command(category, name)) if *category == "system" => {
                 let action = match &*name.to_string() {
                     "exit" => return InputResult::SendExit,
@@ -131,7 +132,7 @@ impl SimpleStateCallback for SingleCharCallback {
                     Some((start, end)) if start != end => {
                         info!("start:{start}, end:{end}");
                         let (first, center, last) = split_preedit_string(value, start, end);
-                        let preedit_str = format!("{}[{}]{}", first, center, last);
+                        let _preedit_str = format!("{}[{}]{}", first, center, last);
                         //self.ime.update_value(preedit_str);
                     }
                     _ => {
@@ -142,8 +143,7 @@ impl SimpleStateCallback for SingleCharCallback {
             }
             Some(_) => InputResult::Noop,
             None => InputResult::Noop,
-        };
-        input_result
+        }
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
