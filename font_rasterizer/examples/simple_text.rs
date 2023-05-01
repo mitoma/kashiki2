@@ -131,7 +131,6 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
-        
         match self.store.winit_window_event_to_action(event) {
             Some(Action::Command(category, name)) if *category == "system" => {
                 let action = match &*name.to_string() {
