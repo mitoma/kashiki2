@@ -49,7 +49,8 @@ impl World for HorizontalWorld {
 
     fn look_at(&mut self, model_index: usize) {
         let Some(model) = self.models.get(model_index) else {return};
-        self.camera_controller.look_at(&mut self.camera, model);
+        self.camera_controller
+            .look_at(&mut self.camera, model.as_ref());
     }
 }
 

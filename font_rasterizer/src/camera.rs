@@ -242,7 +242,7 @@ impl CameraController {
         camera.eye.update(current_eye);
     }
 
-    pub fn look_at(&self, camera: &mut Camera, target: &Box<dyn Model>) {
+    pub fn look_at(&self, camera: &mut Camera, target: &dyn Model) {
         let target_position: Point3<f32> = target.position();
         let normal = cgmath::Vector3::<f32>::unit_z();
         let camera_position = target_position + normal;
