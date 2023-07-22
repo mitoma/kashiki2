@@ -27,8 +27,8 @@ var t_diffuse: texture_2d<f32>;
 var s_diffuse: sampler;
 
 // UNIT = 1.0 / 256.0 
-let UNIT :f32 = 0.00390625;
-let HARFUNIT: f32 = 0.001953125;
+const UNIT :f32 = 0.00390625;
+const HARFUNIT: f32 = 0.001953125;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
