@@ -19,7 +19,7 @@ bitflags! {
         const EXIT_ON_ESC  = 0b_0000_0010;
         const TRANCEPARENT = 0b_0000_0100;
         const NO_TITLEBAR  = 0b_0000_1000;
-        const DEFAULT      = Self::EXIT_ON_ESC.bits | Self::FULL_SCREEN.bits;
+        const DEFAULT      = Self::EXIT_ON_ESC.bits() | Self::FULL_SCREEN.bits();
     }
 }
 
