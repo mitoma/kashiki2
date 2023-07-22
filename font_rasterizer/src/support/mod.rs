@@ -7,6 +7,7 @@ use crate::{
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
 };
 use bitflags::bitflags;
+use wgpu::InstanceDescriptor;
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -19,7 +20,7 @@ bitflags! {
         const EXIT_ON_ESC  = 0b_0000_0010;
         const TRANCEPARENT = 0b_0000_0100;
         const NO_TITLEBAR  = 0b_0000_1000;
-        const DEFAULT      = Self::EXIT_ON_ESC.bits | Self::FULL_SCREEN.bits;
+        const DEFAULT      = Self::EXIT_ON_ESC.bits() | Self::FULL_SCREEN.bits();
     }
 }
 
@@ -211,8 +212,8 @@ impl SimpleState {
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::new(InstanceDescriptor::default());
+        let surface = unsafe { instance.create_surface(window).unwrap() };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -239,13 +240,21 @@ impl SimpleState {
             .await
             .unwrap();
 
+        let surface_caps = surface.get_capabilities(&adapter);
+        let surface_format = surface_caps
+            .formats
+            .iter()
+            .copied()
+            .find(|f| f.is_srgb())
+            .unwrap_or(surface_caps.formats[0]);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: surface_format,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+            view_formats: vec![],
         };
         surface.configure(&device, &config);
 

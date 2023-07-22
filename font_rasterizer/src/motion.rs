@@ -72,9 +72,9 @@ impl MotionFlags {
         motion_target: MotionTarget,
     ) -> MotionFlags {
         let value = (motion_type.mask() << 28)
-            + ((motion_detail.bits as u32) << 24)
+            + ((motion_detail.bits() as u32) << 24)
             + (motion_type.easing_func_mask() << 16)
-            + (motion_target.bits as u32);
+            + (motion_target.bits() as u32);
         MotionFlags(value)
     }
 }

@@ -1,25 +1,25 @@
 // ここはシェーダーで使う便利関数を書くスペース
-let PI: f32 = 3.14159265359;
-let HALF_PI: f32 = 1.57079632679;
-let DOUBLE_PI: f32 = 6.28318530718;
+const PI: f32 = 3.14159265359;
+const HALF_PI: f32 = 1.57079632679;
+const DOUBLE_PI: f32 = 6.28318530718;
 
-let EASING_LINER: u32 = 0u;
-let EASING_SIN: u32 = 1u;
-let EASING_QUAD: u32 = 2u;
-let EASING_CUBIC: u32 = 3u;
-let EASING_QUART: u32 = 4u;
-let EASING_QUINT: u32 = 5u;
-let EASING_EXPO: u32 = 6u;
-let EASING_CIRC: u32 = 7u;
-let EASING_BACK: u32 = 8u;
-let EASING_ELASTIC: u32 = 9u;
-let EASING_BOUNCE: u32 = 10u;
+const EASING_LINER: u32 = 0u;
+const EASING_SIN: u32 = 1u;
+const EASING_QUAD: u32 = 2u;
+const EASING_CUBIC: u32 = 3u;
+const EASING_QUART: u32 = 4u;
+const EASING_QUINT: u32 = 5u;
+const EASING_EXPO: u32 = 6u;
+const EASING_CIRC: u32 = 7u;
+const EASING_BACK: u32 = 8u;
+const EASING_ELASTIC: u32 = 9u;
+const EASING_BOUNCE: u32 = 10u;
 
-let BOUNCE_N1: f32 = 7.5625;
-let BOUNCE_D1: f32 = 2.75;
-let BACK_C1: f32 = 1.70158;
-let BACK_C3: f32 = 2.70158;
-let EXPO: f32 = 2.09439510239;
+const BOUNCE_N1: f32 = 7.5625;
+const BOUNCE_D1: f32 = 2.75;
+const BACK_C1: f32 = 1.70158;
+const BACK_C3: f32 = 2.70158;
+const EXPO: f32 = 2.09439510239;
 
 /// value の n ビット目が立っているかどうか調べる
 /// n は 0 - 31 の範囲
@@ -86,8 +86,7 @@ fn easing_function(value: f32, easing_type: u32, ease_in: bool, ease_out: bool) 
         if value < 0.5 {
             return internal_easing_func(value * 2f, easing_type) / 2f;
         } else {
-            let value = (value - 0.5f) * 2f;
-            let value = 1f - value;
+            let value = 1f - ((value - 0.5f) * 2f);
             let result = internal_easing_func(value, easing_type);
             return (1f - result) / 2f + 0.5f;
         }
@@ -299,7 +298,7 @@ fn vs_main(
     return out;
 }
 
-let UNIT :f32 = 0.00390625;
+const UNIT :f32 = 0.00390625;
 // Fragment shader
 
 @fragment

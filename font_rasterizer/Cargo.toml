@@ -16,10 +16,10 @@ log = { workspace = true }
 pollster = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
-bitflags = "1.3"
+bitflags = "2.3.3"
 
-ttf-parser = "0.18.1"
-rustybuzz = "0.7.0"
+ttf-parser = "0.19.1"
+rustybuzz = "0.8.0"
 cgmath = "0.18"
 
 instant = { version = "0.1", features = ["wasm-bindgen"] }
@@ -30,7 +30,7 @@ once_cell = "1.16"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"
-console_log = "0.2"
+console_log = "1.0.0"
 wgpu = { workspace = true, features = ["webgl"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
