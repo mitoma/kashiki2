@@ -6,7 +6,7 @@ use log::info;
 
 use crate::{
     color_theme::ColorTheme,
-    font_buffer::GlyphVertexBuffer,
+    font_buffer2::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::Model,
     motion::MotionFlags,

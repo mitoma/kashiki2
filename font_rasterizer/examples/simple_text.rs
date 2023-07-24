@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::{self, SolarizedDark},
-    font_buffer::GlyphVertexBuffer,
+    font_buffer2::GlyphVertexBuffer,
     instances::GlyphInstances,
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
@@ -20,7 +20,7 @@ const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "simple_text=debug");
+    std::env::set_var("RUST_LOG", "simple_text=debug,font_rasterizer::font_buffer2=debug");
     pollster::block_on(run());
 }
 
