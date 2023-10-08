@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use font_rasterizer::{
     camera::Camera,
     color_theme::ColorTheme::{self, SolarizedDark},
-    font_buffer::GlyphVertexBuffer,
+    font_buffer2::GlyphVertexBuffer,
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, World},
     rasterizer_pipeline::Quarity,
