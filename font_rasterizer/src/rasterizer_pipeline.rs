@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    font_buffer2::{GlyphDirection, GlyphVertexBuffer},
+    font_buffer::{GlyphDirection, GlyphVertexBuffer},
     instances::{GlyphInstances, InstanceRaw},
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,

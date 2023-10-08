@@ -2,7 +2,7 @@ use std::{collections::HashSet, iter};
 
 use crate::{
     camera::Camera,
-    font_buffer2::GlyphVertexBuffer,
+    font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
 };

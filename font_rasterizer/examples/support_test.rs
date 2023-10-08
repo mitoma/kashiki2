@@ -6,7 +6,7 @@ use cgmath::Rotation3;
 use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme::SolarizedDark,
-    font_buffer2::GlyphVertexBuffer,
+    font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
