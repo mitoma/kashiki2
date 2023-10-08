@@ -20,7 +20,10 @@ const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "simple_text=debug,font_rasterizer::font_buffer2=debug");
+    std::env::set_var(
+        "RUST_LOG",
+        "simple_text=debug,font_rasterizer::font_buffer2=debug",
+    );
     pollster::block_on(run());
 }
 
