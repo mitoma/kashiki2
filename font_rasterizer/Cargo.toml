@@ -17,6 +17,7 @@ pollster = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
 bitflags = "2.3.3"
+image = "0.24.7"
 
 ttf-parser = "0.19.1"
 rustybuzz = "0.8.0"

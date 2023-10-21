@@ -1,3 +1,5 @@
+pub mod debug;
+
 use std::{collections::HashSet, iter};
 
 use crate::{
