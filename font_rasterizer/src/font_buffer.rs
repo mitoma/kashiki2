@@ -405,13 +405,23 @@ impl GlyphVertexBuffer {
         // 空いている vertex, index バッファを探し、無ければバッファを作る
         // バッファが見つかったらその buffer に書き込むキューを登録する
         while let Some(glyph) = glyphs.pop() {
-            let Some(vertex_buffer_index) = self.appendable_vertex_buffer_index(glyph.vertex_size()) else {
-                self.vertex_buffers.push(VertexBuffer::new(device, queue, format!("glyph vertex buffer #{}", self.index_buffers.len())));
+            let Some(vertex_buffer_index) =
+                self.appendable_vertex_buffer_index(glyph.vertex_size())
+            else {
+                self.vertex_buffers.push(VertexBuffer::new(
+                    device,
+                    queue,
+                    format!("glyph vertex buffer #{}", self.index_buffers.len()),
+                ));
                 glyphs.push(glyph);
                 continue;
             };
-            let Some(index_buffer_index) = self.appendable_index_buffer_index(glyph.index_size()) else {
-                self.index_buffers.push(IndexBuffer::new(device,format!("glyph index buffer #{}", self.index_buffers.len())));
+            let Some(index_buffer_index) = self.appendable_index_buffer_index(glyph.index_size())
+            else {
+                self.index_buffers.push(IndexBuffer::new(
+                    device,
+                    format!("glyph index buffer #{}", self.index_buffers.len()),
+                ));
                 glyphs.push(glyph);
                 continue;
             };

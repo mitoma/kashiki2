@@ -17,10 +17,10 @@ pollster = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
 bitflags = "2.3.3"
-image = "0.24.7"
+image = { workspace = true }
 
 ttf-parser = "0.19.1"
-rustybuzz = "0.8.0"
+rustybuzz = "0.10.0"
 cgmath = "0.18"
 
 instant = { version = "0.1", features = ["wasm-bindgen"] }
