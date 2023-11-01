@@ -13,8 +13,8 @@ use font_rasterizer::{
     support::{generate_apng, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
-use log::{debug, info};
-use winit::event::{ElementState, MouseButton, WindowEvent};
+use log::debug;
+use winit::event::WindowEvent;
 
 const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
@@ -38,7 +38,7 @@ pub async fn run() {
         flags: Flags::DEFAULT,
         font_binaries,
     };
-    generate_apng(support).await;
+    generate_apng(support, Duration::from_secs(1), 12, "test-animation").await;
 }
 
 struct SingleCharCallback {
@@ -60,21 +60,32 @@ impl SingleCharCallback {
 impl SimpleStateCallback for SingleCharCallback {
     fn init(
         &mut self,
-        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        glyph_vertex_buffer: &mut GlyphVertexBuffer,
         device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        queue: &wgpu::Queue,
     ) {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             SolarizedDark.cyan().get_color(),
-            MotionFlags::ZERO_MOTION,
+            //MotionFlags::ZERO_MOTION,
+            MotionFlags::new(
+                MotionType::EaseInOut(EasingFuncType::Sin, true),
+                MotionDetail::USE_X_DISTANCE,
+                MotionTarget::MOVE_X_PLUS,
+            ),
             now_millis(),
             2.0,
             Duration::from_millis(1000),
         );
-        let mut instance = GlyphInstances::new('あ', Vec::new(), device);
-        instance.push(value);
+        let mut instances = GlyphInstances::new('あ', Vec::new(), device);
+        instances.push(value);
+        self.glyphs.push(instances);
+        let mut chars = HashSet::<char>::new();
+        chars.insert('あ');
+        glyph_vertex_buffer
+            .append_glyph(device, queue, chars)
+            .unwrap();
         debug!("init!");
     }
 

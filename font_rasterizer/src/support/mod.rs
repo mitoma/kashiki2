@@ -10,6 +10,7 @@ use crate::{
 };
 use bitflags::bitflags;
 use image::{ImageBuffer, Rgba};
+use instant::Duration;
 use log::debug;
 use wgpu::{BufferView, InstanceDescriptor};
 use winit::{
@@ -450,7 +451,7 @@ impl ImageState {
             usage: wgpu::BufferUsages::COPY_DST
                 // this tells wpgu that we want to read this buffer from the cpu
                 | wgpu::BufferUsages::MAP_READ,
-            label: None,
+            label: Some("Output Buffer"),
             mapped_at_creation: false,
         };
         let output_buffer = device.create_buffer(&output_buffer_desc);
@@ -523,8 +524,6 @@ impl ImageState {
         );
 
         let u32_size = std::mem::size_of::<u32>() as u32;
-        debug!("bytes_per_row:{}", u32_size * self.size.width);
-        debug!("rows_per_image:{}", self.size.height);
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
                 aspect: wgpu::TextureAspect::All,
@@ -547,6 +546,8 @@ impl ImageState {
             },
         );
 
+        self.queue.submit(Some(encoder.finish()));
+
         let buffer = {
             let buffer_slice = self.output_buffer.slice(..);
 
@@ -555,12 +556,10 @@ impl ImageState {
             // NOTE: We have to create the mapping THEN device.poll() before await
             // the future. Otherwise the application will freeze.
             buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-                debug!("asynced!");
                 tx.send(result).unwrap();
             });
-            self.queue.submit(iter::once(encoder.finish()));
+            self.device.poll(wgpu::Maintain::Wait);
             rx.recv().unwrap().unwrap();
-            debug!("foo!");
 
             let data = buffer_slice.get_mapped_range();
             let raw_data = data.to_vec();
@@ -579,7 +578,12 @@ impl ImageState {
     }
 }
 
-pub async fn generate_apng(support: SimpleStateSupport) {
+pub async fn generate_apng(
+    support: SimpleStateSupport,
+    duration: Duration,
+    frame_par_sec: u32,
+    file_name: &str,
+) {
     env_logger::init();
 
     let mut state = ImageState::new(
@@ -591,7 +595,15 @@ pub async fn generate_apng(support: SimpleStateSupport) {
     )
     .await;
 
-    state.update();
-    let hoge = state.render().unwrap();
-    hoge.save("hoge.png").unwrap();
+    let mut frame = 0;
+    loop {
+        if frame > 10 {
+            break;
+        }
+        state.update();
+        let hoge = state.render().unwrap();
+        hoge.save(format!("image-result/{}-{:03}.png", file_name, frame))
+            .unwrap();
+        frame += 1;
+    }
 }
