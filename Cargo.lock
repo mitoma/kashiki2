@@ -99,6 +99,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
+name = "apng"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1830158ab39f587ae3f174b2ef1388d84ce194b4ee6ed3d0a6ce6077c1ee5a35"
+dependencies = [
+ "byteorder",
+ "flate2",
+ "image",
+ "png",
+ "thiserror",
+]
+
+[[package]]
 name = "approx"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -539,6 +552,7 @@ name = "font_rasterizer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "apng",
  "bezier_converter",
  "bitflags 2.4.1",
  "bytemuck",

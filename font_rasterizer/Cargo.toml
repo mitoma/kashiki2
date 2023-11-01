@@ -18,6 +18,7 @@ wgpu = { workspace = true }
 winit = { workspace = true }
 bitflags = "2.3.3"
 image = { workspace = true }
+apng = "0.3.1"
 
 ttf-parser = "0.19.1"
 rustybuzz = "0.10.0"

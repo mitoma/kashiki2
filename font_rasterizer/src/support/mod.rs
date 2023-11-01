@@ -1,6 +1,6 @@
 pub mod debug;
 
-use std::{collections::HashSet, iter};
+use std::{collections::HashSet, fs::File, io::BufWriter, iter, path::PathBuf};
 
 use crate::{
     camera::Camera,
@@ -8,6 +8,7 @@ use crate::{
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
 };
+use apng::{load_png, Encoder, Frame, PNGImage};
 use bitflags::bitflags;
 use image::{ImageBuffer, Rgba};
 use instant::Duration;
@@ -595,15 +596,34 @@ pub async fn generate_apng(
     )
     .await;
 
+    let mut out = BufWriter::new(File::create(format!("{}.png", file_name)).unwrap());
+
+    let mut png_images: Vec<PNGImage> = Vec::new();
+
     let mut frame = 0;
     loop {
-        if frame > 10 {
+        if frame > 30 {
             break;
         }
         state.update();
         let hoge = state.render().unwrap();
-        hoge.save(format!("image-result/{}-{:03}.png", file_name, frame))
-            .unwrap();
+
+        let mut filepath = PathBuf::new();
+        filepath.push("image-result");
+        filepath.push(format!("{}-{:03}.png", file_name, frame));
+        hoge.save(&filepath).unwrap();
+        png_images.push(load_png(filepath.to_str().unwrap()).unwrap());
+
         frame += 1;
     }
+
+    let config = apng::create_config(&png_images, None).unwrap();
+    let mut encoder = Encoder::new(&mut out, config).unwrap();
+
+    let frame = Frame {
+        delay_num: Some(1),
+        delay_den: Some(10),
+        ..Default::default()
+    };
+    encoder.encode_all(png_images, Some(&frame)).unwrap();
 }
