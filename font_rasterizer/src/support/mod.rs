@@ -1,6 +1,6 @@
 pub mod debug;
 
-use std::{collections::HashSet, fs::File, io::BufWriter, iter, path::PathBuf};
+use std::{collections::HashSet, iter};
 
 use crate::{
     camera::Camera,
@@ -8,12 +8,12 @@ use crate::{
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
 };
-use apng::{load_png, Encoder, Frame, PNGImage};
+
 use bitflags::bitflags;
 use image::{ImageBuffer, Rgba};
 use instant::Duration;
-use log::debug;
-use wgpu::{BufferView, InstanceDescriptor};
+
+use wgpu::InstanceDescriptor;
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -579,14 +579,14 @@ impl ImageState {
     }
 }
 
-pub async fn generate_apng(
+pub async fn generate_apng<F>(
     support: SimpleStateSupport,
     duration: Duration,
     frame_par_sec: u32,
-    file_name: &str,
-) {
-    env_logger::init();
-
+    mut callback: F,
+) where
+    F: FnMut(ImageBuffer<Rgba<u8>, Vec<u8>>, u32),
+{
     let mut state = ImageState::new(
         (support.window_size.0 as u32, support.window_size.1 as u32),
         support.quarity,
@@ -596,34 +596,13 @@ pub async fn generate_apng(
     )
     .await;
 
-    let mut out = BufWriter::new(File::create(format!("{}.png", file_name)).unwrap());
-
-    let mut png_images: Vec<PNGImage> = Vec::new();
-
     let mut frame = 0;
     loop {
         if frame > 30 {
             break;
         }
         state.update();
-        let hoge = state.render().unwrap();
-
-        let mut filepath = PathBuf::new();
-        filepath.push("image-result");
-        filepath.push(format!("{}-{:03}.png", file_name, frame));
-        hoge.save(&filepath).unwrap();
-        png_images.push(load_png(filepath.to_str().unwrap()).unwrap());
-
+        callback(state.render().unwrap(), frame);
         frame += 1;
     }
-
-    let config = apng::create_config(&png_images, None).unwrap();
-    let mut encoder = Encoder::new(&mut out, config).unwrap();
-
-    let frame = Frame {
-        delay_num: Some(1),
-        delay_den: Some(10),
-        ..Default::default()
-    };
-    encoder.encode_all(png_images, Some(&frame)).unwrap();
 }

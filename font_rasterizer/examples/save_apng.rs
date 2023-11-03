@@ -1,5 +1,6 @@
-use std::collections::{hash_set, HashSet};
+use std::{collections::HashSet, fs::File, io::BufWriter, path::PathBuf};
 
+use apng::{load_png, Encoder, Frame, PNGImage};
 use instant::Duration;
 
 use cgmath::Rotation3;
@@ -21,6 +22,7 @@ const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
     std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
     pollster::block_on(run());
 }
 
@@ -38,7 +40,30 @@ pub async fn run() {
         flags: Flags::DEFAULT,
         font_binaries,
     };
-    generate_apng(support, Duration::from_secs(1), 12, "test-animation").await;
+
+    let file_name = "test-animation";
+    let mut out = BufWriter::new(File::create(format!("{}.png", file_name)).unwrap());
+
+    let mut png_images: Vec<PNGImage> = Vec::new();
+
+    generate_apng(support, Duration::from_secs(1), 12, |image, frame| {
+        let mut filepath = PathBuf::new();
+        filepath.push("image-result");
+        filepath.push(format!("{}-{:03}.png", file_name, frame));
+        image.save(&filepath).unwrap();
+        png_images.push(load_png(filepath.to_str().unwrap()).unwrap());
+    })
+    .await;
+
+    let config = apng::create_config(&png_images, None).unwrap();
+    let mut encoder = Encoder::new(&mut out, config).unwrap();
+
+    let frame = Frame {
+        delay_num: Some(1),
+        delay_den: Some(10),
+        ..Default::default()
+    };
+    encoder.encode_all(png_images, Some(&frame)).unwrap();
 }
 
 struct SingleCharCallback {
