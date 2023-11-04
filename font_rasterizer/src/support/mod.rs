@@ -571,7 +571,7 @@ impl ImageState {
     }
 }
 
-pub async fn generate_apng<F>(
+pub async fn generate_images<F>(
     support: SimpleStateSupport,
     num_of_frame: u32,
     frame_gain: Duration,

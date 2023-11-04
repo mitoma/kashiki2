@@ -11,7 +11,7 @@ use font_rasterizer::{
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{generate_apng, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{generate_images, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
 use log::debug;
@@ -53,7 +53,7 @@ pub async fn run() {
         std::fs::create_dir(&filepath).unwrap();
     }
 
-    generate_apng(support, 100, Duration::from_millis(20), |image, frame| {
+    generate_images(support, 100, Duration::from_millis(20), |image, frame| {
         let png_path = filepath.join(format!("{}-{:03}.png", file_name, frame));
         image.save(&png_path).unwrap();
         png_images.push(load_png(png_path.to_str().unwrap()).unwrap());
