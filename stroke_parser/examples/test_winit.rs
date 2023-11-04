@@ -11,22 +11,26 @@ fn main() {
 
     let mut store: ActionStore = Default::default();
 
-    event_loop.run(move |event, control_flow| {
-        //control_flow.set_control_flow(control_flow) = ControlFlow::Wait;
-        match store.winit_event_to_action(&event) {
-            Some(Action::Command(category, name)) if *category == "system" && *name == "exit" => {
-                control_flow.exit();
+    event_loop
+        .run(move |event, control_flow| {
+            //control_flow.set_control_flow(control_flow) = ControlFlow::Wait;
+            match store.winit_event_to_action(&event) {
+                Some(Action::Command(category, name))
+                    if *category == "system" && *name == "exit" =>
+                {
+                    control_flow.exit();
+                }
+                Some(command) => println!("{:?}", command),
+                None => {}
             }
-            Some(command) => println!("{:?}", command),
-            None => {}
-        }
 
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                window_id,
-            } if window_id == window.id() => control_flow.exit(),
-            _ => (),
-        }
-    }).unwrap();
+            match event {
+                Event::WindowEvent {
+                    event: WindowEvent::CloseRequested,
+                    window_id,
+                } if window_id == window.id() => control_flow.exit(),
+                _ => (),
+            }
+        })
+        .unwrap();
 }
