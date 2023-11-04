@@ -136,8 +136,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                                 WindowEvent::Resized(physical_size) => {
                                     state.resize(*physical_size);
                                 }
-                                WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                                    let _size = state.size;
+                                WindowEvent::ScaleFactorChanged { .. } => {
                                     // TODO スケールファクタ変更時に何かする？
                                 }
                                 WindowEvent::RedrawRequested => {
