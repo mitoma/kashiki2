@@ -1,7 +1,5 @@
 use std::collections::BTreeMap;
 
-use log::debug;
-
 use crate::{
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstances, InstanceRaw},
@@ -416,7 +414,6 @@ impl RasterizerPipeline {
         device: &wgpu::Device,
         screen_view: wgpu::TextureView,
     ) {
-        debug!("run screen_stage");
         let screen_bind_group = &self
             .screen_bind_group
             .to_bind_group(device, &self.outline_texture);
