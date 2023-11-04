@@ -46,7 +46,7 @@ pub async fn run() {
 
     let mut png_images: Vec<PNGImage> = Vec::new();
 
-    generate_apng(support, Duration::from_secs(1), 12, |image, frame| {
+    generate_apng(support, 60, Duration::from_millis(100), |image, frame| {
         let mut filepath = PathBuf::new();
         filepath.push("image-result");
         filepath.push(format!("{}-{:03}.png", file_name, frame));
@@ -125,7 +125,7 @@ impl SimpleStateCallback for SingleCharCallback {
             .for_each(|i| i.update_buffer(device, queue));
     }
 
-    fn input(&mut self, event: &WindowEvent) -> InputResult {
+    fn input(&mut self, _event: &WindowEvent) -> InputResult {
         InputResult::Noop
     }
 

@@ -1,5 +1,3 @@
-pub mod debug;
-
 use std::{collections::HashSet, iter};
 
 use crate::{
@@ -7,6 +5,7 @@ use crate::{
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
+    time::{increment_fixed_clock, set_clock_mode, ClockMode},
 };
 
 use bitflags::bitflags;
@@ -368,9 +367,6 @@ impl SimpleState {
 }
 
 pub struct ImageState {
-    quarity: Quarity,
-    bg_color: wgpu::Color,
-
     device: wgpu::Device,
     queue: wgpu::Queue,
     size: winit::dpi::PhysicalSize<u32>,
@@ -470,12 +466,9 @@ impl ImageState {
         simple_state_callback.resize(size.width, size.height);
 
         Self {
-            bg_color,
-
             device,
             queue,
             size,
-            quarity,
 
             surface_texture,
             output_buffer,
@@ -565,13 +558,8 @@ impl ImageState {
             let data = buffer_slice.get_mapped_range();
             let raw_data = data.to_vec();
 
-            let buffer = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(
-                self.size.width,
-                self.size.height,
-                raw_data,
-            )
-            .unwrap();
-            buffer
+            ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(self.size.width, self.size.height, raw_data)
+                .unwrap()
         };
         self.output_buffer.unmap();
 
@@ -581,12 +569,13 @@ impl ImageState {
 
 pub async fn generate_apng<F>(
     support: SimpleStateSupport,
-    duration: Duration,
-    frame_par_sec: u32,
+    num_of_frame: u32,
+    frame_gain: Duration,
     mut callback: F,
 ) where
     F: FnMut(ImageBuffer<Rgba<u8>, Vec<u8>>, u32),
 {
+    set_clock_mode(ClockMode::Fixed);
     let mut state = ImageState::new(
         (support.window_size.0 as u32, support.window_size.1 as u32),
         support.quarity,
@@ -598,11 +587,12 @@ pub async fn generate_apng<F>(
 
     let mut frame = 0;
     loop {
-        if frame > 30 {
+        if frame > num_of_frame {
             break;
         }
         state.update();
         callback(state.render().unwrap(), frame);
+        increment_fixed_clock(frame_gain);
         frame += 1;
     }
 }
