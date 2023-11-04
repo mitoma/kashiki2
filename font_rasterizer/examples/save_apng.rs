@@ -1,6 +1,6 @@
-use std::{collections::HashSet, fs::File, io::BufWriter, path::PathBuf};
+use std::{collections::HashSet, env, fs::File, io::BufWriter};
 
-use apng::{load_png, Encoder, Frame, PNGImage};
+use apng::{load_dynamic_image, Encoder, Frame, PNGImage};
 use instant::Duration;
 
 use cgmath::Rotation3;
@@ -14,15 +14,18 @@ use font_rasterizer::{
     support::{generate_images, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
-use log::debug;
+use log::{debug, info};
 use winit::event::WindowEvent;
 
 const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "debug");
-    env_logger::init();
+    std::env::set_var("RUST_LOG", "info");
+    env_logger::builder()
+        .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
+        .init();
+    //env_logger::init();
     pollster::block_on(run());
 }
 
@@ -46,20 +49,15 @@ pub async fn run() {
 
     let mut png_images: Vec<PNGImage> = Vec::new();
 
-    // image-result フォルダが無ければ作る
-    let mut filepath = PathBuf::new();
-    filepath.push("image-result");
-    if !filepath.exists() {
-        std::fs::create_dir(&filepath).unwrap();
-    }
-
-    generate_images(support, 100, Duration::from_millis(20), |image, frame| {
-        let png_path = filepath.join(format!("{}-{:03}.png", file_name, frame));
-        image.save(&png_path).unwrap();
-        png_images.push(load_png(png_path.to_str().unwrap()).unwrap());
+    info!("start generate images");
+    generate_images(support, 100, Duration::from_millis(20), |image, _frame| {
+        let dynimage = image::DynamicImage::ImageRgba8(image);
+        let png_image = load_dynamic_image(dynimage).unwrap();
+        png_images.push(png_image);
     })
     .await;
 
+    info!("start apng encode");
     let config = apng::create_config(&png_images, None).unwrap();
     let mut encoder = Encoder::new(&mut out, config).unwrap();
 
@@ -69,7 +67,7 @@ pub async fn run() {
         ..Default::default()
     };
     encoder.encode_all(png_images, Some(&frame)).unwrap();
-    std::fs::remove_dir_all(&filepath).unwrap();
+    info!("finish!");
 }
 
 struct SingleCharCallback {
