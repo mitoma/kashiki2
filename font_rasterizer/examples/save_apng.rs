@@ -46,12 +46,17 @@ pub async fn run() {
 
     let mut png_images: Vec<PNGImage> = Vec::new();
 
-    generate_apng(support, 60, Duration::from_millis(100), |image, frame| {
-        let mut filepath = PathBuf::new();
-        filepath.push("image-result");
-        filepath.push(format!("{}-{:03}.png", file_name, frame));
-        image.save(&filepath).unwrap();
-        png_images.push(load_png(filepath.to_str().unwrap()).unwrap());
+    // image-result フォルダが無ければ作る
+    let mut filepath = PathBuf::new();
+    filepath.push("image-result");
+    if !filepath.exists() {
+        std::fs::create_dir(&filepath).unwrap();
+    }
+
+    generate_apng(support, 100, Duration::from_millis(20), |image, frame| {
+        let png_path = filepath.join(format!("{}-{:03}.png", file_name, frame));
+        image.save(&png_path).unwrap();
+        png_images.push(load_png(png_path.to_str().unwrap()).unwrap());
     })
     .await;
 
@@ -60,10 +65,11 @@ pub async fn run() {
 
     let frame = Frame {
         delay_num: Some(1),
-        delay_den: Some(10),
+        delay_den: Some(50),
         ..Default::default()
     };
     encoder.encode_all(png_images, Some(&frame)).unwrap();
+    std::fs::remove_dir_all(&filepath).unwrap();
 }
 
 struct SingleCharCallback {
@@ -90,7 +96,7 @@ impl SimpleStateCallback for SingleCharCallback {
         queue: &wgpu::Queue,
     ) {
         let value = GlyphInstance::new(
-            (0.0, 0.0, 0.0).into(),
+            (0.0, 0.0, -10.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             SolarizedDark.cyan().get_color(),
             //MotionFlags::ZERO_MOTION,
