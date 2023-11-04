@@ -87,6 +87,7 @@ impl From<MotionFlags> for u32 {
 
 pub enum MotionType {
     None,
+    // 第二引数はループするかどうか
     EaseIn(EasingFuncType, bool),
     EaseOut(EasingFuncType, bool),
     EaseInOut(EasingFuncType, bool),

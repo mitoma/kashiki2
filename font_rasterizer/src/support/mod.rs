@@ -5,8 +5,13 @@ use crate::{
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
+    time::{increment_fixed_clock, set_clock_mode, ClockMode},
 };
+
 use bitflags::bitflags;
+use image::{ImageBuffer, Rgba};
+use instant::Duration;
+
 use wgpu::InstanceDescriptor;
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
@@ -358,5 +363,236 @@ impl SimpleState {
         screen_output.present();
 
         Ok(())
+    }
+}
+
+pub struct ImageState {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    size: winit::dpi::PhysicalSize<u32>,
+
+    surface_texture: wgpu::Texture,
+    output_buffer: wgpu::Buffer,
+
+    rasterizer_pipeline: RasterizerPipeline,
+    glyph_vertex_buffer: GlyphVertexBuffer,
+
+    simple_state_callback: Box<dyn SimpleStateCallback>,
+}
+
+impl ImageState {
+    pub async fn new(
+        image_size: (u32, u32),
+        quarity: Quarity,
+        bg_color: wgpu::Color,
+        mut simple_state_callback: Box<dyn SimpleStateCallback>,
+        font_binaries: Vec<Vec<u8>>,
+    ) -> Self {
+        let size = winit::dpi::PhysicalSize {
+            width: image_size.0,
+            height: image_size.1,
+        };
+
+        // The instance is a handle to our GPU
+        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
+        let instance = wgpu::Instance::new(InstanceDescriptor::default());
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::default(),
+                compatible_surface: None,
+                force_fallback_adapter: false,
+            })
+            .await
+            .unwrap();
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    label: None,
+                    features: wgpu::Features::empty(),
+                    // WebGL doesn't support all of wgpu's features, so if
+                    // we're building for the web we'll have to disable some.
+                    limits: if cfg!(target_arch = "wasm32") {
+                        wgpu::Limits::downlevel_webgl2_defaults()
+                    } else {
+                        wgpu::Limits::default()
+                    },
+                },
+                None, // Trace path
+            )
+            .await
+            .unwrap();
+
+        let surface_texture_desc = wgpu::TextureDescriptor {
+            size: wgpu::Extent3d {
+                width: image_size.0,
+                height: image_size.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            view_formats: &[],
+            usage: wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING,
+            label: None,
+        };
+        let surface_texture = device.create_texture(&surface_texture_desc);
+
+        // create output buffer
+        let u32_size = std::mem::size_of::<u32>() as u32;
+        let output_buffer_size = (u32_size * image_size.0 * image_size.1) as wgpu::BufferAddress;
+        let output_buffer_desc = wgpu::BufferDescriptor {
+            size: output_buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST
+                // this tells wpgu that we want to read this buffer from the cpu
+                | wgpu::BufferUsages::MAP_READ,
+            label: Some("Output Buffer"),
+            mapped_at_creation: false,
+        };
+        let output_buffer = device.create_buffer(&output_buffer_desc);
+
+        let rasterizer_pipeline = RasterizerPipeline::new(
+            &device,
+            size.width,
+            size.height,
+            surface_texture.format(),
+            quarity,
+            bg_color,
+        );
+        let mut glyph_vertex_buffer = GlyphVertexBuffer::new(font_binaries);
+        simple_state_callback.init(&mut glyph_vertex_buffer, &device, &queue);
+        simple_state_callback.resize(size.width, size.height);
+
+        Self {
+            device,
+            queue,
+            size,
+
+            surface_texture,
+            output_buffer,
+
+            rasterizer_pipeline,
+
+            glyph_vertex_buffer,
+            simple_state_callback,
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.simple_state_callback
+            .update(&mut self.glyph_vertex_buffer, &self.device, &self.queue);
+    }
+
+    pub fn render(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, wgpu::SurfaceError> {
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+        // run all stage
+        self.rasterizer_pipeline
+            .overlap_bind_group
+            .update_buffer(&self.queue);
+        let screen_view = self
+            .surface_texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+
+        let (camera, glyph_instances) = self.simple_state_callback.render();
+
+        let chars = glyph_instances.iter().map(|i| i.c).collect::<HashSet<_>>();
+        self.glyph_vertex_buffer
+            .append_glyph(&self.device, &self.queue, chars)
+            .unwrap();
+
+        self.rasterizer_pipeline.run_all_stage(
+            &mut encoder,
+            &self.device,
+            &self.queue,
+            &self.glyph_vertex_buffer,
+            camera.build_view_projection_matrix().into(),
+            &glyph_instances,
+            screen_view,
+        );
+
+        let u32_size = std::mem::size_of::<u32>() as u32;
+        encoder.copy_texture_to_buffer(
+            wgpu::ImageCopyTexture {
+                aspect: wgpu::TextureAspect::All,
+                texture: &self.surface_texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            wgpu::ImageCopyBuffer {
+                buffer: &self.output_buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: Some(u32_size * self.size.width),
+                    rows_per_image: Some(self.size.height),
+                },
+            },
+            wgpu::Extent3d {
+                width: self.size.width,
+                height: self.size.height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        self.queue.submit(Some(encoder.finish()));
+
+        let buffer = {
+            let buffer_slice = self.output_buffer.slice(..);
+
+            let (tx, rx) = std::sync::mpsc::channel();
+
+            // NOTE: We have to create the mapping THEN device.poll() before await
+            // the future. Otherwise the application will freeze.
+            buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+                tx.send(result).unwrap();
+            });
+            self.device.poll(wgpu::Maintain::Wait);
+            rx.recv().unwrap().unwrap();
+
+            let data = buffer_slice.get_mapped_range();
+            let raw_data = data.to_vec();
+
+            ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(self.size.width, self.size.height, raw_data)
+                .unwrap()
+        };
+        self.output_buffer.unmap();
+
+        Ok(buffer)
+    }
+}
+
+pub async fn generate_apng<F>(
+    support: SimpleStateSupport,
+    num_of_frame: u32,
+    frame_gain: Duration,
+    mut callback: F,
+) where
+    F: FnMut(ImageBuffer<Rgba<u8>, Vec<u8>>, u32),
+{
+    set_clock_mode(ClockMode::Fixed);
+    let mut state = ImageState::new(
+        (support.window_size.0 as u32, support.window_size.1 as u32),
+        support.quarity,
+        support.bg_color,
+        support.callback,
+        support.font_binaries,
+    )
+    .await;
+
+    let mut frame = 0;
+    loop {
+        if frame > num_of_frame {
+            break;
+        }
+        state.update();
+        callback(state.render().unwrap(), frame);
+        increment_fixed_clock(frame_gain);
+        frame += 1;
     }
 }
