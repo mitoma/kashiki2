@@ -14,8 +14,9 @@ use instant::Duration;
 
 use wgpu::InstanceDescriptor;
 use winit::{
-    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event::{ElementState, Event, KeyEvent, WindowEvent},
+    event_loop::EventLoop,
+    keyboard::{Key, NamedKey},
     window::{Fullscreen, Window, WindowBuilder},
 };
 
@@ -49,7 +50,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         }
     }
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
         .with_title(support.window_title)
         .with_inner_size(winit::dpi::LogicalSize {
@@ -89,80 +90,83 @@ pub async fn run_support(support: SimpleStateSupport) {
     )
     .await;
 
-    event_loop.run(move |event, _, control_flow| {
-        match event {
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == window.id() => {
-                match state.input(event) {
-                    InputResult::InputConsumed => {}
-                    InputResult::SendExit => *control_flow = ControlFlow::Exit,
-                    InputResult::Noop => {
-                        match event {
-                            WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                            WindowEvent::KeyboardInput {
-                                input:
-                                    KeyboardInput {
-                                        state: ElementState::Pressed,
-                                        virtual_keycode: Some(VirtualKeyCode::Escape),
-                                        ..
-                                    },
-                                ..
-                            } => {
-                                if support.flags.contains(Flags::EXIT_ON_ESC) {
-                                    *control_flow = ControlFlow::Exit
-                                }
-                            }
-                            WindowEvent::KeyboardInput {
-                                input:
-                                    KeyboardInput {
-                                        state: ElementState::Pressed,
-                                        virtual_keycode: Some(VirtualKeyCode::F11),
-                                        ..
-                                    },
-                                ..
-                            } => {
-                                if support.flags.contains(Flags::FULL_SCREEN) {
-                                    match window.fullscreen() {
-                                        Some(_) => window.set_fullscreen(None),
-                                        None => window
-                                            .set_fullscreen(Some(Fullscreen::Borderless(None))),
+    event_loop
+        .run(move |event, control_flow| {
+            match event {
+                Event::WindowEvent {
+                    ref event,
+                    window_id,
+                } if window_id == window.id() => {
+                    match state.input(event) {
+                        InputResult::InputConsumed => {}
+                        InputResult::SendExit => control_flow.exit(),
+                        InputResult::Noop => {
+                            match event {
+                                WindowEvent::CloseRequested => control_flow.exit(),
+                                WindowEvent::KeyboardInput {
+                                    event:
+                                        KeyEvent {
+                                            state: ElementState::Pressed,
+                                            logical_key: Key::Named(NamedKey::Escape),
+                                            ..
+                                        },
+                                    ..
+                                } => {
+                                    if support.flags.contains(Flags::EXIT_ON_ESC) {
+                                        control_flow.exit();
                                     }
                                 }
+                                WindowEvent::KeyboardInput {
+                                    event:
+                                        KeyEvent {
+                                            state: ElementState::Pressed,
+                                            logical_key: Key::Named(NamedKey::F11),
+                                            ..
+                                        },
+                                    ..
+                                } => {
+                                    if support.flags.contains(Flags::FULL_SCREEN) {
+                                        match window.fullscreen() {
+                                            Some(_) => window.set_fullscreen(None),
+                                            None => window
+                                                .set_fullscreen(Some(Fullscreen::Borderless(None))),
+                                        }
+                                    }
+                                }
+                                WindowEvent::Resized(physical_size) => {
+                                    state.resize(*physical_size);
+                                }
+                                WindowEvent::ScaleFactorChanged { .. } => {
+                                    // TODO スケールファクタ変更時に何かする？
+                                }
+                                WindowEvent::RedrawRequested => {
+                                    state.update();
+                                    match state.render() {
+                                        Ok(_) => {}
+                                        // Reconfigure the surface if it's lost or outdated
+                                        Err(
+                                            wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated,
+                                        ) => state.redraw(),
+                                        // The system is out of memory, we should probably quit
+                                        Err(wgpu::SurfaceError::OutOfMemory) => control_flow.exit(),
+                                        // We're ignoring timeouts
+                                        Err(wgpu::SurfaceError::Timeout) => {
+                                            log::warn!("Surface timeout")
+                                        }
+                                    }
+                                }
+                                _ => {}
                             }
-                            WindowEvent::Resized(physical_size) => {
-                                state.resize(*physical_size);
-                            }
-                            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                                // new_inner_size is &mut so w have to dereference it twice
-                                state.resize(**new_inner_size);
-                            }
-                            _ => {}
                         }
                     }
                 }
-            }
-            Event::RedrawRequested(window_id) if window_id == window.id() => {
-                state.update();
-                match state.render() {
-                    Ok(_) => {}
-                    // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => state.redraw(),
-                    // The system is out of memory, we should probably quit
-                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    // We're ignoring timeouts
-                    Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
+                Event::AboutToWait => {
+                    window.request_redraw();
                 }
+                _ => {}
             }
-            Event::MainEventsCleared => {
-                // RedrawRequested will only trigger once, unless we manually
-                // request it.
-                window.request_redraw();
-            }
-            _ => {}
-        }
-    });
+        })
+        .unwrap();
 }
 
 pub enum InputResult {

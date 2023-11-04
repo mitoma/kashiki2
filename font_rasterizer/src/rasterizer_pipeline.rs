@@ -342,10 +342,12 @@ impl RasterizerPipeline {
                             b: 0.0,
                             a: 0.0,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
 
             overlay_render_pass.set_pipeline(&self.overlap_render_pipeline);
@@ -387,10 +389,12 @@ impl RasterizerPipeline {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(self.bg_color),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             outline_render_pass.set_pipeline(&self.outline_render_pipeline);
             outline_render_pass.set_bind_group(0, &outline_bind_group, &[]);
@@ -430,10 +434,12 @@ impl RasterizerPipeline {
                             b: 0.0,
                             a: 0.0,
                         }),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             screen_render_pass.set_pipeline(&self.screen_render_pipeline);
             screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
