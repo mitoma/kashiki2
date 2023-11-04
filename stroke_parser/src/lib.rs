@@ -1,9 +1,10 @@
 pub mod action_store_parser;
 pub mod keys;
 
+use log::warn;
 use serde_derive::{Deserialize, Serialize};
 use std::ops::Deref;
-use winit::event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent};
+use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct KeyWithModifier {
@@ -129,20 +130,17 @@ impl ActionStore {
     pub fn winit_window_event_to_action(&mut self, event: &WindowEvent) -> Option<Action> {
         match event {
             WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
+                event:
+                    KeyEvent {
                         state: ElementState::Pressed,
-                        virtual_keycode: Some(keycode),
+                        logical_key,
+                        text,
                         ..
                     },
                 ..
             } => {
-                if Self::is_modifire_key(keycode) {
-                    return None;
-                }
-
                 self.current_stroke.append_key(KeyWithModifier {
-                    key: keys::KeyCode::from(*keycode),
+                    key: keys::KeyCode::from(logical_key),
                     modifires: self.current_modifier,
                 });
 
@@ -151,22 +149,25 @@ impl ActionStore {
                     return Some(action);
                 }
 
-                if !self.in_stroke() {
-                    self.current_stroke.clear();
+                // ストロークの最中と判断された場合は文字は入力しない
+                if self.in_stroke() {
+                    return None;
                 }
-                None
+
+                self.current_stroke.clear();
+                text.clone().map(|text| {
+                    if text.len() == 1 {
+                        Action::Keytype(text.chars().next().unwrap())
+                    } else {
+                        // 二文字以上の文字が一つの Keyboard Input で出てくることは想定していないが
+                        warn!("text.len() != 1");
+                        Action::ImeInput(text.to_string())
+                    }
+                })
             }
             WindowEvent::ModifiersChanged(state) => {
                 self.current_modifier = keys::ModifiersState::from(*state);
                 None
-            }
-            WindowEvent::ReceivedCharacter(c) => {
-                if c.is_control() {
-                    // Enter や Backspace は Action で対応する？
-                    None
-                } else {
-                    Some(Action::Keytype(*c))
-                }
             }
             WindowEvent::Ime(ime) => match ime {
                 winit::event::Ime::Enabled => Some(Action::ImeEnable),
@@ -205,17 +206,5 @@ impl ActionStore {
             }
         }
         false
-    }
-
-    fn is_modifire_key(keycode: &VirtualKeyCode) -> bool {
-        matches!(
-            *keycode,
-            VirtualKeyCode::LControl
-                | VirtualKeyCode::RControl
-                | VirtualKeyCode::LAlt
-                | VirtualKeyCode::RAlt
-                | VirtualKeyCode::LShift
-                | VirtualKeyCode::RShift
-        )
     }
 }
