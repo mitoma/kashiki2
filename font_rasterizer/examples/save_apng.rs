@@ -51,9 +51,7 @@ pub async fn run() {
 
     info!("start generate images");
     generate_images(support, 100, Duration::from_millis(20), |image, _frame| {
-        let dynimage = image::DynamicImage::ImageRgba8(image);
-        let png_image = load_dynamic_image(dynimage).unwrap();
-        png_images.push(png_image);
+        png_images.push(load_dynamic_image(image::DynamicImage::ImageRgba8(image)).unwrap());
     })
     .await;
 
@@ -66,7 +64,9 @@ pub async fn run() {
         delay_den: Some(50),
         ..Default::default()
     };
-    encoder.encode_all(png_images, Some(&frame)).unwrap();
+    encoder
+        .encode_all_parallel(png_images, Some(&frame))
+        .unwrap();
     info!("finish!");
 }
 
