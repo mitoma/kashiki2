@@ -44,4 +44,4 @@ glob = "0.3"
 [dev-dependencies]
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
 stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
-apng = "0.3.1"
+apng = { git = "https://github.com/mitoma/apng", branch = "use-rayon" }
