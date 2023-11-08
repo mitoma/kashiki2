@@ -1,6 +1,6 @@
 use std::{collections::HashSet, env, fs::File, io::BufWriter};
 
-use apng::{load_dynamic_image, Encoder, Frame, PNGImage};
+use apng::{encode_with_stream, load_dynamic_image, Encoder, Frame, PNGImage};
 use instant::Duration;
 
 use cgmath::Rotation3;
@@ -44,29 +44,37 @@ pub async fn run() {
         font_binaries,
     };
 
-    let file_name = "test-animation";
-    let mut out = BufWriter::new(File::create(format!("{}.png", file_name)).unwrap());
-
-    let mut png_images: Vec<PNGImage> = Vec::new();
-
     info!("start generate images");
-    generate_images(support, 100, Duration::from_millis(20), |image, _frame| {
-        png_images.push(load_dynamic_image(image::DynamicImage::ImageRgba8(image)).unwrap());
-    })
+    let num_of_frame = 100;
+    let (tx, rx) = std::sync::mpsc::channel::<PNGImage>();
+
+    let handler = std::thread::spawn(move || {
+        info!("start apng encode");
+        let file_name = "test-animation";
+        let mut out = BufWriter::new(File::create(format!("{}.png", file_name)).unwrap());
+        let frame = Frame {
+            delay_num: Some(1),
+            delay_den: Some(50),
+            ..Default::default()
+        };
+        encode_with_stream(rx, num_of_frame, frame, &mut out);
+        info!("finish apng encode")
+    });
+
+    generate_images(
+        support,
+        num_of_frame,
+        Duration::from_millis(20),
+        |image, _frame| {
+            let dynimage = image::DynamicImage::ImageRgba8(image);
+            let png_image = load_dynamic_image(dynimage).unwrap();
+            tx.send(png_image).unwrap();
+        },
+    )
     .await;
+    drop(tx);
 
-    info!("start apng encode");
-    let config = apng::create_config(&png_images, None).unwrap();
-    let mut encoder = Encoder::new(&mut out, config).unwrap();
-
-    let frame = Frame {
-        delay_num: Some(1),
-        delay_den: Some(50),
-        ..Default::default()
-    };
-    encoder
-        .encode_all_parallel(png_images, Some(&frame))
-        .unwrap();
+    handler.join().unwrap();
     info!("finish!");
 }
 
