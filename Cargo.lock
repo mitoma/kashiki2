@@ -106,12 +106,11 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 [[package]]
 name = "apng"
 version = "0.3.1"
-source = "git+https://github.com/mitoma/apng?branch=use-rayon#6a7cd0dfd1ee4cdb10870fbf283f913356a35a0c"
+source = "git+https://github.com/mitoma/apng?branch=master#c283547b45c51383b6c67b91280ec75ebacd69a4"
 dependencies = [
  "byteorder",
  "flate2",
  "image",
- "log",
  "png",
  "rayon",
  "rayon_ordered_bridge",
@@ -184,7 +183,7 @@ dependencies = [
 [[package]]
 name = "bezier_converter"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#f9df7b2382bfc1cf49cc4349abe673f36ece9fe1"
+source = "git+https://github.com/mitoma/sandbox?branch=main#8f48f62b47891045876b48cf8d395d4c46d47aa9"
 dependencies = [
  "cgmath",
 ]
@@ -1234,7 +1233,7 @@ dependencies = [
 [[package]]
 name = "nenobi"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#f9df7b2382bfc1cf49cc4349abe673f36ece9fe1"
+source = "git+https://github.com/mitoma/sandbox?branch=main#8f48f62b47891045876b48cf8d395d4c46d47aa9"
 dependencies = [
  "instant",
  "num-traits",
@@ -1565,7 +1564,7 @@ dependencies = [
 [[package]]
 name = "rayon_ordered_bridge"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#f9df7b2382bfc1cf49cc4349abe673f36ece9fe1"
+source = "git+https://github.com/mitoma/sandbox?branch=main#8f48f62b47891045876b48cf8d395d4c46d47aa9"
 dependencies = [
  "rayon",
 ]

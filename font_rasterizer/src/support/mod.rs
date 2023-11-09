@@ -578,6 +578,7 @@ pub async fn generate_images<F>(
     mut callback: F,
 ) where
     F: FnMut(ImageBuffer<Rgba<u8>, Vec<u8>>, u32),
+    F: Send,
 {
     set_clock_mode(ClockMode::Fixed);
     let mut state = ImageState::new(
@@ -599,4 +600,28 @@ pub async fn generate_images<F>(
         increment_fixed_clock(frame_gain);
         frame += 1;
     }
+}
+
+pub async fn generate_image_iter(
+    support: SimpleStateSupport,
+    num_of_frame: u32,
+    frame_gain: Duration,
+) -> impl Iterator<Item = (ImageBuffer<Rgba<u8>, Vec<u8>>, u32)> {
+    set_clock_mode(ClockMode::Fixed);
+    let mut state = ImageState::new(
+        (support.window_size.0 as u32, support.window_size.1 as u32),
+        support.quarity,
+        support.bg_color,
+        support.callback,
+        support.font_binaries,
+    )
+    .await;
+
+    (0..num_of_frame).into_iter().map(move |frame| {
+        state.update();
+        let image = state.render().unwrap();
+
+        increment_fixed_clock(frame_gain);
+        (image, frame)
+    })
 }
