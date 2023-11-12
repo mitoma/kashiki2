@@ -106,7 +106,7 @@ checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 [[package]]
 name = "apng"
 version = "0.3.1"
-source = "git+https://github.com/mitoma/apng?branch=master#c283547b45c51383b6c67b91280ec75ebacd69a4"
+source = "git+https://github.com/mitoma/apng?branch=master#6255fc7bbef47b02ce781f46568a008a04e82db7"
 dependencies = [
  "byteorder",
  "flate2",
@@ -183,7 +183,7 @@ dependencies = [
 [[package]]
 name = "bezier_converter"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#8f48f62b47891045876b48cf8d395d4c46d47aa9"
+source = "git+https://github.com/mitoma/sandbox?branch=main#508b5aab7df3c062041bd034ea846c862a4688f9"
 dependencies = [
  "cgmath",
 ]
@@ -543,9 +543,9 @@ checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
 name = "env_logger"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85cdab6a89accf66733ad5a1693a4dcced6aeff64602b634530dd73c1f3ee9f0"
+checksum = "95b3f3e67048839cb0d0781f445682a35113da7121f7c949db0e2be96a4fbece"
 dependencies = [
  "humantime",
  "is-terminal",
@@ -639,6 +639,7 @@ dependencies = [
  "nenobi",
  "once_cell",
  "pollster",
+ "rayon",
  "rustybuzz",
  "stroke_parser",
  "text_buffer",
@@ -1233,7 +1234,7 @@ dependencies = [
 [[package]]
 name = "nenobi"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#8f48f62b47891045876b48cf8d395d4c46d47aa9"
+source = "git+https://github.com/mitoma/sandbox?branch=main#508b5aab7df3c062041bd034ea846c862a4688f9"
 dependencies = [
  "instant",
  "num-traits",
@@ -1564,7 +1565,7 @@ dependencies = [
 [[package]]
 name = "rayon_ordered_bridge"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#8f48f62b47891045876b48cf8d395d4c46d47aa9"
+source = "git+https://github.com/mitoma/sandbox?branch=main#508b5aab7df3c062041bd034ea846c862a4688f9"
 dependencies = [
  "rayon",
 ]
@@ -1760,9 +1761,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.11.1"
+version = "1.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "942b4a808e05215192e39f4ab80813e599068285906cc91aa64f923db842bd5a"
+checksum = "4dccd0940a2dcdf68d092b8cbab7dc0ad8fa938bf95787e1b916b0e3d0e8e970"
 
 [[package]]
 name = "smithay-client-toolkit"

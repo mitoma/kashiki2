@@ -1,11 +1,6 @@
-use std::{
-    collections::HashSet,
-    fs::File,
-    io::BufWriter,
-    sync::{mpsc::SyncSender, Arc, Mutex},
-};
+use std::collections::HashSet;
 
-use apng::{load_dynamic_image, Encoder, Frame, PNGImage};
+use apng::{load_dynamic_image, Frame, ParallelEncoder};
 use instant::Duration;
 
 use cgmath::Rotation3;
@@ -54,72 +49,37 @@ pub async fn run() {
 
     info!("start apng encode");
 
-    let image_sender: Box<Mutex<Option<SyncSender<(PNGImage, Option<Frame>)>>>> =
-        Box::new(Mutex::new(None));
-
-    let mut image_iter =
-        generate_image_iter(support, num_of_frame, Duration::from_millis(20)).await;
-    let image_iter = Arc::new(Mutex::new(image_iter));
-
-    let (first_image, frame) = image_iter.lock().unwrap().next().unwrap();
-
-    let dynimage = image::DynamicImage::ImageRgba8(first_image);
-    let png_image = load_dynamic_image(dynimage).unwrap();
-
-    let config = apng::create_config_with_num_frames(&png_image, num_of_frame, None).unwrap();
-    let file_name = "test-animation";
-    let out = BufWriter::new(File::create(format!("{}.png", file_name)).unwrap());
+    let path = std::path::Path::new("test-animation.png");
     let frame = Frame {
         delay_num: Some(1),
         delay_den: Some(50),
         ..Default::default()
     };
-    
-    Encoder::encode_parallel(out, config, Some(frame), move |sender| {
-        sender.send((png_image.clone(), None)).unwrap();
-        image_iter.lock().unwrap().for_each(|(img, frame)| {
-            let dynimage = image::DynamicImage::ImageRgba8(img);
+
+    let mut image_iter = generate_image_iter(support, num_of_frame, Duration::from_millis(20))
+        .await
+        .map(|(image, index)| {
+            let dynimage = image::DynamicImage::ImageRgba8(image);
             let png_image = load_dynamic_image(dynimage).unwrap();
-            sender.send((png_image, None)).unwrap();
+            (png_image, index)
         });
-    })
+    let (image, _idx) = image_iter.next().unwrap();
+
+    let encoder = ParallelEncoder::new(
+        path.to_path_buf(),
+        image,
+        Some(frame),
+        num_of_frame,
+        None,
+        Some(64),
+    )
     .unwrap();
-
-    /*
-
-               info!("start frame {}", frame);
-               let dynimage = image::DynamicImage::ImageRgba8(image);
-               let png_image = load_dynamic_image(dynimage).unwrap();
-               if frame == 0 {
-                   let config =
-                       apng::create_config_with_num_frames(&png_image, num_of_frame, None).unwrap();
-                   let file_name = "test-animation";
-                   let out = BufWriter::new(File::create(format!("{}.png", file_name)).unwrap());
-                   let frame = Frame {
-                       delay_num: Some(1),
-                       delay_den: Some(50),
-                       ..Default::default()
-                   };
-                   Encoder::encode_parallel(out, config, Some(frame), |sender| {
-                       info!("replace sender");
-                       image_sender.lock().unwrap().replace(sender);
-                       info!("replaced sender");
-                   })
-                   .unwrap();
-               }
-               info!("send image");
-               image_sender
-                   .lock()
-                   .unwrap()
-                   .as_ref()
-                   .unwrap()
-                   .send((png_image, None))
-                   .unwrap();
-               info!("sended!");
-           },
-       )
-       .await;
-    */
+    for (png_image, idx) in image_iter {
+        info!("send image to encoder. frame: {}", idx);
+        encoder.send(png_image);
+        info!("sended image to encoder. frame: {}", idx);
+    }
+    encoder.finalize();
     info!("finish!");
 }
 

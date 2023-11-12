@@ -45,3 +45,4 @@ glob = "0.3"
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
 stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
+rayon = "1.8.0"

@@ -587,8 +587,7 @@ pub async fn generate_images<F>(
         support.bg_color,
         support.callback,
         support.font_binaries,
-    )
-    .await;
+    ).await;
 
     let mut frame = 0;
     loop {
@@ -617,7 +616,7 @@ pub async fn generate_image_iter(
     )
     .await;
 
-    (0..num_of_frame).into_iter().map(move |frame| {
+    (0..num_of_frame).map(move |frame| {
         state.update();
         let image = state.render().unwrap();
 
