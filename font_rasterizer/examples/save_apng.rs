@@ -36,7 +36,7 @@ pub async fn run() {
     let callback = SingleCharCallback::new();
     let support = SimpleStateSupport {
         window_title: "Hello".to_string(),
-        window_size: (512, 512),
+        window_size: (256, 256),
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
         bg_color: SolarizedDark.background().into(),
@@ -45,7 +45,7 @@ pub async fn run() {
     };
 
     info!("start generate images");
-    let num_of_frame = 1024;
+    let num_of_frame = 100;
 
     info!("start apng encode");
 
@@ -112,7 +112,7 @@ impl SimpleStateCallback for SingleCharCallback {
             SolarizedDark.cyan().get_color(),
             //MotionFlags::ZERO_MOTION,
             MotionFlags::new(
-                MotionType::EaseInOut(EasingFuncType::Quad, true),
+                MotionType::EaseInOut(EasingFuncType::Sin, true),
                 MotionDetail::USE_X_DISTANCE,
                 MotionTarget::MOVE_X_PLUS,
             ),

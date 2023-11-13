@@ -587,7 +587,8 @@ pub async fn generate_images<F>(
         support.bg_color,
         support.callback,
         support.font_binaries,
-    ).await;
+    )
+    .await;
 
     let mut frame = 0;
     loop {
