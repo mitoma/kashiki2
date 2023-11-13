@@ -1,6 +1,6 @@
-use std::{collections::HashSet, env, fs::File, io::BufWriter};
+use std::collections::HashSet;
 
-use apng::{encode_with_stream, load_dynamic_image, Encoder, Frame, PNGImage};
+use apng::{load_dynamic_image, Frame, ParallelEncoder};
 use instant::Duration;
 
 use cgmath::Rotation3;
@@ -11,7 +11,7 @@ use font_rasterizer::{
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{generate_images, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
 use log::{debug, info};
@@ -46,35 +46,40 @@ pub async fn run() {
 
     info!("start generate images");
     let num_of_frame = 100;
-    let (tx, rx) = std::sync::mpsc::channel::<PNGImage>();
 
-    let handler = std::thread::spawn(move || {
-        info!("start apng encode");
-        let file_name = "test-animation";
-        let mut out = BufWriter::new(File::create(format!("{}.png", file_name)).unwrap());
-        let frame = Frame {
-            delay_num: Some(1),
-            delay_den: Some(50),
-            ..Default::default()
-        };
-        encode_with_stream(rx, num_of_frame, frame, &mut out);
-        info!("finish apng encode")
-    });
+    info!("start apng encode");
 
-    generate_images(
-        support,
-        num_of_frame,
-        Duration::from_millis(20),
-        |image, _frame| {
+    let path = std::path::Path::new("test-animation.png");
+    let frame = Frame {
+        delay_num: Some(1),
+        delay_den: Some(50),
+        ..Default::default()
+    };
+
+    let mut image_iter = generate_image_iter(support, num_of_frame, Duration::from_millis(20))
+        .await
+        .map(|(image, index)| {
             let dynimage = image::DynamicImage::ImageRgba8(image);
             let png_image = load_dynamic_image(dynimage).unwrap();
-            tx.send(png_image).unwrap();
-        },
-    )
-    .await;
-    drop(tx);
+            (png_image, index)
+        });
+    let (image, _idx) = image_iter.next().unwrap();
 
-    handler.join().unwrap();
+    let encoder = ParallelEncoder::new(
+        path.to_path_buf(),
+        image,
+        Some(frame),
+        num_of_frame,
+        None,
+        Some(64),
+    )
+    .unwrap();
+    for (png_image, idx) in image_iter {
+        info!("send image to encoder. frame: {}", idx);
+        encoder.send(png_image);
+        info!("sended image to encoder. frame: {}", idx);
+    }
+    encoder.finalize();
     info!("finish!");
 }
 
@@ -102,7 +107,7 @@ impl SimpleStateCallback for SingleCharCallback {
         queue: &wgpu::Queue,
     ) {
         let value = GlyphInstance::new(
-            (0.0, 0.0, -10.0).into(),
+            (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             SolarizedDark.cyan().get_color(),
             //MotionFlags::ZERO_MOTION,
