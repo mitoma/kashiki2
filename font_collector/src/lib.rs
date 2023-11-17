@@ -44,7 +44,7 @@ impl FontCollector {
         fonts
     }
 
-    pub fn list_fonts(&self) -> Vec<Font> {
+    fn list_fonts(&self) -> Vec<Font> {
         let font_file_paths = self.list_font_files();
         let mut fonts = Vec::new();
         for font_path in font_file_paths {
@@ -55,6 +55,19 @@ impl FontCollector {
             fonts.push(Font::File(font_path.clone(), font_names));
         }
         fonts
+    }
+
+    pub fn list_font_names(&self) -> Vec<String> {
+        let mut font_names = self
+            .list_fonts()
+            .into_iter()
+            .flat_map(|font| match font {
+                Font::File(_path, names) => names,
+                Font::InMemory(_id, names) => names,
+            })
+            .collect::<Vec<String>>();
+        font_names.sort();
+        font_names
     }
 
     pub fn load_font(&self, font_name: &str) -> Option<Vec<u8>> {
@@ -71,17 +84,14 @@ fn system_font_dir() -> PathBuf {
     buf
 }
 
-fn list_font_files() -> Vec<PathBuf> {
-    let mut fonts = Vec::new();
-    let font_dir = system_font_dir();
-    for entry in std::fs::read_dir(font_dir).unwrap() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if path.is_file() {
-            fonts.push(path);
-        }
+fn font_names(font_path: &PathBuf, preferred_language: Option<PreferredLanguage>) -> Vec<String> {
+    let mut font_names = Vec::new();
+    let data = std::fs::read(font_path).unwrap();
+    let names = convert_text::font_name(data.as_slice(), preferred_language);
+    for name in names {
+        font_names.push(name);
     }
-    fonts
+    font_names
 }
 
 #[derive(Debug, Clone)]
@@ -110,72 +120,15 @@ impl Font {
     }
 }
 
-fn font_names(font_path: &PathBuf, preferred_language: Option<PreferredLanguage>) -> Vec<String> {
-    let mut font_names = Vec::new();
-    let data = std::fs::read(font_path).unwrap();
-    let names = convert_text::font_name(data.as_slice(), preferred_language);
-    for name in names {
-        font_names.push(name);
-    }
-    font_names
-}
-
-pub fn list_fonts() -> Vec<Font> {
-    let mut fonts = Vec::new();
-    let font_file_paths = list_font_files();
-    for font_path in font_file_paths {
-        let font_names = font_names(&font_path, Some(PreferredLanguage::Japanese));
-        if font_names.is_empty() {
-            continue;
-        }
-        fonts.push(Font::File(font_path.clone(), font_names));
-    }
-    fonts
-}
-
-pub fn load_font(font_name: &str) -> Option<Vec<u8>> {
-    list_fonts()
-        .iter()
-        .filter(|f| f.contains(font_name))
-        .map(|f| f.data())
-        .next()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_list_fontss() {
-        let fonts = list_fonts();
-        let mut font_names = fonts
-            .into_iter()
-            .flat_map(|font| match font {
-                Font::File(_path, names) => names,
-                Font::InMemory(_id, names) => names,
-            })
-            .collect::<Vec<String>>();
-        font_names.sort();
-        font_names.iter().for_each(|name| {
-            println!("font_name:{:?}", name,);
-        });
-    }
-
-    #[test]
     fn test_list_fonts() {
         let mut collector = FontCollector::new();
         collector.add_system_fonts();
-        let fonts = collector.list_fonts();
-
-        let mut font_names = fonts
-            .into_iter()
-            .flat_map(|font| match font {
-                Font::File(_path, names) => names,
-                Font::InMemory(_id, names) => names,
-            })
-            .collect::<Vec<String>>();
-        font_names.sort();
-        font_names.iter().for_each(|name| {
+        collector.list_font_names().iter().for_each(|name| {
             println!("font_name:{:?}", name,);
         });
     }
@@ -184,15 +137,6 @@ mod tests {
     fn test_list_fonts2() {
         let mut collector = FontCollector::new();
         collector.add_font_path(PathBuf::from("../font_rasterizer/examples/font"));
-        let fonts = collector.list_fonts();
-
-        let mut font_names = fonts
-            .into_iter()
-            .flat_map(|font| match font {
-                Font::File(_path, names) => names,
-                Font::InMemory(_id, names) => names,
-            })
-            .collect::<Vec<String>>();
-        assert_eq!(font_names.len(), 2);
+        assert_eq!(collector.list_font_names().len(), 2);
     }
 }
