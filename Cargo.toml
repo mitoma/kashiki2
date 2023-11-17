@@ -2,6 +2,7 @@
 members = [
     "text_buffer",
     "stroke_parser",
+    "font_collector",
     "font_rasterizer",
     "font_rasterizer_example",
 ]
@@ -18,3 +19,4 @@ env_logger = "0.10.0"
 log = "0.4"
 pollster = "0.3"
 image = "0.24"
+allsorts = "0.14.1"
