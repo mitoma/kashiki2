@@ -7,8 +7,7 @@ use anyhow::Context;
 
 use bezier_converter::CubicBezier;
 use log::{debug, info};
-use rustybuzz::Face;
-use ttf_parser::OutlineBuilder;
+use rustybuzz::{Face, ttf_parser::OutlineBuilder};
 use unicode_width::UnicodeWidthChar;
 use wgpu::BufferUsages;
 

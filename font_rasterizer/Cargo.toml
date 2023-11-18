@@ -19,8 +19,7 @@ winit = { workspace = true }
 bitflags = "2.3.3"
 image = { workspace = true }
 
-ttf-parser = "0.19.1"
-rustybuzz = "0.10.0"
+rustybuzz.workspace = true
 cgmath = "0.18"
 
 instant = { version = "0.1", features = ["wasm-bindgen"] }
