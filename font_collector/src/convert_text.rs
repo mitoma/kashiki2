@@ -5,6 +5,14 @@ use allsorts::{
     tag,
 };
 use encoding_rs::{DecoderResult, MACINTOSH, UTF_16BE};
+use rustybuzz::{
+    ttf_parser::{
+        fonts_in_collection,
+        name::{Name, Names},
+        PlatformId,
+    },
+    Face,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum PreferredLanguage {
@@ -84,33 +92,41 @@ impl PreferredLanguage {
 }
 
 pub fn font_name(data: &[u8], preferred_language: Option<PreferredLanguage>) -> Vec<String> {
-    ReadScope::new(&data)
-        .read::<OpenTypeFont>()
-        .map(|font| match font.data {
-            allsorts::tables::OpenTypeData::Single(ttf) => {
-                let scope = ReadScope::new(&data);
-                let name_table_read_scope = ttf.read_table(&scope, tag::NAME).unwrap().unwrap();
-                let name_table = name_table_read_scope.read::<NameTable>().unwrap();
-                vec![get_font_name(&name_table, NameId::FullFontName, preferred_language).unwrap()]
-            }
-            allsorts::tables::OpenTypeData::Collection(ttc_header) => {
-                let scope = ReadScope::new(&data);
-                ttc_header
-                    .offset_tables
-                    .iter()
-                    .map(|offset| {
-                        let offset_table =
-                            scope.offset(offset as usize).read::<OffsetTable>().unwrap();
-                        let name_table_read_scope =
-                            offset_table.read_table(&scope, tag::NAME).unwrap().unwrap();
-                        let name_table = name_table_read_scope.read::<NameTable>().unwrap();
-                        get_font_name(&name_table, NameId::FullFontName, preferred_language)
-                            .unwrap()
-                    })
-                    .collect()
-            }
+    match fonts_in_collection(data) {
+        Some(count) => (0..count).into_iter().collect(),
+        None => vec![0],
+    }
+    .into_iter()
+    .flat_map(|index| {
+        Face::from_slice(&data, index)
+            .map(|face| get_font_name_buzz(&face.names(), NameId::FullFontName, preferred_language))
+    })
+    .filter_map(Result::ok)
+    .collect()
+}
+
+pub fn get_font_name_buzz(
+    names: &Names,
+    name_id: NameId,
+    preferred_language: Option<PreferredLanguage>,
+) -> Result<String, ParseError> {
+    let target_record = names
+        .into_iter()
+        .filter(|name| name.name_id == name_id.into())
+        .flat_map(|name| {
+            score_encoding_buzz(&name, preferred_language)
+                .map(|(score, encoding)| (score, encoding, name))
         })
-        .unwrap_or(vec![])
+        .max_by(|l, r| l.0.cmp(&r.0));
+    if let Some((_, encoding, record)) = target_record {
+        if let Some(name) = decode_name(encoding, record.name) {
+            Ok(name)
+        } else {
+            Err(ParseError::BadValue)
+        }
+    } else {
+        Err(ParseError::BadValue)
+    }
 }
 
 pub fn get_font_name(
@@ -151,6 +167,55 @@ pub fn get_font_name(
 enum NameEncoding {
     Utf16Be,
     AppleRoman,
+}
+
+fn score_encoding_buzz(
+    name: &Name,
+    preferred_language: Option<PreferredLanguage>,
+) -> Option<(usize, NameEncoding)> {
+    fn match_language_id(language_id: u16, preferred_language: Option<PreferredLanguage>) -> bool {
+        preferred_language.map_or(false, |lang| lang.windows_lang_id() == language_id)
+    }
+    let platform_id = name.platform_id;
+    let encoding_id = name.encoding_id;
+    let language_id = name.language_id;
+    match (platform_id, encoding_id, language_id) {
+        // Windows; Unicode full repertoire
+        (PlatformId::Windows, 10, _) => Some((1000, NameEncoding::Utf16Be)),
+
+        // Unicode; Unicode full repertoire
+        (PlatformId::Unicode, 6, 0) => Some((900, NameEncoding::Utf16Be)),
+
+        // Unicode; Unicode 2.0 and onwards semantics, Unicode full repertoire
+        (PlatformId::Unicode, 4, 0) => Some((800, NameEncoding::Utf16Be)),
+
+        // Windows; Unicode BMP
+        (PlatformId::Windows, 1, lang) if match_language_id(lang, preferred_language) => {
+            Some((1000, NameEncoding::Utf16Be))
+        }
+        (PlatformId::Windows, 1, 0x409) => Some((750, NameEncoding::Utf16Be)),
+        (PlatformId::Windows, 1, lang) if lang != 0x409 => Some((700, NameEncoding::Utf16Be)),
+
+        // Unicode; Unicode 2.0 and onwards semantics, Unicode BMP only
+        (PlatformId::Unicode, 3, 0) => Some((600, NameEncoding::Utf16Be)),
+
+        // Unicode; ISO/IEC 10646 semantics
+        (PlatformId::Unicode, 2, 0) => Some((500, NameEncoding::Utf16Be)),
+
+        // Unicode; Unicode 1.1 semantics
+        (PlatformId::Unicode, 1, 0) => Some((400, NameEncoding::Utf16Be)),
+
+        // Unicode; Unicode 1.0 semantics
+        (PlatformId::Unicode, 0, 0) => Some((300, NameEncoding::Utf16Be)),
+
+        // Windows, Symbol
+        (PlatformId::Windows, 0, _) => Some((200, NameEncoding::Utf16Be)),
+
+        // Apple Roman
+        (PlatformId::Macintosh, 0, 0) => Some((150, NameEncoding::AppleRoman)),
+        (PlatformId::Macintosh, 0, lang) if lang != 0 => Some((100, NameEncoding::AppleRoman)),
+        _ => None,
+    }
 }
 
 fn score_encoding(
