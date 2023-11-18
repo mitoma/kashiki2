@@ -1,9 +1,3 @@
-use allsorts::{
-    binary::read::ReadScope,
-    error::ParseError,
-    tables::{NameTable, OffsetTable, OpenTypeFont},
-    tag,
-};
 use encoding_rs::{DecoderResult, MACINTOSH, UTF_16BE};
 use rustybuzz::{
     ttf_parser::{
@@ -99,67 +93,33 @@ pub fn font_name(data: &[u8], preferred_language: Option<PreferredLanguage>) -> 
     .into_iter()
     .flat_map(|index| {
         Face::from_slice(&data, index)
-            .map(|face| get_font_name_buzz(&face.names(), NameId::FullFontName, preferred_language))
+            .map(|face| get_font_name(&face.names(), NameId::FullFontName, preferred_language))
     })
-    .filter_map(Result::ok)
+    .flatten()
     .collect()
 }
 
-pub fn get_font_name_buzz(
+pub fn get_font_name(
     names: &Names,
     name_id: NameId,
     preferred_language: Option<PreferredLanguage>,
-) -> Result<String, ParseError> {
+) -> Option<String> {
     let target_record = names
         .into_iter()
         .filter(|name| name.name_id == name_id.into())
         .flat_map(|name| {
-            score_encoding_buzz(&name, preferred_language)
+            score_encoding(&name, preferred_language)
                 .map(|(score, encoding)| (score, encoding, name))
         })
         .max_by(|l, r| l.0.cmp(&r.0));
     if let Some((_, encoding, record)) = target_record {
         if let Some(name) = decode_name(encoding, record.name) {
-            Ok(name)
+            Some(name)
         } else {
-            Err(ParseError::BadValue)
+            None
         }
     } else {
-        Err(ParseError::BadValue)
-    }
-}
-
-pub fn get_font_name(
-    name_table: &NameTable,
-    name_id: NameId,
-    preferred_language: Option<PreferredLanguage>,
-) -> Result<String, ParseError> {
-    let storage = &name_table.string_storage;
-    let target_record = name_table
-        .name_records
-        .iter()
-        .filter(|record| record.name_id == name_id.into())
-        .flat_map(|record| {
-            score_encoding(
-                record.platform_id,
-                record.encoding_id,
-                record.language_id,
-                preferred_language,
-            )
-            .map(|(score, encoding)| (score, encoding, record))
-        })
-        .max_by(|l, r| l.0.cmp(&r.0));
-    if let Some((_, encoding, record)) = target_record {
-        let offset = usize::from(record.offset);
-        let length = usize::from(record.length);
-        let data = storage.offset_length(offset, length)?.data();
-        if let Some(name) = decode_name(encoding, data) {
-            Ok(name)
-        } else {
-            Err(ParseError::BadValue)
-        }
-    } else {
-        Err(ParseError::BadValue)
+        None
     }
 }
 
@@ -169,7 +129,7 @@ enum NameEncoding {
     AppleRoman,
 }
 
-fn score_encoding_buzz(
+fn score_encoding(
     name: &Name,
     preferred_language: Option<PreferredLanguage>,
 ) -> Option<(usize, NameEncoding)> {
@@ -214,54 +174,6 @@ fn score_encoding_buzz(
         // Apple Roman
         (PlatformId::Macintosh, 0, 0) => Some((150, NameEncoding::AppleRoman)),
         (PlatformId::Macintosh, 0, lang) if lang != 0 => Some((100, NameEncoding::AppleRoman)),
-        _ => None,
-    }
-}
-
-fn score_encoding(
-    platform_id: u16,
-    encoding_id: u16,
-    language_id: u16,
-    preferred_language: Option<PreferredLanguage>,
-) -> Option<(usize, NameEncoding)> {
-    fn match_language_id(language_id: u16, preferred_language: Option<PreferredLanguage>) -> bool {
-        preferred_language.map_or(false, |lang| lang.windows_lang_id() == language_id)
-    }
-    match (platform_id, encoding_id, language_id) {
-        // Windows; Unicode full repertoire
-        (3, 10, _) => Some((1000, NameEncoding::Utf16Be)),
-
-        // Unicode; Unicode full repertoire
-        (0, 6, 0) => Some((900, NameEncoding::Utf16Be)),
-
-        // Unicode; Unicode 2.0 and onwards semantics, Unicode full repertoire
-        (0, 4, 0) => Some((800, NameEncoding::Utf16Be)),
-
-        // Windows; Unicode BMP
-        (3, 1, lang) if match_language_id(lang, preferred_language) => {
-            Some((1000, NameEncoding::Utf16Be))
-        }
-        (3, 1, 0x409) => Some((750, NameEncoding::Utf16Be)),
-        (3, 1, lang) if lang != 0x409 => Some((700, NameEncoding::Utf16Be)),
-
-        // Unicode; Unicode 2.0 and onwards semantics, Unicode BMP only
-        (0, 3, 0) => Some((600, NameEncoding::Utf16Be)),
-
-        // Unicode; ISO/IEC 10646 semantics
-        (0, 2, 0) => Some((500, NameEncoding::Utf16Be)),
-
-        // Unicode; Unicode 1.1 semantics
-        (0, 1, 0) => Some((400, NameEncoding::Utf16Be)),
-
-        // Unicode; Unicode 1.0 semantics
-        (0, 0, 0) => Some((300, NameEncoding::Utf16Be)),
-
-        // Windows, Symbol
-        (3, 0, _) => Some((200, NameEncoding::Utf16Be)),
-
-        // Apple Roman
-        (1, 0, 0) => Some((150, NameEncoding::AppleRoman)),
-        (1, 0, lang) if lang != 0 => Some((100, NameEncoding::AppleRoman)),
         _ => None,
     }
 }
