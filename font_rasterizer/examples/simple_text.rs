@@ -1,4 +1,4 @@
-use font_collector::{FontData, FontCollector};
+use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
 use text_buffer::{action::EditorOperation, editor::Editor};
 #[cfg(target_arch = "wasm32")]
