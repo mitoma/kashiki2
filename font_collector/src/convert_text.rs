@@ -87,12 +87,12 @@ impl PreferredLanguage {
 
 pub fn font_name(data: &[u8], preferred_language: Option<PreferredLanguage>) -> Vec<String> {
     match fonts_in_collection(data) {
-        Some(count) => (0..count).into_iter().collect(),
+        Some(count) => (0..count).collect(),
         None => vec![0],
     }
     .into_iter()
     .flat_map(|index| {
-        Face::from_slice(&data, index)
+        Face::from_slice(data, index)
             .map(|face| get_font_name(&face.names(), NameId::FullFontName, preferred_language))
     })
     .flatten()
@@ -113,11 +113,7 @@ pub fn get_font_name(
         })
         .max_by(|l, r| l.0.cmp(&r.0));
     if let Some((_, encoding, record)) = target_record {
-        if let Some(name) = decode_name(encoding, record.name) {
-            Some(name)
-        } else {
-            None
-        }
+        decode_name(encoding, record.name)
     } else {
         None
     }

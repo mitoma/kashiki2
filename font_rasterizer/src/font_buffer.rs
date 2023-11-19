@@ -6,8 +6,9 @@ use std::{
 use anyhow::Context;
 
 use bezier_converter::CubicBezier;
+use font_collector::FontData;
 use log::{debug, info};
-use rustybuzz::{Face, ttf_parser::OutlineBuilder};
+use rustybuzz::{ttf_parser::OutlineBuilder, Face};
 use unicode_width::UnicodeWidthChar;
 use wgpu::BufferUsages;
 
@@ -316,14 +317,14 @@ pub(crate) struct DrawInfo<'a> {
 }
 
 pub struct GlyphVertexBuffer {
-    font_binaries: Vec<Vec<u8>>,
+    font_binaries: Vec<FontData>,
     buffer_index: BTreeMap<char, BufferIndexEntry>,
     vertex_buffers: Vec<VertexBuffer>,
     index_buffers: Vec<IndexBuffer>,
 }
 
 impl GlyphVertexBuffer {
-    pub fn new(font_binaries: Vec<Vec<u8>>) -> GlyphVertexBuffer {
+    pub fn new(font_binaries: Vec<FontData>) -> GlyphVertexBuffer {
         Self {
             font_binaries,
             buffer_index: BTreeMap::default(),
@@ -388,7 +389,7 @@ impl GlyphVertexBuffer {
         let faces = self
             .font_binaries
             .iter()
-            .flat_map(|f| Face::from_slice(f, 0))
+            .flat_map(|f| Face::from_slice(&f.binary, f.index))
             .collect::<Vec<Face>>();
 
         // char を全て Glyph 情報に変換する

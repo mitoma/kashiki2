@@ -707,6 +707,7 @@ dependencies = [
  "console_log",
  "env_logger",
  "font-loader",
+ "font_collector",
  "fs_extra",
  "glob",
  "image",

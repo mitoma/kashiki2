@@ -9,6 +9,7 @@ use crate::{
 };
 
 use bitflags::bitflags;
+use font_collector::FontData;
 use image::{ImageBuffer, Rgba};
 use instant::Duration;
 
@@ -37,7 +38,7 @@ pub struct SimpleStateSupport {
     pub quarity: Quarity,
     pub bg_color: wgpu::Color,
     pub flags: Flags,
-    pub font_binaries: Vec<Vec<u8>>,
+    pub font_binaries: Vec<FontData>,
 }
 
 pub async fn run_support(support: SimpleStateSupport) {
@@ -215,7 +216,7 @@ impl SimpleState {
         quarity: Quarity,
         bg_color: wgpu::Color,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
-        font_binaries: Vec<Vec<u8>>,
+        font_binaries: Vec<FontData>,
     ) -> Self {
         let size = window.inner_size();
 
@@ -390,7 +391,7 @@ impl ImageState {
         quarity: Quarity,
         bg_color: wgpu::Color,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
-        font_binaries: Vec<Vec<u8>>,
+        font_binaries: Vec<FontData>,
     ) -> Self {
         let size = winit::dpi::PhysicalSize {
             width: image_size.0,

@@ -1,3 +1,4 @@
+use font_collector::FontCollector;
 use instant::Duration;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -26,7 +27,13 @@ pub fn main() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let font_binaries = vec![FONT_DATA.to_vec(), EMOJI_FONT_DATA.to_vec()];
+    let collector = FontCollector::default();
+    let font_binaries = vec![
+        collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
+        collector
+            .convert_font(EMOJI_FONT_DATA.to_vec(), None)
+            .unwrap(),
+    ];
 
     let callback = SingleCharCallback::new();
     let support = SimpleStateSupport {

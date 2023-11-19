@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use apng::{load_dynamic_image, Frame, ParallelEncoder};
+use font_collector::{FontCollector, FontData};
 use instant::Duration;
 
 use cgmath::Rotation3;
@@ -17,8 +18,8 @@ use font_rasterizer::{
 use log::{debug, info};
 use winit::event::WindowEvent;
 
-const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
-const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
+//const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
+//const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
     std::env::set_var("RUST_LOG", "info");
@@ -31,7 +32,13 @@ pub fn main() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let font_binaries = vec![FONT_DATA.to_vec(), EMOJI_FONT_DATA.to_vec()];
+    let mut collector = FontCollector::default();
+    collector.add_system_fonts();
+
+    //let data = collector.load_font("UD デジタル 教科書体 N-R");
+    let data = collector.load_font("ＭＳ Ｐ明朝");
+    let emoji_data = collector.load_font("Segoe UI Emoji");
+    let font_binaries = vec![data.unwrap(), emoji_data.unwrap()];
 
     let callback = SingleCharCallback::new();
     let support = SimpleStateSupport {
@@ -123,11 +130,6 @@ impl SimpleStateCallback for SingleCharCallback {
         let mut instances = GlyphInstances::new('あ', Vec::new(), device);
         instances.push(value);
         self.glyphs.push(instances);
-        let mut chars = HashSet::<char>::new();
-        chars.insert('あ');
-        glyph_vertex_buffer
-            .append_glyph(device, queue, chars)
-            .unwrap();
         debug!("init!");
     }
 

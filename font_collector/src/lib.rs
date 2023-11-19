@@ -3,20 +3,29 @@ pub mod convert_text;
 use std::path::PathBuf;
 
 use convert_text::PreferredLanguage;
+use log::info;
+
+pub struct FontData {
+    pub font_name: String,
+    pub binary: Vec<u8>,
+    pub index: u32,
+}
 
 pub struct FontCollector {
     font_paths: Vec<PathBuf>,
     preffered_language: Option<PreferredLanguage>,
 }
 
-impl FontCollector {
-    pub fn new() -> Self {
+impl Default for FontCollector {
+    fn default() -> Self {
         Self {
             font_paths: Vec::new(),
             preffered_language: Some(PreferredLanguage::Japanese),
         }
     }
+}
 
+impl FontCollector {
     pub fn add_system_fonts(&mut self) {
         self.font_paths.push(system_font_dir());
     }
@@ -52,6 +61,7 @@ impl FontCollector {
             if font_names.is_empty() {
                 continue;
             }
+            info!("font_path:{:?}, names:{:?}", font_path, font_names);
             fonts.push(Font::File(font_path.clone(), font_names));
         }
         fonts
@@ -70,27 +80,50 @@ impl FontCollector {
         font_names
     }
 
-    pub fn load_font(&self, font_name: &str) -> Option<Vec<u8>> {
+    pub fn load_font(&self, font_name: &str) -> Option<FontData> {
         self.list_fonts()
             .iter()
-            .filter(|f| f.contains(font_name))
-            .map(|f| f.data())
+            .map(|f| (f, f.font_index(font_name)))
+            .filter(|(_, idx)| idx.is_some())
+            .map(|(f, idx)| FontData {
+                font_name: String::from(font_name),
+                binary: f.data(),
+                index: idx.unwrap(),
+            })
             .next()
+    }
+
+    pub fn convert_font(&self, data: Vec<u8>, font_name: Option<String>) -> Option<FontData> {
+        let ref_font = font_name.as_ref();
+        let names = font_names_from_data(&data, self.preffered_language);
+        names
+            .into_iter()
+            .enumerate()
+            .find(|(_idx, name)| ref_font.map_or(true, |f_name| f_name == name))
+            .map(|(idx, name)| FontData {
+                font_name: name,
+                binary: data,
+                index: idx as u32,
+            })
     }
 }
 
 fn system_font_dir() -> PathBuf {
-    let buf = PathBuf::from("C:\\Windows\\Fonts");
-    buf
+    PathBuf::from("C:\\Windows\\Fonts")
 }
 
 fn font_names(font_path: &PathBuf, preferred_language: Option<PreferredLanguage>) -> Vec<String> {
-    let mut font_names = Vec::new();
     let data = std::fs::read(font_path).unwrap();
-    let names = convert_text::font_name(data.as_slice(), preferred_language);
+    font_names_from_data(data.as_slice(), preferred_language)
+}
+
+fn font_names_from_data(data: &[u8], preferred_language: Option<PreferredLanguage>) -> Vec<String> {
+    let mut font_names = Vec::new();
+    let names = convert_text::font_name(data, preferred_language);
     for name in names {
         font_names.push(name);
     }
+    info!("font_name_length:{}", font_names.len());
     font_names
 }
 
@@ -108,8 +141,13 @@ impl Font {
         }
     }
 
-    fn contains(&self, font_name: &str) -> bool {
-        self.names().iter().any(|name| name.contains(font_name))
+    fn font_index(&self, font_name: &str) -> Option<u32> {
+        self.names()
+            .iter()
+            .enumerate()
+            .filter(|(_idx, name)| name.contains(font_name))
+            .map(|(idx, _name)| idx as u32)
+            .next()
     }
 
     fn data(&self) -> Vec<u8> {
@@ -126,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_list_fonts() {
-        let mut collector = FontCollector::new();
+        let mut collector = FontCollector::default();
         collector.add_system_fonts();
         collector.list_font_names().iter().for_each(|name| {
             println!("font_name:{:?}", name,);
@@ -135,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_list_fonts2() {
-        let mut collector = FontCollector::new();
+        let mut collector = FontCollector::default();
         collector.add_font_path(PathBuf::from("../font_rasterizer/examples/font"));
         assert_eq!(collector.list_font_names().len(), 2);
     }
