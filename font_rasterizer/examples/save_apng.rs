@@ -10,7 +10,9 @@ use font_rasterizer::{
     color_theme::ColorTheme::SolarizedDark,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
-    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
+    motion::{
+        EasingFuncType, MotionDetail, MotionFlags, MotionFlagsBuilder, MotionTarget, MotionType,
+    },
     rasterizer_pipeline::Quarity,
     support::{generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
@@ -118,11 +120,11 @@ impl SimpleStateCallback for SingleCharCallback {
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             SolarizedDark.cyan().get_color(),
             //MotionFlags::ZERO_MOTION,
-            MotionFlags::new(
-                MotionType::EaseInOut(EasingFuncType::Sin, true),
-                MotionDetail::USE_X_DISTANCE,
-                MotionTarget::MOVE_X_PLUS,
-            ),
+            MotionFlagsBuilder::new()
+                .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, true))
+                .motion_detail(MotionDetail::USE_X_DISTANCE)
+                .motion_target(MotionTarget::MOVE_X_PLUS)
+                .build(),
             now_millis(),
             2.0,
             Duration::from_millis(1000),

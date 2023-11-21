@@ -9,7 +9,9 @@ use font_rasterizer::{
     color_theme::ColorTheme::{self, SolarizedDark},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
-    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
+    motion::{
+        EasingFuncType, MotionDetail, MotionFlags, MotionFlagsBuilder, MotionTarget, MotionType,
+    },
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     ui::{split_preedit_string, PlaneTextReader, SingleLineComponent},
@@ -97,11 +99,13 @@ impl SimpleStateCallback for SingleCharCallback {
             ),
         );
         self.camera_controller.update_camera(&mut self.camera);
-        self.reader.update_motion(MotionFlags::new(
-            MotionType::EaseOut(EasingFuncType::Bounce, false),
-            MotionDetail::TO_CURRENT,
-            MotionTarget::STRETCH_Y_PLUS,
-        ));
+        self.reader.update_motion(
+            MotionFlagsBuilder::new()
+                .motion_type(MotionType::EaseOut(EasingFuncType::Bounce, false))
+                .motion_detail(MotionDetail::TO_CURRENT)
+                .motion_target(MotionTarget::STRETCH_Y_PLUS)
+                .build(),
+        );
     }
 
     fn resize(&mut self, width: u32, height: u32) {

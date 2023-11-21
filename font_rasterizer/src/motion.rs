@@ -2,26 +2,27 @@ use bitflags::bitflags;
 
 /// motion 仕様
 /// bit
+/// ---: 31 - 28 は motion type を指定
 /// 31 : has_motion
 /// 30 : ease_in
 /// 29 : ease_out
 /// 28 : loop
-/// ----
+/// ---: 27 - 24 は motion detail を指定
 /// 27 : to_current
 /// 26 : use_distance(x)
 /// 25 : use_distance(y)
 /// 24 : use_distance(xy)
-/// ----
-/// 23 :
-/// 22 :
-/// 21 :
-/// 20 :
-/// ----
-/// 19 : 19 - 16 は easing function のタイプを指定
-/// 18 :
-/// 17 :
-/// 16 :
-/// ----
+/// ---: 23 - 16 は reserved
+/// 23 : reserved
+/// 22 : reserved
+/// 21 : reserved
+/// 20 : reserved
+/// ---: 19 - 16 は easing function のタイプを指定
+/// 19 : function type
+/// 18 : function type
+/// 17 : function type
+/// 16 : function type
+/// ---: 15 - 00 は motion target を指定
 /// 15 : STRETCH_Y_MINUS
 /// 14 : STRETCH_Y_PLUS
 /// 13 : STRETCH_X_MINUS
@@ -70,9 +71,11 @@ impl MotionFlags {
         motion_type: MotionType,
         motion_detail: MotionDetail,
         motion_target: MotionTarget,
+        camera_detail: CameraDetail,
     ) -> MotionFlags {
         let value = (motion_type.mask() << 28)
             + ((motion_detail.bits() as u32) << 24)
+            + ((camera_detail.bits() as u32) << 20)
             + (motion_type.easing_func_mask() << 16)
             + (motion_target.bits() as u32);
         MotionFlags(value)
@@ -82,6 +85,52 @@ impl MotionFlags {
 impl From<MotionFlags> for u32 {
     fn from(value: MotionFlags) -> Self {
         value.0
+    }
+}
+pub struct MotionFlagsBuilder {
+    motion_type: MotionType,
+    motion_detail: MotionDetail,
+    motion_target: MotionTarget,
+    camera_detail: CameraDetail,
+}
+
+impl MotionFlagsBuilder {
+    pub fn new() -> Self {
+        MotionFlagsBuilder {
+            motion_type: MotionType::None,
+            motion_detail: MotionDetail::empty(),
+            motion_target: MotionTarget::empty(),
+            camera_detail: CameraDetail::empty(),
+        }
+    }
+
+    pub fn motion_type(mut self, motion_type: MotionType) -> Self {
+        self.motion_type = motion_type;
+        self
+    }
+
+    pub fn motion_detail(mut self, motion_detail: MotionDetail) -> Self {
+        self.motion_detail = motion_detail;
+        self
+    }
+
+    pub fn motion_target(mut self, motion_target: MotionTarget) -> Self {
+        self.motion_target = motion_target;
+        self
+    }
+
+    pub fn camera_detail(mut self, camera_detail: CameraDetail) -> Self {
+        self.camera_detail = camera_detail;
+        self
+    }
+
+    pub fn build(self) -> MotionFlags {
+        MotionFlags::new(
+            self.motion_type,
+            self.motion_detail,
+            self.motion_target,
+            self.camera_detail,
+        )
     }
 }
 
@@ -178,9 +227,17 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub struct CameraDetail: u8 {
+        const IGNORE_CAMERA  = 0b_0000_0001;
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType};
+    use crate::motion::{
+        CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType,
+    };
 
     #[test]
     fn motion() {
@@ -188,6 +245,7 @@ mod test {
             MotionType::EaseOut(EasingFuncType::Bounce, false),
             MotionDetail::empty(),
             MotionTarget::MOVE_X_MINUS | MotionTarget::MOVE_Y_MINUS,
+            CameraDetail::IGNORE_CAMERA,
         );
         println!("{:#034b}", flags.0);
     }
