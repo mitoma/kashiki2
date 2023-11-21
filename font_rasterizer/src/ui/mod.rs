@@ -260,7 +260,7 @@ impl SingleLineComponent {
             let i = GlyphInstance::new(
                 cgmath::Vector3 {
                     x: 0.75 * x,
-                    y: 1.0,
+                    y: 0.0,
                     z: 0.0,
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
@@ -268,7 +268,7 @@ impl SingleLineComponent {
                 self.motion,
                 now_millis(),
                 0.5,
-                Duration::from_millis(1000),
+                Duration::from_millis(100),
             );
             x += glyph_width.right();
 

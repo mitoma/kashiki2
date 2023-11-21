@@ -180,6 +180,8 @@ fn vs_main(
     let use_y_distance = bit_check(motion, 25u);
     let use_xy_distance = bit_check(motion, 24u);
 
+    let ignore_camera = bit_check(motion, 20u);
+
     let easing_type = bit_range(motion, 19u, 16u);
     let duration = instances.duration;
     let gain = instances.gain;
@@ -294,7 +296,11 @@ fn vs_main(
     var out: VertexOutput;
     out.wait = vec3<f32>(1f, model.wait.xy);
     out.color = instances.color;
-    out.clip_position = u_buffer.u_view_proj * instance_matrix * moved;
+    if ignore_camera {
+        out.clip_position = instance_matrix * moved;
+    } else {
+        out.clip_position = u_buffer.u_view_proj * instance_matrix * moved;
+    }
     return out;
 }
 
