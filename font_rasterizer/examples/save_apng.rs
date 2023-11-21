@@ -10,9 +10,7 @@ use font_rasterizer::{
     color_theme::ColorTheme::SolarizedDark,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
-    motion::{
-        EasingFuncType, MotionDetail, MotionFlags, MotionFlagsBuilder, MotionTarget, MotionType,
-    },
+    motion::{EasingFuncType, MotionDetail, MotionFlagsBuilder, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
@@ -37,8 +35,7 @@ pub async fn run() {
     let mut collector = FontCollector::default();
     collector.add_system_fonts();
 
-    //let data = collector.load_font("UD デジタル 教科書体 N-R");
-    let data = collector.load_font("ＭＳ Ｐ明朝");
+    let data = collector.load_font("UD デジタル 教科書体 N-R");
     let emoji_data = collector.load_font("Segoe UI Emoji");
     let font_binaries = vec![data.unwrap(), emoji_data.unwrap()];
 
@@ -118,6 +115,7 @@ impl SimpleStateCallback for SingleCharCallback {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+            1.0,
             SolarizedDark.cyan().get_color(),
             //MotionFlags::ZERO_MOTION,
             MotionFlagsBuilder::new()

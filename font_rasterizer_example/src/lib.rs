@@ -103,15 +103,13 @@ impl SimpleStateCallback for SingleCharCallback {
         device: &wgpu::Device,
         _queue: &wgpu::Queue,
     ) {
-        let value = GlyphInstance::new(
-            (0.0, 0.0, 0.0).into(),
-            cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-            SolarizedDark.cyan().get_color(),
-            self.motion.motion_flags(),
-            now_millis(),
-            2.0,
-            Duration::from_millis(1000),
-        );
+        let value = GlyphInstance {
+            color: SolarizedDark.cyan().get_color(),
+            motion: self.motion.motion_flags(),
+            gain: 2.0,
+            duration: Duration::from_millis(1000),
+            ..Default::default()
+        };
         let mut instance = GlyphInstances::new('あ', Vec::new(), device);
         instance.push(value);
         self.glyphs.push(instance);
@@ -146,6 +144,7 @@ impl SimpleStateCallback for SingleCharCallback {
                                 cgmath::Vector3::unit_z(),
                                 cgmath::Deg(0.0),
                             ),
+                            1.0,
                             SolarizedDark.cyan().get_color(),
                             self.motion.motion_flags(),
                             now_millis(),

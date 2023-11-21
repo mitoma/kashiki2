@@ -1,23 +1,25 @@
-use cgmath::num_traits::ToPrimitive;
+use cgmath::{num_traits::ToPrimitive, Rotation3};
 use instant::Duration;
 use log::info;
 
-use crate::motion::MotionFlags;
+use crate::{color_theme::SolarizedColor, motion::MotionFlags, time::now_millis};
 
 pub struct GlyphInstance {
-    position: cgmath::Vector3<f32>,
-    rotation: cgmath::Quaternion<f32>,
-    color: [f32; 3],
-    motion: MotionFlags,
-    start_time: u32,
-    gain: f32,
-    duration: Duration,
+    pub position: cgmath::Vector3<f32>,
+    pub rotation: cgmath::Quaternion<f32>,
+    pub scale: f32,
+    pub color: [f32; 3],
+    pub motion: MotionFlags,
+    pub start_time: u32,
+    pub gain: f32,
+    pub duration: Duration,
 }
 
 impl GlyphInstance {
     pub fn new(
         position: cgmath::Vector3<f32>,
         rotation: cgmath::Quaternion<f32>,
+        scale: f32,
         color: [f32; 3],
         motion: MotionFlags,
         start_time: u32,
@@ -27,6 +29,7 @@ impl GlyphInstance {
         Self {
             position,
             rotation,
+            scale,
             color,
             motion,
             start_time,
@@ -36,10 +39,29 @@ impl GlyphInstance {
     }
 }
 
+impl Default for GlyphInstance {
+    fn default() -> Self {
+        Self {
+            position: (0.0, 0.0, 0.0).into(),
+            rotation: cgmath::Quaternion::from_axis_angle(
+                cgmath::Vector3::unit_z(),
+                cgmath::Deg(0.0),
+            ),
+            scale: 1.0,
+            color: SolarizedColor::Red.get_color(),
+            motion: MotionFlags::ZERO_MOTION,
+            start_time: now_millis(),
+            gain: 0.0,
+            duration: Duration::ZERO,
+        }
+    }
+}
+
 impl GlyphInstance {
     fn to_raw(&self) -> InstanceRaw {
         InstanceRaw {
-            model: (cgmath::Matrix4::from_translation(self.position)
+            model: (cgmath::Matrix4::from_nonuniform_scale(self.scale, self.scale, 1.0)
+                * cgmath::Matrix4::from_translation(self.position)
                 * cgmath::Matrix4::from(self.rotation))
             .into(),
             color: self.color,

@@ -119,6 +119,10 @@ impl Camera {
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
+
+    pub fn aspect(&self) -> f32 {
+        self.aspect
+    }
 }
 
 #[derive(PartialEq)]

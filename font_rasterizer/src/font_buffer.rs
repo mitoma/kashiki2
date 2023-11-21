@@ -63,6 +63,8 @@ impl GlyphWidth {
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct Vertex {
     pub(crate) position: [f32; 2],
+    // ベジエ曲線を描くために 3 頂点のうちどれを制御点、どれを始点・終点と区別するかを表す。
+    // 典型的には [0, 0], または [0, 1] が始点か終点。[1, 0] 制御点となる。
     pub(crate) wait: [f32; 2],
 }
 

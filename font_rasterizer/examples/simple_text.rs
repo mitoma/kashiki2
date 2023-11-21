@@ -29,8 +29,12 @@ pub fn main() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let collector = FontCollector::default();
+    let mut collector = FontCollector::default();
+    collector.add_system_fonts();
+    let data = collector.load_font("UD デジタル 教科書体 N-R");
+
     let font_binaries = vec![
+        data.unwrap(),
         collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
         collector
             .convert_font(EMOJI_FONT_DATA.to_vec(), None)
@@ -72,12 +76,13 @@ impl SingleCharCallback {
         let mut ime = SingleLineComponent::new("".to_string());
         ime.update_motion(
             MotionFlagsBuilder::new()
+                .camera_detail(CameraDetail::IGNORE_CAMERA)
                 .motion_type(MotionType::EaseOut(EasingFuncType::Sin, false))
                 .motion_detail(MotionDetail::TO_CURRENT)
-                .motion_target(MotionTarget::STRETCH_X_MINUS)
-                .camera_detail(CameraDetail::IGNORE_CAMERA)
+                .motion_target(MotionTarget::STRETCH_X_PLUS)
                 .build(),
         );
+        ime.update_scale(0.2);
 
         Self {
             camera: Camera::basic((800, 600)),
@@ -145,7 +150,7 @@ impl SimpleStateCallback for SingleCharCallback {
         self.camera_controller.process(
             &font_rasterizer::camera::CameraOperation::CangeTargetAndEye(
                 (0.0, 0.0, 0.0).into(),
-                (0.0, 0.0, (width + 1.0) / 800.0 * 600.0).into(),
+                (0.0, 0.0, (width + 1.0) / self.camera.aspect()).into(),
             ),
         );
         self.camera_controller.update_camera(&mut self.camera);

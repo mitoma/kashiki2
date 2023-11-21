@@ -142,12 +142,13 @@ impl PlaneTextReader {
                     cgmath::Vector3 {
                         x: 0.75 * x,
                         y: 1.0 * y,
-                        z: 0.01 * x * x,
+                        z: 0.0,
                     },
                     cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_z(),
                         cgmath::Deg(0.0),
                     ),
+                    1.0,
                     get_color(color_theme, c),
                     self.motion,
                     now_millis(),
@@ -193,6 +194,7 @@ pub struct SingleLineComponent {
     motion: MotionFlags,
     instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
+    scale: f32,
 }
 
 impl SingleLineComponent {
@@ -202,6 +204,7 @@ impl SingleLineComponent {
             instances: BTreeMap::new(),
             updated: true,
             motion: MotionFlags::ZERO_MOTION,
+            scale: 1.0,
         }
     }
 
@@ -227,6 +230,14 @@ impl SingleLineComponent {
         self.updated = true;
     }
 
+    pub fn update_scale(&mut self, scale: f32) {
+        if self.scale == scale {
+            return;
+        }
+        self.scale = scale;
+        self.updated = true;
+    }
+
     pub fn get_instances(&self) -> Vec<&GlyphInstances> {
         self.instances.values().collect()
     }
@@ -249,6 +260,7 @@ impl SingleLineComponent {
         let initial_x = (-width / 2.0) + 0.5;
 
         let mut x: f32 = initial_x;
+        let y_pos = -0.9 / self.scale;
         for c in self.value.chars() {
             let glyph_width = glyph_vertex_buffer.width(c);
             x += glyph_width.left();
@@ -260,15 +272,16 @@ impl SingleLineComponent {
             let i = GlyphInstance::new(
                 cgmath::Vector3 {
                     x: 0.75 * x,
-                    y: 0.0,
-                    z: 0.0,
+                    y: y_pos,
+                    z: 1.0,
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+                self.scale,
                 get_color(color_theme, c),
                 self.motion,
                 now_millis(),
                 0.5,
-                Duration::from_millis(100),
+                Duration::from_millis(300),
             );
             x += glyph_width.right();
 
