@@ -8,9 +8,9 @@ use bitflags::bitflags;
 /// 28 : loop
 /// ----
 /// 27 : to_current
-/// 26 : use_distance
-/// 25 :
-/// 24 :
+/// 26 : use_distance(x)
+/// 25 : use_distance(y)
+/// 24 : use_distance(xy)
 /// ----
 /// 23 :
 /// 22 :
