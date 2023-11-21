@@ -108,9 +108,9 @@ impl SingleCharCallback {
 impl SimpleStateCallback for SingleCharCallback {
     fn init(
         &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
         device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        _queue: &wgpu::Queue,
     ) {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),

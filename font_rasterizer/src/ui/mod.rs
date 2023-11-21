@@ -37,6 +37,24 @@ impl Model for PlaneTextReader {
     fn length(&self) -> f32 {
         10.0
     }
+
+    fn glyph_instances(&self) -> Vec<&GlyphInstances> {
+        self.get_instances()
+    }
+
+    fn update(
+        &mut self,
+        glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) {
+        self.generate_instances(
+            ColorTheme::SolarizedDark,
+            glyph_vertex_buffer,
+            device,
+            queue,
+        );
+    }
 }
 
 impl PlaneTextReader {
@@ -140,9 +158,9 @@ impl PlaneTextReader {
                 let instance = self.instances.get_mut(&c).unwrap();
                 let i = GlyphInstance::new(
                     cgmath::Vector3 {
-                        x: 0.75 * x,
-                        y: 1.0 * y,
-                        z: 0.0,
+                        x: 0.75 * x + self.position.x,
+                        y: 1.0 * y + self.position.y,
+                        z: 0.0 + self.position.z,
                     },
                     cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_z(),

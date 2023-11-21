@@ -1,6 +1,4 @@
 use font_collector::FontCollector;
-use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
-use text_buffer::{action::EditorOperation, editor::Editor};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -12,16 +10,16 @@ use font_rasterizer::{
     layout_engine::{HorizontalWorld, World},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
-    ui::{split_preedit_string, PlaneTextReader},
+    ui::PlaneTextReader,
 };
 use log::info;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, KeyEvent, WindowEvent};
 
 const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "simple_text=debug");
+    std::env::set_var("RUST_LOG", "info");
     pollster::block_on(run());
 }
 
@@ -51,29 +49,19 @@ pub async fn run() {
 struct SingleCharCallback {
     world: Box<dyn World>,
     color_theme: ColorTheme,
-    store: ActionStore,
-    editor: Editor,
 }
 
 impl SingleCharCallback {
     fn new() -> Self {
-        let mut store: ActionStore = Default::default();
-        let key_setting = include_str!("key-settings.txt");
-        info!("{}", key_setting);
-        let keybinds = parse_setting(String::from(key_setting));
-        keybinds
-            .iter()
-            .for_each(|k| store.register_keybind(k.clone()));
-
         let mut world = Box::new(HorizontalWorld::new(800, 600));
-        let model = Box::new(PlaneTextReader::new("ジョブ次郎".to_string()));
+        let model = Box::new(PlaneTextReader::new("🐖ぶたちゃんが".to_string()));
+        world.add(model);
+        let model = Box::new(PlaneTextReader::new("🍖になっちゃった！".to_string()));
         world.add(model);
 
         Self {
             world,
             color_theme: ColorTheme::SolarizedDark,
-            editor: text_buffer::editor::Editor::default(),
-            store,
         }
     }
 }
@@ -85,74 +73,54 @@ impl SimpleStateCallback for SingleCharCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        glyph_vertex_buffer
-            .append_glyph(device, queue, "ジョブ次郎".chars().collect())
-            .unwrap();
+        //
     }
 
     fn resize(&mut self, _width: u32, _height: u32) {
-        // TODO update world aspect
+        self.world.change_window_size((800, 600));
     }
 
     fn update(
         &mut self,
-        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        mut glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
     ) {
+        self.world.update(&mut glyph_vertex_buffer, &device, &queue);
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
-        match self.store.winit_window_event_to_action(event) {
-            Some(Action::Command(category, name)) if *category == "system" => {
-                let action = match &*name.to_string() {
-                    "exit" => return InputResult::SendExit,
-                    "return" => EditorOperation::InsertEnter,
-                    "backspace" => EditorOperation::Backspace,
-                    "delete" => EditorOperation::Delete,
-                    "previous" => EditorOperation::Previous,
-                    "next" => EditorOperation::Next,
-                    "back" => EditorOperation::Back,
-                    "forward" => EditorOperation::Forward,
-                    "head" => EditorOperation::Head,
-                    "last" => EditorOperation::Last,
-                    "undo" => EditorOperation::Undo,
-                    _ => EditorOperation::Noop,
-                };
-                self.editor.operation(&action);
-                InputResult::InputConsumed
-            }
-            Some(Action::Command(_, _)) => InputResult::Noop,
-            Some(Action::Keytype(c)) => {
-                let action = EditorOperation::InsertChar(c);
-                self.editor.operation(&action);
-                InputResult::InputConsumed
-            }
-            Some(Action::ImeInput(value)) => {
-                //self.ime.update_value("".to_string());
-                self.editor.operation(&EditorOperation::InsertString(value));
-                InputResult::InputConsumed
-            }
-            Some(Action::ImePreedit(value, position)) => {
-                match position {
-                    Some((start, end)) if start != end => {
-                        info!("start:{start}, end:{end}");
-                        let (first, center, last) = split_preedit_string(value, start, end);
-                        let _preedit_str = format!("{}[{}]{}", first, center, last);
-                        //self.ime.update_value(preedit_str);
+        match event {
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        state: ElementState::Pressed,
+                        logical_key,
+                        text,
+                        ..
+                    },
+                ..
+            } => {
+                info!("key: {:?}", logical_key);
+                match logical_key {
+                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft) => {
+                        self.world.look_at(0);
                     }
-                    _ => {
-                        //self.ime.update_value(value);
+                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowRight) => {
+                        self.world.look_at(1);
                     }
+                    _ => {}
                 }
-                InputResult::InputConsumed
             }
-            Some(_) => InputResult::Noop,
-            None => InputResult::Noop,
+            _ => {}
         }
+
+        InputResult::Noop
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        todo!("作りかけ")
+        let instances = self.world.glyph_instances();
+        info!("instances: {:?}", instances.len());
+        (self.world.camera(), instances)
     }
 }

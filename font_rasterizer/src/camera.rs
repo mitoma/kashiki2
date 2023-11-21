@@ -51,11 +51,11 @@ impl EasingPoint3 {
 
     fn update(&mut self, p: cgmath::Point3<f32>) {
         self.x
-            .update(p.x, Duration::from_millis(500), nenobi::functions::back_out);
+            .update(p.x, Duration::from_millis(500), nenobi::functions::sin_out);
         self.y
-            .update(p.y, Duration::from_millis(500), nenobi::functions::back_out);
+            .update(p.y, Duration::from_millis(500), nenobi::functions::sin_out);
         self.z
-            .update(p.z, Duration::from_millis(500), nenobi::functions::back_out);
+            .update(p.z, Duration::from_millis(500), nenobi::functions::sin_out);
         self.gc();
     }
 }
@@ -251,7 +251,7 @@ impl CameraController {
         let normal = cgmath::Vector3::<f32>::unit_z();
         let camera_position = target_position + normal;
 
-        camera.target.update(camera_position);
+        camera.target.update(target_position);
         camera.eye.update(camera_position);
     }
 }
