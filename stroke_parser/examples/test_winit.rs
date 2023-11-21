@@ -1,7 +1,7 @@
 use stroke_parser::{Action, ActionStore};
 use winit::{
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::EventLoop,
     window::WindowBuilder,
 };
 

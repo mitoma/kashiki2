@@ -736,6 +736,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "env_logger",
+ "font_collector",
  "font_rasterizer",
  "instant",
  "log",
