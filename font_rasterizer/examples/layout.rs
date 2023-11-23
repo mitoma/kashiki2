@@ -3,7 +3,7 @@ use font_collector::FontCollector;
 use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
-    camera::Camera,
+    camera::{Camera, CameraAdjustment},
     color_theme::ColorTheme::{self, SolarizedDark},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
@@ -49,19 +49,33 @@ pub async fn run() {
 struct SingleCharCallback {
     world: Box<dyn World>,
     color_theme: ColorTheme,
+    look_at: usize,
 }
 
 impl SingleCharCallback {
     fn new() -> Self {
         let mut world = Box::new(HorizontalWorld::new(800, 600));
-        let model = Box::new(PlaneTextReader::new("🐖ぶたちゃんが".to_string()));
+        let model = Box::new(PlaneTextReader::new(
+            "WGPU による\nFont Rasterize".to_string(),
+        ));
         world.add(model);
-        let model = Box::new(PlaneTextReader::new("🍖になっちゃった！".to_string()));
+        let model = Box::new(PlaneTextReader::new(
+            "🍖になっちゃった！ほげほげふがふが".to_string(),
+        ));
         world.add(model);
+        let model = Box::new(PlaneTextReader::new(
+            "縦\n書\nき\nを\nと\nて\nも\nや\nり\nま\nす".to_string(),
+        ));
+        world.add(model);
+
+        let look_at = 0;
+        world.look_at(look_at, CameraAdjustment::FitBoth);
+        world.re_layout();
 
         Self {
             world,
-            color_theme: ColorTheme::SolarizedDark,
+            color_theme: ColorTheme::SolarizedLight,
+            look_at,
         }
     }
 }
@@ -73,7 +87,7 @@ impl SimpleStateCallback for SingleCharCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        //
+        self.update(glyph_vertex_buffer, device, queue);
     }
 
     fn resize(&mut self, _width: u32, _height: u32) {
@@ -86,7 +100,9 @@ impl SimpleStateCallback for SingleCharCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        self.world.update(&mut glyph_vertex_buffer, &device, &queue);
+        self.world.re_layout();
+        self.world
+            .update(&self.color_theme, &mut glyph_vertex_buffer, &device, &queue);
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
@@ -96,18 +112,28 @@ impl SimpleStateCallback for SingleCharCallback {
                     KeyEvent {
                         state: ElementState::Pressed,
                         logical_key,
-                        text,
                         ..
                     },
                 ..
             } => {
                 info!("key: {:?}", logical_key);
                 match logical_key {
-                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft) => {
-                        self.world.look_at(0);
-                    }
                     winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowRight) => {
-                        self.world.look_at(1);
+                        self.look_at += 1;
+                        self.look_at %= self.world.model_length();
+                        self.world.look_at(self.look_at, CameraAdjustment::FitBoth);
+                    }
+                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft) => {
+                        self.look_at += self.world.model_length() - 1;
+                        self.look_at %= self.world.model_length();
+                        self.world.look_at(self.look_at, CameraAdjustment::FitBoth);
+                    }
+                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowUp) => {
+                        self.world.look_at(self.look_at, CameraAdjustment::FitWidth);
+                    }
+                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowDown) => {
+                        self.world
+                            .look_at(self.look_at, CameraAdjustment::FitHeight);
                     }
                     _ => {}
                 }

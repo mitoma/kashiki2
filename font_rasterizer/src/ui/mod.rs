@@ -5,7 +5,7 @@ use instant::Duration;
 use log::info;
 
 use crate::{
-    color_theme::ColorTheme,
+    color_theme::{self, ColorTheme},
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::Model,
@@ -19,11 +19,16 @@ pub struct PlaneTextReader {
     instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
     position: Point3<f32>,
+    bound: (f32, f32),
 }
 
 impl Model for PlaneTextReader {
     fn set_position(&mut self, position: cgmath::Point3<f32>) {
+        if self.position == position {
+            return;
+        }
         self.position = position;
+        self.updated = true;
     }
 
     fn position(&self) -> cgmath::Point3<f32> {
@@ -34,33 +39,32 @@ impl Model for PlaneTextReader {
         Quaternion::<f32>::new(0.0, 0.0, 0.0, 0.0)
     }
 
-    fn length(&self) -> f32 {
-        10.0
-    }
-
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
         self.get_instances()
     }
 
     fn update(
         &mut self,
+        color_theme: &ColorTheme,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        self.generate_instances(
-            ColorTheme::SolarizedDark,
-            glyph_vertex_buffer,
-            device,
-            queue,
-        );
+        glyph_vertex_buffer
+            .append_glyph(device, queue, self.value.chars().collect())
+            .unwrap();
+        self.generate_instances(color_theme, glyph_vertex_buffer, device, queue);
+    }
+
+    fn bound(&self) -> (f32, f32) {
+        self.bound
     }
 }
 
 impl PlaneTextReader {
     const MAX_WIDTH: f32 = 40.0;
 
-    pub fn bound(&self, glyph_vertex_buffer: &GlyphVertexBuffer) -> (f32, f32) {
+    pub fn calc_bound(&self, glyph_vertex_buffer: &GlyphVertexBuffer) -> (f32, f32) {
         let mut max_width = 0.0;
         let mut max_height = 0.0;
         for line in self.value.lines() {
@@ -87,7 +91,7 @@ impl PlaneTextReader {
         line_num: usize,
         glyph_vertex_buffer: &GlyphVertexBuffer,
     ) -> anyhow::Result<(cgmath::Point3<f32>, cgmath::Point3<f32>, usize)> {
-        let line_num = (line_num as f32).min(self.bound(glyph_vertex_buffer).1);
+        let line_num = (line_num as f32).min(self.calc_bound(glyph_vertex_buffer).1);
         Ok((
             (0.0, -line_num, 0.0).into(),
             (0.0, -line_num, 50.0).into(),
@@ -102,6 +106,7 @@ impl PlaneTextReader {
             updated: true,
             motion: MotionFlags::ZERO_MOTION,
             position: (0.0, 0.0, 0.0).into(),
+            bound: (0.0, 0.0),
         }
     }
 
@@ -124,7 +129,7 @@ impl PlaneTextReader {
 
     pub fn generate_instances(
         &mut self,
-        color_theme: ColorTheme,
+        color_theme: &ColorTheme,
         glyph_vertex_buffer: &GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -138,11 +143,13 @@ impl PlaneTextReader {
 
         let lines: Vec<_> = self.value.split('\n').collect();
 
-        let (width, height) = self.bound(glyph_vertex_buffer);
+        let (width, height) = self.calc_bound(glyph_vertex_buffer);
+        self.bound = (width, height);
         let initial_x = (-width / 2.0) + 0.5;
+        let initial_y = (height / 2.0) - 0.5;
 
         let mut x: f32 = initial_x;
-        let mut y: f32 = 0.0;
+        let mut y: f32 = initial_y;
         for line in lines {
             for c in line.chars() {
                 if x > width / 2.0 {
@@ -195,7 +202,7 @@ impl PlaneTextReader {
     }
 }
 
-fn get_color(color_theme: ColorTheme, c: char) -> [f32; 3] {
+fn get_color(color_theme: &ColorTheme, c: char) -> [f32; 3] {
     if c.is_ascii() {
         color_theme.yellow().get_color()
     } else if ('あ'..'一').contains(&c) {
@@ -262,7 +269,7 @@ impl SingleLineComponent {
 
     pub fn generate_instances(
         &mut self,
-        color_theme: ColorTheme,
+        color_theme: &ColorTheme,
         glyph_vertex_buffer: &GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,

@@ -106,7 +106,7 @@ impl SimpleStateCallback for SingleCharCallback {
         glyph_vertex_buffer
             .append_glyph(device, queue, self.reader.value.chars().collect())
             .unwrap();
-        let (width, _height) = self.reader.bound(glyph_vertex_buffer);
+        let (width, _height) = self.reader.calc_bound(glyph_vertex_buffer);
         self.camera_controller.process(
             &font_rasterizer::camera::CameraOperation::CangeTargetAndEye(
                 (0.0, 0.0, 0.0).into(),
@@ -143,14 +143,14 @@ impl SimpleStateCallback for SingleCharCallback {
             .unwrap();
         self.reader.update_value(texts);
         self.reader
-            .generate_instances(self.color_theme, glyph_vertex_buffer, device, queue);
+            .generate_instances(&self.color_theme, glyph_vertex_buffer, device, queue);
         self.ime
-            .generate_instances(self.color_theme, glyph_vertex_buffer, device, queue);
-        let (width, _height) = self.reader.bound(glyph_vertex_buffer);
+            .generate_instances(&self.color_theme, glyph_vertex_buffer, device, queue);
+        let (width, height) = self.reader.calc_bound(glyph_vertex_buffer);
         self.camera_controller.process(
             &font_rasterizer::camera::CameraOperation::CangeTargetAndEye(
-                (0.0, 0.0, 0.0).into(),
-                (0.0, 0.0, (width + 1.0) / self.camera.aspect()).into(),
+                (0.0, -height / 2.0, 0.0).into(),
+                (0.0, -height / 2.0, (width + 1.0) / self.camera.aspect()).into(),
             ),
         );
         self.camera_controller.update_camera(&mut self.camera);

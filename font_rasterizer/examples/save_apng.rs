@@ -1,7 +1,5 @@
-use std::collections::HashSet;
-
 use apng::{load_dynamic_image, Frame, ParallelEncoder};
-use font_collector::{FontCollector, FontData};
+use font_collector::FontCollector;
 use instant::Duration;
 
 use cgmath::Rotation3;

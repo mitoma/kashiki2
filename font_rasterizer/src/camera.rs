@@ -138,6 +138,12 @@ pub enum CameraOperation {
     None,
 }
 
+pub enum CameraAdjustment {
+    FitBoth,
+    FitWidth,
+    FitHeight,
+}
+
 pub struct CameraController {
     speed: f32,
     is_up_pressed: bool,
@@ -246,10 +252,25 @@ impl CameraController {
         camera.eye.update(current_eye);
     }
 
-    pub fn look_at(&self, camera: &mut Camera, target: &dyn Model) {
+    pub fn look_at(&self, camera: &mut Camera, target: &dyn Model, adjustment: CameraAdjustment) {
         let target_position: Point3<f32> = target.position();
         let normal = cgmath::Vector3::<f32>::unit_z();
-        let camera_position = target_position + normal;
+
+        let (w, h) = target.bound();
+        let size = match adjustment {
+            // w と h のうち大きい方を使う
+            CameraAdjustment::FitBoth => {
+                if w > h {
+                    w
+                } else {
+                    h * camera.aspect
+                }
+            }
+            CameraAdjustment::FitWidth => w,
+            CameraAdjustment::FitHeight => h * camera.aspect,
+        };
+
+        let camera_position = target_position + (normal * (size));
 
         camera.target.update(target_position);
         camera.eye.update(camera_position);
