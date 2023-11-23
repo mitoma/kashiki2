@@ -83,7 +83,7 @@ impl SingleCharCallback {
                 .motion_target(MotionTarget::STRETCH_X_PLUS)
                 .build(),
         );
-        ime.update_scale(0.2);
+        ime.update_scale(0.1);
 
         Self {
             camera: Camera::basic((800, 600)),

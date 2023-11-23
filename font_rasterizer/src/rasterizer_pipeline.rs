@@ -304,7 +304,7 @@ impl RasterizerPipeline {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         glyph_vertex_buffer: &GlyphVertexBuffer,
-        view_proj: [[f32; 4]; 4],
+        view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
         instances: &[&GlyphInstances],
         screen_view: wgpu::TextureView,
     ) {

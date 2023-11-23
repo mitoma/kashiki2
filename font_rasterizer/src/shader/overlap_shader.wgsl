@@ -127,6 +127,7 @@ fn rotate(p: vec3<f32>, angle: f32, axis: vec3<f32>) -> vec3<f32> {
 // Vertex shader
 struct Uniforms {
     u_view_proj: mat4x4<f32>,
+    u_default_view_proj: mat4x4<f32>,
     u_time: u32,
 };
 
@@ -297,7 +298,8 @@ fn vs_main(
     out.wait = vec3<f32>(1f, model.wait.xy);
     out.color = instances.color;
     if ignore_camera {
-        out.clip_position = instance_matrix * moved;
+        //out.clip_position = instance_matrix * moved;
+        out.clip_position = u_buffer.u_default_view_proj * instance_matrix * moved;
     } else {
         out.clip_position = u_buffer.u_view_proj * instance_matrix * moved;
     }

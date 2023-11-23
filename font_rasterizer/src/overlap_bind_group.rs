@@ -7,6 +7,7 @@ use crate::time::now_millis;
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Uniforms {
     view_proj: [[f32; 4]; 4],
+    default_view_proj: [[f32; 4]; 4],
     time: u32,
     // padding が必要らしい。正直意味わかんねぇな。
     padding: [u32; 3],
@@ -25,6 +26,7 @@ impl Default for Uniforms {
     fn default() -> Self {
         Self {
             view_proj: cgmath::Matrix4::identity().into(),
+            default_view_proj: cgmath::Matrix4::identity().into(),
             time: now_millis(),
             padding: [0; 3],
         }
@@ -73,8 +75,9 @@ impl OverlapBindGroup {
         }
     }
 
-    pub fn update(&mut self, view_proj: [[f32; 4]; 4]) {
-        self.uniforms.view_proj = view_proj;
+    pub fn update(&mut self, view_proj: ([[f32; 4]; 4], [[f32; 4]; 4])) {
+        self.uniforms.view_proj = view_proj.0;
+        self.uniforms.default_view_proj = view_proj.1;
         self.uniforms.time = now_millis();
     }
 

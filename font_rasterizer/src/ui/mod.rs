@@ -285,7 +285,7 @@ impl SingleLineComponent {
         let initial_x = (-width / 2.0) + 0.5;
 
         let mut x: f32 = initial_x;
-        let y_pos = -0.9 / self.scale;
+        let y_pos = -0.3 / self.scale;
         for c in self.value.chars() {
             let glyph_width = glyph_vertex_buffer.width(c);
             x += glyph_width.left();
@@ -298,7 +298,7 @@ impl SingleLineComponent {
                 cgmath::Vector3 {
                     x: 0.75 * x,
                     y: y_pos,
-                    z: 1.0,
+                    z: 0.0,
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
                 self.scale,

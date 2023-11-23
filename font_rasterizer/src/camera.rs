@@ -120,6 +120,17 @@ impl Camera {
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
 
+    // カメラの位置に依存しないビュー行列を作る
+    pub fn build_default_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
+        let default_view = cgmath::Matrix4::look_at_rh(
+            (0.0, 0.0, 1.0).into(),
+            (0.0, 0.0, 0.0).into(),
+            cgmath::Vector3::unit_y(),
+        );
+        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        OPENGL_TO_WGPU_MATRIX * proj * default_view
+    }
+
     pub fn aspect(&self) -> f32 {
         self.aspect
     }

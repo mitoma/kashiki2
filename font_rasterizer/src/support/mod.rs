@@ -359,7 +359,10 @@ impl SimpleState {
             &self.device,
             &self.queue,
             &self.glyph_vertex_buffer,
-            camera.build_view_projection_matrix().into(),
+            (
+                camera.build_view_projection_matrix().into(),
+                camera.build_default_view_projection_matrix().into(),
+            ),
             &glyph_instances,
             screen_view,
         );
@@ -517,7 +520,10 @@ impl ImageState {
             &self.device,
             &self.queue,
             &self.glyph_vertex_buffer,
-            camera.build_view_projection_matrix().into(),
+            (
+                camera.build_view_projection_matrix().into(),
+                camera.build_default_view_projection_matrix().into(),
+            ),
             &glyph_instances,
             screen_view,
         );
