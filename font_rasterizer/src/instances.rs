@@ -15,6 +15,7 @@ pub struct GlyphInstance {
     pub duration: Duration,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl GlyphInstance {
     pub fn new(
         position: cgmath::Vector3<f32>,

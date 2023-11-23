@@ -3,7 +3,7 @@ use log::info;
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController},
-    color_theme::{self, ColorTheme},
+    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
 };

@@ -5,7 +5,7 @@ use instant::Duration;
 use log::info;
 
 use crate::{
-    color_theme::{self, ColorTheme},
+    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::Model,

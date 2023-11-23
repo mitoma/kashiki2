@@ -10,7 +10,8 @@ use font_rasterizer::{
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     motion::{
-        CameraDetail, EasingFuncType, MotionDetail, MotionFlagsBuilder, MotionTarget, MotionType,
+        CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionFlagsBuilder, MotionTarget,
+        MotionType,
     },
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
@@ -75,7 +76,7 @@ impl SingleCharCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let mut ime = SingleLineComponent::new("".to_string());
         ime.update_motion(
-            MotionFlagsBuilder::new()
+            MotionFlags::builder()
                 .camera_detail(CameraDetail::IGNORE_CAMERA)
                 .motion_type(MotionType::EaseOut(EasingFuncType::Sin, false))
                 .motion_detail(MotionDetail::TO_CURRENT)
@@ -115,7 +116,7 @@ impl SimpleStateCallback for SingleCharCallback {
         );
         self.camera_controller.update_camera(&mut self.camera);
         self.reader.update_motion(
-            MotionFlagsBuilder::new()
+            MotionFlags::builder()
                 .motion_type(MotionType::EaseOut(EasingFuncType::Bounce, false))
                 .motion_detail(MotionDetail::TO_CURRENT)
                 .motion_target(MotionTarget::STRETCH_Y_PLUS)

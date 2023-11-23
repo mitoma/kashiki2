@@ -80,6 +80,10 @@ impl MotionFlags {
             + (motion_target.bits() as u32);
         MotionFlags(value)
     }
+
+    pub fn builder() -> MotionFlagsBuilder {
+        MotionFlagsBuilder::default()
+    }
 }
 
 impl From<MotionFlags> for u32 {
@@ -94,16 +98,18 @@ pub struct MotionFlagsBuilder {
     camera_detail: CameraDetail,
 }
 
-impl MotionFlagsBuilder {
-    pub fn new() -> Self {
-        MotionFlagsBuilder {
+impl Default for MotionFlagsBuilder {
+    fn default() -> Self {
+        Self {
             motion_type: MotionType::None,
             motion_detail: MotionDetail::empty(),
             motion_target: MotionTarget::empty(),
             camera_detail: CameraDetail::empty(),
         }
     }
+}
 
+impl MotionFlagsBuilder {
     pub fn motion_type(mut self, motion_type: MotionType) -> Self {
         self.motion_type = motion_type;
         self

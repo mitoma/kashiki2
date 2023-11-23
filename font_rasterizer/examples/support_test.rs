@@ -9,9 +9,7 @@ use font_rasterizer::{
     color_theme::ColorTheme::SolarizedDark,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
-    motion::{
-        EasingFuncType, MotionDetail, MotionFlags, MotionFlagsBuilder, MotionTarget, MotionType,
-    },
+    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
@@ -75,11 +73,11 @@ impl MyMotion {
     fn motion_flags(&self) -> MotionFlags {
         match self {
             Self::None => MotionFlags::ZERO_MOTION,
-            Self::WaveX => MotionFlagsBuilder::new()
+            Self::WaveX => MotionFlags::builder()
                 .motion_type(MotionType::EaseOut(EasingFuncType::Sin, false))
                 .motion_target(MotionTarget::ROTATE_Z_PLUS)
                 .build(),
-            Self::WaveY => MotionFlagsBuilder::new()
+            Self::WaveY => MotionFlags::builder()
                 .motion_type(MotionType::EaseOut(EasingFuncType::Sin, false))
                 .motion_detail(MotionDetail::USE_XY_DISTANCE)
                 .motion_target(MotionTarget::ROTATE_Z_MINUX)

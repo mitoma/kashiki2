@@ -8,7 +8,9 @@ use font_rasterizer::{
     color_theme::ColorTheme::SolarizedDark,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
-    motion::{EasingFuncType, MotionDetail, MotionFlagsBuilder, MotionTarget, MotionType},
+    motion::{
+        EasingFuncType, MotionDetail, MotionFlags, MotionFlagsBuilder, MotionTarget, MotionType,
+    },
     rasterizer_pipeline::Quarity,
     support::{generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
@@ -116,7 +118,7 @@ impl SimpleStateCallback for SingleCharCallback {
             1.0,
             SolarizedDark.cyan().get_color(),
             //MotionFlags::ZERO_MOTION,
-            MotionFlagsBuilder::new()
+            MotionFlags::builder()
                 .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, true))
                 .motion_detail(MotionDetail::USE_X_DISTANCE)
                 .motion_target(MotionTarget::MOVE_X_PLUS)
