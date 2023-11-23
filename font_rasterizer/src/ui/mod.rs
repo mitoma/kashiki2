@@ -208,9 +208,9 @@ fn get_color(color_theme: &ColorTheme, c: char) -> [f32; 3] {
     } else if ('あ'..'一').contains(&c) {
         color_theme.text().get_color()
     } else if c < '\u{1F600}' {
-        color_theme.text_emphasized().get_color()
+        color_theme.cyan().get_color()
     } else {
-        color_theme.text_comment().get_color()
+        color_theme.green().get_color()
     }
 }
 

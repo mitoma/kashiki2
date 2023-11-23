@@ -2,7 +2,7 @@ use cgmath::{Point3, Quaternion};
 use log::info;
 
 use crate::{
-    camera::{Camera, CameraAdjustment, CameraController},
+    camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
     color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
@@ -29,6 +29,8 @@ pub trait World {
     fn look_at(&mut self, model_num: usize, adjustment: CameraAdjustment);
     // カメラの参照を返す
     fn camera(&self) -> &Camera;
+    // カメラを動かす
+    fn camera_operation(&mut self, camera_operation: CameraOperation);
     // ウィンドウサイズ変更の通知を受け取る
     fn change_window_size(&mut self, window_size: (u32, u32));
     // glyph_instances を返す
@@ -106,6 +108,12 @@ impl World for HorizontalWorld {
     fn change_window_size(&mut self, window_size: (u32, u32)) {
         self.camera_controller
             .update_camera_aspect(&mut self.camera, window_size.0, window_size.1);
+    }
+
+    fn camera_operation(&mut self, camera_operation: CameraOperation) {
+        self.camera_controller.process(&camera_operation);
+        self.camera_controller.update_camera(&mut self.camera);
+        self.camera_controller.reset_state();
     }
 }
 
