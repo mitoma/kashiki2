@@ -261,12 +261,12 @@ impl CameraController {
             // w と h のうち大きい方を使う
             CameraAdjustment::FitBoth => {
                 if w > h {
-                    w
+                    w / camera.aspect
                 } else {
                     h * camera.aspect
                 }
             }
-            CameraAdjustment::FitWidth => w,
+            CameraAdjustment::FitWidth => w / camera.aspect,
             CameraAdjustment::FitHeight => h * camera.aspect,
         };
 
