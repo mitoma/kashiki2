@@ -9,10 +9,7 @@ use font_rasterizer::{
     color_theme::ColorTheme::{self, SolarizedDark},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
-    motion::{
-        CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionFlagsBuilder, MotionTarget,
-        MotionType,
-    },
+    motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     ui::{split_preedit_string, PlaneTextReader, SingleLineComponent},
