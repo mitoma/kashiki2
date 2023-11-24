@@ -1,1 +1,1 @@
-wasm-pack build --target web --out-dir ../../sandbox/mitoma-org/contents_hello/slideshow
+wasm-pack build --target web --out-dir ../../../sandbox/mitoma-org/contents_hello/slideshow
