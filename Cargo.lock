@@ -1874,6 +1874,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "slideshow"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "console_log",
+ "env_logger",
+ "font_collector",
+ "font_rasterizer",
+ "log",
+ "pollster",
+ "pulldown-cmark",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "slotmap"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

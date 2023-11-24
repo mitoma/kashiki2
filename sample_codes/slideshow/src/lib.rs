@@ -3,7 +3,7 @@ use font_collector::FontCollector;
 use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
-    camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
+    camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
@@ -14,26 +14,18 @@ use font_rasterizer::{
     ui::PlaneTextReader,
 };
 use log::info;
-use winit::{
-    event::{ElementState, KeyEvent, WindowEvent},
-    keyboard::Key,
-};
+use winit::event::{ElementState, KeyEvent, WindowEvent};
 
-const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
-
-pub fn main() {
-    std::env::set_var("RUST_LOG", "slideshow=info");
-    env_logger::init();
-    pollster::block_on(run());
-}
+const FONT_DATA: &[u8] =
+    include_bytes!("../../../font_rasterizer/examples/font/HackGenConsole-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] =
+    include_bytes!("../../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let mut collector = FontCollector::default();
-    collector.add_system_fonts();
-    let data = collector.load_font("UD デジタル 教科書体 N-R");
+    let collector = FontCollector::default();
     let font_binaries = vec![
-        data.unwrap(),
+        collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
         collector
             .convert_font(EMOJI_FONT_DATA.to_vec(), None)
             .unwrap(),

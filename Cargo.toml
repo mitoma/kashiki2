@@ -5,6 +5,7 @@ members = [
     "font_collector",
     "font_rasterizer",
     "font_rasterizer_example",
+    "sample_codes/*",
 ]
 resolver = "2"
 

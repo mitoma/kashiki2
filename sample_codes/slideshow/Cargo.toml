@@ -1,0 +1,24 @@
+[package]
+name = "slideshow"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+env_logger = { workspace = true }
+log = { workspace = true }
+pollster = { workspace = true }
+wgpu = { workspace = true }
+winit = { workspace = true }
+
+font_collector = { version = "0.1.0", path = "../../font_collector" }
+font_rasterizer = { version = "0.1.0", path = "../../font_rasterizer" }
+
+pulldown-cmark = "0.9.3"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+console_log = "1.0.0"
+wgpu = { workspace = true, features = ["webgl"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Document", "Window", "Element"] }
