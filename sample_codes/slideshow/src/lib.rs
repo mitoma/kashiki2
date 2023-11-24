@@ -64,7 +64,7 @@ impl SingleCharCallback {
                     text_buffer.push_str(&text);
                 }
                 pulldown_cmark::Event::SoftBreak => {
-                    text_buffer.push_str("\n");
+                    text_buffer.push('\n');
                 }
                 pulldown_cmark::Event::End(_) => {
                     info!("text_buffer: {}", text_buffer);
@@ -126,69 +126,66 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn update(
         &mut self,
-        mut glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        glyph_vertex_buffer: &mut GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
         self.world.re_layout();
         self.world
-            .update(&self.color_theme, &mut glyph_vertex_buffer, &device, &queue);
+            .update(&self.color_theme, glyph_vertex_buffer, device, queue);
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
-        match event {
-            WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        state: ElementState::Pressed,
-                        logical_key,
-                        ..
-                    },
-                ..
-            } => {
-                info!("key: {:?}", logical_key);
-                match logical_key.as_ref() {
-                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowRight) => {
-                        self.look_at += 1;
-                        self.look_at %= self.world.model_length();
-                        self.world.look_at(self.look_at, CameraAdjustment::FitBoth);
-                    }
-                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft) => {
-                        self.look_at += self.world.model_length() - 1;
-                        self.look_at %= self.world.model_length();
-                        self.world.look_at(self.look_at, CameraAdjustment::FitBoth);
-                    }
-                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowUp) => {
-                        self.world.look_at(self.look_at, CameraAdjustment::FitWidth);
-                    }
-                    winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowDown) => {
-                        self.world
-                            .look_at(self.look_at, CameraAdjustment::FitHeight);
-                    }
-                    winit::keyboard::Key::Character("w") => {
-                        self.world.camera_operation(CameraOperation::Up);
-                    }
-                    winit::keyboard::Key::Character("s") => {
-                        self.world.camera_operation(CameraOperation::Down);
-                    }
-                    winit::keyboard::Key::Character("a") => {
-                        self.world.camera_operation(CameraOperation::Left);
-                    }
-                    winit::keyboard::Key::Character("d") => {
-                        self.world.camera_operation(CameraOperation::Right);
-                    }
-                    winit::keyboard::Key::Character("z") => {
-                        self.world.camera_operation(CameraOperation::Forward);
-                    }
-                    winit::keyboard::Key::Character("x") => {
-                        self.world.camera_operation(CameraOperation::Backward);
-                    }
-                    _ => {}
+        if let WindowEvent::KeyboardInput {
+            event:
+                KeyEvent {
+                    state: ElementState::Pressed,
+                    logical_key,
+                    ..
+                },
+            ..
+        } = event
+        {
+            info!("key: {:?}", logical_key);
+            match logical_key.as_ref() {
+                winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowRight) => {
+                    self.look_at += 1;
+                    self.look_at %= self.world.model_length();
+                    self.world.look_at(self.look_at, CameraAdjustment::FitBoth);
                 }
+                winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft) => {
+                    self.look_at += self.world.model_length() - 1;
+                    self.look_at %= self.world.model_length();
+                    self.world.look_at(self.look_at, CameraAdjustment::FitBoth);
+                }
+                winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowUp) => {
+                    self.world.look_at(self.look_at, CameraAdjustment::FitWidth);
+                }
+                winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowDown) => {
+                    self.world
+                        .look_at(self.look_at, CameraAdjustment::FitHeight);
+                }
+                winit::keyboard::Key::Character("w") => {
+                    self.world.camera_operation(CameraOperation::Up);
+                }
+                winit::keyboard::Key::Character("s") => {
+                    self.world.camera_operation(CameraOperation::Down);
+                }
+                winit::keyboard::Key::Character("a") => {
+                    self.world.camera_operation(CameraOperation::Left);
+                }
+                winit::keyboard::Key::Character("d") => {
+                    self.world.camera_operation(CameraOperation::Right);
+                }
+                winit::keyboard::Key::Character("z") => {
+                    self.world.camera_operation(CameraOperation::Forward);
+                }
+                winit::keyboard::Key::Character("x") => {
+                    self.world.camera_operation(CameraOperation::Backward);
+                }
+                _ => {}
             }
-            _ => {}
         }
-
         InputResult::Noop
     }
 
