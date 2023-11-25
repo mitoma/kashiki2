@@ -8,9 +8,7 @@ use font_rasterizer::{
     color_theme::ColorTheme::SolarizedDark,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
-    motion::{
-        EasingFuncType, MotionDetail, MotionFlags, MotionFlagsBuilder, MotionTarget, MotionType,
-    },
+    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
