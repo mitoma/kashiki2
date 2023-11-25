@@ -30,15 +30,33 @@ var s_diffuse: sampler;
 const UNIT :f32 = 0.00390625;
 const HARFUNIT: f32 = 0.001953125;
 
+// 奇数かどうかを判定する
+fn odd_color(tex_coords: vec2<f32>) -> bool {
+    let color = textureSample(t_diffuse, s_diffuse, tex_coords);
+    let odd_color = color.a % (2.0 * UNIT);
+    let dist = distance(odd_color, UNIT);
+    return UNIT - HARFUNIT < dist && dist < UNIT + HARFUNIT;
+}
+
+// 境界線の判定。袋文字を書きたいときに使いそうなので実装だけ残しておく
+// 現在の座標の上下左右のいずれかが描画対象外の場合に true を返す
+fn in_border(tex_coords: vec2<f32>) -> bool {
+    let texture_size = textureDimensions(t_diffuse);
+    let pixel_size = vec2<f32>(1.0 / f32(texture_size.x), 1.0 / f32(texture_size.y));
+    let up_odd = odd_color(vec2(tex_coords.x, tex_coords.y - pixel_size.y));
+    let down_odd = odd_color(vec2(tex_coords.x, tex_coords.y + pixel_size.y));
+    let left_odd = odd_color(vec2(tex_coords.x - pixel_size.x, tex_coords.y));
+    let right_odd = odd_color(vec2(tex_coords.x + pixel_size.y, tex_coords.y));
+    return up_odd || down_odd || left_odd || right_odd;
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // アルファ成分にテクスチャの重なりの情報を持たせている
     let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
 
     // 奇数かどうかを判定し、奇数なら色をつける
-    let odd_color = color.a % (2.0 * UNIT);
-    let dist = distance(odd_color, UNIT);
-    if UNIT - HARFUNIT < dist && dist < UNIT + HARFUNIT {
+    if odd_color(in.tex_coords) {
         return vec4<f32>(0f, 0f, 0f, 0f);
     } else {
         return vec4<f32>(color.rgb, 1f);
