@@ -34,8 +34,7 @@ const HARFUNIT: f32 = 0.001953125;
 fn odd_color(tex_coords: vec2<f32>) -> bool {
     let color = textureSample(t_diffuse, s_diffuse, tex_coords);
     let odd_color = color.a % (2.0 * UNIT);
-    let dist = distance(odd_color, UNIT);
-    return UNIT - HARFUNIT < dist && dist < UNIT + HARFUNIT;
+    return UNIT - HARFUNIT < odd_color && odd_color < UNIT + HARFUNIT;
 }
 
 // 境界線の判定。袋文字を書きたいときに使いそうなので実装だけ残しておく
@@ -47,7 +46,33 @@ fn in_border(tex_coords: vec2<f32>) -> bool {
     let down_odd = odd_color(vec2(tex_coords.x, tex_coords.y + pixel_size.y));
     let left_odd = odd_color(vec2(tex_coords.x - pixel_size.x, tex_coords.y));
     let right_odd = odd_color(vec2(tex_coords.x + pixel_size.y, tex_coords.y));
-    return up_odd || down_odd || left_odd || right_odd;
+    return !(up_odd && down_odd && left_odd && right_odd);
+}
+
+// 境界線のアンチエイリアス
+// 動作が怪しいのでこちらも実装だけ残しておく。
+// 現状では BlendFactor の設定が間違っている可能性があり期待通りに動かない
+fn antialias(tex_coords: vec2<f32>) -> f32 {
+    let texture_size = textureDimensions(t_diffuse);
+    let pixel_size = vec2<f32>(1.0 / f32(texture_size.x), 1.0 / f32(texture_size.y));
+    let up_odd = odd_color(vec2(tex_coords.x, tex_coords.y - pixel_size.y));
+    let down_odd = odd_color(vec2(tex_coords.x, tex_coords.y + pixel_size.y));
+    let left_odd = odd_color(vec2(tex_coords.x - pixel_size.x, tex_coords.y));
+    let right_odd = odd_color(vec2(tex_coords.x + pixel_size.y, tex_coords.y));
+    var result = 0.2;
+    if up_odd {
+        result += 0.2;
+    }
+    if down_odd {
+        result += 0.2;
+    }
+    if left_odd {
+        result += 0.2;
+    }
+    if right_odd {
+        result += 0.2;
+    }
+    return result;
 }
 
 @fragment
@@ -57,8 +82,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // 奇数かどうかを判定し、奇数なら色をつける
     if odd_color(in.tex_coords) {
-        return vec4<f32>(0f, 0f, 0f, 0f);
-    } else {
         return vec4<f32>(color.rgb, 1f);
+    } else {
+        return vec4<f32>(0f, 0f, 0f, 0f);
     }
 }
