@@ -19,6 +19,7 @@ pub struct PlaneTextReader {
     instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
     position: Point3<f32>,
+    rotation: Quaternion<f32>,
     bound: (f32, f32),
 }
 
@@ -36,7 +37,7 @@ impl Model for PlaneTextReader {
     }
 
     fn rotation(&self) -> cgmath::Quaternion<f32> {
-        Quaternion::<f32>::new(0.0, 0.0, 0.0, 0.0)
+        self.rotation
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
@@ -106,6 +107,10 @@ impl PlaneTextReader {
             updated: true,
             motion: MotionFlags::ZERO_MOTION,
             position: (0.0, 0.0, 0.0).into(),
+            rotation: cgmath::Quaternion::from_axis_angle(
+                cgmath::Vector3::unit_y(),
+                cgmath::Deg(0.0),
+            ),
             bound: (0.0, 0.0),
         }
     }
@@ -150,6 +155,7 @@ impl PlaneTextReader {
 
         let mut x: f32 = initial_x;
         let mut y: f32 = initial_y;
+        let rotation = self.rotation();
         for line in lines {
             for c in line.chars() {
                 if x > width / 2.0 {
@@ -163,16 +169,30 @@ impl PlaneTextReader {
                     .entry(c)
                     .or_insert_with(|| GlyphInstances::new(c, Vec::new(), device));
                 let instance = self.instances.get_mut(&c).unwrap();
+                //let pos = cgmath::Matrix4::from(rotation)
+                //    * cgmath::Matrix4::from_translation(cgmath::Vector3 {
+                //        x: 0.75 * x + self.position.x,
+                //        y: 1.0 * y + self.position.y,
+                //        z: 0.0 + self.position.z,
+                //    });
+                let pos = cgmath::Matrix4::from(rotation)
+                    * cgmath::Matrix4::from_translation(cgmath::Vector3 {
+                        x: 0.75 * x,
+                        y: 1.0 * y,
+                        z: 0.0,
+                    });
+                let w = pos.w;
                 let i = GlyphInstance::new(
                     cgmath::Vector3 {
-                        x: 0.75 * x + self.position.x,
-                        y: 1.0 * y + self.position.y,
-                        z: 0.0 + self.position.z,
+                        x: w.x + self.position.x,
+                        y: w.y + self.position.y,
+                        z: w.z + self.position.z,
                     },
-                    cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_z(),
-                        cgmath::Deg(0.0),
-                    ),
+                    rotation,
+                    //cgmath::Quaternion::from_axis_angle(
+                    //    cgmath::Vector3::unit_z(),
+                    //    cgmath::Deg(0.0),
+                    //),
                     1.0,
                     get_color(color_theme, c),
                     self.motion,

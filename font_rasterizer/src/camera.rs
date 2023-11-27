@@ -281,7 +281,7 @@ impl CameraController {
             CameraAdjustment::FitHeight => h * camera.aspect,
         };
 
-        let camera_position = target_position + (normal * (size));
+        let camera_position = target_position + (target.rotation() * normal * (size));
 
         camera.target.update(target_position);
         camera.eye.update(camera_position);
