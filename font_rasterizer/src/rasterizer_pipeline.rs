@@ -190,8 +190,8 @@ impl RasterizerPipeline {
                         format: outline_texture.texture_format,
                         blend: Some(wgpu::BlendState {
                             color: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::One,
-                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                                src_factor: wgpu::BlendFactor::SrcAlpha,
+                                dst_factor: wgpu::BlendFactor::One,
                                 operation: wgpu::BlendOperation::Add,
                             },
                             alpha: wgpu::BlendComponent::OVER,

@@ -50,16 +50,19 @@ fn in_border(tex_coords: vec2<f32>) -> bool {
 }
 
 // 境界線のアンチエイリアス
-// 動作が怪しいのでこちらも実装だけ残しておく。
-// 現状では BlendFactor の設定が間違っている可能性があり期待通りに動かない
+// 現在の座標および上下左右のいずれかが描画対象外の場合に 0.2 ずつ透明度を色をつける。
 fn antialias(tex_coords: vec2<f32>) -> f32 {
     let texture_size = textureDimensions(t_diffuse);
     let pixel_size = vec2<f32>(1.0 / f32(texture_size.x), 1.0 / f32(texture_size.y));
+    let center_odd = odd_color(tex_coords);
     let up_odd = odd_color(vec2(tex_coords.x, tex_coords.y - pixel_size.y));
     let down_odd = odd_color(vec2(tex_coords.x, tex_coords.y + pixel_size.y));
     let left_odd = odd_color(vec2(tex_coords.x - pixel_size.x, tex_coords.y));
     let right_odd = odd_color(vec2(tex_coords.x + pixel_size.y, tex_coords.y));
-    var result = 0.2;
+    var result = 0.0;
+    if center_odd {
+        result += 0.2;
+    }
     if up_odd {
         result += 0.2;
     }
@@ -79,6 +82,12 @@ fn antialias(tex_coords: vec2<f32>) -> f32 {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // アルファ成分にテクスチャの重なりの情報を持たせている
     let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
+
+    // アンチエイリアスの処理。現在は無効化している。
+    //let use_anti_alias = false;
+    //if use_anti_alias {
+    //    return vec4<f32>(color.rgb, antialias(in.tex_coords));
+    //}
 
     // 奇数かどうかを判定し、奇数なら色をつける
     if odd_color(in.tex_coords) {
