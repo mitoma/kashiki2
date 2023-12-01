@@ -6,10 +6,9 @@ pub struct Buffer {
 
 impl Default for Buffer {
     fn default() -> Self {
-        let mut lines = Vec::new();
-        let line = BufferLine::default();
-        lines.push(line);
-        Self { lines }
+        Self {
+            lines: vec![BufferLine::default()],
+        }
     }
 }
 
