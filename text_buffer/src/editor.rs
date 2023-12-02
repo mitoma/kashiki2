@@ -17,7 +17,7 @@ impl Editor {
         Self {
             main_caret: Caret::new(0, 0, &sender),
             mark: Option::None,
-            buffer: Buffer::default(),
+            buffer: Buffer::new(sender.clone()),
             undo_list: Vec::new(),
             sender,
         }

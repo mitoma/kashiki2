@@ -200,7 +200,7 @@ mod tests {
     #[test]
     fn test_buffer_move() {
         let (tx, _rx) = channel::<ChangeEvent>();
-        let mut sut = Buffer::default();
+        let mut sut = Buffer::new(tx.clone());
         let mut caret = Caret::new(0, 0, &tx);
         BufferApplyer::apply_action(
             &mut sut,
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn test_apply_action() {
         let (tx, _rx) = channel::<ChangeEvent>();
-        let mut sut = Buffer::default();
+        let mut sut = Buffer::new(tx.clone());
         let mut caret = Caret::new(0, 0, &tx);
         let mut reverses = Vec::new();
         let result = BufferApplyer::apply_action(

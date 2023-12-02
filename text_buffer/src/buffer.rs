@@ -1,18 +1,20 @@
-use crate::caret::Caret;
+use std::sync::mpsc::Sender;
+
+use crate::{caret::Caret, editor::ChangeEvent};
 
 pub struct Buffer {
     pub lines: Vec<BufferLine>,
-}
-
-impl Default for Buffer {
-    fn default() -> Self {
-        Self {
-            lines: vec![BufferLine::default()],
-        }
-    }
+    sender: Sender<ChangeEvent>,
 }
 
 impl Buffer {
+    pub fn new(sender: Sender<ChangeEvent>) -> Self {
+        Self {
+            lines: vec![BufferLine::default()],
+            sender,
+        }
+    }
+
     pub fn to_buffer_string(&self) -> String {
         self.lines
             .iter()
@@ -255,7 +257,7 @@ mod tests {
     fn buffer() {
         let (tx, _rx) = channel::<ChangeEvent>();
         let caret = &mut Caret::new(0, 0, &tx);
-        let mut sut = Buffer::default();
+        let mut sut = Buffer::new(tx.clone());
         assert_eq!(sut.to_buffer_string(), "");
         sut.insert_char(caret, '山');
         assert_eq!(sut.to_buffer_string(), "山");
@@ -281,7 +283,7 @@ mod tests {
     fn buffer_insert_string() {
         let (tx, _rx) = channel::<ChangeEvent>();
         let caret = &mut Caret::new(0, 0, &tx);
-        let mut sut = Buffer::default();
+        let mut sut = Buffer::new(tx);
         sut.insert_string(caret, "東京は\n今日もいい天気\nだった。".to_string());
         assert_eq!(sut.to_buffer_string(), "東京は\n今日もいい天気\nだった。");
         assert_eq!(caret.row, 2);
@@ -291,7 +293,7 @@ mod tests {
     #[test]
     fn buffer_position_check() {
         let (tx, _rx) = channel::<ChangeEvent>();
-        let mut sut = Buffer::default();
+        let mut sut = Buffer::new(tx.clone());
         sut.insert_string(
             &mut Caret::new(0, 0, &tx),
             "あいうえお\nかきくけこ\nさしすせそそ".to_string(),
@@ -320,7 +322,7 @@ mod tests {
     #[test]
     fn buffer_move() {
         let (tx, _rx) = channel::<ChangeEvent>();
-        let mut sut = Buffer::default();
+        let mut sut = Buffer::new(tx.clone());
         let caret = &mut Caret::new(0, 0, &tx);
         sut.insert_string(caret, "あいうえお\nきかくけここ\nさしすせそ".to_string());
 
@@ -384,7 +386,7 @@ mod tests {
     #[test]
     fn buffer_backspace() {
         let (tx, _rx) = channel::<ChangeEvent>();
-        let mut sut = Buffer::default();
+        let mut sut = Buffer::new(tx.clone());
         sut.insert_string(
             &mut Caret::new(0, 0, &tx),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
@@ -418,7 +420,7 @@ mod tests {
     #[test]
     fn buffer_delete() {
         let (tx, _rx) = channel::<ChangeEvent>();
-        let mut sut = Buffer::default();
+        let mut sut = Buffer::new(tx.clone());
         sut.insert_string(
             &mut Caret::new(0, 0, &tx),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
