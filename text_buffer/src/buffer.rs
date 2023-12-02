@@ -38,7 +38,7 @@ impl Buffer {
 
     pub(crate) fn insert_char(&mut self, caret: &mut Caret, c: char) {
         if let Some(line) = self.lines.get_mut(caret.row) {
-            line.insert_char(caret.col, c);
+            line.insert_char(caret.col, c, &self.sender);
             caret.move_to(caret.row, caret.col + 1, &self.sender);
         }
     }
@@ -55,7 +55,7 @@ impl Buffer {
 
     fn update_position(&mut self) {
         (0..).zip(self.lines.iter_mut()).for_each(|(i, l)| {
-            l.update_position(i);
+            l.update_position(i, &self.sender);
         })
     }
 
@@ -161,7 +161,7 @@ impl Buffer {
                 RemovedChar::None
             }
         } else if let Some(line) = self.lines.get_mut(caret.row) {
-            line.remove_char(caret.col)
+            line.remove_char(caret.col, &self.sender)
         } else {
             RemovedChar::None
         }
@@ -179,10 +179,10 @@ impl BufferLine {
         BufferLine { row_num: 0, chars }
     }
 
-    fn update_position(&mut self, row_num: usize) {
+    fn update_position(&mut self, row_num: usize, sender: &Sender<ChangeEvent>) {
         self.row_num = row_num;
         (0..).zip(self.chars.iter_mut()).for_each(|(i, c)| {
-            c.update_position(row_num, i);
+            c.update_position(row_num, i, sender);
         })
     }
 
@@ -190,9 +190,9 @@ impl BufferLine {
         self.chars.iter().map(|c| c.c).collect()
     }
 
-    fn insert_char(&mut self, col: usize, c: char) {
+    fn insert_char(&mut self, col: usize, c: char, sender: &Sender<ChangeEvent>) {
         self.chars
-            .insert(col, BufferChar::new(col, self.row_num, c))
+            .insert(col, BufferChar::new(col, self.row_num, c, sender))
     }
 
     fn insert_enter(&mut self, col: usize) -> Option<BufferLine> {
@@ -203,8 +203,9 @@ impl BufferLine {
         }
     }
 
-    fn remove_char(&mut self, col: usize) -> RemovedChar {
+    fn remove_char(&mut self, col: usize, sender: &Sender<ChangeEvent>) -> RemovedChar {
         let removed = self.chars.remove(col);
+        sender.send(ChangeEvent::RemoveChar(removed)).unwrap();
         RemovedChar::Char(removed.c)
     }
 
@@ -213,6 +214,7 @@ impl BufferLine {
     }
 }
 
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct BufferChar {
     pub row: usize,
     pub col: usize,
@@ -220,13 +222,18 @@ pub struct BufferChar {
 }
 
 impl BufferChar {
-    fn new(row: usize, col: usize, c: char) -> BufferChar {
-        BufferChar { row, col, c }
+    fn new(row: usize, col: usize, c: char, sender: &Sender<ChangeEvent>) -> Self {
+        let instance = Self { row, col, c };
+        sender.send(ChangeEvent::AddChar(instance)).unwrap();
+        instance
     }
 
-    fn update_position(&mut self, row: usize, col: usize) {
+    fn update_position(&mut self, row: usize, col: usize, sender: &Sender<ChangeEvent>) {
+        let from = *self;
         self.row = row;
         self.col = col;
+        let event = ChangeEvent::MoveChar { from, to: *self };
+        sender.send(event).unwrap();
     }
 }
 
@@ -443,29 +450,31 @@ mod tests {
 
     #[test]
     fn buffer_line_insert_remove() {
+        let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = BufferLine::default();
         assert_eq!(sut.to_line_string(), "");
-        sut.insert_char(0, '鉄');
-        sut.insert_char(1, 'ン');
+        sut.insert_char(0, '鉄', &tx);
+        sut.insert_char(1, 'ン', &tx);
         assert_eq!(sut.to_line_string(), "鉄ン");
-        sut.insert_char(1, '鍋');
-        sut.insert_char(2, 'の');
-        sut.insert_char(3, 'ャ');
-        sut.insert_char(3, 'ジ');
+        sut.insert_char(1, '鍋', &tx);
+        sut.insert_char(2, 'の', &tx);
+        sut.insert_char(3, 'ャ', &tx);
+        sut.insert_char(3, 'ジ', &tx);
         assert_eq!(sut.to_line_string(), "鉄鍋のジャン");
-        assert_eq!(sut.remove_char(4), RemovedChar::Char('ャ'));
-        assert_eq!(sut.remove_char(3), RemovedChar::Char('ジ'));
+        assert_eq!(sut.remove_char(4, &tx), RemovedChar::Char('ャ'));
+        assert_eq!(sut.remove_char(3, &tx), RemovedChar::Char('ジ'));
         assert_eq!(sut.to_line_string(), "鉄鍋のン");
     }
 
     #[test]
     fn buffer_line_enter_join() {
+        let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = BufferLine::default();
         assert_eq!(sut.to_line_string(), "");
-        sut.insert_char(0, '花');
-        sut.insert_char(1, '鳥');
-        sut.insert_char(2, '風');
-        sut.insert_char(3, '月');
+        sut.insert_char(0, '花', &tx);
+        sut.insert_char(1, '鳥', &tx);
+        sut.insert_char(2, '風', &tx);
+        sut.insert_char(3, '月', &tx);
         if let Some(result) = sut.insert_enter(2) {
             assert_eq!(sut.to_line_string(), "花鳥");
             assert_eq!(result.to_line_string(), "風月");
