@@ -57,6 +57,7 @@ impl Editor {
     }
 }
 
+#[derive(Debug)]
 pub enum ChangeEvent {
     AddChar(BufferChar),
     MoveChar { from: BufferChar, to: BufferChar },

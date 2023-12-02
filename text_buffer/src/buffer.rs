@@ -192,7 +192,7 @@ impl BufferLine {
 
     fn insert_char(&mut self, col: usize, c: char, sender: &Sender<ChangeEvent>) {
         self.chars
-            .insert(col, BufferChar::new(col, self.row_num, c, sender))
+            .insert(col, BufferChar::new(self.row_num, col, c, sender))
     }
 
     fn insert_enter(&mut self, col: usize) -> Option<BufferLine> {
@@ -229,6 +229,9 @@ impl BufferChar {
     }
 
     fn update_position(&mut self, row: usize, col: usize, sender: &Sender<ChangeEvent>) {
+        if self.row == row && self.col == col {
+            return;
+        }
         let from = *self;
         self.row = row;
         self.col = col;

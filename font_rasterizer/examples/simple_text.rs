@@ -85,7 +85,12 @@ impl SingleCharCallback {
         );
         ime.update_scale(0.1);
 
-        let (tx, _rx) = std::sync::mpsc::channel::<ChangeEvent>();
+        let (tx, rx) = std::sync::mpsc::channel::<ChangeEvent>();
+        std::thread::spawn(move || {
+            while let Ok(event) = rx.recv() {
+                info!("event: {:?}", event);
+            }
+        });
 
         Self {
             camera: Camera::basic((800, 600)),
