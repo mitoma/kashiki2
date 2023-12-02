@@ -1,6 +1,9 @@
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
-use text_buffer::{action::EditorOperation, editor::Editor};
+use text_buffer::{
+    action::EditorOperation,
+    editor::{ChangeEvent, Editor},
+};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -82,11 +85,13 @@ impl SingleCharCallback {
         );
         ime.update_scale(0.1);
 
+        let (tx, _rx) = std::sync::mpsc::channel::<ChangeEvent>();
+
         Self {
             camera: Camera::basic((800, 600)),
             camera_controller: CameraController::new(10.0),
             color_theme: ColorTheme::SolarizedDark,
-            editor: text_buffer::editor::Editor::default(),
+            editor: text_buffer::editor::Editor::new(tx),
             store,
             reader: PlaneTextReader::new("".to_string()),
             ime,

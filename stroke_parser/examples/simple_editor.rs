@@ -1,5 +1,5 @@
 use stroke_parser::{action_store_parser, Action, ActionStore};
-use text_buffer::action::EditorOperation;
+use text_buffer::{action::EditorOperation, editor::ChangeEvent};
 use winit::{
     event::{Event, WindowEvent},
     event_loop::EventLoop,
@@ -12,7 +12,8 @@ fn main() {
     let window = WindowBuilder::new().build(&event_loop).unwrap();
     window.set_ime_allowed(true);
 
-    let mut editor = text_buffer::editor::Editor::default();
+    let (tx, _rx) = std::sync::mpsc::channel::<ChangeEvent>();
+    let mut editor = text_buffer::editor::Editor::new(tx);
 
     let mut store: ActionStore = Default::default();
     let key_setting = include_str!("key-settings.txt");

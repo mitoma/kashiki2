@@ -1,5 +1,8 @@
+use std::sync::mpsc::Sender;
+
 use crate::buffer::*;
 use crate::caret::*;
+use crate::editor::ChangeEvent;
 
 #[derive(Debug)]
 pub enum EditorOperation {
@@ -38,7 +41,7 @@ pub enum ReverseAction {
 impl ReverseAction {
     fn to_editor_operation(&self) -> EditorOperation {
         match self {
-            ReverseAction::MoveTo(caret) => EditorOperation::MoveTo(caret.clone()),
+            ReverseAction::MoveTo(caret) => EditorOperation::MoveTo(*caret),
             ReverseAction::Back => EditorOperation::Back,
             ReverseAction::Backspace => EditorOperation::Backspace,
             ReverseAction::InsertChar(c) => EditorOperation::InsertChar(*c),
@@ -75,11 +78,16 @@ impl BufferApplyer {
         buffer: &mut Buffer,
         current_caret: &mut Caret,
         reverse_actions: &ReverseActions,
+        sender: &Sender<ChangeEvent>,
     ) -> ReverseActions {
         let mut reverse_reverse_actions = ReverseActions::default();
         reverse_actions.actions.iter().for_each(|action| {
-            let reverse_reverse_action =
-                BufferApplyer::apply_action(buffer, current_caret, &action.to_editor_operation());
+            let reverse_reverse_action = BufferApplyer::apply_action(
+                buffer,
+                current_caret,
+                &action.to_editor_operation(),
+                sender,
+            );
             reverse_reverse_action
                 .actions
                 .into_iter()
@@ -92,44 +100,45 @@ impl BufferApplyer {
         buffer: &mut Buffer,
         current_caret: &mut Caret,
         action: &EditorOperation,
+        sender: &Sender<ChangeEvent>,
     ) -> ReverseActions {
         let mut reverse_actions = ReverseActions::default();
         match action {
             // move caret
             EditorOperation::MoveTo(next_caret) => {
-                reverse_actions.push(ReverseAction::MoveTo(current_caret.clone()));
-                current_caret.to(next_caret);
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                current_caret.to(next_caret, sender);
             }
             EditorOperation::Head => {
-                reverse_actions.push(ReverseAction::MoveTo(current_caret.clone()));
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.head(current_caret);
             }
             EditorOperation::Last => {
-                reverse_actions.push(ReverseAction::MoveTo(current_caret.clone()));
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.last(current_caret);
             }
             EditorOperation::Back => {
-                reverse_actions.push(ReverseAction::MoveTo(current_caret.clone()));
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.back(current_caret);
             }
             EditorOperation::Forward => {
-                reverse_actions.push(ReverseAction::MoveTo(current_caret.clone()));
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.forward(current_caret);
             }
             EditorOperation::Previous => {
-                reverse_actions.push(ReverseAction::MoveTo(current_caret.clone()));
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.previous(current_caret);
             }
             EditorOperation::Next => {
-                reverse_actions.push(ReverseAction::MoveTo(current_caret.clone()));
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.next(current_caret);
             }
             EditorOperation::BufferHead => {
-                reverse_actions.push(ReverseAction::MoveTo(current_caret.clone()));
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.buffer_head(current_caret);
             }
             EditorOperation::BufferLast => {
-                reverse_actions.push(ReverseAction::MoveTo(current_caret.clone()));
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.buffer_last(current_caret);
             }
 
@@ -184,52 +193,65 @@ impl BufferApplyer {
 #[cfg(test)]
 mod tests {
 
+    use std::sync::mpsc::channel;
+
     use super::*;
 
     #[test]
     fn test_buffer_move() {
+        let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::default();
-        let mut caret = Caret::new(0, 0);
+        let mut caret = Caret::new(0, 0, &tx);
         BufferApplyer::apply_action(
             &mut sut,
             &mut caret,
             &EditorOperation::InsertString("ABCD\nEFGH\nIJKL\nMNO".to_string()),
+            &tx,
         );
-        assert_eq!(caret, Caret::new(3, 3));
-        let result = BufferApplyer::apply_action(&mut sut, &mut caret, &EditorOperation::Head);
-        assert_eq!(caret, Caret::new(3, 0));
-        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &result);
-        assert_eq!(caret, Caret::new(3, 3));
+        assert_eq!(caret, Caret::new(3, 3, &tx));
+        let result = BufferApplyer::apply_action(&mut sut, &mut caret, &EditorOperation::Head, &tx);
+        assert_eq!(caret, Caret::new(3, 0, &tx));
+        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &result, &tx);
+        assert_eq!(caret, Caret::new(3, 3, &tx));
     }
 
     #[test]
     fn test_apply_action() {
+        let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::default();
-        let mut caret = Caret::new(0, 0);
+        let mut caret = Caret::new(0, 0, &tx);
         let mut reverses = Vec::new();
-        let result =
-            BufferApplyer::apply_action(&mut sut, &mut caret, &EditorOperation::InsertChar('花'));
+        let result = BufferApplyer::apply_action(
+            &mut sut,
+            &mut caret,
+            &EditorOperation::InsertChar('花'),
+            &tx,
+        );
+        reverses.push(result);
+        let result = BufferApplyer::apply_action(
+            &mut sut,
+            &mut caret,
+            &EditorOperation::InsertChar('鳥'),
+            &tx,
+        );
         reverses.push(result);
         let result =
-            BufferApplyer::apply_action(&mut sut, &mut caret, &EditorOperation::InsertChar('鳥'));
-        reverses.push(result);
-        let result =
-            BufferApplyer::apply_action(&mut sut, &mut caret, &EditorOperation::InsertEnter);
+            BufferApplyer::apply_action(&mut sut, &mut caret, &EditorOperation::InsertEnter, &tx);
         reverses.push(result);
         assert_eq!(sut.to_buffer_string(), "花鳥\n".to_string());
-        assert_eq!(caret, Caret::new(1, 0));
+        assert_eq!(caret, Caret::new(1, 0, &tx));
 
         let reverse_action = reverses.pop().unwrap();
-        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &reverse_action);
+        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &reverse_action, &tx);
         assert_eq!(sut.to_buffer_string(), "花鳥".to_string());
 
         let reverse_action = reverses.pop().unwrap();
-        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &reverse_action);
+        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &reverse_action, &tx);
         assert_eq!(sut.to_buffer_string(), "花".to_string());
 
         let reverse_action = reverses.pop().unwrap();
-        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &reverse_action);
+        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &reverse_action, &tx);
         assert_eq!(sut.to_buffer_string(), "".to_string());
-        assert_eq!(caret, Caret::new(0, 0));
+        assert_eq!(caret, Caret::new(0, 0, &tx));
     }
 }

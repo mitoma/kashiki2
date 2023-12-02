@@ -245,11 +245,16 @@ pub enum RemovedChar {
 #[cfg(test)]
 mod tests {
 
+    use std::sync::mpsc::channel;
+
+    use crate::editor::ChangeEvent;
+
     use super::*;
 
     #[test]
     fn buffer() {
-        let caret = &mut Caret::new(0, 0);
+        let (tx, _rx) = channel::<ChangeEvent>();
+        let caret = &mut Caret::new(0, 0, &tx);
         let mut sut = Buffer::default();
         assert_eq!(sut.to_buffer_string(), "");
         sut.insert_char(caret, '山');
@@ -268,13 +273,14 @@ mod tests {
         assert_eq!(sut.to_buffer_string(), "山本\n\n");
         assert_eq!(caret.row, 2);
         assert_eq!(caret.col, 0);
-        sut.insert_enter(&mut Caret::new(100, 100));
+        sut.insert_enter(&mut Caret::new(100, 100, &tx));
         assert_eq!(sut.to_buffer_string(), "山本\n\n");
     }
 
     #[test]
     fn buffer_insert_string() {
-        let caret = &mut Caret::new(0, 0);
+        let (tx, _rx) = channel::<ChangeEvent>();
+        let caret = &mut Caret::new(0, 0, &tx);
         let mut sut = Buffer::default();
         sut.insert_string(caret, "東京は\n今日もいい天気\nだった。".to_string());
         assert_eq!(sut.to_buffer_string(), "東京は\n今日もいい天気\nだった。");
@@ -284,104 +290,107 @@ mod tests {
 
     #[test]
     fn buffer_position_check() {
+        let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::default();
         sut.insert_string(
-            &mut Caret::new(0, 0),
+            &mut Caret::new(0, 0, &tx),
             "あいうえお\nかきくけこ\nさしすせそそ".to_string(),
         );
         // buffer head
-        assert!(sut.is_buffer_head(&Caret::new(0, 0)));
-        assert!(sut.is_buffer_head(&Caret::new(0, 4)));
-        assert!(!sut.is_buffer_head(&Caret::new(1, 0)));
+        assert!(sut.is_buffer_head(&Caret::new(0, 0, &tx)));
+        assert!(sut.is_buffer_head(&Caret::new(0, 4, &tx)));
+        assert!(!sut.is_buffer_head(&Caret::new(1, 0, &tx)));
 
         // buffer last
-        assert!(sut.is_buffer_last(&Caret::new(2, 0)));
-        assert!(sut.is_buffer_last(&Caret::new(2, 4)));
-        assert!(!sut.is_buffer_last(&Caret::new(0, 0)));
+        assert!(sut.is_buffer_last(&Caret::new(2, 0, &tx)));
+        assert!(sut.is_buffer_last(&Caret::new(2, 4, &tx)));
+        assert!(!sut.is_buffer_last(&Caret::new(0, 0, &tx)));
 
         // line head
-        assert!(sut.is_line_head(&Caret::new(0, 0)));
-        assert!(sut.is_line_head(&Caret::new(2, 0)));
-        assert!(!sut.is_line_head(&Caret::new(1, 3)));
+        assert!(sut.is_line_head(&Caret::new(0, 0, &tx)));
+        assert!(sut.is_line_head(&Caret::new(2, 0, &tx)));
+        assert!(!sut.is_line_head(&Caret::new(1, 3, &tx)));
 
         // line last
-        assert!(sut.is_line_last(&Caret::new(0, 5)));
-        assert!(sut.is_line_last(&Caret::new(2, 6)));
-        assert!(!sut.is_line_last(&Caret::new(2, 5)));
+        assert!(sut.is_line_last(&Caret::new(0, 5, &tx)));
+        assert!(sut.is_line_last(&Caret::new(2, 6, &tx)));
+        assert!(!sut.is_line_last(&Caret::new(2, 5, &tx)));
     }
 
     #[test]
     fn buffer_move() {
+        let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::default();
-        let caret = &mut Caret::new(0, 0);
+        let caret = &mut Caret::new(0, 0, &tx);
         sut.insert_string(caret, "あいうえお\nきかくけここ\nさしすせそ".to_string());
 
         // forward
-        caret.move_to(0, 0);
+        caret.move_to(0, 0, &tx);
         sut.forward(caret);
-        assert_eq!(caret, &Caret::new(0, 1));
+        assert_eq!(caret, &Caret::new(0, 1, &tx));
 
-        caret.move_to(0, 4);
+        caret.move_to(0, 4, &tx);
         sut.forward(caret);
-        assert_eq!(caret, &Caret::new(0, 5));
+        assert_eq!(caret, &Caret::new(0, 5, &tx));
 
-        caret.move_to(0, 5);
+        caret.move_to(0, 5, &tx);
         sut.forward(caret);
-        assert_eq!(caret, &Caret::new(1, 0));
+        assert_eq!(caret, &Caret::new(1, 0, &tx));
 
-        caret.move_to(2, 5);
+        caret.move_to(2, 5, &tx);
         sut.forward(caret);
-        assert_eq!(caret, &Caret::new(2, 5));
+        assert_eq!(caret, &Caret::new(2, 5, &tx));
 
         // back
-        caret.move_to(0, 3);
+        caret.move_to(0, 3, &tx);
         sut.back(caret);
-        assert_eq!(caret, &Caret::new(0, 2));
+        assert_eq!(caret, &Caret::new(0, 2, &tx));
 
-        caret.move_to(0, 0);
+        caret.move_to(0, 0, &tx);
         sut.back(caret);
-        assert_eq!(caret, &Caret::new(0, 0));
+        assert_eq!(caret, &Caret::new(0, 0, &tx));
 
-        caret.move_to(2, 0);
+        caret.move_to(2, 0, &tx);
         sut.back(caret);
-        assert_eq!(caret, &Caret::new(1, 6));
+        assert_eq!(caret, &Caret::new(1, 6, &tx));
 
         // previous
-        caret.move_to(1, 3);
+        caret.move_to(1, 3, &tx);
         sut.previous(caret);
-        assert_eq!(caret, &Caret::new(0, 3));
+        assert_eq!(caret, &Caret::new(0, 3, &tx));
 
-        caret.move_to(1, 5);
+        caret.move_to(1, 5, &tx);
         sut.previous(caret);
-        assert_eq!(caret, &Caret::new(0, 5));
+        assert_eq!(caret, &Caret::new(0, 5, &tx));
 
-        caret.move_to(2, 4);
+        caret.move_to(2, 4, &tx);
         sut.previous(caret);
-        assert_eq!(caret, &Caret::new(1, 4));
+        assert_eq!(caret, &Caret::new(1, 4, &tx));
 
         // next
-        caret.move_to(0, 3);
+        caret.move_to(0, 3, &tx);
         sut.next(caret);
-        assert_eq!(caret, &Caret::new(1, 3));
+        assert_eq!(caret, &Caret::new(1, 3, &tx));
 
-        caret.move_to(1, 6);
+        caret.move_to(1, 6, &tx);
         sut.next(caret);
-        assert_eq!(caret, &Caret::new(2, 5));
+        assert_eq!(caret, &Caret::new(2, 5, &tx));
 
-        caret.move_to(2, 5);
+        caret.move_to(2, 5, &tx);
         sut.next(caret);
-        assert_eq!(caret, &Caret::new(2, 5));
+        assert_eq!(caret, &Caret::new(2, 5, &tx));
     }
 
     #[test]
     fn buffer_backspace() {
+        let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::default();
         sut.insert_string(
-            &mut Caret::new(0, 0),
+            &mut Caret::new(0, 0, &tx),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
         assert_eq!(
-            sut.backspace(&mut Caret::new(1, 3)),
+            sut.backspace(&mut Caret::new(1, 3, &tx)),
             RemovedChar::Char('く')
         );
         assert_eq!(
@@ -389,14 +398,17 @@ mod tests {
             "あいうえお\nかきけこ\nさしすせそ".to_string()
         );
         assert_eq!(
-            sut.backspace(&mut Caret::new(1, 4)),
+            sut.backspace(&mut Caret::new(1, 4, &tx)),
             RemovedChar::Char('こ')
         );
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきけ\nさしすせそ".to_string()
         );
-        assert_eq!(sut.backspace(&mut Caret::new(2, 0)), RemovedChar::Enter);
+        assert_eq!(
+            sut.backspace(&mut Caret::new(2, 0, &tx)),
+            RemovedChar::Enter
+        );
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきけさしすせそ".to_string()
@@ -405,28 +417,29 @@ mod tests {
 
     #[test]
     fn buffer_delete() {
+        let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::default();
         sut.insert_string(
-            &mut Caret::new(0, 0),
+            &mut Caret::new(0, 0, &tx),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
-        assert_eq!(sut.delete(&Caret::new(1, 3)), RemovedChar::Char('け'));
+        assert_eq!(sut.delete(&Caret::new(1, 3, &tx)), RemovedChar::Char('け'));
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくこ\nさしすせそ".to_string()
         );
-        assert_eq!(sut.delete(&Caret::new(1, 3)), RemovedChar::Char('こ'));
-        assert_eq!(sut.delete(&Caret::new(1, 3)), RemovedChar::Enter);
+        assert_eq!(sut.delete(&Caret::new(1, 3, &tx)), RemovedChar::Char('こ'));
+        assert_eq!(sut.delete(&Caret::new(1, 3, &tx)), RemovedChar::Enter);
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくさしすせそ".to_string()
         );
-        assert_eq!(sut.delete(&Caret::new(1, 7)), RemovedChar::Char('そ'));
+        assert_eq!(sut.delete(&Caret::new(1, 7, &tx)), RemovedChar::Char('そ'));
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくさしすせ".to_string()
         );
-        assert_eq!(sut.delete(&Caret::new(1, 7)), RemovedChar::None);
+        assert_eq!(sut.delete(&Caret::new(1, 7, &tx)), RemovedChar::None);
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくさしすせ".to_string()

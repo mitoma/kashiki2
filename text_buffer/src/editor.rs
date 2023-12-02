@@ -1,3 +1,5 @@
+use std::sync::mpsc::Sender;
+
 use super::action::*;
 use super::buffer::*;
 use super::caret::*;
@@ -7,27 +9,27 @@ pub struct Editor {
     mark: Option<Caret>,
     buffer: Buffer,
     undo_list: Vec<ReverseActions>,
-}
-
-impl Default for Editor {
-    fn default() -> Self {
-        Self {
-            main_caret: Caret::new(0, 0),
-            mark: Option::None,
-            buffer: Buffer::default(),
-            undo_list: Vec::new(),
-        }
-    }
+    sender: Sender<ChangeEvent>,
 }
 
 impl Editor {
+    pub fn new(sender: Sender<ChangeEvent>) -> Self {
+        Self {
+            main_caret: Caret::new(0, 0, &sender),
+            mark: Option::None,
+            buffer: Buffer::default(),
+            undo_list: Vec::new(),
+            sender,
+        }
+    }
+
     pub fn operation(&mut self, op: &EditorOperation) {
         if let EditorOperation::Undo = op {
             self.undo();
             return;
         }
         let reverse_actions =
-            BufferApplyer::apply_action(&mut self.buffer, &mut self.main_caret, op);
+            BufferApplyer::apply_action(&mut self.buffer, &mut self.main_caret, op, &self.sender);
         self.undo_list.push(reverse_actions);
     }
 
@@ -37,15 +39,29 @@ impl Editor {
                 &mut self.buffer,
                 &mut self.main_caret,
                 &reverse_action,
+                &self.sender,
             );
         }
     }
 
     pub fn mark(&mut self) {
-        self.mark = Some(self.main_caret.clone());
+        self.mark = Some(Caret::new(
+            self.main_caret.row,
+            self.main_caret.row,
+            &self.sender,
+        ));
     }
 
     pub fn to_buffer_string(&self) -> String {
         self.buffer.to_buffer_string()
     }
+}
+
+pub enum ChangeEvent {
+    AddChar(BufferChar),
+    MoveChar { from: BufferChar, to: BufferChar },
+    RemoveChar(BufferChar),
+    AddCarete(Caret),
+    MoveCarete { from: Caret, to: Caret },
+    RmoveCaret(Caret),
 }
