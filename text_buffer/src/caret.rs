@@ -2,7 +2,7 @@ use std::sync::mpsc::Sender;
 
 use crate::editor::ChangeEvent;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Caret {
     pub row: usize,
     pub col: usize,

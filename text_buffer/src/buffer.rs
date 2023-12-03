@@ -192,6 +192,10 @@ impl BufferLine {
 
     fn insert_char(&mut self, col: usize, c: char, sender: &Sender<ChangeEvent>) {
         self.chars
+            .iter_mut()
+            .skip(col)
+            .for_each(|c| c.update_position(self.row_num, c.col + 1, sender));
+        self.chars
             .insert(col, BufferChar::new(self.row_num, col, c, sender))
     }
 
@@ -206,6 +210,10 @@ impl BufferLine {
     fn remove_char(&mut self, col: usize, sender: &Sender<ChangeEvent>) -> RemovedChar {
         let removed = self.chars.remove(col);
         sender.send(ChangeEvent::RemoveChar(removed)).unwrap();
+        self.chars
+            .iter_mut()
+            .skip(col)
+            .for_each(|c| c.update_position(self.row_num, c.col - 1, sender));
         RemovedChar::Char(removed.c)
     }
 
@@ -214,7 +222,7 @@ impl BufferLine {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct BufferChar {
     pub row: usize,
     pub col: usize,

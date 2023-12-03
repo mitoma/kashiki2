@@ -1,3 +1,5 @@
+mod textedit;
+
 use std::collections::BTreeMap;
 
 use cgmath::{num_traits::ToPrimitive, Point3, Quaternion, Rotation3};
