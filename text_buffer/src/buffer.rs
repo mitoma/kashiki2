@@ -171,7 +171,7 @@ impl Buffer {
 #[derive(Default)]
 pub struct BufferLine {
     row_num: usize,
-    pub chars: Vec<BufferChar>,
+    chars: Vec<BufferChar>,
 }
 
 impl BufferLine {
