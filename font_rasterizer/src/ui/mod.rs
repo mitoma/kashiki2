@@ -1,4 +1,4 @@
-mod textedit;
+pub mod textedit;
 
 use std::collections::BTreeMap;
 
@@ -61,6 +61,10 @@ impl Model for PlaneTextReader {
 
     fn bound(&self) -> (f32, f32) {
         self.bound
+    }
+
+    fn operation(&mut self, op: &text_buffer::action::EditorOperation) {
+        // noop
     }
 }
 

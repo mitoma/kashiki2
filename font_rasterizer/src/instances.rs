@@ -4,6 +4,7 @@ use log::info;
 
 use crate::{color_theme::SolarizedColor, motion::MotionFlags, time::now_millis};
 
+#[derive(Clone, Copy)]
 pub struct GlyphInstance {
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,

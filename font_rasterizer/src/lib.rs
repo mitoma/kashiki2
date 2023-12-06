@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod color_theme;
+pub mod easing_value;
 pub mod font_buffer;
 pub mod instances;
 pub mod layout_engine;

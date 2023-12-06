@@ -15,6 +15,10 @@ impl Caret {
         instance
     }
 
+    pub fn new_without_event(row: usize, col: usize) -> Self {
+        Self { row, col }
+    }
+
     #[inline]
     pub fn move_to(&mut self, row: usize, col: usize, sender: &Sender<ChangeEvent>) {
         if self.row == row && self.col == col {

@@ -2,7 +2,7 @@ use cgmath::{InnerSpace, Point3};
 use instant::Duration;
 use nenobi::TimeBaseEasingValue;
 
-use crate::layout_engine::Model;
+use crate::{layout_engine::Model, easing_value::EasingPoint3};
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -11,60 +11,6 @@ const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     0.0, 0.0, 0.5, 0.0,
     0.0, 0.0, 0.5, 1.0,
 );
-
-pub struct EasingPoint3 {
-    x: TimeBaseEasingValue<f32>,
-    y: TimeBaseEasingValue<f32>,
-    z: TimeBaseEasingValue<f32>,
-}
-
-impl EasingPoint3 {
-    pub(crate) fn new(x: f32, y: f32, z: f32) -> Self {
-        Self {
-            x: TimeBaseEasingValue::new(x),
-            y: TimeBaseEasingValue::new(y),
-            z: TimeBaseEasingValue::new(z),
-        }
-    }
-
-    fn current(&self) -> (f32, f32, f32) {
-        (
-            self.x.current_value(),
-            self.y.current_value(),
-            self.z.current_value(),
-        )
-    }
-
-    fn last(&self) -> (f32, f32, f32) {
-        (
-            self.x.last_value(),
-            self.y.last_value(),
-            self.z.last_value(),
-        )
-    }
-
-    fn gc(&mut self) {
-        self.x.gc();
-        self.y.gc();
-        self.z.gc();
-    }
-
-    fn update(&mut self, p: cgmath::Point3<f32>) {
-        self.x
-            .update(p.x, Duration::from_millis(500), nenobi::functions::sin_out);
-        self.y
-            .update(p.y, Duration::from_millis(500), nenobi::functions::sin_out);
-        self.z
-            .update(p.z, Duration::from_millis(500), nenobi::functions::sin_out);
-        self.gc();
-    }
-}
-
-impl From<(f32, f32, f32)> for EasingPoint3 {
-    fn from((x, y, z): (f32, f32, f32)) -> Self {
-        Self::new(x, y, z)
-    }
-}
 
 pub struct Camera {
     eye: EasingPoint3,
