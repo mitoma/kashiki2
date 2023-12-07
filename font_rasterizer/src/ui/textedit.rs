@@ -51,7 +51,7 @@ impl TextEdit {
                 cgmath::Vector3::unit_y(),
                 cgmath::Deg(0.0),
             ),
-            bound: (10.0, 10.0),
+            bound: (20.0, 20.0),
         }
     }
 }
@@ -99,12 +99,16 @@ impl Model for TextEdit {
                     if let Some(position) = self.buffer_chars.remove(&from) {
                         self.buffer_chars.insert(to, position);
                     }
+                    if let Some(position) = self.buffer_glyphs.remove(&from) {
+                        self.buffer_glyphs.insert(to, position);
+                    }
                 }
                 ChangeEvent::RemoveChar(c) => {
                     if let Some(mut position) = self.buffer_chars.remove(&c) {
-                        position.update((10.0, 0.0, 0.0).into());
+                        position.update((0.0, 0.0, 0.0).into());
                         self.removed_buffer_chars.insert(c, position);
                     }
+                    self.buffer_glyphs.remove(&c);
                 }
                 ChangeEvent::AddCarete(c) => {
                     self.carets
@@ -146,6 +150,7 @@ impl Model for TextEdit {
                 x += glyph_width.right();
             }
         }
+        self.updated == false;
 
         {
             let rotation = self.rotation;
@@ -171,7 +176,7 @@ impl Model for TextEdit {
             for (c, i) in self.removed_buffer_chars.iter() {
                 if !i.in_animation() {
                     self.buffer_glyphs.remove(c);
-                }else {
+                } else {
                     let instance = self.buffer_glyphs.entry(*c).or_insert_with(|| {
                         let mut i = GlyphInstance::default();
                         i.color = color_theme.blue().get_color();
@@ -189,7 +194,7 @@ impl Model for TextEdit {
                     instance.rotation = self.rotation;
                 }
             }
-            self.removed_buffer_chars.retain(|c, i| !i.in_animation());
+            self.removed_buffer_chars.retain(|c, i| i.in_animation());
         }
 
         {

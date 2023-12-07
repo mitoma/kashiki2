@@ -156,6 +156,7 @@ impl Buffer {
                 let next_line = self.lines.remove(caret.row + 1);
                 let current_line = self.lines.get_mut(caret.row).unwrap();
                 current_line.join(next_line);
+                current_line.update_position(caret.row, &self.sender);
                 RemovedChar::Enter
             } else {
                 RemovedChar::None
@@ -240,7 +241,7 @@ impl BufferChar {
         if self.row == row && self.col == col {
             return;
         }
-        let from = *self;
+        let from = self.clone();
         self.row = row;
         self.col = col;
         let event = ChangeEvent::MoveChar { from, to: *self };
