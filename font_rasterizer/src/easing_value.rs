@@ -51,6 +51,16 @@ impl EasingPoint3 {
             .update(p.z, Duration::from_millis(500), nenobi::functions::sin_out);
         self.gc();
     }
+
+    pub(crate) fn add(&mut self, p: cgmath::Point3<f32>) {
+        self.x
+            .add(p.x, Duration::from_millis(500), nenobi::functions::sin_out);
+        self.y
+            .add(p.y, Duration::from_millis(500), nenobi::functions::sin_out);
+        self.z
+            .add(p.z, Duration::from_millis(500), nenobi::functions::sin_out);
+        self.gc();
+    }
 }
 
 impl From<(f32, f32, f32)> for EasingPoint3 {
