@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::mpsc::Receiver};
 
-use cgmath::{Point3, Quaternion, Rotation3};
+use cgmath::{Point2, Point3, Quaternion, Rotation3};
 use log::info;
 use text_buffer::{
     buffer::BufferChar,
@@ -210,10 +210,8 @@ impl TextEdit {
     // 文字と caret の GPU で描画すべき位置やモーションを計算する
     #[inline]
     fn calc_instance_positions(&mut self) {
-        let (bound_x, bound_y) = self.bound;
-        let (center_x, center_y) = (bound_x / 2.0, -bound_y / 2.0);
-
-        let rotation = self.rotation;
+        let (bound_x, bound_y) = &self.bound;
+        let center = (bound_x / 2.0, -bound_y / 2.0).into();
 
         // update caret
         for (c, i) in self.carets.iter() {
@@ -221,16 +219,7 @@ impl TextEdit {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                let (x, y, z) = i.current();
-                let pos = cgmath::Matrix4::from(rotation)
-                    * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-                let new_position = cgmath::Vector3 {
-                    x: pos.x - center_x + self.position.x,
-                    y: pos.y - center_y + self.position.y,
-                    z: pos.z + self.position.z,
-                };
-                instance.position = new_position;
-                instance.rotation = self.rotation;
+                Self::update_instance(instance, &i, &center, &self.position, &self.rotation);
             }
         }
 
@@ -240,16 +229,7 @@ impl TextEdit {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                let (x, y, z) = i.current();
-                let pos = cgmath::Matrix4::from(rotation)
-                    * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-                let new_position = cgmath::Vector3 {
-                    x: pos.x - center_x + self.position.x,
-                    y: pos.y - center_y + self.position.y,
-                    z: pos.z + self.position.z,
-                };
-                instance.position = new_position;
-                instance.rotation = self.rotation;
+                Self::update_instance(instance, i, &center, &self.position, &self.rotation);
             }
         }
 
@@ -263,17 +243,28 @@ impl TextEdit {
         });
         for (c, i) in self.removed_buffer_chars.iter() {
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
-                let (x, y, z) = i.current();
-                let pos = cgmath::Matrix4::from(rotation)
-                    * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-                let new_position = cgmath::Vector3 {
-                    x: pos.x - center_x + self.position.x,
-                    y: pos.y - center_y + self.position.y,
-                    z: pos.z + self.position.z,
-                };
-                instance.position = new_position;
-                instance.rotation = self.rotation;
+                Self::update_instance(instance, i, &center, &self.position, &self.rotation);
             }
         }
+    }
+
+    #[inline]
+    fn update_instance(
+        instance: &mut GlyphInstance,
+        i: &EasingPoint3,
+        center: &Point2<f32>,
+        position: &Point3<f32>,
+        rotation: &Quaternion<f32>,
+    ) {
+        let (x, y, z) = i.current();
+        let pos = cgmath::Matrix4::from(*rotation)
+            * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+        let new_position = cgmath::Vector3 {
+            x: pos.x - center.x + position.x,
+            y: pos.y - center.y + position.y,
+            z: pos.z + position.z,
+        };
+        instance.position = new_position;
+        instance.rotation = *rotation;
     }
 }
