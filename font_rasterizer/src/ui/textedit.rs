@@ -160,119 +160,119 @@ impl TextEdit {
     // 文字と caret の x, y の論理的な位置を計算する
     #[inline]
     fn calc_position_and_bound(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) {
-        if self.updated {
-            let initial_x: f32 = 0.0;
-            let mut current_row: usize = 0;
-            let mut x: f32 = 0.0;
-            let mut y: f32 = 0.0;
-
-            // caret の位置決め
-            let caret_width = glyph_vertex_buffer.width('_');
-            for (c, i) in self.carets.iter_mut() {
-                if c.col == 0 {
-                    let caret_x = initial_x + caret_width.left();
-                    let caret_y = -1.0 * c.row as f32;
-                    i.update((caret_x, caret_y, 0.0).into());
-                }
-            }
-
-            // 文字と caret (文中あるいは文末時の位置決め)
-            for (c, i) in self.buffer_chars.iter_mut() {
-                if current_row != c.row {
-                    let y_gain = c.row - current_row;
-                    current_row = c.row;
-                    y -= 1.0 * y_gain as f32;
-                    x = initial_x;
-                }
-                let glyph_width = glyph_vertex_buffer.width(c.c);
-                x += glyph_width.left();
-                i.update((x, y, 0.0).into());
-
-                if let Some(caret_position) =
-                    self.carets.get_mut(&Caret::new_without_event(c.row, c.col))
-                {
-                    caret_position.update((x, y, 0.0).into());
-                }
-                x += glyph_width.right();
-                if let Some(caret_position) = self
-                    .carets
-                    .get_mut(&Caret::new_without_event(c.row, c.col + 1))
-                {
-                    caret_position.update((x + caret_width.left(), y, 0.0).into());
-                }
-            }
-            self.updated = false;
+        if !self.updated {
+            return;
         }
+
+        let initial_x: f32 = 0.0;
+        let mut current_row: usize = 0;
+        let mut x: f32 = 0.0;
+        let mut y: f32 = 0.0;
+
+        // caret の位置決め
+        let caret_width = glyph_vertex_buffer.width('_');
+        for (c, i) in self.carets.iter_mut() {
+            if c.col == 0 {
+                let caret_x = initial_x + caret_width.left();
+                let caret_y = -1.0 * c.row as f32;
+                i.update((caret_x, caret_y, 0.0).into());
+            }
+        }
+
+        // 文字と caret (文中あるいは文末時の位置決め)
+        for (c, i) in self.buffer_chars.iter_mut() {
+            if current_row != c.row {
+                let y_gain = c.row - current_row;
+                current_row = c.row;
+                y -= 1.0 * y_gain as f32;
+                x = initial_x;
+            }
+            let glyph_width = glyph_vertex_buffer.width(c.c);
+            x += glyph_width.left();
+            i.update((x, y, 0.0).into());
+
+            if let Some(caret_position) =
+                self.carets.get_mut(&Caret::new_without_event(c.row, c.col))
+            {
+                caret_position.update((x, y, 0.0).into());
+            }
+            x += glyph_width.right();
+            if let Some(caret_position) = self
+                .carets
+                .get_mut(&Caret::new_without_event(c.row, c.col + 1))
+            {
+                caret_position.update((x + caret_width.left(), y, 0.0).into());
+            }
+        }
+        self.updated = false;
     }
 
     // 文字と caret の GPU で描画すべき位置やモーションを計算する
     #[inline]
     fn calc_instance_positions(&mut self) {
-        {
-            let (bound_x, bound_y) = self.bound;
-            let (center_x, center_y) = (bound_x / 2.0, -bound_y / 2.0);
+        let (bound_x, bound_y) = self.bound;
+        let (center_x, center_y) = (bound_x / 2.0, -bound_y / 2.0);
 
-            let rotation = self.rotation;
+        let rotation = self.rotation;
 
-            // update caret
-            for (c, i) in self.carets.iter() {
-                if !i.in_animation() {
-                    continue;
-                }
-                if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                    let (x, y, z) = i.current();
-                    let pos = cgmath::Matrix4::from(rotation)
-                        * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-                    let new_position = cgmath::Vector3 {
-                        x: pos.x - center_x + self.position.x,
-                        y: pos.y - center_y + self.position.y,
-                        z: pos.z + self.position.z,
-                    };
-                    instance.position = new_position;
-                    instance.rotation = self.rotation;
-                }
+        // update caret
+        for (c, i) in self.carets.iter() {
+            if !i.in_animation() {
+                continue;
             }
-
-            // update chars
-            for (c, i) in self.buffer_chars.iter() {
-                if !i.in_animation() {
-                    continue;
-                }
-                if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                    let (x, y, z) = i.current();
-                    let pos = cgmath::Matrix4::from(rotation)
-                        * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-                    let new_position = cgmath::Vector3 {
-                        x: pos.x - center_x + self.position.x,
-                        y: pos.y - center_y + self.position.y,
-                        z: pos.z + self.position.z,
-                    };
-                    instance.position = new_position;
-                    instance.rotation = self.rotation;
-                }
+            if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                let (x, y, z) = i.current();
+                let pos = cgmath::Matrix4::from(rotation)
+                    * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+                let new_position = cgmath::Vector3 {
+                    x: pos.x - center_x + self.position.x,
+                    y: pos.y - center_y + self.position.y,
+                    z: pos.z + self.position.z,
+                };
+                instance.position = new_position;
+                instance.rotation = self.rotation;
             }
+        }
 
-            // update removed chars
-            self.removed_buffer_chars.retain(|c, i| {
-                let in_animation = i.in_animation();
-                if !in_animation {
-                    self.instances.remove_from_dustbox(&(*c).into());
-                }
-                in_animation
-            });
-            for (c, i) in self.removed_buffer_chars.iter() {
-                if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
-                    let (x, y, z) = i.current();
-                    let pos = cgmath::Matrix4::from(rotation)
-                        * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-                    let new_position = cgmath::Vector3 {
-                        x: pos.x - center_x + self.position.x,
-                        y: pos.y - center_y + self.position.y,
-                        z: pos.z + self.position.z,
-                    };
-                    instance.position = new_position;
-                    instance.rotation = self.rotation;
-                }
+        // update chars
+        for (c, i) in self.buffer_chars.iter() {
+            if !i.in_animation() {
+                continue;
+            }
+            if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                let (x, y, z) = i.current();
+                let pos = cgmath::Matrix4::from(rotation)
+                    * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+                let new_position = cgmath::Vector3 {
+                    x: pos.x - center_x + self.position.x,
+                    y: pos.y - center_y + self.position.y,
+                    z: pos.z + self.position.z,
+                };
+                instance.position = new_position;
+                instance.rotation = self.rotation;
+            }
+        }
+
+        // update removed chars
+        self.removed_buffer_chars.retain(|c, i| {
+            let in_animation = i.in_animation();
+            if !in_animation {
+                self.instances.remove_from_dustbox(&(*c).into());
+            }
+            in_animation
+        });
+        for (c, i) in self.removed_buffer_chars.iter() {
+            if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
+                let (x, y, z) = i.current();
+                let pos = cgmath::Matrix4::from(rotation)
+                    * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+                let new_position = cgmath::Vector3 {
+                    x: pos.x - center_x + self.position.x,
+                    y: pos.y - center_y + self.position.y,
+                    z: pos.z + self.position.z,
+                };
+                instance.position = new_position;
+                instance.rotation = self.rotation;
             }
         }
     }
