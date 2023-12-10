@@ -173,7 +173,7 @@ impl PlaneTextReader {
 
                 self.instances
                     .entry(c)
-                    .or_insert_with(|| GlyphInstances::new(c, Vec::new(), device));
+                    .or_insert_with(|| GlyphInstances::new(c, device));
                 let instance = self.instances.get_mut(&c).unwrap();
                 //let pos = cgmath::Matrix4::from(rotation)
                 //    * cgmath::Matrix4::from_translation(cgmath::Vector3 {
@@ -318,7 +318,7 @@ impl SingleLineComponent {
 
             self.instances
                 .entry(c)
-                .or_insert_with(|| GlyphInstances::new(c, Vec::new(), device));
+                .or_insert_with(|| GlyphInstances::new(c, device));
             let instance = self.instances.get_mut(&c).unwrap();
             let i = GlyphInstance::new(
                 cgmath::Vector3 {

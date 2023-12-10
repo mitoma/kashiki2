@@ -12,5 +12,6 @@ mod screen_bind_group;
 mod screen_texture;
 mod screen_vertex_buffer;
 pub mod support;
+pub mod text_instances;
 pub mod time;
 pub mod ui;

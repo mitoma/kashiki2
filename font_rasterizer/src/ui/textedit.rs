@@ -13,6 +13,7 @@ use crate::{
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::Model,
     motion::MotionFlags,
+    text_instances::{TextInstances, TextInstancesKey},
 };
 
 pub struct TextEdit {
@@ -23,8 +24,7 @@ pub struct TextEdit {
     carets: BTreeMap<Caret, EasingPoint3>,
     removed_carets: BTreeMap<Caret, EasingPoint3>,
     motion: MotionFlags,
-    buffer_glyphs: BTreeMap<BufferChar, GlyphInstance>,
-    instances: BTreeMap<char, GlyphInstances>,
+    instances: TextInstances,
     updated: bool,
     position: Point3<f32>,
     rotation: Quaternion<f32>,
@@ -43,8 +43,7 @@ impl TextEdit {
             carets: BTreeMap::new(),
             removed_carets: BTreeMap::new(),
             motion: MotionFlags::ZERO_MOTION,
-            buffer_glyphs: BTreeMap::new(),
-            instances: BTreeMap::new(),
+            instances: TextInstances::default(),
             updated: true,
             position: Point3::new(0.0, 0.0, 0.0),
             rotation: cgmath::Quaternion::from_axis_angle(
@@ -78,7 +77,7 @@ impl Model for TextEdit {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        self.instances.values().collect()
+        self.instances.to_instances()
     }
 
     fn update(
@@ -92,15 +91,16 @@ impl Model for TextEdit {
             self.updated = true;
             match event {
                 ChangeEvent::AddChar(c) => {
-                    self.buffer_chars
-                        .insert(c, (c.row as f32, c.col as f32, 0.0).into());
+                    self.buffer_chars.insert(c, (0.0, 0.0, 0.0).into());
+                    self.instances
+                        .add(c.into(), GlyphInstance::default(), device);
                 }
                 ChangeEvent::MoveChar { from, to } => {
                     if let Some(position) = self.buffer_chars.remove(&from) {
                         self.buffer_chars.insert(to, position);
                     }
-                    if let Some(position) = self.buffer_glyphs.remove(&from) {
-                        self.buffer_glyphs.insert(to, position);
+                    if let Some(instance) = self.instances.remove(&from.into()) {
+                        self.instances.add(to.into(), instance, device);
                     }
                 }
                 ChangeEvent::RemoveChar(c) => {
@@ -108,15 +108,19 @@ impl Model for TextEdit {
                         position.update((0.0, 0.0, 0.0).into());
                         self.removed_buffer_chars.insert(c, position);
                     }
-                    self.buffer_glyphs.remove(&c);
                 }
                 ChangeEvent::AddCarete(c) => {
                     self.carets
                         .insert(c, (c.row as f32, c.col as f32, 0.0).into());
+                    self.instances
+                        .add(c.into(), GlyphInstance::default(), device);
                 }
                 ChangeEvent::MoveCarete { from, to } => {
                     if let Some(position) = self.carets.remove(&from) {
                         self.carets.insert(to, position);
+                    }
+                    if let Some(instance) = self.instances.remove(&from.into()) {
+                        self.instances.add(to.into(), instance, device);
                     }
                 }
                 ChangeEvent::RmoveCaret(c) => {
@@ -133,10 +137,19 @@ impl Model for TextEdit {
             let mut x: f32 = 0.0;
             let mut y: f32 = 0.0;
 
+            for (c, i) in self.carets.iter_mut() {
+                let glyph_width = glyph_vertex_buffer.width('_');
+                if c.col == 0 {
+                    let caret_x = initial_x + glyph_width.left();
+                    let caret_y = -1.0 * c.row as f32;
+                    i.update((caret_x, caret_y, 0.0).into());
+                }
+            }
             for (c, i) in self.buffer_chars.iter_mut() {
                 if current_row != c.row {
+                    let y_gain = c.row - current_row;
                     current_row = c.row;
-                    y -= 1.0;
+                    y -= 1.0 * y_gain as f32;
                     x = initial_x;
                 }
                 let glyph_width = glyph_vertex_buffer.width(c.c);
@@ -148,40 +161,25 @@ impl Model for TextEdit {
                     caret_position.update((x, y, 0.0).into());
                 }
                 x += glyph_width.right();
+                if let Some(caret_position) = self
+                    .carets
+                    .get_mut(&Caret::new_without_event(c.row, c.col + 1))
+                {
+                    caret_position.update((x, y, 0.0).into());
+                }
             }
         }
-        self.updated == false;
+        self.updated = false;
 
         {
             let rotation = self.rotation;
 
-            for (c, i) in self.buffer_chars.iter() {
-                let instance = self.buffer_glyphs.entry(*c).or_insert_with(|| {
-                    let mut i = GlyphInstance::default();
-                    i.color = color_theme.blue().get_color();
-                    i
-                });
-                let (x, y, z) = i.current();
-                let pos = cgmath::Matrix4::from(rotation)
-                    * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-                let new_position = cgmath::Vector3 {
-                    x: pos.x + self.position.x,
-                    y: pos.y + self.position.y,
-                    z: pos.z + self.position.z,
-                };
-                instance.position = new_position;
-                instance.rotation = self.rotation;
-            }
-
-            for (c, i) in self.removed_buffer_chars.iter() {
+            // update caret
+            for (c, i) in self.carets.iter() {
                 if !i.in_animation() {
-                    self.buffer_glyphs.remove(c);
-                } else {
-                    let instance = self.buffer_glyphs.entry(*c).or_insert_with(|| {
-                        let mut i = GlyphInstance::default();
-                        i.color = color_theme.blue().get_color();
-                        i
-                    });
+                    continue;
+                }
+                if let Some(instance) = self.instances.get_mut(&(*c).into()) {
                     let (x, y, z) = i.current();
                     let pos = cgmath::Matrix4::from(rotation)
                         * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
@@ -194,26 +192,48 @@ impl Model for TextEdit {
                     instance.rotation = self.rotation;
                 }
             }
-            self.removed_buffer_chars.retain(|c, i| i.in_animation());
-        }
 
-        {
-            self.instances.iter_mut().for_each(|(_, i)| {
-                i.clear();
-            });
-            self.buffer_glyphs
-                .iter()
-                .fold(&mut self.instances, |instances, (c, i)| {
-                    let gi = instances
-                        .entry(c.c)
-                        .or_insert_with(|| GlyphInstances::new(c.c, Vec::new(), device));
-                    gi.push(*i);
-                    instances
-                });
-            self.instances
-                .values_mut()
-                .for_each(|i| i.update_buffer(device, queue));
+            // update chars
+            for (c, i) in self.buffer_chars.iter() {
+                if !i.in_animation() {
+                    continue;
+                }
+                if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                    let (x, y, z) = i.current();
+                    let pos = cgmath::Matrix4::from(rotation)
+                        * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+                    let new_position = cgmath::Vector3 {
+                        x: pos.x + self.position.x,
+                        y: pos.y + self.position.y,
+                        z: pos.z + self.position.z,
+                    };
+                    instance.position = new_position;
+                    instance.rotation = self.rotation;
+                }
+            }
+
+            // update removed chars
+            for (c, i) in self.removed_buffer_chars.iter() {
+                if !i.in_animation() {
+                    self.instances.remove(&(*c).into());
+                    continue;
+                }
+                if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                    let (x, y, z) = i.current();
+                    let pos = cgmath::Matrix4::from(rotation)
+                        * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+                    let new_position = cgmath::Vector3 {
+                        x: pos.x + self.position.x,
+                        y: pos.y + self.position.y,
+                        z: pos.z + self.position.z,
+                    };
+                    instance.position = new_position;
+                    instance.rotation = self.rotation;
+                }
+            }
+            self.removed_buffer_chars.retain(|_c, i| i.in_animation());
         }
+        self.instances.update(device, queue);
     }
 
     fn operation(&mut self, op: &text_buffer::action::EditorOperation) {

@@ -22,7 +22,7 @@ const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "simple_text=debug,info");
+    std::env::set_var("RUST_LOG", "simple_text=debug");
     pollster::block_on(run());
 }
 
@@ -45,7 +45,7 @@ pub async fn run() {
         window_title: "Hello".to_string(),
         window_size: (800, 600),
         callback: Box::new(callback),
-        quarity: Quarity::High,
+        quarity: Quarity::VeryHigh,
         bg_color: SolarizedDark.background().into(),
         flags: Flags::DEFAULT,
         font_binaries,

@@ -156,7 +156,8 @@ impl Buffer {
                 let next_line = self.lines.remove(caret.row + 1);
                 let current_line = self.lines.get_mut(caret.row).unwrap();
                 current_line.join(next_line);
-                current_line.update_position(caret.row, &self.sender);
+                //current_line.update_position(caret.row, &self.sender);
+                self.update_position();
                 RemovedChar::Enter
             } else {
                 RemovedChar::None

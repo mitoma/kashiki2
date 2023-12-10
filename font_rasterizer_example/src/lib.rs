@@ -108,7 +108,7 @@ impl SimpleStateCallback for SingleCharCallback {
             duration: Duration::from_millis(1000),
             ..Default::default()
         };
-        let mut instance = GlyphInstances::new('あ', Vec::new(), device);
+        let mut instance = GlyphInstances::new('あ', device);
         instance.push(value);
         self.glyphs.push(instance);
     }
