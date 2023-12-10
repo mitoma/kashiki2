@@ -1,6 +1,6 @@
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
-use text_buffer::{action::EditorOperation, editor::ChangeEvent};
+use text_buffer::action::EditorOperation;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
