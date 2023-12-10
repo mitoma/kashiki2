@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::mpsc::Receiver};
 
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
-use log::info;
+
 use text_buffer::{
     buffer::BufferChar,
     caret::Caret,
@@ -164,6 +164,7 @@ impl TextEdit {
             return;
         }
 
+        let max_width = self.bound.0;
         let initial_x: f32 = 0.0;
         let mut current_row: usize = 0;
         let mut x: f32 = 0.0;
@@ -171,22 +172,29 @@ impl TextEdit {
 
         // caret の位置決め
         let caret_width = glyph_vertex_buffer.width('_');
-        for (c, i) in self.carets.iter_mut() {
-            if c.col == 0 {
-                let caret_x = initial_x + caret_width.left();
-                let caret_y = -1.0 * c.row as f32;
-                i.update((caret_x, caret_y, 0.0).into());
-            }
-        }
-
         // 文字と caret (文中あるいは文末時の位置決め)
         for (c, i) in self.buffer_chars.iter_mut() {
             if current_row != c.row {
+                for r in ((current_row + 1)..=(c.row)).rev() {
+                    if let Some(caret_position) =
+                        self.carets.get_mut(&Caret::new_without_event(r, 0))
+                    {
+                        let caret_x = initial_x + caret_width.left();
+                        let caret_y = y - (r - current_row) as f32;
+                        caret_position.update((caret_x, caret_y, 0.0).into());
+                    }
+                }
+
                 let y_gain = c.row - current_row;
                 current_row = c.row;
                 y -= 1.0 * y_gain as f32;
                 x = initial_x;
             }
+            if x >= max_width {
+                y -= 1.0;
+                x = initial_x;
+            }
+
             let glyph_width = glyph_vertex_buffer.width(c.c);
             x += glyph_width.left();
             i.update((x, y, 0.0).into());
@@ -204,6 +212,15 @@ impl TextEdit {
                 caret_position.update((x + caret_width.left(), y, 0.0).into());
             }
         }
+
+        for (c, i) in self.carets.iter_mut() {
+            if current_row < c.row {
+                let caret_x = initial_x + caret_width.left();
+                let caret_y = y - (c.row - current_row) as f32;
+                i.update((caret_x, caret_y, 0.0).into());
+            }
+        }
+
         self.updated = false;
     }
 
