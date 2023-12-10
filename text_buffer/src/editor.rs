@@ -57,12 +57,12 @@ impl Editor {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ChangeEvent {
     AddChar(BufferChar),
     MoveChar { from: BufferChar, to: BufferChar },
     RemoveChar(BufferChar),
-    AddCarete(Caret),
-    MoveCarete { from: Caret, to: Caret },
+    AddCaret(Caret),
+    MoveCaret { from: Caret, to: Caret },
     RmoveCaret(Caret),
 }

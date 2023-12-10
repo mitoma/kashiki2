@@ -45,10 +45,15 @@ impl Buffer {
 
     pub(crate) fn insert_enter(&mut self, caret: &mut Caret) {
         if let Some(line) = self.lines.get_mut(caret.row) {
-            if let Some(next_line) = line.insert_enter(caret.col) {
+            if let Some(mut next_line) = line.insert_enter(caret.col) {
+                self.lines
+                    .iter_mut()
+                    .skip(caret.row + 1)
+                    .rev()
+                    .for_each(|line| line.update_position(line.row_num + 1, &self.sender));
+                next_line.update_position(caret.row + 1, &self.sender);
+                self.lines.insert(caret.row + 1, next_line);
                 caret.move_to(caret.row + 1, 0, &self.sender);
-                self.lines.insert(caret.row, next_line);
-                self.update_position();
             }
         }
     }
@@ -155,8 +160,7 @@ impl Buffer {
             if !self.is_buffer_last(caret) {
                 let next_line = self.lines.remove(caret.row + 1);
                 let current_line = self.lines.get_mut(caret.row).unwrap();
-                current_line.join(next_line);
-                //current_line.update_position(caret.row, &self.sender);
+                current_line.join(next_line, &self.sender);
                 self.update_position();
                 RemovedChar::Enter
             } else {
@@ -196,6 +200,7 @@ impl BufferLine {
         self.chars
             .iter_mut()
             .skip(col)
+            .rev()
             .for_each(|c| c.update_position(self.row_num, c.col + 1, sender));
         self.chars
             .insert(col, BufferChar::new(self.row_num, col, c, sender))
@@ -203,8 +208,16 @@ impl BufferLine {
 
     fn insert_enter(&mut self, col: usize) -> Option<BufferLine> {
         match self.chars.len() {
-            len if len == col => Some(BufferLine::default()),
-            len if len > col => Some(BufferLine::from_chars(self.chars.split_off(col))),
+            len if len == col => {
+                let mut line = BufferLine::default();
+                line.row_num = self.row_num + 1;
+                Some(line)
+            }
+            len if len > col => {
+                let mut line = BufferLine::from_chars(self.chars.split_off(col));
+                line.row_num = self.row_num + 1;
+                Some(line)
+            }
             _ => None,
         }
     }
@@ -219,8 +232,15 @@ impl BufferLine {
         RemovedChar::Char(removed.c)
     }
 
-    fn join(&mut self, line: BufferLine) {
-        line.chars.into_iter().for_each(|c| self.chars.push(c))
+    fn join(&mut self, line: BufferLine, sender: &Sender<ChangeEvent>) {
+        let current_len = self.chars.len();
+        line.chars
+            .into_iter()
+            .map(|mut c| {
+                c.update_position(self.row_num, current_len + c.col, sender);
+                c
+            })
+            .for_each(|c| self.chars.push(c))
     }
 }
 
@@ -491,7 +511,7 @@ mod tests {
         if let Some(result) = sut.insert_enter(2) {
             assert_eq!(sut.to_line_string(), "花鳥");
             assert_eq!(result.to_line_string(), "風月");
-            sut.join(result);
+            sut.join(result, &tx);
         } else {
             assert!(false);
         }
@@ -506,6 +526,162 @@ mod tests {
             assert!(false);
         } else {
             assert!(true);
+        }
+    }
+
+    #[test]
+    fn event_test() {
+        let (tx, rx) = channel::<ChangeEvent>();
+        let mut caret = Caret::new(0, 0, &tx);
+        let mut sut = Buffer::new(tx);
+
+        sut.insert_char(&mut caret, 'あ');
+        {
+            let events: Vec<ChangeEvent> = rx.try_iter().collect();
+            #[rustfmt::skip]
+            assert_eq!(
+                events,
+                vec![
+                    ChangeEvent::AddCaret(Caret { row: 0, col: 0 }),
+                    ChangeEvent::AddChar(BufferChar { row: 0, col: 0, c: 'あ' }),
+                    ChangeEvent::MoveCaret { from: Caret { row: 0, col: 0 }, to: Caret { row: 0, col: 1 } }
+                ]
+            );
+        }
+        sut.insert_char(&mut caret, 'い');
+        {
+            let events: Vec<ChangeEvent> = rx.try_iter().collect();
+            #[rustfmt::skip]
+            assert_eq!(
+                events,
+                vec![
+                    ChangeEvent::AddChar(BufferChar { row: 0, col: 1, c: 'い' }),
+                    ChangeEvent::MoveCaret { from: Caret { row: 0, col: 1 }, to: Caret { row: 0, col: 2 } }
+                ]
+            );
+        }
+        sut.insert_enter(&mut caret);
+        {
+            let events: Vec<ChangeEvent> = rx.try_iter().collect();
+            #[rustfmt::skip]
+            assert_eq!(
+                events,
+                vec![
+                    ChangeEvent::MoveCaret { from: Caret { row: 0, col: 2 }, to: Caret { row: 1, col: 0 } }
+                ]
+            );
+            assert_eq!(caret, Caret::new_without_event(1, 0));
+        }
+        sut.insert_char(&mut caret, 'え');
+        {
+            let events: Vec<ChangeEvent> = rx.try_iter().collect();
+            #[rustfmt::skip]
+            assert_eq!(
+                events,
+                vec![
+                    ChangeEvent::AddChar(BufferChar { row: 1, col: 0, c: 'え' }),
+                    ChangeEvent::MoveCaret { from: Caret { row: 1, col: 0 }, to: Caret { row: 1, col: 1 } }
+                ]
+            );
+        }
+        sut.insert_char(&mut caret, 'お');
+        {
+            let events: Vec<ChangeEvent> = rx.try_iter().collect();
+            #[rustfmt::skip]
+            assert_eq!(
+                events,
+                vec![
+                    ChangeEvent::AddChar(BufferChar { row: 1, col: 1, c: 'お' }),
+                    ChangeEvent::MoveCaret { from: Caret { row: 1, col: 1 }, to: Caret { row: 1, col: 2 } }
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn event_buffer() {
+        let (tx, rx) = channel::<ChangeEvent>();
+        let mut caret = Caret::new(0, 0, &tx);
+        let mut sut = Buffer::new(tx);
+
+        sut.insert_string(&mut caret, "あいうえお\nかき\nくけ".into());
+        sut.buffer_head(&mut caret);
+        sut.forward(&mut caret);
+        sut.forward(&mut caret);
+        let _ = rx.try_iter().collect::<Vec<_>>();
+        sut.insert_enter(&mut caret);
+        {
+            let events: Vec<ChangeEvent> = rx.try_iter().collect();
+            #[rustfmt::skip]
+            assert_eq!(
+                events,
+                vec![
+                    ChangeEvent::MoveChar { from: BufferChar { row: 2, col: 0, c: 'く' }, to: BufferChar { row: 3, col: 0, c: 'く' } },
+                    ChangeEvent::MoveChar { from: BufferChar { row: 2, col: 1, c: 'け' }, to: BufferChar { row: 3, col: 1, c: 'け' } },
+                    ChangeEvent::MoveChar { from: BufferChar { row: 1, col: 0, c: 'か' }, to: BufferChar { row: 2, col: 0, c: 'か' } },
+                    ChangeEvent::MoveChar { from: BufferChar { row: 1, col: 1, c: 'き' }, to: BufferChar { row: 2, col: 1, c: 'き' } },
+                    // 先に以降の行を逆順で移動してから、改行対象の行を動かす
+                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 2, c: 'う' }, to: BufferChar { row: 1, col: 0, c: 'う' } },
+                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 3, c: 'え' }, to: BufferChar { row: 1, col: 1, c: 'え' } },
+                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 4, c: 'お' }, to: BufferChar { row: 1, col: 2, c: 'お' } },
+                    ChangeEvent::MoveCaret { from: Caret { row: 0, col: 2 }, to: Caret { row: 1, col: 0 } },
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn event_line_add() {
+        let (tx, rx) = channel::<ChangeEvent>();
+        let mut caret = Caret::new(0, 0, &tx);
+        let mut sut = Buffer::new(tx);
+
+        sut.insert_string(&mut caret, "あいうえお".into());
+        sut.head(&mut caret);
+        sut.forward(&mut caret);
+        let _ = rx.try_iter().collect::<Vec<_>>();
+        sut.insert_char(&mut caret, 'A');
+        {
+            let events: Vec<ChangeEvent> = rx.try_iter().collect();
+            #[rustfmt::skip]
+            assert_eq!(
+                events,
+                vec![
+                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 4, c: 'お' }, to: BufferChar { row: 0, col: 5, c: 'お' } },
+                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 3, c: 'え' }, to: BufferChar { row: 0, col: 4, c: 'え' } },
+                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 2, c: 'う' }, to: BufferChar { row: 0, col: 3, c: 'う' } },
+                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 1, c: 'い' }, to: BufferChar { row: 0, col: 2, c: 'い' } },
+                    ChangeEvent::AddChar(BufferChar { row: 0, col: 1, c: 'A' }),
+                    ChangeEvent::MoveCaret { from: Caret { row: 0, col: 1 }, to: Caret { row: 0, col: 2 } },
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn event_line_delete() {
+        let (tx, rx) = channel::<ChangeEvent>();
+        let mut caret = Caret::new(0, 0, &tx);
+        let mut sut = Buffer::new(tx);
+
+        sut.insert_string(&mut caret, "あいうえお".into());
+        sut.back(&mut caret);
+        sut.back(&mut caret);
+        let _ = rx.try_iter().collect::<Vec<_>>();
+        sut.backspace(&mut caret);
+        //rx.try_iter().for_each(|e| println!("{:?}", e));
+        {
+            let events: Vec<ChangeEvent> = rx.try_iter().collect();
+            #[rustfmt::skip]
+            assert_eq!(
+                events,
+                vec![
+                    ChangeEvent::MoveCaret { from: Caret { row: 0, col: 3 }, to: Caret { row: 0, col: 2 } },
+                    ChangeEvent::RemoveChar(BufferChar { row: 0, col: 2, c: 'う' }),
+                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 3, c: 'え' }, to: BufferChar { row: 0, col: 2, c: 'え' } },
+                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 4, c: 'お' }, to: BufferChar { row: 0, col: 3, c: 'お' } },
+                ]
+            );
         }
     }
 }

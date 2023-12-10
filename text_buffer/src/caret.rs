@@ -11,7 +11,7 @@ pub struct Caret {
 impl Caret {
     pub fn new(row: usize, col: usize, sender: &Sender<ChangeEvent>) -> Self {
         let instance = Self { row, col };
-        sender.send(ChangeEvent::AddCarete(instance)).unwrap();
+        sender.send(ChangeEvent::AddCaret(instance)).unwrap();
         instance
     }
 
@@ -27,7 +27,7 @@ impl Caret {
         let from = *self;
         self.row = row;
         self.col = col;
-        let event = ChangeEvent::MoveCarete { from, to: *self };
+        let event = ChangeEvent::MoveCaret { from, to: *self };
         sender.send(event).unwrap();
     }
 

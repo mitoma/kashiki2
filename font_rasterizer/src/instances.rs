@@ -92,6 +92,8 @@ const DEFAULT_BUFFER_UNIT: u64 = 256;
 pub enum InstanceKey {
     Monotonic(usize),
     Position(usize, usize),
+    // 削除予定だが削除アニメーションの都合でまだ消さない文字のためのキー
+    PreRemovePosition(usize, usize),
 }
 
 impl GlyphInstances {

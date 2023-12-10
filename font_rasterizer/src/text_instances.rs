@@ -31,6 +31,10 @@ impl TextInstancesKey {
         InstanceKey::Position(self.row, self.col)
     }
 
+    pub fn to_pre_remove_instance_key(&self) -> InstanceKey {
+        InstanceKey::PreRemovePosition(self.row, self.col)
+    }
+
     pub fn same_position(&self, other: &Self) -> bool {
         self.row == other.row && self.col == other.col
     }
@@ -61,6 +65,30 @@ impl TextInstances {
     pub fn remove(&mut self, key: &TextInstancesKey) -> Option<GlyphInstance> {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
             instances.remove(&key.to_instance_key())
+        } else {
+            None
+        }
+    }
+
+    pub fn pre_remove(&mut self, key: &TextInstancesKey) {
+        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
+            if let Some(instance) = instances.remove(&key.to_instance_key()) {
+                instances.insert(key.to_pre_remove_instance_key(), instance);
+            }
+        }
+    }
+
+    pub fn get_mut_from_dustbox(&mut self, key: &TextInstancesKey) -> Option<&mut GlyphInstance> {
+        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
+            instances.get_mut(&key.to_pre_remove_instance_key())
+        } else {
+            None
+        }
+    }
+
+    pub fn remove_from_dustbox(&mut self, key: &TextInstancesKey) -> Option<GlyphInstance> {
+        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
+            instances.remove(&&key.to_pre_remove_instance_key())
         } else {
             None
         }

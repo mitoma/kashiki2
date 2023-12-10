@@ -13,7 +13,7 @@ use crate::{
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::Model,
     motion::MotionFlags,
-    text_instances::{TextInstances, TextInstancesKey},
+    text_instances::TextInstances,
 };
 
 pub struct TextEdit {
@@ -108,14 +108,15 @@ impl Model for TextEdit {
                         position.update((0.0, 0.0, 0.0).into());
                         self.removed_buffer_chars.insert(c, position);
                     }
+                    self.instances.pre_remove(&c.into());
                 }
-                ChangeEvent::AddCarete(c) => {
+                ChangeEvent::AddCaret(c) => {
                     self.carets
                         .insert(c, (c.row as f32, c.col as f32, 0.0).into());
                     self.instances
                         .add(c.into(), GlyphInstance::default(), device);
                 }
-                ChangeEvent::MoveCarete { from, to } => {
+                ChangeEvent::MoveCaret { from, to } => {
                     if let Some(position) = self.carets.remove(&from) {
                         self.carets.insert(to, position);
                     }
@@ -215,10 +216,10 @@ impl Model for TextEdit {
             // update removed chars
             for (c, i) in self.removed_buffer_chars.iter() {
                 if !i.in_animation() {
-                    self.instances.remove(&(*c).into());
+                    self.instances.remove_from_dustbox(&(*c).into());
                     continue;
                 }
-                if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
                     let (x, y, z) = i.current();
                     let pos = cgmath::Matrix4::from(rotation)
                         * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
