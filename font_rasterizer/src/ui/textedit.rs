@@ -10,6 +10,7 @@ use text_buffer::{
 
 use crate::{
     easing_value::EasingPoint3,
+    font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::Model,
     motion::MotionFlags,
@@ -87,11 +88,34 @@ impl Model for TextEdit {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
+        self.sync_editor_events(device);
+        self.calc_position_and_bound(glyph_vertex_buffer);
+        self.calc_instance_positions();
+        self.instances.update(device, queue);
+    }
+
+    fn operation(&mut self, op: &text_buffer::action::EditorOperation) {
+        self.editor.operation(op)
+    }
+}
+
+impl TextEdit {
+    // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。
+    #[inline]
+    fn sync_editor_events(&mut self, device: &wgpu::Device) {
         while let Ok(event) = self.receiver.try_recv() {
             self.updated = true;
             match event {
                 ChangeEvent::AddChar(c) => {
-                    self.buffer_chars.insert(c, (0.0, 0.0, 0.0).into());
+                    let caret_pos = self
+                        .carets
+                        .first_key_value()
+                        .map(|(_, c)| {
+                            let (x, y, z) = c.current();
+                            (x, y + 1.0, z)
+                        })
+                        .unwrap_or_else(|| (0.0, 0.0, 0.0));
+                    self.buffer_chars.insert(c, caret_pos.into());
                     self.instances
                         .add(c.into(), GlyphInstance::default(), device);
                 }
@@ -105,7 +129,7 @@ impl Model for TextEdit {
                 }
                 ChangeEvent::RemoveChar(c) => {
                     if let Some(mut position) = self.buffer_chars.remove(&c) {
-                        position.update((0.0, 0.0, 0.0).into());
+                        position.add((0.0, -1.0, 0.0).into());
                         self.removed_buffer_chars.insert(c, position);
                     }
                     self.instances.pre_remove(&c.into());
@@ -131,21 +155,28 @@ impl Model for TextEdit {
                 }
             }
         }
+    }
 
+    // 文字と caret の x, y の論理的な位置を計算する
+    #[inline]
+    fn calc_position_and_bound(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) {
         if self.updated {
             let initial_x: f32 = 0.0;
             let mut current_row: usize = 0;
             let mut x: f32 = 0.0;
             let mut y: f32 = 0.0;
 
+            // caret の位置決め
+            let caret_width = glyph_vertex_buffer.width('_');
             for (c, i) in self.carets.iter_mut() {
-                let glyph_width = glyph_vertex_buffer.width('_');
                 if c.col == 0 {
-                    let caret_x = initial_x + glyph_width.left();
+                    let caret_x = initial_x + caret_width.left();
                     let caret_y = -1.0 * c.row as f32;
                     i.update((caret_x, caret_y, 0.0).into());
                 }
             }
+
+            // 文字と caret (文中あるいは文末時の位置決め)
             for (c, i) in self.buffer_chars.iter_mut() {
                 if current_row != c.row {
                     let y_gain = c.row - current_row;
@@ -156,6 +187,7 @@ impl Model for TextEdit {
                 let glyph_width = glyph_vertex_buffer.width(c.c);
                 x += glyph_width.left();
                 i.update((x, y, 0.0).into());
+
                 if let Some(caret_position) =
                     self.carets.get_mut(&Caret::new_without_event(c.row, c.col))
                 {
@@ -166,13 +198,20 @@ impl Model for TextEdit {
                     .carets
                     .get_mut(&Caret::new_without_event(c.row, c.col + 1))
                 {
-                    caret_position.update((x, y, 0.0).into());
+                    caret_position.update((x + caret_width.left(), y, 0.0).into());
                 }
             }
+            self.updated = false;
         }
-        self.updated = false;
+    }
 
+    // 文字と caret の GPU で描画すべき位置やモーションを計算する
+    #[inline]
+    fn calc_instance_positions(&mut self) {
         {
+            let (bound_x, bound_y) = self.bound;
+            let (center_x, center_y) = (bound_x / 2.0, -bound_y / 2.0);
+
             let rotation = self.rotation;
 
             // update caret
@@ -185,8 +224,8 @@ impl Model for TextEdit {
                     let pos = cgmath::Matrix4::from(rotation)
                         * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
                     let new_position = cgmath::Vector3 {
-                        x: pos.x + self.position.x,
-                        y: pos.y + self.position.y,
+                        x: pos.x - center_x + self.position.x,
+                        y: pos.y - center_y + self.position.y,
                         z: pos.z + self.position.z,
                     };
                     instance.position = new_position;
@@ -204,8 +243,8 @@ impl Model for TextEdit {
                     let pos = cgmath::Matrix4::from(rotation)
                         * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
                     let new_position = cgmath::Vector3 {
-                        x: pos.x + self.position.x,
-                        y: pos.y + self.position.y,
+                        x: pos.x - center_x + self.position.x,
+                        y: pos.y - center_y + self.position.y,
                         z: pos.z + self.position.z,
                     };
                     instance.position = new_position;
@@ -214,30 +253,27 @@ impl Model for TextEdit {
             }
 
             // update removed chars
-            for (c, i) in self.removed_buffer_chars.iter() {
-                if !i.in_animation() {
+            self.removed_buffer_chars.retain(|c, i| {
+                let in_animation = i.in_animation();
+                if !in_animation {
                     self.instances.remove_from_dustbox(&(*c).into());
-                    continue;
                 }
+                in_animation
+            });
+            for (c, i) in self.removed_buffer_chars.iter() {
                 if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
                     let (x, y, z) = i.current();
                     let pos = cgmath::Matrix4::from(rotation)
                         * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
                     let new_position = cgmath::Vector3 {
-                        x: pos.x + self.position.x,
-                        y: pos.y + self.position.y,
+                        x: pos.x - center_x + self.position.x,
+                        y: pos.y - center_y + self.position.y,
                         z: pos.z + self.position.z,
                     };
                     instance.position = new_position;
                     instance.rotation = self.rotation;
                 }
             }
-            self.removed_buffer_chars.retain(|_c, i| i.in_animation());
         }
-        self.instances.update(device, queue);
-    }
-
-    fn operation(&mut self, op: &text_buffer::action::EditorOperation) {
-        self.editor.operation(op)
     }
 }
