@@ -231,7 +231,7 @@ impl TextEdit {
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
 
         // update caret
-        for (c, i) in self.carets.iter() {
+        for (c, i) in self.carets.iter_mut() {
             if !i.in_animation() {
                 continue;
             }
@@ -241,7 +241,7 @@ impl TextEdit {
         }
 
         // update chars
-        for (c, i) in self.buffer_chars.iter() {
+        for (c, i) in self.buffer_chars.iter_mut() {
             if !i.in_animation() {
                 continue;
             }

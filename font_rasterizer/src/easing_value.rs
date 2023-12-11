@@ -2,6 +2,7 @@ use instant::Duration;
 use nenobi::TimeBaseEasingValue;
 
 pub struct EasingPoint3 {
+    in_animation: bool,
     x: TimeBaseEasingValue<f32>,
     y: TimeBaseEasingValue<f32>,
     z: TimeBaseEasingValue<f32>,
@@ -10,6 +11,7 @@ pub struct EasingPoint3 {
 impl EasingPoint3 {
     pub(crate) fn new(x: f32, y: f32, z: f32) -> Self {
         Self {
+            in_animation: true,
             x: TimeBaseEasingValue::new(x),
             y: TimeBaseEasingValue::new(y),
             z: TimeBaseEasingValue::new(z),
@@ -38,27 +40,47 @@ impl EasingPoint3 {
         self.z.gc();
     }
 
-    pub(crate) fn in_animation(&self) -> bool {
-        self.x.in_animation() || self.y.in_animation() || self.z.in_animation()
+    // 実用上 in_animation の最後の判定時に true を返さないと
+    // last_value と同一の値の current_value を取りづらいので
+    // 最後の一回だけアニメーション中ではなくても true を返す。
+    // これは破壊的な処理なので mut になっている。
+    pub(crate) fn in_animation(&mut self) -> bool {
+        let in_animcation = self.x.in_animation() || self.y.in_animation() || self.z.in_animation();
+        if in_animcation {
+            return true;
+        }
+        if self.in_animation {
+            self.in_animation = false;
+            return true;
+        }
+        false
     }
 
     pub(crate) fn update(&mut self, p: cgmath::Point3<f32>) {
-        self.x
+        let x_modify = self
+            .x
             .update(p.x, Duration::from_millis(500), nenobi::functions::sin_out);
-        self.y
+        let y_modify = self
+            .y
             .update(p.y, Duration::from_millis(500), nenobi::functions::sin_out);
-        self.z
+        let z_modify = self
+            .z
             .update(p.z, Duration::from_millis(500), nenobi::functions::sin_out);
+        self.in_animation = x_modify || y_modify || z_modify;
         self.gc();
     }
 
     pub(crate) fn add(&mut self, p: cgmath::Point3<f32>) {
-        self.x
+        let x_modify = self
+            .x
             .add(p.x, Duration::from_millis(500), nenobi::functions::sin_out);
-        self.y
+        let y_modify = self
+            .y
             .add(p.y, Duration::from_millis(500), nenobi::functions::sin_out);
-        self.z
+        let z_modify = self
+            .z
             .add(p.z, Duration::from_millis(500), nenobi::functions::sin_out);
+        self.in_animation = x_modify || y_modify || z_modify;
         self.gc();
     }
 }
