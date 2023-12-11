@@ -83,6 +83,8 @@ impl SingleCharCallback {
         let mut world = Box::new(HorizontalWorld::new(800, 600));
         let model = Box::new(TextEdit::new());
         world.add(model);
+        let model = Box::new(TextEdit::new());
+        world.add(model);
         let look_at = 0;
         world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
@@ -116,7 +118,6 @@ impl SimpleStateCallback for SingleCharCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        self.world.re_layout();
         self.world
             .update(&self.color_theme, glyph_vertex_buffer, &device, &queue);
         glyph_vertex_buffer
@@ -151,8 +152,9 @@ impl SimpleStateCallback for SingleCharCallback {
 
                 match &*name.to_string() {
                     "left" => self.world.look_at(0, CameraAdjustment::FitBoth),
-                    "right" => self.world.look_at(0, CameraAdjustment::FitBoth),
-                    "down" => self.world.camera_operation(CameraOperation::Backward),
+                    "right" => self.world.look_at(1, CameraAdjustment::FitBoth),
+                    "forward" => self.world.camera_operation(CameraOperation::Forward),
+                    "back" => self.world.camera_operation(CameraOperation::Backward),
                     _ => {}
                 };
                 InputResult::InputConsumed

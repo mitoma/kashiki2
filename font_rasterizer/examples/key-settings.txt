@@ -38,4 +38,5 @@ C-S-P system:command-pallet
 
 C-Right world:right
 C-Left  world:left
+C-Up    world:forward
 C-Down  world:back
