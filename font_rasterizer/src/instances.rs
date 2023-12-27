@@ -1,9 +1,12 @@
+use std::collections::BTreeMap;
+
 use cgmath::{num_traits::ToPrimitive, Rotation3};
 use instant::Duration;
 use log::info;
 
 use crate::{color_theme::SolarizedColor, motion::MotionFlags, time::now_millis};
 
+#[derive(Clone, Copy)]
 pub struct GlyphInstance {
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,
@@ -59,7 +62,14 @@ impl Default for GlyphInstance {
 }
 
 impl GlyphInstance {
-    fn to_raw(&self) -> InstanceRaw {
+    pub fn random_motion(&mut self) {
+        self.start_time = now_millis();
+        self.duration = Duration::from_millis(1000);
+        self.motion = MotionFlags::random_motion();
+        self.gain = 1.0;
+    }
+
+    fn as_raw(&self) -> InstanceRaw {
         InstanceRaw {
             model: (cgmath::Matrix4::from_nonuniform_scale(self.scale, self.scale, 1.0)
                 * cgmath::Matrix4::from_translation(self.position)
@@ -76,16 +86,26 @@ impl GlyphInstance {
 
 pub struct GlyphInstances {
     pub c: char,
-    values: Vec<GlyphInstance>,
+    values: BTreeMap<InstanceKey, GlyphInstance>,
     buffer_size: u64,
     buffer: wgpu::Buffer,
     updated: bool,
+    monotonic_key: usize,
 }
 
 const DEFAULT_BUFFER_UNIT: u64 = 256;
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+pub enum InstanceKey {
+    Monotonic(usize),
+    Position(usize, usize),
+    // 削除予定だが削除アニメーションの都合でまだ消さない文字のためのキー
+    PreRemovePosition(usize, usize),
+}
+
 impl GlyphInstances {
-    pub fn new(c: char, values: Vec<GlyphInstance>, device: &wgpu::Device) -> Self {
+    pub fn new(c: char, device: &wgpu::Device) -> Self {
+        let values = BTreeMap::new();
         let buffer_size = (values.len() as u64 / DEFAULT_BUFFER_UNIT) + 1;
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
@@ -100,11 +120,17 @@ impl GlyphInstances {
             buffer_size,
             buffer,
             updated: false,
+            monotonic_key: 0,
         }
     }
 
     pub fn len(&self) -> usize {
         self.values.len()
+    }
+
+    pub fn get_mut(&mut self, key: &InstanceKey) -> Option<&mut GlyphInstance> {
+        self.updated = true;
+        self.values.get_mut(key)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -113,17 +139,34 @@ impl GlyphInstances {
 
     pub fn push(&mut self, instance: GlyphInstance) {
         self.updated = true;
-        self.values.push(instance)
+        self.values
+            .insert(InstanceKey::Monotonic(self.monotonic_key), instance);
+        self.monotonic_key += 1;
+    }
+
+    pub fn insert(&mut self, key: InstanceKey, instance: GlyphInstance) {
+        self.updated = true;
+        self.values.insert(key, instance);
+    }
+
+    pub fn remove(&mut self, key: &InstanceKey) -> Option<GlyphInstance> {
+        if let Some(instance) = self.values.remove(key) {
+            self.updated = true;
+            Some(instance)
+        } else {
+            None
+        }
     }
 
     pub fn clear(&mut self) {
         self.updated = true;
         self.values.clear();
+        self.monotonic_key = 0;
     }
 
     pub fn update_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         if self.updated {
-            let value_raws: Vec<InstanceRaw> = self.values.iter().map(|v| v.to_raw()).collect();
+            let value_raws: Vec<InstanceRaw> = self.values.values().map(|v| v.as_raw()).collect();
 
             // バッファサイズが既存のバッファを上回る場合はバッファを作り直す。
             let buffer_size = (self.values.len() as u64 / DEFAULT_BUFFER_UNIT) + 1;
@@ -148,10 +191,6 @@ impl GlyphInstances {
 
     pub fn to_wgpu_buffer(&self) -> &wgpu::Buffer {
         &self.buffer
-    }
-
-    pub fn nth_position(&self, count: usize) -> cgmath::Vector3<f32> {
-        self.values[count].position
     }
 }
 

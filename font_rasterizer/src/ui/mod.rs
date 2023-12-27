@@ -1,3 +1,5 @@
+pub mod textedit;
+
 use std::collections::BTreeMap;
 
 use cgmath::{num_traits::ToPrimitive, Point3, Quaternion, Rotation3};
@@ -59,6 +61,10 @@ impl Model for PlaneTextReader {
 
     fn bound(&self) -> (f32, f32) {
         self.bound
+    }
+
+    fn operation(&mut self, _op: &text_buffer::action::EditorOperation) {
+        // noop
     }
 }
 
@@ -167,7 +173,7 @@ impl PlaneTextReader {
 
                 self.instances
                     .entry(c)
-                    .or_insert_with(|| GlyphInstances::new(c, Vec::new(), device));
+                    .or_insert_with(|| GlyphInstances::new(c, device));
                 let instance = self.instances.get_mut(&c).unwrap();
                 //let pos = cgmath::Matrix4::from(rotation)
                 //    * cgmath::Matrix4::from_translation(cgmath::Vector3 {
@@ -312,7 +318,7 @@ impl SingleLineComponent {
 
             self.instances
                 .entry(c)
-                .or_insert_with(|| GlyphInstances::new(c, Vec::new(), device));
+                .or_insert_with(|| GlyphInstances::new(c, device));
             let instance = self.instances.get_mut(&c).unwrap();
             let i = GlyphInstance::new(
                 cgmath::Vector3 {

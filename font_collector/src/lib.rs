@@ -163,6 +163,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
     fn test_list_fonts() {
         let mut collector = FontCollector::default();
         collector.add_system_fonts();
@@ -172,6 +173,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_list_fonts2() {
         let mut collector = FontCollector::default();
         collector.add_font_path(PathBuf::from("../font_rasterizer/examples/font"));

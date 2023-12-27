@@ -1,5 +1,6 @@
 use cgmath::{Point3, Quaternion};
 use log::info;
+use text_buffer::action::EditorOperation;
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
@@ -27,6 +28,12 @@ pub trait World {
     fn model_length(&self) -> usize;
     // 何番目のモデルに視点を移すか
     fn look_at(&mut self, model_num: usize, adjustment: CameraAdjustment);
+
+    // 次のモデルに視点を移す
+    fn look_next(&mut self, adjustment: CameraAdjustment);
+    // 前のモデルに視点を移す
+    fn look_prev(&mut self, adjustment: CameraAdjustment);
+
     // カメラの参照を返す
     fn camera(&self) -> &Camera;
     // カメラを動かす
@@ -35,12 +42,15 @@ pub trait World {
     fn change_window_size(&mut self, window_size: (u32, u32));
     // glyph_instances を返す
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
+
+    fn operation(&mut self, op: &EditorOperation);
 }
 
 pub struct HorizontalWorld {
     camera: Camera,
     camera_controller: CameraController,
     models: Vec<Box<dyn Model>>,
+    focus: usize,
 }
 
 impl HorizontalWorld {
@@ -49,6 +59,7 @@ impl HorizontalWorld {
             camera: Camera::basic((width, height)),
             camera_controller: CameraController::new(10.0),
             models: Vec::new(),
+            focus: 0,
         }
     }
 }
@@ -77,6 +88,7 @@ impl World for HorizontalWorld {
         let Some(model) = self.models.get(model_index) else {
             return;
         };
+        self.focus = model_index;
         self.camera_controller
             .look_at(&mut self.camera, model.as_ref(), adjustment);
         self.camera_controller.update_camera(&mut self.camera);
@@ -115,6 +127,26 @@ impl World for HorizontalWorld {
         self.camera_controller.update_camera(&mut self.camera);
         self.camera_controller.reset_state();
     }
+
+    fn operation(&mut self, op: &EditorOperation) {
+        if let Some(model) = self.models.get_mut(self.focus) {
+            model.operation(op);
+        }
+    }
+
+    fn look_next(&mut self, adjustment: CameraAdjustment) {
+        let next = (self.focus + 1) % self.model_length();
+        self.look_at(next, adjustment)
+    }
+
+    fn look_prev(&mut self, adjustment: CameraAdjustment) {
+        let prev = if self.focus == 0 {
+            self.model_length() - 1
+        } else {
+            self.focus - 1
+        };
+        self.look_at(prev, adjustment)
+    }
 }
 
 pub trait Model {
@@ -134,4 +166,5 @@ pub trait Model {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     );
+    fn operation(&mut self, op: &EditorOperation);
 }

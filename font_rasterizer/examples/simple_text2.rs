@@ -1,21 +1,19 @@
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
-use text_buffer::{
-    action::EditorOperation,
-    editor::{ChangeEvent, Editor},
-};
+use text_buffer::action::EditorOperation;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
-    camera::{Camera, CameraController},
+    camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme::{self, SolarizedDark},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
+    layout_engine::{HorizontalWorld, World},
     motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
-    ui::{split_preedit_string, PlaneTextReader, SingleLineComponent},
+    ui::{split_preedit_string, textedit::TextEdit, SingleLineComponent},
 };
 use log::info;
 use winit::event::WindowEvent;
@@ -47,7 +45,7 @@ pub async fn run() {
         window_title: "Hello".to_string(),
         window_size: (800, 600),
         callback: Box::new(callback),
-        quarity: Quarity::High,
+        quarity: Quarity::VeryHigh,
         bg_color: SolarizedDark.background().into(),
         flags: Flags::DEFAULT,
         font_binaries,
@@ -56,12 +54,9 @@ pub async fn run() {
 }
 
 struct SingleCharCallback {
-    camera: Camera,
-    camera_controller: CameraController,
     color_theme: ColorTheme,
     store: ActionStore,
-    editor: Editor,
-    reader: PlaneTextReader,
+    world: Box<dyn World>,
     ime: SingleLineComponent,
 }
 
@@ -85,20 +80,23 @@ impl SingleCharCallback {
         );
         ime.update_scale(0.1);
 
-        let (tx, rx) = std::sync::mpsc::channel::<ChangeEvent>();
-        std::thread::spawn(move || {
-            while let Ok(event) = rx.recv() {
-                info!("event: {:?}", event);
-            }
-        });
+        let mut world = Box::new(HorizontalWorld::new(800, 600));
+        let model = Box::new(TextEdit::default());
+        world.add(model);
+        let model = Box::new(TextEdit::default());
+        world.add(model);
+        let model = Box::new(TextEdit::default());
+        world.add(model);
+        let model = Box::new(TextEdit::default());
+        world.add(model);
+        let look_at = 0;
+        world.look_at(look_at, CameraAdjustment::FitBoth);
+        world.re_layout();
 
         Self {
-            camera: Camera::basic((800, 600)),
-            camera_controller: CameraController::new(10.0),
             color_theme: ColorTheme::SolarizedDark,
-            editor: text_buffer::editor::Editor::new(tx),
             store,
-            reader: PlaneTextReader::new("".to_string()),
+            world,
             ime,
         }
     }
@@ -111,29 +109,12 @@ impl SimpleStateCallback for SingleCharCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        glyph_vertex_buffer
-            .append_glyph(device, queue, self.reader.value.chars().collect())
-            .unwrap();
-        let (width, _height) = self.reader.calc_bound(glyph_vertex_buffer);
-        self.camera_controller.process(
-            &font_rasterizer::camera::CameraOperation::CangeTargetAndEye(
-                (0.0, 0.0, 0.0).into(),
-                (0.0, 0.0, width).into(),
-            ),
-        );
-        self.camera_controller.update_camera(&mut self.camera);
-        self.reader.update_motion(
-            MotionFlags::builder()
-                .motion_type(MotionType::EaseOut(EasingFuncType::Bounce, false))
-                .motion_detail(MotionDetail::TO_CURRENT)
-                .motion_target(MotionTarget::STRETCH_Y_PLUS)
-                .build(),
-        );
+        self.world.look_at(0, CameraAdjustment::FitBoth);
+        self.update(glyph_vertex_buffer, device, queue);
     }
 
     fn resize(&mut self, width: u32, height: u32) {
-        self.camera_controller
-            .update_camera_aspect(&mut self.camera, width, height);
+        self.world.change_window_size((width, height));
     }
 
     fn update(
@@ -142,26 +123,13 @@ impl SimpleStateCallback for SingleCharCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        let texts = self.editor.to_buffer_string();
-        glyph_vertex_buffer
-            .append_glyph(device, queue, texts.chars().collect())
-            .unwrap();
+        self.world
+            .update(&self.color_theme, glyph_vertex_buffer, &device, &queue);
         glyph_vertex_buffer
             .append_glyph(device, queue, self.ime.value.chars().collect())
             .unwrap();
-        self.reader.update_value(texts);
-        self.reader
-            .generate_instances(&self.color_theme, glyph_vertex_buffer, device, queue);
         self.ime
             .generate_instances(&self.color_theme, glyph_vertex_buffer, device, queue);
-        let (width, height) = self.reader.calc_bound(glyph_vertex_buffer);
-        self.camera_controller.process(
-            &font_rasterizer::camera::CameraOperation::CangeTargetAndEye(
-                (0.0, -height / 2.0, 0.0).into(),
-                (0.0, -height / 2.0, (width + 1.0) / self.camera.aspect()).into(),
-            ),
-        );
-        self.camera_controller.update_camera(&mut self.camera);
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
@@ -181,18 +149,30 @@ impl SimpleStateCallback for SingleCharCallback {
                     "undo" => EditorOperation::Undo,
                     _ => EditorOperation::Noop,
                 };
-                self.editor.operation(&action);
+                self.world.operation(&action);
+                InputResult::InputConsumed
+            }
+            Some(Action::Command(category, name)) if *category == "world" => {
+                info!("world:");
+
+                match &*name.to_string() {
+                    "left" => self.world.look_prev(CameraAdjustment::FitBoth),
+                    "right" => self.world.look_next(CameraAdjustment::FitBoth),
+                    "forward" => self.world.camera_operation(CameraOperation::Forward),
+                    "back" => self.world.camera_operation(CameraOperation::Backward),
+                    _ => {}
+                };
                 InputResult::InputConsumed
             }
             Some(Action::Command(_, _)) => InputResult::Noop,
             Some(Action::Keytype(c)) => {
                 let action = EditorOperation::InsertChar(c);
-                self.editor.operation(&action);
+                self.world.operation(&action);
                 InputResult::InputConsumed
             }
             Some(Action::ImeInput(value)) => {
                 self.ime.update_value("".to_string());
-                self.editor.operation(&EditorOperation::InsertString(value));
+                self.world.operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
             Some(Action::ImePreedit(value, position)) => {
@@ -215,15 +195,9 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        let instances = self.reader.get_instances();
-        let ime_instances = self.ime.get_instances();
-        let mut v = Vec::new();
-        for i in instances {
-            v.push(i);
-        }
-        for i in ime_instances {
-            v.push(i);
-        }
-        (&self.camera, v)
+        let mut world_instances = self.world.glyph_instances();
+        let mut ime_instances = self.ime.get_instances();
+        world_instances.append(&mut ime_instances);
+        (self.world.camera(), world_instances)
     }
 }

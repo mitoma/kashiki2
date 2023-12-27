@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use rand::Rng;
 
 /// motion 仕様
 /// bit
@@ -83,6 +84,65 @@ impl MotionFlags {
 
     pub fn builder() -> MotionFlagsBuilder {
         MotionFlagsBuilder::default()
+    }
+
+    pub fn random_motion() -> MotionFlags {
+        let mut rng = rand::thread_rng();
+
+        let func_type = match rng.gen_range(0..11) {
+            0 => EasingFuncType::Liner,
+            1 => EasingFuncType::Sin,
+            2 => EasingFuncType::Quad,
+            3 => EasingFuncType::Cubic,
+            4 => EasingFuncType::Quart,
+            5 => EasingFuncType::Quint,
+            6 => EasingFuncType::Expo,
+            7 => EasingFuncType::Circ,
+            8 => EasingFuncType::Back,
+            9 => EasingFuncType::Elastic,
+            10 => EasingFuncType::Bounce,
+            _ => EasingFuncType::Liner,
+        };
+
+        let motion_type = match rng.gen_range(0..4) {
+            0 => MotionType::EaseIn(func_type, true),
+            1 => MotionType::EaseOut(func_type, true),
+            2 => MotionType::EaseInOut(func_type, true),
+            3 => MotionType::EaseIn(func_type, true),
+            _ => MotionType::None,
+        };
+        let motion_detail = match rng.gen_range(0..4) {
+            0 => MotionDetail::empty(),
+            1 => MotionDetail::TO_CURRENT,
+            2 => MotionDetail::USE_X_DISTANCE,
+            3 => MotionDetail::USE_Y_DISTANCE,
+            _ => MotionDetail::empty(),
+        };
+        let motion_target = match rng.gen_range(0..16) {
+            0 => MotionTarget::MOVE_X_PLUS,
+            1 => MotionTarget::MOVE_X_MINUS,
+            2 => MotionTarget::MOVE_Y_PLUS,
+            3 => MotionTarget::MOVE_Y_MINUS,
+            4 => MotionTarget::MOVE_Z_PLUS,
+            5 => MotionTarget::MOVE_Z_MINUS,
+            6 => MotionTarget::ROTATE_X_PLUS,
+            7 => MotionTarget::ROTATE_X_MINUX,
+            8 => MotionTarget::ROTATE_Y_PLUS,
+            9 => MotionTarget::ROTATE_Y_MINUX,
+            10 => MotionTarget::ROTATE_Z_PLUS,
+            11 => MotionTarget::ROTATE_Z_MINUX,
+            12 => MotionTarget::STRETCH_X_PLUS,
+            13 => MotionTarget::STRETCH_X_MINUS,
+            14 => MotionTarget::STRETCH_Y_PLUS,
+            15 => MotionTarget::STRETCH_Y_MINUS,
+            _ => MotionTarget::empty(),
+        };
+        MotionFlags::new(
+            motion_type,
+            motion_detail,
+            motion_target,
+            CameraDetail::empty(),
+        )
     }
 }
 

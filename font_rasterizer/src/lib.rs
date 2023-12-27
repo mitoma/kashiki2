@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod color_theme;
+pub mod easing_value;
 pub mod font_buffer;
 pub mod instances;
 pub mod layout_engine;
@@ -11,5 +12,6 @@ mod screen_bind_group;
 mod screen_texture;
 mod screen_vertex_buffer;
 pub mod support;
+pub mod text_instances;
 pub mod time;
 pub mod ui;
