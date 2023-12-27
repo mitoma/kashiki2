@@ -62,7 +62,14 @@ impl Default for GlyphInstance {
 }
 
 impl GlyphInstance {
-    fn to_raw(&self) -> InstanceRaw {
+    pub fn random_motion(&mut self) {
+        self.start_time = now_millis();
+        self.duration = Duration::from_millis(1000);
+        self.motion = MotionFlags::random_motion();
+        self.gain = 1.0;
+    }
+
+    fn as_raw(&self) -> InstanceRaw {
         InstanceRaw {
             model: (cgmath::Matrix4::from_nonuniform_scale(self.scale, self.scale, 1.0)
                 * cgmath::Matrix4::from_translation(self.position)
@@ -159,7 +166,7 @@ impl GlyphInstances {
 
     pub fn update_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
         if self.updated {
-            let value_raws: Vec<InstanceRaw> = self.values.values().map(|v| v.to_raw()).collect();
+            let value_raws: Vec<InstanceRaw> = self.values.values().map(|v| v.as_raw()).collect();
 
             // バッファサイズが既存のバッファを上回る場合はバッファを作り直す。
             let buffer_size = (self.values.len() as u64 / DEFAULT_BUFFER_UNIT) + 1;

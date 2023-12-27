@@ -9,6 +9,7 @@ use text_buffer::{
 };
 
 use crate::{
+    color_theme,
     easing_value::EasingPoint3,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
@@ -32,8 +33,8 @@ pub struct TextEdit {
     bound: (f32, f32),
 }
 
-impl TextEdit {
-    pub fn new() -> Self {
+impl Default for TextEdit {
+    fn default() -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
 
         Self {
@@ -88,7 +89,7 @@ impl Model for TextEdit {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        self.sync_editor_events(device);
+        self.sync_editor_events(device, color_theme);
         self.calc_position_and_bound(glyph_vertex_buffer);
         self.calc_instance_positions();
         self.instances.update(device, queue);
@@ -102,7 +103,7 @@ impl Model for TextEdit {
 impl TextEdit {
     // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。
     #[inline]
-    fn sync_editor_events(&mut self, device: &wgpu::Device) {
+    fn sync_editor_events(&mut self, device: &wgpu::Device, color_theme: &color_theme::ColorTheme) {
         while let Ok(event) = self.receiver.try_recv() {
             self.updated = true;
             match event {
@@ -116,8 +117,12 @@ impl TextEdit {
                         })
                         .unwrap_or_else(|| (0.0, 0.0, 0.0));
                     self.buffer_chars.insert(c, caret_pos.into());
-                    self.instances
-                        .add(c.into(), GlyphInstance::default(), device);
+                    let instance = GlyphInstance {
+                        color: color_theme.text().get_color(),
+                        motion: self.motion,
+                        ..GlyphInstance::default()
+                    };
+                    self.instances.add(c.into(), instance, device);
                 }
                 ChangeEvent::MoveChar { from, to } => {
                     if let Some(position) = self.buffer_chars.remove(&from) {
@@ -135,10 +140,13 @@ impl TextEdit {
                     self.instances.pre_remove(&c.into());
                 }
                 ChangeEvent::AddCaret(c) => {
+                    let caret_instance = GlyphInstance {
+                        color: color_theme.text_emphasized().get_color(),
+                        ..GlyphInstance::default()
+                    };
                     self.carets
                         .insert(c, (c.row as f32, c.col as f32, 0.0).into());
-                    self.instances
-                        .add(c.into(), GlyphInstance::default(), device);
+                    self.instances.add(c.into(), caret_instance, device);
                 }
                 ChangeEvent::MoveCaret { from, to } => {
                     if let Some(position) = self.carets.remove(&from) {
@@ -236,7 +244,7 @@ impl TextEdit {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                Self::update_instance(instance, &i, &center, &self.position, &self.rotation);
+                Self::update_instance(instance, i, &center, &self.position, &self.rotation);
             }
         }
 

@@ -28,6 +28,12 @@ pub trait World {
     fn model_length(&self) -> usize;
     // 何番目のモデルに視点を移すか
     fn look_at(&mut self, model_num: usize, adjustment: CameraAdjustment);
+
+    // 次のモデルに視点を移す
+    fn look_next(&mut self, adjustment: CameraAdjustment);
+    // 前のモデルに視点を移す
+    fn look_prev(&mut self, adjustment: CameraAdjustment);
+
     // カメラの参照を返す
     fn camera(&self) -> &Camera;
     // カメラを動かす
@@ -126,6 +132,20 @@ impl World for HorizontalWorld {
         if let Some(model) = self.models.get_mut(self.focus) {
             model.operation(op);
         }
+    }
+
+    fn look_next(&mut self, adjustment: CameraAdjustment) {
+        let next = (self.focus + 1) % self.model_length();
+        self.look_at(next, adjustment)
+    }
+
+    fn look_prev(&mut self, adjustment: CameraAdjustment) {
+        let prev = if self.focus == 0 {
+            self.model_length() - 1
+        } else {
+            self.focus - 1
+        };
+        self.look_at(prev, adjustment)
     }
 }
 

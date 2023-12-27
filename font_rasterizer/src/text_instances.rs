@@ -88,7 +88,7 @@ impl TextInstances {
 
     pub fn remove_from_dustbox(&mut self, key: &TextInstancesKey) -> Option<GlyphInstance> {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
-            instances.remove(&&key.to_pre_remove_instance_key())
+            instances.remove(&key.to_pre_remove_instance_key())
         } else {
             None
         }

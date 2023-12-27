@@ -81,9 +81,13 @@ impl SingleCharCallback {
         ime.update_scale(0.1);
 
         let mut world = Box::new(HorizontalWorld::new(800, 600));
-        let model = Box::new(TextEdit::new());
+        let model = Box::new(TextEdit::default());
         world.add(model);
-        let model = Box::new(TextEdit::new());
+        let model = Box::new(TextEdit::default());
+        world.add(model);
+        let model = Box::new(TextEdit::default());
+        world.add(model);
+        let model = Box::new(TextEdit::default());
         world.add(model);
         let look_at = 0;
         world.look_at(look_at, CameraAdjustment::FitBoth);
@@ -105,6 +109,7 @@ impl SimpleStateCallback for SingleCharCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
+        self.world.look_at(0, CameraAdjustment::FitBoth);
         self.update(glyph_vertex_buffer, device, queue);
     }
 
@@ -151,8 +156,8 @@ impl SimpleStateCallback for SingleCharCallback {
                 info!("world:");
 
                 match &*name.to_string() {
-                    "left" => self.world.look_at(0, CameraAdjustment::FitBoth),
-                    "right" => self.world.look_at(1, CameraAdjustment::FitBoth),
+                    "left" => self.world.look_prev(CameraAdjustment::FitBoth),
+                    "right" => self.world.look_next(CameraAdjustment::FitBoth),
                     "forward" => self.world.camera_operation(CameraOperation::Forward),
                     "back" => self.world.camera_operation(CameraOperation::Backward),
                     _ => {}

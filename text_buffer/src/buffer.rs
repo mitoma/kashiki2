@@ -209,8 +209,10 @@ impl BufferLine {
     fn insert_enter(&mut self, col: usize) -> Option<BufferLine> {
         match self.chars.len() {
             len if len == col => {
-                let mut line = BufferLine::default();
-                line.row_num = self.row_num + 1;
+                let line = BufferLine {
+                    row_num: self.row_num + 1,
+                    ..BufferLine::default()
+                };
                 Some(line)
             }
             len if len > col => {

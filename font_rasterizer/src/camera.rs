@@ -1,8 +1,6 @@
 use cgmath::{InnerSpace, Point3};
-use instant::Duration;
-use nenobi::TimeBaseEasingValue;
 
-use crate::{layout_engine::Model, easing_value::EasingPoint3};
+use crate::{easing_value::EasingPoint3, layout_engine::Model};
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -213,17 +211,18 @@ impl CameraController {
         let target_position: Point3<f32> = target.position();
         let normal = cgmath::Vector3::<f32>::unit_z();
 
+        // aspect は width / height
         let (w, h) = target.bound();
         let size = match adjustment {
             // w と h のうち大きい方を使う
             CameraAdjustment::FitBoth => {
-                if w > h {
-                    w / camera.aspect
+                if w > h * camera.aspect {
+                    w
                 } else {
                     h * camera.aspect
                 }
             }
-            CameraAdjustment::FitWidth => w / camera.aspect,
+            CameraAdjustment::FitWidth => w,
             CameraAdjustment::FitHeight => h * camera.aspect,
         };
 

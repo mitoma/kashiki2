@@ -18,6 +18,7 @@ wgpu = { workspace = true }
 winit = { workspace = true }
 bitflags = "2.3.3"
 image = { workspace = true }
+rand = "0.8.5"
 
 rustybuzz.workspace = true
 cgmath = "0.18"
