@@ -183,7 +183,7 @@ impl PlaneTextReader {
                 //    });
                 let pos = cgmath::Matrix4::from(rotation)
                     * cgmath::Matrix4::from_translation(cgmath::Vector3 {
-                        x: 0.75 * x,
+                        x: 1.0 * x,
                         y: 1.0 * y,
                         z: 0.0,
                     });

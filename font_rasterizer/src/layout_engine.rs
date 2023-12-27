@@ -29,6 +29,8 @@ pub trait World {
     // 何番目のモデルに視点を移すか
     fn look_at(&mut self, model_num: usize, adjustment: CameraAdjustment);
 
+    // 現在のモデルに再度視点を移す
+    fn look_current(&mut self, adjustment: CameraAdjustment);
     // 次のモデルに視点を移す
     fn look_next(&mut self, adjustment: CameraAdjustment);
     // 前のモデルに視点を移す
@@ -63,6 +65,7 @@ impl HorizontalWorld {
         }
     }
 }
+const INTERVAL: f32 = 5.0;
 
 impl World for HorizontalWorld {
     fn add(&mut self, model: Box<dyn Model>) {
@@ -77,6 +80,7 @@ impl World for HorizontalWorld {
             x_position += w / 2.0;
             model.set_position((x_position, 0.0, 0.0).into());
             x_position += w / 2.0;
+            x_position += INTERVAL;
         }
     }
 
@@ -132,6 +136,10 @@ impl World for HorizontalWorld {
         if let Some(model) = self.models.get_mut(self.focus) {
             model.operation(op);
         }
+    }
+
+    fn look_current(&mut self, adjustment: CameraAdjustment) {
+        self.look_at(self.focus, adjustment)
     }
 
     fn look_next(&mut self, adjustment: CameraAdjustment) {

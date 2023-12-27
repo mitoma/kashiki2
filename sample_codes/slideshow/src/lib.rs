@@ -47,7 +47,6 @@ pub async fn run() {
 struct SingleCharCallback {
     world: Box<dyn World>,
     color_theme: ColorTheme,
-    look_at: usize,
 }
 
 impl SingleCharCallback {
@@ -98,14 +97,12 @@ impl SingleCharCallback {
         });
         info!("world.model_length: {}", world.model_length());
 
-        let look_at = 0;
-        world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
+        world.look_at(0, CameraAdjustment::FitBoth);
 
         Self {
             world,
             color_theme: ColorTheme::SolarizedDark,
-            look_at,
         }
     }
 }
@@ -149,21 +146,16 @@ impl SimpleStateCallback for SingleCharCallback {
             info!("key: {:?}", logical_key);
             match logical_key.as_ref() {
                 winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowRight) => {
-                    self.look_at += 1;
-                    self.look_at %= self.world.model_length();
-                    self.world.look_at(self.look_at, CameraAdjustment::FitBoth);
+                    self.world.look_next(CameraAdjustment::FitBoth);
                 }
                 winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowLeft) => {
-                    self.look_at += self.world.model_length() - 1;
-                    self.look_at %= self.world.model_length();
-                    self.world.look_at(self.look_at, CameraAdjustment::FitBoth);
+                    self.world.look_prev(CameraAdjustment::FitBoth);
                 }
                 winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowUp) => {
-                    self.world.look_at(self.look_at, CameraAdjustment::FitWidth);
+                    self.world.look_current(CameraAdjustment::FitWidth);
                 }
                 winit::keyboard::Key::Named(winit::keyboard::NamedKey::ArrowDown) => {
-                    self.world
-                        .look_at(self.look_at, CameraAdjustment::FitHeight);
+                    self.world.look_current(CameraAdjustment::FitHeight);
                 }
                 winit::keyboard::Key::Character("w") => {
                     self.world.camera_operation(CameraOperation::Up);
