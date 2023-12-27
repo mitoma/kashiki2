@@ -12,6 +12,8 @@ use rustybuzz::{ttf_parser::OutlineBuilder, Face};
 use unicode_width::UnicodeWidthChar;
 use wgpu::BufferUsages;
 
+use crate::debug_mode::DEBUG_FLAGS;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum GlyphWidth {
     Regular,
@@ -147,19 +149,42 @@ impl GlyphVertexBuilder {
 
         let width = GlyphWidth::get_width(c, face);
         let global = face.global_bounding_box();
-        let rect_width = rect.width() as f32;
-        let rect_xmin = rect.x_min as f32;
         let global_width = global.width() as f32;
         let global_height = global.height() as f32;
-        let capital_height = face.capital_height().unwrap() as f32;
         let rect_em = (face.units_per_em() as f32 / 1024.0).sqrt();
+        let center_x = global_width * width.to_f32() / 2.0 + global.x_min as f32;
+        let center_y = global_height / 2.0 + global.y_min as f32;
+
+        if DEBUG_FLAGS.lock().unwrap().show_glyph_outline {
+            // global
+            self.move_to(global.x_min as f32, global.y_min as f32);
+            self.line_to(global.x_max as f32, global.y_min as f32);
+            self.line_to(global.x_max as f32, global.y_max as f32);
+            self.line_to(global.x_min as f32, global.y_max as f32);
+            self.line_to(global.x_min as f32, global.y_min as f32);
+            // rect
+            self.move_to(rect.x_min as f32, rect.y_min as f32);
+            self.line_to(rect.x_max as f32, rect.y_min as f32);
+            self.line_to(rect.x_max as f32, rect.y_max as f32);
+            self.line_to(rect.x_min as f32, rect.y_max as f32);
+            self.line_to(rect.x_min as f32, rect.y_min as f32);
+
+            // center
+            let x = center_x;
+            let y = center_y;
+            self.move_to(x - 100.0, y);
+            self.line_to(x, y + 100.0);
+            self.line_to(x + 100.0, y);
+            self.line_to(x, y - 100.0);
+            self.line_to(x - 100.0, y);
+        }
 
         let vertex = self
             .vertex
             .iter()
             .map(|InternalVertex { x, y, wait }| {
-                let x = (*x - rect_xmin - rect_width / 2.0) / global_width / rect_em;
-                let y = (*y - capital_height / 2.0) / global_height / rect_em;
+                let x = (*x - center_x) / global_width / rect_em;
+                let y = (*y - center_y) / global_height / rect_em;
                 Vertex {
                     position: [x, y],
                     wait: wait.wait(),

@@ -23,6 +23,7 @@ const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
     std::env::set_var("RUST_LOG", "simple_text=debug");
+    //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
     pollster::block_on(run());
 }
 
