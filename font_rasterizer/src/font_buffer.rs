@@ -155,7 +155,7 @@ impl GlyphVertexBuilder {
         let center_x = global_width * width.to_f32() / 2.0 + global.x_min as f32;
         let center_y = global_height / 2.0 + global.y_min as f32;
 
-        if DEBUG_FLAGS.lock().unwrap().show_glyph_outline {
+        if DEBUG_FLAGS.show_glyph_outline {
             // global
             self.move_to(global.x_min as f32, global.y_min as f32);
             self.line_to(global.x_max as f32, global.y_min as f32);

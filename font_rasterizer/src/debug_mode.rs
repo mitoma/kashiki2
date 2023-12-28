@@ -6,9 +6,9 @@ pub(crate) struct DebugFlags {
     pub(crate) show_glyph_outline: bool,
 }
 
-pub static DEBUG_FLAGS: Lazy<Mutex<DebugFlags>> = Lazy::new(defualt_debug_flags);
+pub static DEBUG_FLAGS: Lazy<DebugFlags> = Lazy::new(defualt_debug_flags);
 
-fn defualt_debug_flags() -> Mutex<DebugFlags> {
+fn defualt_debug_flags() -> DebugFlags {
     let flags = std::env::var("FONT_RASTERIZER_DEBUG")
         .map(|_debug| DebugFlags {
             show_glyph_outline: true,
@@ -16,5 +16,5 @@ fn defualt_debug_flags() -> Mutex<DebugFlags> {
         .unwrap_or_else(|_| DebugFlags {
             show_glyph_outline: false,
         });
-    Mutex::new(flags)
+    flags
 }
