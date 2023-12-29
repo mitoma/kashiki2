@@ -231,7 +231,7 @@ dependencies = [
 [[package]]
 name = "bezier_converter"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#9761c14c4964b33df826772337b842e0a0e80008"
+source = "git+https://github.com/mitoma/sandbox?branch=main#129ceaeb34ece29cf03cc307474bc931faca4e7e"
 dependencies = [
  "cgmath",
 ]
@@ -1329,7 +1329,7 @@ dependencies = [
 [[package]]
 name = "nenobi"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#9761c14c4964b33df826772337b842e0a0e80008"
+source = "git+https://github.com/mitoma/sandbox?branch=main#129ceaeb34ece29cf03cc307474bc931faca4e7e"
 dependencies = [
  "instant",
  "num-traits",
@@ -1699,7 +1699,7 @@ dependencies = [
 [[package]]
 name = "rayon_ordered_bridge"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#9761c14c4964b33df826772337b842e0a0e80008"
+source = "git+https://github.com/mitoma/sandbox?branch=main#129ceaeb34ece29cf03cc307474bc931faca4e7e"
 dependencies = [
  "rayon",
 ]
@@ -2814,9 +2814,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.5.30"
+version = "0.5.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b5c3db89721d50d0e2a673f5043fc4722f76dcc352d7b1ab8b8288bed4ed2c5"
+checksum = "97a4882e6b134d6c28953a387571f1acdd3496830d5e36c5e3a1075580ea641c"
 dependencies = [
  "memchr",
 ]

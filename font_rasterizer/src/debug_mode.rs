@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use once_cell::sync::Lazy;
 
 pub(crate) struct DebugFlags {
@@ -9,12 +7,11 @@ pub(crate) struct DebugFlags {
 pub static DEBUG_FLAGS: Lazy<DebugFlags> = Lazy::new(defualt_debug_flags);
 
 fn defualt_debug_flags() -> DebugFlags {
-    let flags = std::env::var("FONT_RASTERIZER_DEBUG")
+    std::env::var("FONT_RASTERIZER_DEBUG")
         .map(|_debug| DebugFlags {
             show_glyph_outline: true,
         })
         .unwrap_or_else(|_| DebugFlags {
             show_glyph_outline: false,
-        });
-    flags
+        })
 }
