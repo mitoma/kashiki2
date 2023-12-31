@@ -1,3 +1,4 @@
+pub mod ime_input;
 pub mod textedit;
 
 use std::collections::BTreeMap;
@@ -296,13 +297,17 @@ impl SingleLineComponent {
     pub fn generate_instances(
         &mut self,
         color_theme: &ColorTheme,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
+        glyph_vertex_buffer: &mut GlyphVertexBuffer,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Vec<&GlyphInstances> {
         if !self.updated {
             return self.instances.values().collect();
         }
+
+        glyph_vertex_buffer
+            .append_glyph(device, queue, self.value.chars().collect())
+            .unwrap();
 
         self.instances.clear();
         self.updated = false;

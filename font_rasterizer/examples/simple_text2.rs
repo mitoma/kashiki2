@@ -10,10 +10,9 @@ use font_rasterizer::{
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, World},
-    motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
-    ui::{split_preedit_string, textedit::TextEdit, SingleLineComponent},
+    ui::{ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
 use winit::event::WindowEvent;
@@ -58,7 +57,7 @@ struct SingleCharCallback {
     color_theme: ColorTheme,
     store: ActionStore,
     world: Box<dyn World>,
-    ime: SingleLineComponent,
+    ime: ImeInput,
 }
 
 impl SingleCharCallback {
@@ -70,16 +69,7 @@ impl SingleCharCallback {
         keybinds
             .iter()
             .for_each(|k| store.register_keybind(k.clone()));
-        let mut ime = SingleLineComponent::new("".to_string());
-        ime.update_motion(
-            MotionFlags::builder()
-                .camera_detail(CameraDetail::IGNORE_CAMERA)
-                .motion_type(MotionType::EaseOut(EasingFuncType::Sin, false))
-                .motion_detail(MotionDetail::TO_CURRENT)
-                .motion_target(MotionTarget::STRETCH_X_PLUS)
-                .build(),
-        );
-        ime.update_scale(0.1);
+        let ime = ImeInput::new();
 
         let mut world = Box::new(HorizontalWorld::new(800, 600));
         let model = Box::new(TextEdit::default());
@@ -126,11 +116,8 @@ impl SimpleStateCallback for SingleCharCallback {
     ) {
         self.world
             .update(&self.color_theme, glyph_vertex_buffer, &device, &queue);
-        glyph_vertex_buffer
-            .append_glyph(device, queue, self.ime.value.chars().collect())
-            .unwrap();
         self.ime
-            .generate_instances(&self.color_theme, glyph_vertex_buffer, device, queue);
+            .update(&self.color_theme, glyph_vertex_buffer, device, queue);
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
@@ -172,22 +159,13 @@ impl SimpleStateCallback for SingleCharCallback {
                 InputResult::InputConsumed
             }
             Some(Action::ImeInput(value)) => {
-                self.ime.update_value("".to_string());
+                self.ime.apply_ime_event(&Action::ImeInput(value.clone()));
                 self.world.operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
             Some(Action::ImePreedit(value, position)) => {
-                match position {
-                    Some((start, end)) if start != end => {
-                        info!("start:{start}, end:{end}");
-                        let (first, center, last) = split_preedit_string(value, start, end);
-                        let preedit_str = format!("{}[{}]{}", first, center, last);
-                        self.ime.update_value(preedit_str);
-                    }
-                    _ => {
-                        self.ime.update_value(value);
-                    }
-                }
+                self.ime
+                    .apply_ime_event(&Action::ImePreedit(value, position));
                 InputResult::InputConsumed
             }
             Some(_) => InputResult::Noop,
