@@ -171,6 +171,7 @@ impl TextEdit {
         if !self.updated {
             return;
         }
+        let caret_width = glyph_vertex_buffer.width('_');
 
         let max_width = self.bound.0;
         let initial_x: f32 = 0.0;
@@ -178,10 +179,16 @@ impl TextEdit {
         let mut x: f32 = 0.0;
         let mut y: f32 = 0.0;
 
+        if let Some(caret_position) = self.carets.get_mut(&Caret::new_without_event(0, 0)) {
+            let caret_x = initial_x + caret_width.left();
+            let caret_y = y;
+            caret_position.update((caret_x, caret_y, 0.0).into());
+        }
+
         // caret の位置決め
-        let caret_width = glyph_vertex_buffer.width('_');
         // 文字と caret (文中あるいは文末時の位置決め)
         for (c, i) in self.buffer_chars.iter_mut() {
+            // 行が変わっている時は、行の先頭に caret を移動させる
             if current_row != c.row {
                 for r in ((current_row + 1)..=(c.row)).rev() {
                     if let Some(caret_position) =
