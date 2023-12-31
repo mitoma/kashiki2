@@ -327,7 +327,7 @@ impl SingleLineComponent {
             let instance = self.instances.get_mut(&c).unwrap();
             let i = GlyphInstance::new(
                 cgmath::Vector3 {
-                    x: x,
+                    x,
                     y: y_pos,
                     z: 0.0,
                 },
