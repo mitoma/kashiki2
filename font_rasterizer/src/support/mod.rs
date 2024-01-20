@@ -1,4 +1,4 @@
-use std::{collections::HashSet, iter};
+use std::{collections::HashSet, iter, sync::Arc};
 
 use crate::{
     camera::Camera,
@@ -63,6 +63,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         .build(&event_loop)
         .unwrap();
     window.set_ime_allowed(true);
+    let window = Arc::new(window);
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -83,7 +84,7 @@ pub async fn run_support(support: SimpleStateSupport) {
             .expect("Couldn't append canvas to document body.");
     }
     let mut state = SimpleState::new(
-        &window,
+        window.clone(),
         support.quarity,
         support.bg_color,
         support.callback,
@@ -198,7 +199,7 @@ pub struct SimpleState {
     quarity: Quarity,
     bg_color: wgpu::Color,
 
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'static>,
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
@@ -212,7 +213,7 @@ pub struct SimpleState {
 
 impl SimpleState {
     pub async fn new(
-        window: &Window,
+        window: Arc<Window>,
         quarity: Quarity,
         bg_color: wgpu::Color,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
@@ -223,7 +224,7 @@ impl SimpleState {
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(InstanceDescriptor::default());
-        let surface = unsafe { instance.create_surface(window).unwrap() };
+        let surface = instance.create_surface(window).unwrap();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -236,10 +237,10 @@ impl SimpleState {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::empty(),
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
-                    limits: if cfg!(target_arch = "wasm32") {
+                    required_limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
                         wgpu::Limits::default()
@@ -265,6 +266,7 @@ impl SimpleState {
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
             view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
         surface.configure(&device, &config);
 
@@ -416,10 +418,10 @@ impl ImageState {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::empty(),
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
-                    limits: if cfg!(target_arch = "wasm32") {
+                    required_limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
                         wgpu::Limits::default()
