@@ -18,13 +18,15 @@ impl FontVertexConverter {
         Self { fonts }
     }
 
-    pub(crate) fn convert(&self, c: char) -> anyhow::Result<GlyphVertex> {
-        let faces = self
-            .fonts
+    fn faces(&self) -> Vec<Face> {
+        self.fonts
             .iter()
             .flat_map(|f| Face::parse(&f.binary, f.index))
-            .collect::<Vec<Face>>();
-        for face in faces.iter() {
+            .collect::<Vec<Face>>()
+    }
+
+    pub(crate) fn convert(&self, c: char) -> anyhow::Result<GlyphVertex> {
+        for face in self.faces().iter() {
             if let Ok(glyph) = GlyphVertexBuilder::new().build(c, &face) {
                 return Ok(glyph);
             }
