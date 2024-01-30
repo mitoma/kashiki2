@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use anyhow::Context;
 use bezier_converter::CubicBezier;
 use font_collector::FontData;
