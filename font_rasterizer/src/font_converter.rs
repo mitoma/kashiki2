@@ -25,7 +25,7 @@ impl FontVertexConverter {
 
     pub(crate) fn convert(&self, c: char) -> anyhow::Result<GlyphVertex> {
         for face in self.faces().iter() {
-            if let Ok(glyph) = GlyphVertexBuilder::new().build(c, &face) {
+            if let Ok(glyph) = GlyphVertexBuilder::new().build(c, face) {
                 return Ok(glyph);
             }
         }
