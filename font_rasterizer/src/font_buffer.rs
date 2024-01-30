@@ -7,10 +7,9 @@ use anyhow::Context;
 
 use font_collector::FontData;
 use log::{debug, info};
-use rustybuzz::Face;
 use wgpu::BufferUsages;
 
-use crate::font_converter::{GlyphVertexBuilder, GlyphWidth, Vertex};
+use crate::font_converter::{FontVertexConverter, GlyphWidth, Vertex};
 
 struct BufferIndexEntry {
     vertex_buffer_index: usize,
@@ -94,7 +93,7 @@ pub(crate) struct DrawInfo<'a> {
 }
 
 pub struct GlyphVertexBuffer {
-    font_binaries: Vec<FontData>,
+    font_vertex_converter: FontVertexConverter,
     buffer_index: BTreeMap<char, BufferIndexEntry>,
     vertex_buffers: Vec<VertexBuffer>,
     index_buffers: Vec<IndexBuffer>,
@@ -102,8 +101,9 @@ pub struct GlyphVertexBuffer {
 
 impl GlyphVertexBuffer {
     pub fn new(font_binaries: Vec<FontData>) -> GlyphVertexBuffer {
-        Self {
-            font_binaries,
+        let font_vertex_converter = FontVertexConverter::new(font_binaries);
+        GlyphVertexBuffer {
+            font_vertex_converter,
             buffer_index: BTreeMap::default(),
             vertex_buffers: Vec::new(),
             index_buffers: Vec::new(),
@@ -163,20 +163,10 @@ impl GlyphVertexBuffer {
             return Ok(());
         }
 
-        let faces = self
-            .font_binaries
-            .iter()
-            .flat_map(|f| Face::from_slice(&f.binary, f.index))
-            .collect::<Vec<Face>>();
-
         // char を全て Glyph 情報に変換する
         let mut glyphs = chars
             .iter()
-            .flat_map(|c| {
-                faces
-                    .iter()
-                    .find_map(|face| GlyphVertexBuilder::new().build(*c, face).ok())
-            })
+            .flat_map(|c| self.font_vertex_converter.convert(*c))
             .collect::<Vec<_>>();
 
         // 空いている vertex, index バッファを探し、無ければバッファを作る
