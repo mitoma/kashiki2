@@ -9,7 +9,7 @@ use font_collector::FontData;
 use log::{debug, info};
 use wgpu::BufferUsages;
 
-use crate::font_converter::{FontVertexConverter, GlyphWidth, Vertex};
+use crate::font_converter::{FontVertexConverter, GlyphVertex, GlyphWidth, Vertex};
 
 struct BufferIndexEntry {
     vertex_buffer_index: usize,
@@ -169,90 +169,8 @@ impl GlyphVertexBuffer {
             .flat_map(|c| self.font_vertex_converter.convert(*c))
             .collect::<Vec<_>>();
 
-        // 空いている vertex, index バッファを探し、無ければバッファを作る
-        // バッファが見つかったらその buffer に書き込むキューを登録する
         while let Some(glyph) = glyphs.pop() {
-            let Some(vertex_buffer_index) =
-                self.appendable_vertex_buffer_index(glyph.vertex_size())
-            else {
-                self.vertex_buffers.push(VertexBuffer::new(
-                    device,
-                    queue,
-                    format!("glyph vertex buffer #{}", self.index_buffers.len()),
-                ));
-                glyphs.push(glyph);
-                continue;
-            };
-            let Some(index_buffer_index) = self.appendable_index_buffer_index(glyph.index_size())
-            else {
-                self.index_buffers.push(IndexBuffer::new(
-                    device,
-                    format!("glyph index buffer #{}", self.index_buffers.len()),
-                ));
-                glyphs.push(glyph);
-                continue;
-            };
-
-            debug!(
-                "glyph vertex_size:{}, index_size:{}",
-                glyph.vertex_size(),
-                glyph.index_size()
-            );
-
-            let vertex_buffer = self.vertex_buffers.get_mut(vertex_buffer_index).unwrap();
-            let next_index_position = vertex_buffer.next_index_position();
-            debug!("pre vertex offset:{}", vertex_buffer.offset);
-            queue.write_buffer(
-                &vertex_buffer.wgpu_buffer,
-                vertex_buffer.offset,
-                bytemuck::cast_slice(&glyph.vertex),
-            );
-            vertex_buffer.offset += glyph.vertex_size();
-            debug!("post vertex offset:{}", vertex_buffer.offset);
-            debug!("next_index_position :{}", next_index_position);
-
-            let index_buffer = self.index_buffers.get_mut(index_buffer_index).unwrap();
-            let range_start = index_buffer.next_range_position();
-            // vertex buffer に既に入っている座標の分だけ index をずらす
-            let data = glyph
-                .index
-                .iter()
-                .map(|idx| {
-                    if *idx != 0 {
-                        idx + next_index_position as u32
-                    } else {
-                        0
-                    }
-                })
-                .collect::<Vec<u32>>();
-            queue.write_buffer(
-                &index_buffer.wgpu_buffer,
-                index_buffer.offset,
-                bytemuck::cast_slice(&data),
-            );
-            index_buffer.offset += glyph.index_size();
-            let range_end = index_buffer.next_range_position();
-
-            debug!(
-                "char:{},  vertex_len:{}, vertex:{:?}, data_len: {}, data: {:?}, range:{}..{}",
-                glyph.c,
-                glyph.vertex.len(),
-                glyph.vertex,
-                data.len(),
-                data,
-                range_start,
-                range_end
-            );
-
-            self.buffer_index.insert(
-                glyph.c,
-                BufferIndexEntry {
-                    vertex_buffer_index,
-                    index_buffer_index,
-                    index_buffer_range: range_start..range_end,
-                    glyph_width: glyph.width,
-                },
-            );
+            self.inner_append_glyph(device, queue, glyph)?;
         }
 
         info!(
@@ -263,6 +181,107 @@ impl GlyphVertexBuffer {
         );
 
         Ok(())
+    }
+
+    fn inner_append_glyph(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        glyph: GlyphVertex,
+    ) -> anyhow::Result<()> {
+        self.ensure_buffer_capacity(device, queue, &glyph);
+
+        let vertex_buffer_index = self
+            .appendable_vertex_buffer_index(glyph.vertex_size())
+            .with_context(|| "fail ensure vertex_buffer")?;
+
+        let index_buffer_index = self
+            .appendable_index_buffer_index(glyph.index_size())
+            .with_context(|| "fail ensure index_buffer")?;
+
+        // buffer に書き込むキューを登録する
+        let vertex_buffer = self.vertex_buffers.get_mut(vertex_buffer_index).unwrap();
+        let next_index_position = vertex_buffer.next_index_position();
+        debug!("pre vertex offset:{}", vertex_buffer.offset);
+        queue.write_buffer(
+            &vertex_buffer.wgpu_buffer,
+            vertex_buffer.offset,
+            bytemuck::cast_slice(&glyph.vertex),
+        );
+        vertex_buffer.offset += glyph.vertex_size();
+        debug!("post vertex offset:{}", vertex_buffer.offset);
+        debug!("next_index_position :{}", next_index_position);
+
+        let index_buffer = self.index_buffers.get_mut(index_buffer_index).unwrap();
+        let range_start = index_buffer.next_range_position();
+        // vertex buffer に既に入っている座標の分だけ index をずらす
+        let data = glyph
+            .index
+            .iter()
+            .map(|idx| {
+                if *idx != 0 {
+                    idx + next_index_position as u32
+                } else {
+                    0
+                }
+            })
+            .collect::<Vec<u32>>();
+        queue.write_buffer(
+            &index_buffer.wgpu_buffer,
+            index_buffer.offset,
+            bytemuck::cast_slice(&data),
+        );
+        index_buffer.offset += glyph.index_size();
+        let range_end = index_buffer.next_range_position();
+
+        debug!(
+            "char:{},  vertex_len:{}, vertex:{:?}, data_len: {}, data: {:?}, range:{}..{}",
+            glyph.c,
+            glyph.vertex.len(),
+            glyph.vertex,
+            data.len(),
+            data,
+            range_start,
+            range_end
+        );
+
+        self.buffer_index.insert(
+            glyph.c,
+            BufferIndexEntry {
+                vertex_buffer_index,
+                index_buffer_index,
+                index_buffer_range: range_start..range_end,
+                glyph_width: glyph.width,
+            },
+        );
+
+        Ok(())
+    }
+
+    // 空いている vertex, index バッファを探し、無ければバッファを作る
+    fn ensure_buffer_capacity(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        glyph: &GlyphVertex,
+    ) {
+        let vertex_size = glyph.vertex_size();
+        let index_size = glyph.index_size();
+
+        if self.appendable_vertex_buffer_index(vertex_size).is_none() {
+            self.vertex_buffers.push(VertexBuffer::new(
+                device,
+                queue,
+                format!("glyph vertex buffer #{}", self.vertex_buffers.len()),
+            ));
+        }
+
+        if self.appendable_index_buffer_index(index_size).is_none() {
+            self.index_buffers.push(IndexBuffer::new(
+                device,
+                format!("glyph index buffer #{}", self.index_buffers.len()),
+            ));
+        }
     }
 
     fn appendable_vertex_buffer_index(&self, size: u64) -> Option<usize> {
