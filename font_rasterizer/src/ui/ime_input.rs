@@ -14,6 +14,12 @@ pub struct ImeInput {
     single_line_component: SingleLineComponent,
 }
 
+impl Default for ImeInput {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ImeInput {
     pub fn new() -> Self {
         let mut single_line_component = SingleLineComponent::new("".to_string());
