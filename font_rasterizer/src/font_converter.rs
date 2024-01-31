@@ -2,7 +2,11 @@ use anyhow::Context;
 use bezier_converter::CubicBezier;
 use font_collector::FontData;
 use log::debug;
-use rustybuzz::ttf_parser::{Face, OutlineBuilder};
+use rustybuzz::{
+    shape,
+    ttf_parser::{GlyphId, OutlineBuilder},
+    Direction, Face, UnicodeBuffer,
+};
 use unicode_width::UnicodeWidthChar;
 
 use crate::debug_mode::DEBUG_FLAGS;
@@ -19,8 +23,31 @@ impl FontVertexConverter {
     fn faces(&self) -> Vec<Face> {
         self.fonts
             .iter()
-            .flat_map(|f| Face::parse(&f.binary, f.index))
+            .flat_map(|f| Face::from_slice(&f.binary, f.index))
             .collect::<Vec<Face>>()
+    }
+
+    fn get_char_glyph_ids(&self, c: char) -> anyhow::Result<CharGlyphIds> {
+        let mut buf = UnicodeBuffer::new();
+        buf.set_direction(Direction::TopToBottom);
+        buf.add(c, 0);
+        for face in self.faces().iter() {
+            if let Some(horizontal_glyph_id) = face.glyph_index(c) {
+                let vertical_glyph_buffer = shape(face, &[], buf);
+                let vertical_glyph_id =
+                    GlyphId(vertical_glyph_buffer.glyph_infos()[0].glyph_id as u16);
+                let vertical_glyph_id = if horizontal_glyph_id == vertical_glyph_id {
+                    None
+                } else {
+                    Some(vertical_glyph_id)
+                };
+                return Ok(CharGlyphIds {
+                    horizontal_glyph_id,
+                    vertical_glyph_id,
+                });
+            }
+        }
+        anyhow::bail!("no glyph. char:{}", c)
     }
 
     pub(crate) fn convert(&self, c: char) -> anyhow::Result<GlyphVertex> {
@@ -31,6 +58,11 @@ impl FontVertexConverter {
         }
         anyhow::bail!("no glyph. char:{}", c)
     }
+}
+
+struct CharGlyphIds {
+    horizontal_glyph_id: GlyphId,
+    vertical_glyph_id: Option<GlyphId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -279,5 +311,42 @@ impl OutlineBuilder for GlyphVertexBuilder {
 
     fn close(&mut self) {
         // noop
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use font_collector::FontCollector;
+
+    use super::FontVertexConverter;
+
+    const FONT_DATA: &[u8] = include_bytes!("../examples/font/HackGenConsole-Regular.ttf");
+    const EMOJI_FONT_DATA: &[u8] = include_bytes!("../examples/font/NotoEmoji-Regular.ttf");
+
+    #[test]
+    fn get_char_glyph_ids_test() {
+        let collector = FontCollector::default();
+        let font_binaries = vec![
+            collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
+            collector
+                .convert_font(EMOJI_FONT_DATA.to_vec(), None)
+                .unwrap(),
+        ];
+        let converter = FontVertexConverter::new(font_binaries);
+
+        let cases = vec![
+            // 縦書きでも同じグリフが使われる文字
+            ('a', false),
+            ('あ', false),
+            ('🐖', false),
+            // 縦書きでは別のグリフが使われる文字
+            ('。', true),
+            ('「', true),
+            ('ー', true),
+        ];
+        for (c, expected) in cases {
+            let ids = converter.get_char_glyph_ids(c).expect("get char glyph ids");
+            assert_eq!(ids.vertical_glyph_id.is_some(), expected);
+        }
     }
 }
