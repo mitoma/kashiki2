@@ -9,7 +9,9 @@ use font_collector::FontData;
 use log::{debug, info};
 use wgpu::BufferUsages;
 
-use crate::font_converter::{FontVertexConverter, GlyphVertex, GlyphWidth, Vertex};
+use crate::font_converter::{
+    FontVertexConverter, GlyphVertex, GlyphVertexData, GlyphWidth, Vertex,
+};
 
 struct BufferIndexEntry {
     vertex_buffer_index: usize,
@@ -112,7 +114,7 @@ impl GlyphVertexBuffer {
     }
 
     pub(crate) fn draw_info(&self, c: &char) -> anyhow::Result<DrawInfo> {
-        let (h_index, v_index) = &self
+        let (h_index, _v_index) = &self
             .buffer_index
             .get(c)
             .with_context(|| format!("get char from buffer index. c:{}", c))?;
@@ -175,15 +177,24 @@ impl GlyphVertexBuffer {
             .collect::<Vec<_>>();
 
         while let Some(glyph) = glyphs.pop() {
-            let c = glyph.c;
-            let h_entry = self.inner_append_glyph(device, queue, glyph)?;
+            let GlyphVertex {
+                c,
+                h_vertex,
+                v_vertex,
+                width,
+            } = glyph;
 
+            let h_entry = self.inner_append_glyph(device, queue, c, width, h_vertex)?;
+            let v_entry = v_vertex.and_then(|v_vertex| {
+                self.inner_append_glyph(device, queue, c, width, v_vertex)
+                    .ok()
+            });
             self.buffer_index.insert(
                 c,
                 (
                     h_entry,
                     // TODO: ここで縦書き用のエントリーもあれば登録する
-                    None,
+                    v_entry,
                 ),
             );
         }
@@ -202,7 +213,9 @@ impl GlyphVertexBuffer {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        glyph: GlyphVertex,
+        c: char,
+        width: GlyphWidth,
+        glyph: GlyphVertexData,
     ) -> anyhow::Result<BufferIndexEntry> {
         self.ensure_buffer_capacity(device, queue, &glyph);
 
@@ -251,7 +264,7 @@ impl GlyphVertexBuffer {
 
         debug!(
             "char:{},  vertex_len:{}, vertex:{:?}, data_len: {}, data: {:?}, range:{}..{}",
-            glyph.c,
+            c,
             glyph.vertex.len(),
             glyph.vertex,
             data.len(),
@@ -264,7 +277,7 @@ impl GlyphVertexBuffer {
             vertex_buffer_index,
             index_buffer_index,
             index_buffer_range: range_start..range_end,
-            glyph_width: glyph.width,
+            glyph_width: width,
         })
     }
 
@@ -273,7 +286,7 @@ impl GlyphVertexBuffer {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        glyph: &GlyphVertex,
+        glyph: &GlyphVertexData,
     ) {
         let vertex_size = glyph.vertex_size();
         let index_size = glyph.index_size();

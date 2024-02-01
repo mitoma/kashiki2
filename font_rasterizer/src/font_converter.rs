@@ -153,12 +153,17 @@ struct InternalVertex {
 
 pub(crate) struct GlyphVertex {
     pub(crate) c: char,
-    pub(crate) vertex: Vec<Vertex>,
-    pub(crate) index: Vec<u32>,
+    pub(crate) h_vertex: GlyphVertexData,
+    pub(crate) v_vertex: Option<GlyphVertexData>,
     pub(crate) width: GlyphWidth,
 }
 
-impl GlyphVertex {
+pub(crate) struct GlyphVertexData {
+    pub(crate) vertex: Vec<Vertex>,
+    pub(crate) index: Vec<u32>,
+}
+
+impl GlyphVertexData {
     pub fn vertex_size(&self) -> u64 {
         (self.vertex.len() * std::mem::size_of::<Vertex>()) as u64
     }
@@ -244,8 +249,11 @@ impl GlyphVertexBuilder {
             .collect();
         Ok(GlyphVertex {
             c,
-            vertex,
-            index: self.index,
+            h_vertex: GlyphVertexData {
+                vertex,
+                index: self.index,
+            },
+            v_vertex: None,
             width,
         })
     }
