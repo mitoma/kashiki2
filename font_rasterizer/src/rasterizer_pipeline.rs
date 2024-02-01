@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    font_buffer::GlyphVertexBuffer,
+    font_buffer::{Direction, GlyphVertexBuffer},
     instances::{GlyphInstances, InstanceRaw},
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
@@ -354,7 +354,8 @@ impl RasterizerPipeline {
             overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
             for (c, instances) in instance_buffers.iter() {
                 for (len, buffer) in instances {
-                    if let Ok(draw_info) = glyph_vertex_buffer.draw_info(c) {
+                    // TODO おそらく Instances に Direction の情報を持たせてここで使うべき
+                    if let Ok(draw_info) = glyph_vertex_buffer.draw_info(c, Direction::Horizontal) {
                         // グリフの座標情報
                         overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
                         // インスタンスの位置

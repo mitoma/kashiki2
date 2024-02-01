@@ -13,6 +13,11 @@ use crate::font_converter::{
     FontVertexConverter, GlyphVertex, GlyphVertexData, GlyphWidth, Vertex,
 };
 
+pub(crate) enum Direction {
+    Horizontal,
+    Vertical,
+}
+
 struct BufferIndexEntry {
     vertex_buffer_index: usize,
     index_buffer_index: usize,
@@ -113,14 +118,16 @@ impl GlyphVertexBuffer {
         }
     }
 
-    pub(crate) fn draw_info(&self, c: &char) -> anyhow::Result<DrawInfo> {
-        let (h_index, _v_index) = &self
+    pub(crate) fn draw_info(&self, c: &char, direction: Direction) -> anyhow::Result<DrawInfo> {
+        let (h_index, v_index) = &self
             .buffer_index
             .get(c)
             .with_context(|| format!("get char from buffer index. c:{}", c))?;
 
-        // TODO: ここで h_index と v_index の切り替えを行う想定
-        let index = h_index;
+        let index = match direction {
+            Direction::Horizontal => h_index,
+            Direction::Vertical => v_index.as_ref().unwrap_or(h_index),
+        };
 
         let vertex_buffer = &self.vertex_buffers[index.vertex_buffer_index];
         let index_buffer = &self.index_buffers[index.index_buffer_index];
@@ -317,7 +324,7 @@ impl GlyphVertexBuffer {
     }
 
     pub fn width(&self, c: char) -> GlyphWidth {
-        let draw_info = self.draw_info(&c);
+        let draw_info = self.draw_info(&c, Direction::Horizontal);
         draw_info
             .map(|i| i.glyph_width)
             .cloned()
