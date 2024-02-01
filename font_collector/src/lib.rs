@@ -3,7 +3,7 @@ pub mod convert_text;
 use std::path::PathBuf;
 
 use convert_text::PreferredLanguage;
-use log::info;
+use log::{info, warn};
 
 pub struct FontData {
     pub font_name: String,
@@ -37,10 +37,14 @@ impl FontCollector {
     fn list_font_files(&self) -> Vec<PathBuf> {
         let mut fonts = Vec::new();
 
-        self.font_paths.iter().for_each(|font_path| {
+        for font_path in &self.font_paths {
+            if !font_path.exists() {
+                warn!("font_path:{:?} not found", font_path);
+                continue;
+            }
             if font_path.is_file() {
                 fonts.push(font_path.clone());
-                return;
+                continue;
             }
             for entry in std::fs::read_dir(font_path).unwrap() {
                 let entry = entry.unwrap();
@@ -49,7 +53,7 @@ impl FontCollector {
                     fonts.push(path);
                 }
             }
-        });
+        }
         fonts
     }
 
@@ -163,7 +167,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore]
     fn test_list_fonts() {
         let mut collector = FontCollector::default();
         collector.add_system_fonts();
@@ -173,7 +176,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_list_fonts2() {
         let mut collector = FontCollector::default();
         collector.add_font_path(PathBuf::from("../font_rasterizer/examples/font"));
