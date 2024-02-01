@@ -215,16 +215,16 @@ impl GlyphVertexBuffer {
         queue: &wgpu::Queue,
         c: char,
         width: GlyphWidth,
-        glyph: GlyphVertexData,
+        glyph_data: GlyphVertexData,
     ) -> anyhow::Result<BufferIndexEntry> {
-        self.ensure_buffer_capacity(device, queue, &glyph);
+        self.ensure_buffer_capacity(device, queue, &glyph_data);
 
         let vertex_buffer_index = self
-            .appendable_vertex_buffer_index(glyph.vertex_size())
+            .appendable_vertex_buffer_index(glyph_data.vertex_size())
             .with_context(|| "fail ensure vertex_buffer")?;
 
         let index_buffer_index = self
-            .appendable_index_buffer_index(glyph.index_size())
+            .appendable_index_buffer_index(glyph_data.index_size())
             .with_context(|| "fail ensure index_buffer")?;
 
         // buffer に書き込むキューを登録する
@@ -234,16 +234,16 @@ impl GlyphVertexBuffer {
         queue.write_buffer(
             &vertex_buffer.wgpu_buffer,
             vertex_buffer.offset,
-            bytemuck::cast_slice(&glyph.vertex),
+            bytemuck::cast_slice(&glyph_data.vertex),
         );
-        vertex_buffer.offset += glyph.vertex_size();
+        vertex_buffer.offset += glyph_data.vertex_size();
         debug!("post vertex offset:{}", vertex_buffer.offset);
         debug!("next_index_position :{}", next_index_position);
 
         let index_buffer = self.index_buffers.get_mut(index_buffer_index).unwrap();
         let range_start = index_buffer.next_range_position();
         // vertex buffer に既に入っている座標の分だけ index をずらす
-        let data = glyph
+        let data = glyph_data
             .index
             .iter()
             .map(|idx| {
@@ -259,14 +259,14 @@ impl GlyphVertexBuffer {
             index_buffer.offset,
             bytemuck::cast_slice(&data),
         );
-        index_buffer.offset += glyph.index_size();
+        index_buffer.offset += glyph_data.index_size();
         let range_end = index_buffer.next_range_position();
 
         debug!(
             "char:{},  vertex_len:{}, vertex:{:?}, data_len: {}, data: {:?}, range:{}..{}",
             c,
-            glyph.vertex.len(),
-            glyph.vertex,
+            glyph_data.vertex.len(),
+            glyph_data.vertex,
             data.len(),
             data,
             range_start,
