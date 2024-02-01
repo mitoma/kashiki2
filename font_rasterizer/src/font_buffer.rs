@@ -189,14 +189,7 @@ impl GlyphVertexBuffer {
                 self.inner_append_glyph(device, queue, c, width, v_vertex)
                     .ok()
             });
-            self.buffer_index.insert(
-                c,
-                (
-                    h_entry,
-                    // TODO: ここで縦書き用のエントリーもあれば登録する
-                    v_entry,
-                ),
-            );
+            self.buffer_index.insert(c, (h_entry, v_entry));
         }
 
         info!(
