@@ -95,7 +95,7 @@ pub(crate) struct DrawInfo<'a> {
 
 pub struct GlyphVertexBuffer {
     font_vertex_converter: FontVertexConverter,
-    buffer_index: BTreeMap<char, BufferIndexEntry>,
+    buffer_index: BTreeMap<char, (BufferIndexEntry, Option<BufferIndexEntry>)>,
     vertex_buffers: Vec<VertexBuffer>,
     index_buffers: Vec<IndexBuffer>,
 }
@@ -112,10 +112,14 @@ impl GlyphVertexBuffer {
     }
 
     pub(crate) fn draw_info(&self, c: &char) -> anyhow::Result<DrawInfo> {
-        let index = &self
+        let (h_index, v_index) = &self
             .buffer_index
             .get(c)
             .with_context(|| format!("get char from buffer index. c:{}", c))?;
+
+        // TODO: ここで h_index と v_index の切り替えを行う想定
+        let index = h_index;
+
         let vertex_buffer = &self.vertex_buffers[index.vertex_buffer_index];
         let index_buffer = &self.index_buffers[index.index_buffer_index];
         let draw_info = DrawInfo {
@@ -248,12 +252,16 @@ impl GlyphVertexBuffer {
 
         self.buffer_index.insert(
             glyph.c,
-            BufferIndexEntry {
-                vertex_buffer_index,
-                index_buffer_index,
-                index_buffer_range: range_start..range_end,
-                glyph_width: glyph.width,
-            },
+            (
+                BufferIndexEntry {
+                    vertex_buffer_index,
+                    index_buffer_index,
+                    index_buffer_range: range_start..range_end,
+                    glyph_width: glyph.width,
+                },
+                // TODO: ここで縦書き用のエントリーもあれば登録する
+                None,
+            ),
         );
 
         Ok(())
