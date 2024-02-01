@@ -37,9 +37,9 @@ impl FontVertexConverter {
                 let vertical_glyph_id =
                     GlyphId(vertical_glyph_buffer.glyph_infos()[0].glyph_id as u16);
                 let vertical_glyph_id = if horizontal_glyph_id == vertical_glyph_id {
-                    horizontal_glyph_id
+                    None
                 } else {
-                    vertical_glyph_id
+                    Some(vertical_glyph_id)
                 };
                 return Ok((
                     face,
@@ -54,14 +54,32 @@ impl FontVertexConverter {
     }
 
     pub(crate) fn convert(&self, c: char) -> anyhow::Result<GlyphVertex> {
-        let (face, _char_glyph_ids) = self.get_face_and_glyph_ids(c)?;
-        GlyphVertexBuilder::new().build(c, &face)
+        let (
+            face,
+            CharGlyphIds {
+                horizontal_glyph_id,
+                vertical_glyph_id,
+            },
+        ) = self.get_face_and_glyph_ids(c)?;
+        let width = GlyphWidth::get_width(c, &face);
+        let h_vertex = GlyphVertexBuilder::new().build(horizontal_glyph_id, width, &face)?;
+        let v_vertex = vertical_glyph_id.and_then(|vertical_glyph_id| {
+            GlyphVertexBuilder::new()
+                .build(vertical_glyph_id, width, &face)
+                .ok()
+        });
+        Ok(GlyphVertex {
+            c,
+            h_vertex,
+            v_vertex,
+            width,
+        })
     }
 }
 
 struct CharGlyphIds {
     horizontal_glyph_id: GlyphId,
-    vertical_glyph_id: GlyphId,
+    vertical_glyph_id: Option<GlyphId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -195,15 +213,16 @@ impl GlyphVertexBuilder {
         self.vertex_swap
     }
 
-    pub(crate) fn build(mut self, c: char, face: &Face) -> anyhow::Result<GlyphVertex> {
-        let glyph_id = face
-            .glyph_index(c)
-            .with_context(|| format!("no glyph. char:{}", c))?;
+    pub(crate) fn build(
+        mut self,
+        glyph_id: GlyphId,
+        width: GlyphWidth,
+        face: &Face,
+    ) -> anyhow::Result<GlyphVertexData> {
         let rect = face
             .outline_glyph(glyph_id, &mut self)
-            .with_context(|| format!("ougline glyph is afiled. char:{}", c))?;
+            .with_context(|| format!("ougline glyph is afiled. glyph_id:{:?}", glyph_id))?;
 
-        let width = GlyphWidth::get_width(c, face);
         let global = face.global_bounding_box();
         let global_width = global.width() as f32;
         let global_height = global.height() as f32;
@@ -247,14 +266,9 @@ impl GlyphVertexBuilder {
                 }
             })
             .collect();
-        Ok(GlyphVertex {
-            c,
-            h_vertex: GlyphVertexData {
-                vertex,
-                index: self.index,
-            },
-            v_vertex: None,
-            width,
+        Ok(GlyphVertexData {
+            vertex,
+            index: self.index,
         })
     }
 }
@@ -355,7 +369,7 @@ mod test {
             let (_, ids) = converter
                 .get_face_and_glyph_ids(c)
                 .expect("get char glyph ids");
-            assert_eq!(ids.horizontal_glyph_id != ids.vertical_glyph_id, expected);
+            assert_eq!(ids.vertical_glyph_id.is_some(), expected);
         }
     }
 }
