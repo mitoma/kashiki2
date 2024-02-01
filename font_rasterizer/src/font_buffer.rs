@@ -43,6 +43,7 @@ impl VertexBuffer {
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        // バッファの最初には常に原点の座標を入れておく
         queue.write_buffer(&wgpu_buffer, 0, bytemuck::cast_slice(&[ZERO_VERTEX]));
         Self {
             offset: std::mem::size_of::<Vertex>() as u64,
