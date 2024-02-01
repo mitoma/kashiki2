@@ -37,9 +37,9 @@ impl FontVertexConverter {
                 let vertical_glyph_id =
                     GlyphId(vertical_glyph_buffer.glyph_infos()[0].glyph_id as u16);
                 let vertical_glyph_id = if horizontal_glyph_id == vertical_glyph_id {
-                    None
+                    horizontal_glyph_id
                 } else {
-                    Some(vertical_glyph_id)
+                    vertical_glyph_id
                 };
                 return Ok(CharGlyphIds {
                     horizontal_glyph_id,
@@ -62,7 +62,7 @@ impl FontVertexConverter {
 
 struct CharGlyphIds {
     horizontal_glyph_id: GlyphId,
-    vertical_glyph_id: Option<GlyphId>,
+    vertical_glyph_id: GlyphId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -346,7 +346,7 @@ mod test {
         ];
         for (c, expected) in cases {
             let ids = converter.get_char_glyph_ids(c).expect("get char glyph ids");
-            assert_eq!(ids.vertical_glyph_id.is_some(), expected);
+            assert_eq!(ids.horizontal_glyph_id != ids.vertical_glyph_id, expected);
         }
     }
 }
