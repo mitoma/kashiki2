@@ -175,7 +175,17 @@ impl GlyphVertexBuffer {
             .collect::<Vec<_>>();
 
         while let Some(glyph) = glyphs.pop() {
-            self.inner_append_glyph(device, queue, glyph)?;
+            let c = glyph.c;
+            let h_entry = self.inner_append_glyph(device, queue, glyph)?;
+
+            self.buffer_index.insert(
+                c,
+                (
+                    h_entry,
+                    // TODO: ここで縦書き用のエントリーもあれば登録する
+                    None,
+                ),
+            );
         }
 
         info!(
@@ -193,7 +203,7 @@ impl GlyphVertexBuffer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         glyph: GlyphVertex,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<BufferIndexEntry> {
         self.ensure_buffer_capacity(device, queue, &glyph);
 
         let vertex_buffer_index = self
@@ -250,21 +260,12 @@ impl GlyphVertexBuffer {
             range_end
         );
 
-        self.buffer_index.insert(
-            glyph.c,
-            (
-                BufferIndexEntry {
-                    vertex_buffer_index,
-                    index_buffer_index,
-                    index_buffer_range: range_start..range_end,
-                    glyph_width: glyph.width,
-                },
-                // TODO: ここで縦書き用のエントリーもあれば登録する
-                None,
-            ),
-        );
-
-        Ok(())
+        Ok(BufferIndexEntry {
+            vertex_buffer_index,
+            index_buffer_index,
+            index_buffer_range: range_start..range_end,
+            glyph_width: glyph.width,
+        })
     }
 
     // 空いている vertex, index バッファを探し、無ければバッファを作る
