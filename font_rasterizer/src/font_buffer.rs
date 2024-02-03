@@ -13,7 +13,8 @@ use crate::font_converter::{
     FontVertexConverter, GlyphVertex, GlyphVertexData, GlyphWidth, Vertex,
 };
 
-pub(crate) enum Direction {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Direction {
     Horizontal,
     Vertical,
 }
@@ -118,7 +119,7 @@ impl GlyphVertexBuffer {
         }
     }
 
-    pub(crate) fn draw_info(&self, c: &char, direction: Direction) -> anyhow::Result<DrawInfo> {
+    pub(crate) fn draw_info(&self, c: &char, direction: &Direction) -> anyhow::Result<DrawInfo> {
         let (h_index, v_index) = &self
             .buffer_index
             .get(c)
@@ -324,7 +325,7 @@ impl GlyphVertexBuffer {
     }
 
     pub fn width(&self, c: char) -> GlyphWidth {
-        let draw_info = self.draw_info(&c, Direction::Horizontal);
+        let draw_info = self.draw_info(&c, &Direction::Horizontal);
         draw_info
             .map(|i| i.glyph_width)
             .cloned()

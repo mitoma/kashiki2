@@ -4,7 +4,9 @@ use cgmath::{num_traits::ToPrimitive, Rotation3};
 use instant::Duration;
 use log::info;
 
-use crate::{color_theme::SolarizedColor, motion::MotionFlags, time::now_millis};
+use crate::{
+    color_theme::SolarizedColor, font_buffer::Direction, motion::MotionFlags, time::now_millis,
+};
 
 #[derive(Clone, Copy)]
 pub struct GlyphInstance {
@@ -86,6 +88,7 @@ impl GlyphInstance {
 
 pub struct GlyphInstances {
     pub c: char,
+    pub direction: Direction,
     values: BTreeMap<InstanceKey, GlyphInstance>,
     buffer_size: u64,
     buffer: wgpu::Buffer,
@@ -116,6 +119,7 @@ impl GlyphInstances {
         });
         Self {
             c,
+            direction: Direction::Horizontal,
             values,
             buffer_size,
             buffer,
