@@ -128,12 +128,8 @@ impl GlyphInstances {
         }
     }
 
-    pub fn set_horizontal_direction(&mut self) {
-        self.direction = Direction::Horizontal;
-    }
-
-    pub fn set_vertical_direction(&mut self) {
-        self.direction = Direction::Vertical;
+    pub fn set_direction(&mut self, direction: &Direction) {
+        self.direction = direction.clone();
     }
 
     pub fn len(&self) -> usize {

@@ -11,15 +11,16 @@ use text_buffer::{
 use crate::{
     color_theme,
     easing_value::EasingPoint3,
-    font_buffer::GlyphVertexBuffer,
+    font_buffer::{Direction, GlyphVertexBuffer},
     instances::{GlyphInstance, GlyphInstances},
-    layout_engine::Model,
+    layout_engine::{Model, ModelOperation},
     motion::MotionFlags,
     text_instances::TextInstances,
 };
 
 pub struct TextEdit {
     editor: Editor,
+    direction: Direction,
     receiver: Receiver<ChangeEvent>,
     buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
     removed_buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
@@ -39,6 +40,7 @@ impl Default for TextEdit {
 
         Self {
             editor: Editor::new(tx),
+            direction: Direction::Horizontal,
             receiver: rx,
             buffer_chars: BTreeMap::new(),
             removed_buffer_chars: BTreeMap::new(),
@@ -97,6 +99,19 @@ impl Model for TextEdit {
 
     fn operation(&mut self, op: &text_buffer::action::EditorOperation) {
         self.editor.operation(op)
+    }
+
+    fn model_operation(&mut self, op: &ModelOperation) {
+        match op {
+            ModelOperation::ChangeDirection => {
+                match self.direction {
+                    Direction::Horizontal => self.direction = Direction::Vertical,
+                    Direction::Vertical => self.direction = Direction::Horizontal,
+                }
+                self.instances.set_direction(&self.direction);
+                self.updated = true;
+            }
+        }
     }
 }
 

@@ -9,15 +9,16 @@ use log::info;
 
 use crate::{
     color_theme::ColorTheme,
-    font_buffer::GlyphVertexBuffer,
+    font_buffer::{Direction, GlyphVertexBuffer},
     instances::{GlyphInstance, GlyphInstances},
-    layout_engine::Model,
+    layout_engine::{Model, ModelOperation},
     motion::MotionFlags,
     time::now_millis,
 };
 
 pub struct PlaneTextReader {
     pub value: String,
+    direction: Direction,
     motion: MotionFlags,
     instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
@@ -67,6 +68,18 @@ impl Model for PlaneTextReader {
     fn operation(&mut self, _op: &text_buffer::action::EditorOperation) {
         // noop
     }
+
+    fn model_operation(&mut self, op: &ModelOperation) {
+        match op {
+            ModelOperation::ChangeDirection => {
+                match self.direction {
+                    Direction::Horizontal => self.direction = Direction::Vertical,
+                    Direction::Vertical => self.direction = Direction::Horizontal,
+                }
+                self.updated = true;
+            }
+        }
+    }
 }
 
 impl PlaneTextReader {
@@ -110,6 +123,7 @@ impl PlaneTextReader {
     pub fn new(value: String) -> Self {
         Self {
             value,
+            direction: Direction::Horizontal,
             instances: BTreeMap::new(),
             updated: true,
             motion: MotionFlags::ZERO_MOTION,
@@ -221,9 +235,10 @@ impl PlaneTextReader {
             self.instances.values().map(|i| i.len()).sum::<usize>()
         );
 
-        self.instances
-            .values_mut()
-            .for_each(|i| i.update_buffer(device, queue));
+        self.instances.values_mut().for_each(|i| {
+            i.set_direction(&self.direction);
+            i.update_buffer(device, queue);
+        });
 
         self.instances.values().collect()
     }

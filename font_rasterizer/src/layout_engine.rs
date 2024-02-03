@@ -46,6 +46,7 @@ pub trait World {
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
 
     fn operation(&mut self, op: &EditorOperation);
+    fn model_operation(&mut self, op: &ModelOperation);
 }
 
 pub struct HorizontalWorld {
@@ -63,6 +64,10 @@ impl HorizontalWorld {
             models: Vec::new(),
             focus: 0,
         }
+    }
+
+    fn get_current_mut(&mut self) -> Option<&mut Box<dyn Model>> {
+        self.models.get_mut(self.focus)
     }
 }
 const INTERVAL: f32 = 5.0;
@@ -133,9 +138,7 @@ impl World for HorizontalWorld {
     }
 
     fn operation(&mut self, op: &EditorOperation) {
-        if let Some(model) = self.models.get_mut(self.focus) {
-            model.operation(op);
-        }
+        self.get_current_mut().map(|model| model.operation(op));
     }
 
     fn look_current(&mut self, adjustment: CameraAdjustment) {
@@ -154,6 +157,11 @@ impl World for HorizontalWorld {
             self.focus - 1
         };
         self.look_at(prev, adjustment)
+    }
+
+    fn model_operation(&mut self, op: &ModelOperation) {
+        self.get_current_mut()
+            .map(|model| model.model_operation(op));
     }
 }
 
@@ -175,4 +183,9 @@ pub trait Model {
         queue: &wgpu::Queue,
     );
     fn operation(&mut self, op: &EditorOperation);
+    fn model_operation(&mut self, op: &ModelOperation);
+}
+
+pub enum ModelOperation {
+    ChangeDirection,
 }

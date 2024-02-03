@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use text_buffer::{buffer::BufferChar, caret::Caret};
 use wgpu::{Device, Queue};
 
-use crate::instances::{GlyphInstance, GlyphInstances, InstanceKey};
+use crate::{font_buffer::Direction, instances::{GlyphInstance, GlyphInstances, InstanceKey}};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct TextInstancesKey {
@@ -97,6 +97,12 @@ impl TextInstances {
     pub fn update(&mut self, device: &Device, queue: &Queue) {
         for instances in self.glyph_instances.values_mut() {
             instances.update_buffer(device, queue)
+        }
+    }
+
+    pub fn set_direction(&mut self, direction: &Direction) {
+        for instances in self.glyph_instances.values_mut() {
+            instances.set_direction(direction);
         }
     }
 

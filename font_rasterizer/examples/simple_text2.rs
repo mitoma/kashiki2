@@ -9,7 +9,7 @@ use font_rasterizer::{
     color_theme::ColorTheme::{self, SolarizedDark},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
-    layout_engine::{HorizontalWorld, World},
+    layout_engine::{HorizontalWorld, ModelOperation, World},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     ui::{ime_input::ImeInput, textedit::TextEdit},
@@ -148,6 +148,10 @@ impl SimpleStateCallback for SingleCharCallback {
                     "right" => self.world.look_next(CameraAdjustment::FitBoth),
                     "forward" => self.world.camera_operation(CameraOperation::Forward),
                     "back" => self.world.camera_operation(CameraOperation::Backward),
+                    "change-direction" => {
+                        info!("change direction");
+                        self.world.model_operation(&ModelOperation::ChangeDirection)
+                    }
                     _ => {}
                 };
                 InputResult::InputConsumed
