@@ -326,10 +326,10 @@ impl GlyphVertexBuffer {
     }
 
     pub fn width(&self, c: char) -> GlyphWidth {
-        let draw_info = self.draw_info(&c, &Direction::Horizontal);
-        draw_info
-            .map(|i| i.glyph_width)
-            .cloned()
-            .unwrap_or(GlyphWidth::Regular)
+        if let Ok(draw_info) = self.draw_info(&c, &Direction::Horizontal) {
+            draw_info.glyph_width.clone()
+        } else {
+            GlyphWidth::Regular
+        }
     }
 }
