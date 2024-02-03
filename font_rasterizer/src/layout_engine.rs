@@ -137,10 +137,6 @@ impl World for HorizontalWorld {
         self.camera_controller.reset_state();
     }
 
-    fn operation(&mut self, op: &EditorOperation) {
-        self.get_current_mut().map(|model| model.operation(op));
-    }
-
     fn look_current(&mut self, adjustment: CameraAdjustment) {
         self.look_at(self.focus, adjustment)
     }
@@ -159,9 +155,16 @@ impl World for HorizontalWorld {
         self.look_at(prev, adjustment)
     }
 
+    fn operation(&mut self, op: &EditorOperation) {
+        if let Some(model) = self.get_current_mut() {
+            model.operation(op);
+        }
+    }
+
     fn model_operation(&mut self, op: &ModelOperation) {
-        self.get_current_mut()
-            .map(|model| model.model_operation(op));
+        if let Some(model) = self.get_current_mut() {
+            model.model_operation(op);
+        }
     }
 }
 

@@ -129,7 +129,7 @@ impl GlyphInstances {
     }
 
     pub fn set_direction(&mut self, direction: &Direction) {
-        self.direction = direction.clone();
+        self.direction = *direction;
     }
 
     pub fn len(&self) -> usize {

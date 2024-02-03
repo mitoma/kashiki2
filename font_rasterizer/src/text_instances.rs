@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use text_buffer::{buffer::BufferChar, caret::Caret};
 use wgpu::{Device, Queue};
 
-use crate::{font_buffer::Direction, instances::{GlyphInstance, GlyphInstances, InstanceKey}};
+use crate::{
+    font_buffer::Direction,
+    instances::{GlyphInstance, GlyphInstances, InstanceKey},
+};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct TextInstancesKey {
