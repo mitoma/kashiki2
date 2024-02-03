@@ -46,14 +46,16 @@ impl TextInstancesKey {
 #[derive(Default)]
 pub struct TextInstances {
     glyph_instances: BTreeMap<char, GlyphInstances>,
+    direction: Direction,
 }
 
 impl TextInstances {
     pub fn add(&mut self, key: TextInstancesKey, instance: GlyphInstance, device: &Device) {
-        let instances = self
-            .glyph_instances
-            .entry(key.c)
-            .or_insert_with(|| GlyphInstances::new(key.c, device));
+        let instances = self.glyph_instances.entry(key.c).or_insert_with(|| {
+            let mut instances = GlyphInstances::new(key.c, device);
+            instances.set_direction(&self.direction);
+            instances
+        });
         instances.insert(key.to_instance_key(), instance)
     }
 
@@ -104,6 +106,7 @@ impl TextInstances {
     }
 
     pub fn set_direction(&mut self, direction: &Direction) {
+        self.direction = *direction;
         for instances in self.glyph_instances.values_mut() {
             instances.set_direction(direction);
         }

@@ -13,8 +13,9 @@ use crate::font_converter::{
     FontVertexConverter, GlyphVertex, GlyphVertexData, GlyphWidth, Vertex,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum Direction {
+    #[default]
     Horizontal,
     Vertical,
 }
