@@ -137,7 +137,7 @@ impl SimpleStateCallback for SingleCharCallback {
                     "undo" => EditorOperation::Undo,
                     _ => EditorOperation::Noop,
                 };
-                self.world.operation(&action);
+                self.world.editor_operation(&action);
                 InputResult::InputConsumed
             }
             Some(Action::Command(category, name)) if *category == "world" => {
@@ -159,12 +159,12 @@ impl SimpleStateCallback for SingleCharCallback {
             Some(Action::Command(_, _)) => InputResult::Noop,
             Some(Action::Keytype(c)) => {
                 let action = EditorOperation::InsertChar(c);
-                self.world.operation(&action);
+                self.world.editor_operation(&action);
                 InputResult::InputConsumed
             }
             Some(Action::ImeInput(value)) => {
                 self.ime.apply_ime_event(&Action::ImeInput(value.clone()));
-                self.world.operation(&EditorOperation::InsertString(value));
+                self.world.editor_operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
             Some(Action::ImePreedit(value, position)) => {

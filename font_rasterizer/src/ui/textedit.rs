@@ -97,7 +97,7 @@ impl Model for TextEdit {
         self.instances.update(device, queue);
     }
 
-    fn operation(&mut self, op: &text_buffer::action::EditorOperation) {
+    fn editor_operation(&mut self, op: &text_buffer::action::EditorOperation) {
         self.editor.operation(op)
     }
 

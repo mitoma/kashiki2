@@ -45,7 +45,7 @@ pub trait World {
     // glyph_instances を返す
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
 
-    fn operation(&mut self, op: &EditorOperation);
+    fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation);
 }
 
@@ -155,9 +155,9 @@ impl World for HorizontalWorld {
         self.look_at(prev, adjustment)
     }
 
-    fn operation(&mut self, op: &EditorOperation) {
+    fn editor_operation(&mut self, op: &EditorOperation) {
         if let Some(model) = self.get_current_mut() {
-            model.operation(op);
+            model.editor_operation(op);
         }
     }
 
@@ -185,7 +185,7 @@ pub trait Model {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     );
-    fn operation(&mut self, op: &EditorOperation);
+    fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation);
 }
 
