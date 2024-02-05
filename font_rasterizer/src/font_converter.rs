@@ -90,11 +90,20 @@ pub enum GlyphWidth {
 
 impl GlyphWidth {
     fn get_width(c: char, face: &Face) -> Self {
+        debug!("get_width:{}", c);
         if let Some(glyph_id) = face.glyph_index(c) {
             if let Some(rect) = face.glyph_bounding_box(glyph_id) {
-                if face.global_bounding_box().width() < rect.width() * 2 {
+                debug!(
+                    "glyph_id:{:?}, rect_width:{:?}, face_height:{:?}",
+                    glyph_id,
+                    rect.width(),
+                    face.height(),
+                );
+                // rect の横幅が face の高さの半分を超える場合は Wide とする
+                if face.height() < rect.width() * 2 {
                     return GlyphWidth::Wide;
                 }
+                // 超えない場合は UnicodeWidthChar で判定する
             }
         }
         match UnicodeWidthChar::width_cjk(c) {
@@ -339,7 +348,7 @@ impl OutlineBuilder for GlyphVertexBuilder {
 mod test {
     use font_collector::FontCollector;
 
-    use super::FontVertexConverter;
+    use super::{FontVertexConverter, GlyphWidth};
 
     const FONT_DATA: &[u8] = include_bytes!("../examples/font/HackGenConsole-Regular.ttf");
     const EMOJI_FONT_DATA: &[u8] = include_bytes!("../examples/font/NotoEmoji-Regular.ttf");
@@ -370,6 +379,44 @@ mod test {
                 .get_face_and_glyph_ids(c)
                 .expect("get char glyph ids");
             assert_eq!(ids.vertical_glyph_id.is_some(), expected);
+        }
+    }
+
+    #[test]
+    fn get_width() {
+        std::env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+
+        let collector = FontCollector::default();
+        let font_binaries = vec![
+            collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
+            collector
+                .convert_font(EMOJI_FONT_DATA.to_vec(), None)
+                .unwrap(),
+        ];
+        let converter = FontVertexConverter::new(font_binaries);
+
+        let mut cases = vec![
+            // 縦書きでも同じグリフが使われる文字
+            ('a', GlyphWidth::Regular),
+            ('あ', GlyphWidth::Wide),
+            ('🐖', GlyphWidth::Wide),
+            ('☺', GlyphWidth::Wide),
+        ];
+        // 半角アルファベットは GlyphWidth::Regular
+        let mut alpha_cases = ('A'..='z')
+            .map(|c| (c, GlyphWidth::Regular))
+            .collect::<Vec<_>>();
+        cases.append(&mut alpha_cases);
+        // 全角アルファベットは GlyphWidth::Wide
+        let mut zen_alpha_cases = ('Ａ'..='ｚ')
+            .map(|c| (c, GlyphWidth::Wide))
+            .collect::<Vec<_>>();
+        cases.append(&mut zen_alpha_cases);
+        for (c, expected) in cases {
+            let face = &converter.faces()[0];
+            let actual = super::GlyphWidth::get_width(c, face);
+            assert_eq!(actual, expected, "char:{}", c);
         }
     }
 }
