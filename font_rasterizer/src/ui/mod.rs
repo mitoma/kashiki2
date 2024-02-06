@@ -65,7 +65,7 @@ impl Model for PlaneTextReader {
         self.bound
     }
 
-    fn operation(&mut self, _op: &text_buffer::action::EditorOperation) {
+    fn editor_operation(&mut self, _op: &text_buffer::action::EditorOperation) {
         // noop
     }
 
