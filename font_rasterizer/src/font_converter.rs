@@ -94,9 +94,11 @@ impl GlyphWidth {
         if let Some(glyph_id) = face.glyph_index(c) {
             if let Some(rect) = face.glyph_bounding_box(glyph_id) {
                 debug!(
-                    "glyph_id:{:?}, rect_width:{:?}, face_height:{:?}",
+                    "glyph_id:{:?}, rect[width:{:?}, height:{:?}], face[width:{:?}, height:{:?}]",
                     glyph_id,
                     rect.width(),
+                    rect.height(),
+                    face.width(),
                     face.height(),
                 );
                 // rect の横幅が face の高さの半分を超える場合は Wide とする
@@ -414,8 +416,10 @@ mod test {
             .collect::<Vec<_>>();
         cases.append(&mut zen_alpha_cases);
         for (c, expected) in cases {
-            let face = &converter.faces()[0];
-            let actual = super::GlyphWidth::get_width(c, face);
+            let (face, _) = converter
+                .get_face_and_glyph_ids(c)
+                .expect("get char glyph ids");
+            let actual = super::GlyphWidth::get_width(c, &face);
             assert_eq!(actual, expected, "char:{}", c);
         }
     }
