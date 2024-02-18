@@ -13,7 +13,7 @@ use font_rasterizer::{
     ui::{ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 use std::{fs, path::PathBuf};
 use winit::event::WindowEvent;
 
@@ -97,6 +97,15 @@ impl SimpleStateCallback for MemoPadCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
+        let chars = self
+            .world
+            .strings()
+            .join("")
+            .chars()
+            .collect::<HashSet<char>>();
+        glyph_vertex_buffer
+            .append_glyph(device, queue, chars)
+            .unwrap();
         self.world.look_at(0, CameraAdjustment::FitBoth);
         self.update(glyph_vertex_buffer, device, queue);
     }
@@ -249,6 +258,10 @@ fn load_memos() -> Memos {
 }
 
 fn save_memos(memos: Memos) -> Result<(), std::io::Error> {
+    if load_memos().memos == memos.memos {
+        return Ok(());
+    }
+
     let memos_file = memos_file();
     // 上記のファイルを memos.[現在日時].json にリネームして保存する
     let now = chrono::Local::now();

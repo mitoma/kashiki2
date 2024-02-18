@@ -164,7 +164,8 @@ impl SimpleStateCallback for SingleCharCallback {
             }
             Some(Action::ImeInput(value)) => {
                 self.ime.apply_ime_event(&Action::ImeInput(value.clone()));
-                self.world.editor_operation(&EditorOperation::InsertString(value));
+                self.world
+                    .editor_operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
             Some(Action::ImePreedit(value, position)) => {
