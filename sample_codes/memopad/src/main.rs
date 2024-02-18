@@ -40,7 +40,7 @@ pub async fn run() {
 
     let callback = MemoPadCallback::new();
     let support = SimpleStateSupport {
-        window_title: "Hello".to_string(),
+        window_title: "Memopad".to_string(),
         window_size: (800, 600),
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
