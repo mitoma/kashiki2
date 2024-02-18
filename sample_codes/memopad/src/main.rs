@@ -188,7 +188,6 @@ impl SimpleStateCallback for MemoPadCallback {
                     }
                     "remove-memo" => {
                         self.world.remove_current();
-                        self.world.look_at(0, CameraAdjustment::FitBoth);
                         self.world.re_layout();
                         self.world.look_prev(CameraAdjustment::FitBoth);
                     }
