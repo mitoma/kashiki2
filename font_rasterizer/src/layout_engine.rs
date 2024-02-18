@@ -13,6 +13,9 @@ use crate::{
 pub trait World {
     // model を追加する
     fn add(&mut self, model: Box<dyn Model>);
+    // 現在参照している model を削除する
+    fn remove_current(&mut self);
+
     // 再レイアウトする update するときに呼び出すとよさそう
     fn re_layout(&mut self);
 
@@ -47,6 +50,7 @@ pub trait World {
 
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation);
+    fn strings(&self) -> Vec<String>;
 }
 
 pub struct HorizontalWorld {
@@ -166,6 +170,14 @@ impl World for HorizontalWorld {
             model.model_operation(op);
         }
     }
+
+    fn strings(&self) -> Vec<String> {
+        self.models.iter().map(|m| m.to_string()).collect()
+    }
+
+    fn remove_current(&mut self) {
+        self.models.remove(self.focus);
+    }
 }
 
 pub trait Model {
@@ -187,6 +199,7 @@ pub trait Model {
     );
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation);
+    fn to_string(&self) -> String;
 }
 
 pub enum ModelOperation {

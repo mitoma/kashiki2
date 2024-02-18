@@ -113,6 +113,10 @@ impl Model for TextEdit {
             }
         }
     }
+
+    fn to_string(&self) -> String {
+        self.editor.to_buffer_string()
+    }
 }
 
 impl TextEdit {
@@ -197,7 +201,10 @@ impl TextEdit {
         if let Some(caret_position) = self.carets.get_mut(&Caret::new_without_event(0, 0)) {
             let caret_x = initial_x + caret_width.left();
             let caret_y = y;
-            caret_position.update((caret_x, caret_y, 0.0).into());
+            caret_position.update(
+                Self::get_adjusted_position(self.direction, max_width, (caret_x, caret_y, 0.0))
+                    .into(),
+            );
         }
 
         // caret の位置決め
@@ -211,7 +218,14 @@ impl TextEdit {
                     {
                         let caret_x = initial_x + caret_width.left();
                         let caret_y = y - (r - current_row) as f32;
-                        caret_position.update((caret_x, caret_y, 0.0).into());
+                        caret_position.update(
+                            Self::get_adjusted_position(
+                                self.direction,
+                                max_width,
+                                (caret_x, caret_y, 0.0),
+                            )
+                            .into(),
+                        );
                     }
                 }
 
@@ -227,19 +241,28 @@ impl TextEdit {
 
             let glyph_width = glyph_vertex_buffer.width(c.c);
             x += glyph_width.left();
-            i.update((x, y, 0.0).into());
+            i.update(Self::get_adjusted_position(self.direction, max_width, (x, y, 0.0)).into());
 
             if let Some(caret_position) =
                 self.carets.get_mut(&Caret::new_without_event(c.row, c.col))
             {
-                caret_position.update((x, y, 0.0).into());
+                caret_position.update(
+                    Self::get_adjusted_position(self.direction, max_width, (x, y, 0.0)).into(),
+                );
             }
             x += glyph_width.right();
             if let Some(caret_position) = self
                 .carets
                 .get_mut(&Caret::new_without_event(c.row, c.col + 1))
             {
-                caret_position.update((x + caret_width.left(), y, 0.0).into());
+                caret_position.update(
+                    Self::get_adjusted_position(
+                        self.direction,
+                        max_width,
+                        (x + caret_width.left(), y, 0.0),
+                    )
+                    .into(),
+                );
             }
         }
 
@@ -247,11 +270,25 @@ impl TextEdit {
             if current_row < c.row {
                 let caret_x = initial_x + caret_width.left();
                 let caret_y = y - (c.row - current_row) as f32;
-                i.update((caret_x, caret_y, 0.0).into());
+                i.update(
+                    Self::get_adjusted_position(self.direction, max_width, (caret_x, caret_y, 0.0))
+                        .into(),
+                );
             }
         }
 
         self.updated = false;
+    }
+
+    fn get_adjusted_position(
+        direction: Direction,
+        max_width: f32,
+        position: (f32, f32, f32),
+    ) -> (f32, f32, f32) {
+        match direction {
+            Direction::Horizontal => position,
+            Direction::Vertical => (max_width + position.1, -position.0, position.2),
+        }
     }
 
     // 文字と caret の GPU で描画すべき位置やモーションを計算する

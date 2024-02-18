@@ -80,6 +80,10 @@ impl Model for PlaneTextReader {
             }
         }
     }
+
+    fn to_string(&self) -> String {
+        self.value.clone()
+    }
 }
 
 impl PlaneTextReader {
