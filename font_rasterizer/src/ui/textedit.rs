@@ -69,7 +69,27 @@ impl Model for TextEdit {
     }
 
     fn position(&self) -> Point3<f32> {
-        self.position
+        let caret_position = self
+            .carets
+            .first_key_value()
+            .map(|(_, c)| {
+                let (x, y, z) = c.current();
+                Point3::new(x, y, z)
+            })
+            .unwrap_or_else(|| Point3::new(0.0, 0.0, 0.0));
+
+        match self.direction {
+            Direction::Horizontal => Point3::new(
+                self.position.x,
+                self.position.y + caret_position.y + self.bound.1 / 2.0,
+                self.position.z,
+            ),
+            Direction::Vertical => Point3::new(
+                self.position.x + caret_position.x + self.bound.0 / 2.0,
+                self.position.y,
+                self.position.z,
+            ),
+        }
     }
 
     fn rotation(&self) -> Quaternion<f32> {
