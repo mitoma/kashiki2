@@ -251,7 +251,7 @@ fn save_memos(memos: Memos) -> Result<(), std::io::Error> {
     // 上記のファイルを memos.[現在日時].json にリネームして保存する
     let now = chrono::Local::now();
     let memos_file_backup =
-        memos_file.with_extension(format!("memos.{}.json", now.format("%Y%m%d%H%M%S")));
+        memos_file.with_extension(format!("{}.json", now.format("%Y%m%d%H%M%S")));
     fs::rename(&memos_file, memos_file_backup)?;
 
     let memos_json = serde_json::to_string(&memos.memos).unwrap();
