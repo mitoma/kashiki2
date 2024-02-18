@@ -112,7 +112,7 @@ impl SimpleStateCallback for MemoPadCallback {
         queue: &wgpu::Queue,
     ) {
         self.world
-            .update(&self.color_theme, glyph_vertex_buffer, &device, &queue);
+            .update(&self.color_theme, glyph_vertex_buffer, device, queue);
         self.ime
             .update(&self.color_theme, glyph_vertex_buffer, device, queue);
     }
@@ -252,7 +252,7 @@ fn save_memos(memos: Memos) -> Result<(), std::io::Error> {
     let now = chrono::Local::now();
     let memos_file_backup =
         memos_file.with_extension(format!("memos.{}.json", now.format("%Y%m%d%H%M%S")));
-    fs::rename(&memos_file, &memos_file_backup)?;
+    fs::rename(&memos_file, memos_file_backup)?;
 
     let memos_json = serde_json::to_string(&memos.memos).unwrap();
     fs::write(memos_file, memos_json)
