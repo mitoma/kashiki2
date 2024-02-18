@@ -292,6 +292,12 @@ impl KeyCode {
                 "]" => KeyCode::RBracket,
                 "," => KeyCode::Comma,
                 "." => KeyCode::Period,
+                // < と > は日本語キーボードの深遠な理由から Comma, Period として扱う。
+                // 以下、深遠な理由。
+                // 日本語キーボードでは < は Shift + , で入力されるため、Comma として扱う。
+                // 日本語キーボードでは > は Shift + . で入力されるため、Period として扱う。
+                "<" => KeyCode::Comma,
+                ">" => KeyCode::Period,
                 "/" => KeyCode::Slash,
                 _ => KeyCode::Unknown,
             },

@@ -23,7 +23,7 @@ const EMOJI_FONT_DATA: &[u8] =
     include_bytes!("../../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "simple_text=debug");
+    //std::env::set_var("RUST_LOG", "simple_text=debug");
     //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
     pollster::block_on(run());
 }
@@ -138,6 +138,8 @@ impl SimpleStateCallback for MemoPadCallback {
                     "head" => EditorOperation::Head,
                     "last" => EditorOperation::Last,
                     "undo" => EditorOperation::Undo,
+                    "buffer-head" => EditorOperation::BufferHead,
+                    "buffer-last" => EditorOperation::BufferLast,
                     _ => EditorOperation::Noop,
                 };
                 self.world.editor_operation(&action);
