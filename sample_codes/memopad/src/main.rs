@@ -182,14 +182,15 @@ impl SimpleStateCallback for MemoPadCallback {
                         let textedit = TextEdit::default();
                         let model = Box::new(textedit);
                         self.world.add(model);
+                        self.world.re_layout();
                         self.world
                             .look_at(self.world.model_length() - 1, CameraAdjustment::FitBoth);
-                        self.world.re_layout();
                     }
                     "remove-memo" => {
                         self.world.remove_current();
                         self.world.look_at(0, CameraAdjustment::FitBoth);
                         self.world.re_layout();
+                        self.world.look_prev(CameraAdjustment::FitBoth);
                     }
                     _ => {}
                 };
