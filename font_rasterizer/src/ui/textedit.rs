@@ -73,7 +73,7 @@ impl Model for TextEdit {
             .carets
             .first_key_value()
             .map(|(_, c)| {
-                let (x, y, z) = c.current();
+                let (x, y, z) = c.last();
                 Point3::new(x, y, z)
             })
             .unwrap_or_else(|| Point3::new(0.0, 0.0, 0.0));
