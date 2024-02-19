@@ -158,6 +158,7 @@ impl SimpleStateCallback for MemoPadCallback {
                 info!("world:");
 
                 match &*name.to_string() {
+                    "look-current" => self.world.look_current(CameraAdjustment::FitBoth),
                     "left" => self.world.look_prev(CameraAdjustment::FitBoth),
                     "right" => self.world.look_next(CameraAdjustment::FitBoth),
                     "forward" => self.world.camera_operation(CameraOperation::Forward),

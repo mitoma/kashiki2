@@ -17,7 +17,7 @@ C-F system:forward
 C-B system:back
 C-N system:next
 C-P system:previous
-A-S-Comma system:buffer-head
+A-S-Comma  system:buffer-head
 A-S-Period system:buffer-last
 
 C-H system:backspace
@@ -40,8 +40,9 @@ C-X C-S memopad:save
 C-X N memopad:add-memo
 C-X K memopad:remove-memo
 
+C-L     world:look-current
 C-Right world:right
 C-Left  world:left
 C-Up    world:forward
 C-Down  world:back
-A-D   world:change-direction
+A-D     world:change-direction
