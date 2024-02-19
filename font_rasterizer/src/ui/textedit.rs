@@ -85,7 +85,7 @@ impl Model for TextEdit {
                 self.position.z,
             ),
             Direction::Vertical => Point3::new(
-                self.position.x + caret_position.x + self.bound.0 / 2.0,
+                self.position.x + caret_position.x - self.bound.0 / 2.0,
                 self.position.y,
                 self.position.z,
             ),
