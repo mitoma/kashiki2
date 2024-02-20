@@ -111,8 +111,8 @@ impl SolarizedColor {
     #[allow(clippy::excessive_precision)]
     pub fn get_color(&self) -> [f32; 3] {
         match self {
-            SolarizedColor::Base03 => [0.0030352699, 0.0241576303, 0.0368894450],
-            SolarizedColor::Base02 => [0.0065120910, 0.0368894450, 0.0544802807],
+            SolarizedColor::Base03 => [0.0000000000, 0.0241576303, 0.0368894450],
+            SolarizedColor::Base02 => [0.0021246888, 0.0368894450, 0.0544802807],
             SolarizedColor::Base01 => [0.0975873619, 0.1559264660, 0.1778884083],
             SolarizedColor::Base00 => [0.1301364899, 0.1980693042, 0.2269658893],
             SolarizedColor::Base0 => [0.2269658893, 0.2961383164, 0.3049873710],
@@ -137,8 +137,8 @@ mod test {
     // good color scheme.
     // https://ethanschoonover.com/solarized/
     const SCHEMES: [(&str, u32, u32, u32); 16] = [
-        ("base03", 10, 43, 54),
-        ("base02", 19, 54, 66),
+        ("base03", 0, 43, 54),
+        ("base02", 7, 54, 66),
         ("base01", 88, 110, 117),
         ("base00", 101, 123, 131),
         ("base0", 131, 148, 150),
