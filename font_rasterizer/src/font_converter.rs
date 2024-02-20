@@ -404,6 +404,8 @@ mod test {
             ('あ', GlyphWidth::Wide),
             ('🐖', GlyphWidth::Wide),
             ('☺', GlyphWidth::Wide),
+            // 全角スペースは Wide
+            ('　', GlyphWidth::Wide),
         ];
         // 半角アルファベットは GlyphWidth::Regular
         let mut alpha_cases = ('A'..='z')
