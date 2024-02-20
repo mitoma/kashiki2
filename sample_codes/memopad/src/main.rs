@@ -74,6 +74,7 @@ impl MemoPadCallback {
         for memo in memos.memos {
             let mut textedit = TextEdit::default();
             textedit.editor_operation(&EditorOperation::InsertString(memo));
+            textedit.editor_operation(&EditorOperation::BufferHead);
             let model = Box::new(textedit);
             world.add(model);
         }
