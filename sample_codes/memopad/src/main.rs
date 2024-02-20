@@ -4,7 +4,7 @@ use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
-    color_theme::ColorTheme::{self, SolarizedDark},
+    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, Model, ModelOperation, World},
@@ -28,15 +28,24 @@ pub fn main() {
     pollster::block_on(run());
 }
 
+const COLOR_THEME: ColorTheme = ColorTheme::SolarizedDark;
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let collector = FontCollector::default();
-    let font_binaries = vec![
-        collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
+    let mut collector = FontCollector::default();
+    collector.add_system_fonts();
+    let kyokasho_font = collector.load_font("UD デジタル 教科書体 N-R");
+
+    let mut font_binaries = Vec::new();
+    if let Some(kyokasho_font) = kyokasho_font {
+        font_binaries.push(kyokasho_font);
+    }
+    font_binaries.push(collector.convert_font(FONT_DATA.to_vec(), None).unwrap());
+    font_binaries.push(
         collector
             .convert_font(EMOJI_FONT_DATA.to_vec(), None)
             .unwrap(),
-    ];
+    );
 
     let callback = MemoPadCallback::new();
     let support = SimpleStateSupport {
@@ -44,7 +53,7 @@ pub async fn run() {
         window_size: (800, 600),
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
-        bg_color: SolarizedDark.background().into(),
+        bg_color: COLOR_THEME.background().into(),
         flags: Flags::DEFAULT,
         font_binaries,
     };
@@ -83,7 +92,7 @@ impl MemoPadCallback {
         world.re_layout();
 
         Self {
-            color_theme: ColorTheme::SolarizedDark,
+            color_theme: COLOR_THEME,
             store,
             world,
             ime,
