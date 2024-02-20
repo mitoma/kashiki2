@@ -129,80 +129,81 @@ impl SimpleStateCallback for MemoPadCallback {
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
         match self.store.winit_window_event_to_action(event) {
-            Some(Action::Command(category, name)) if *category == "system" => {
-                let action = match &*name.to_string() {
-                    "exit" => {
-                        let memos = Memos {
-                            memos: self.world.strings(),
-                        };
-                        save_memos(memos).unwrap();
-                        return InputResult::SendExit;
-                    }
-                    "return" => EditorOperation::InsertEnter,
-                    "backspace" => EditorOperation::Backspace,
-                    "delete" => EditorOperation::Delete,
-                    "previous" => EditorOperation::Previous,
-                    "next" => EditorOperation::Next,
-                    "back" => EditorOperation::Back,
-                    "forward" => EditorOperation::Forward,
-                    "head" => EditorOperation::Head,
-                    "last" => EditorOperation::Last,
-                    "undo" => EditorOperation::Undo,
-                    "buffer-head" => EditorOperation::BufferHead,
-                    "buffer-last" => EditorOperation::BufferLast,
-                    _ => EditorOperation::Noop,
-                };
-                self.world.editor_operation(&action);
-                InputResult::InputConsumed
-            }
-            Some(Action::Command(category, name)) if *category == "world" => {
-                info!("world:");
+            Some(Action::Command(category, name)) => match &*category.to_string() {
+                "system" => {
+                    let action = match &*name.to_string() {
+                        "exit" => {
+                            let memos = Memos {
+                                memos: self.world.strings(),
+                            };
+                            save_memos(memos).unwrap();
+                            return InputResult::SendExit;
+                        }
+                        "return" => EditorOperation::InsertEnter,
+                        "backspace" => EditorOperation::Backspace,
+                        "delete" => EditorOperation::Delete,
+                        "previous" => EditorOperation::Previous,
+                        "next" => EditorOperation::Next,
+                        "back" => EditorOperation::Back,
+                        "forward" => EditorOperation::Forward,
+                        "head" => EditorOperation::Head,
+                        "last" => EditorOperation::Last,
+                        "undo" => EditorOperation::Undo,
+                        "buffer-head" => EditorOperation::BufferHead,
+                        "buffer-last" => EditorOperation::BufferLast,
+                        _ => EditorOperation::Noop,
+                    };
+                    self.world.editor_operation(&action);
 
-                match &*name.to_string() {
-                    "look-current" => self.world.look_current(CameraAdjustment::FitBoth),
-                    "left" => self.world.look_prev(CameraAdjustment::FitBoth),
-                    "right" => self.world.look_next(CameraAdjustment::FitBoth),
-                    "forward" => self.world.camera_operation(CameraOperation::Forward),
-                    "back" => self.world.camera_operation(CameraOperation::Backward),
-                    "change-direction" => {
-                        self.world.model_operation(&ModelOperation::ChangeDirection)
-                    }
-                    "increase-char-interval" => self
-                        .world
-                        .model_operation(&ModelOperation::IncreaseCharInterval),
-                    "decrease-char-interval" => self
-                        .world
-                        .model_operation(&ModelOperation::DecreaseCharInterval),
-                    _ => {}
-                };
-                InputResult::InputConsumed
-            }
-            Some(Action::Command(category, name)) if *category == "memopad" => {
-                match &*name.to_string() {
-                    "save" => {
-                        let memos = Memos {
-                            memos: self.world.strings(),
-                        };
-                        save_memos(memos).unwrap();
-                    }
-                    "add-memo" => {
-                        let textedit = TextEdit::default();
-                        let model = Box::new(textedit);
-                        self.world.add(model);
-                        self.world.re_layout();
-                        self.world
-                            .look_at(self.world.model_length() - 1, CameraAdjustment::FitBoth);
-                    }
-                    "remove-memo" => {
-                        self.world.remove_current();
-                        self.world.re_layout();
-                        self.world.look_prev(CameraAdjustment::FitBoth);
-                    }
-                    _ => {}
-                };
-                InputResult::InputConsumed
-            }
-            Some(Action::Command(_, _)) => InputResult::Noop,
+                    InputResult::InputConsumed
+                }
+                "world" => {
+                    match &*name.to_string() {
+                        "look-current" => self.world.look_current(CameraAdjustment::FitBoth),
+                        "left" => self.world.look_prev(CameraAdjustment::FitBoth),
+                        "right" => self.world.look_next(CameraAdjustment::FitBoth),
+                        "forward" => self.world.camera_operation(CameraOperation::Forward),
+                        "back" => self.world.camera_operation(CameraOperation::Backward),
+                        "change-direction" => {
+                            self.world.model_operation(&ModelOperation::ChangeDirection)
+                        }
+                        "increase-char-interval" => self
+                            .world
+                            .model_operation(&ModelOperation::IncreaseCharInterval),
+                        "decrease-char-interval" => self
+                            .world
+                            .model_operation(&ModelOperation::DecreaseCharInterval),
+                        _ => {}
+                    };
+                    InputResult::InputConsumed
+                }
+                "memopad" => {
+                    match &*name.to_string() {
+                        "save" => {
+                            let memos = Memos {
+                                memos: self.world.strings(),
+                            };
+                            save_memos(memos).unwrap();
+                        }
+                        "add-memo" => {
+                            let textedit = TextEdit::default();
+                            let model = Box::new(textedit);
+                            self.world.add(model);
+                            self.world.re_layout();
+                            self.world
+                                .look_at(self.world.model_length() - 1, CameraAdjustment::FitBoth);
+                        }
+                        "remove-memo" => {
+                            self.world.remove_current();
+                            self.world.re_layout();
+                            self.world.look_prev(CameraAdjustment::FitBoth);
+                        }
+                        _ => {}
+                    };
+                    InputResult::InputConsumed
+                }
+                _ => InputResult::Noop,
+            },
             Some(Action::Keytype(c)) => {
                 let action = EditorOperation::InsertChar(c);
                 self.world.editor_operation(&action);
