@@ -78,6 +78,8 @@ impl Model for PlaneTextReader {
                 }
                 self.updated = true;
             }
+            ModelOperation::IncreaseCharInterval => {}
+            ModelOperation::DecreaseCharInterval => {}
         }
     }
 

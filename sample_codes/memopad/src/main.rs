@@ -164,9 +164,14 @@ impl SimpleStateCallback for MemoPadCallback {
                     "forward" => self.world.camera_operation(CameraOperation::Forward),
                     "back" => self.world.camera_operation(CameraOperation::Backward),
                     "change-direction" => {
-                        info!("change direction");
                         self.world.model_operation(&ModelOperation::ChangeDirection)
                     }
+                    "increase-char-interval" => self
+                        .world
+                        .model_operation(&ModelOperation::IncreaseCharInterval),
+                    "decrease-char-interval" => self
+                        .world
+                        .model_operation(&ModelOperation::DecreaseCharInterval),
                     _ => {}
                 };
                 InputResult::InputConsumed

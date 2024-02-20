@@ -204,4 +204,8 @@ pub trait Model {
 
 pub enum ModelOperation {
     ChangeDirection,
+    // 文字間を増加させる
+    IncreaseCharInterval,
+    // 文字間を減少させる
+    DecreaseCharInterval,
 }

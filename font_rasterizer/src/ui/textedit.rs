@@ -32,6 +32,7 @@ pub struct TextEdit {
     position: Point3<f32>,
     rotation: Quaternion<f32>,
     bound: (f32, f32),
+    char_interval: f32,
 }
 
 impl Default for TextEdit {
@@ -55,6 +56,7 @@ impl Default for TextEdit {
                 cgmath::Deg(0.0),
             ),
             bound: (20.0, 20.0),
+            char_interval: 0.8,
         }
     }
 }
@@ -129,6 +131,14 @@ impl Model for TextEdit {
                     Direction::Vertical => self.direction = Direction::Horizontal,
                 }
                 self.instances.set_direction(&self.direction);
+                self.updated = true;
+            }
+            ModelOperation::IncreaseCharInterval => {
+                self.char_interval += 0.05;
+                self.updated = true;
+            }
+            ModelOperation::DecreaseCharInterval => {
+                self.char_interval -= 0.05;
                 self.updated = true;
             }
         }
@@ -260,7 +270,7 @@ impl TextEdit {
             }
 
             let glyph_width = glyph_vertex_buffer.width(c.c);
-            x += glyph_width.left();
+            x += glyph_width.left() * self.char_interval;
             i.update(Self::get_adjusted_position(self.direction, max_width, (x, y, 0.0)).into());
 
             if let Some(caret_position) =
@@ -270,7 +280,7 @@ impl TextEdit {
                     Self::get_adjusted_position(self.direction, max_width, (x, y, 0.0)).into(),
                 );
             }
-            x += glyph_width.right();
+            x += glyph_width.right() * self.char_interval;
             if let Some(caret_position) = self
                 .carets
                 .get_mut(&Caret::new_without_event(c.row, c.col + 1))
