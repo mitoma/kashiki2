@@ -117,7 +117,6 @@ impl GlyphWidthCalculator {
                 return width;
             }
         }
-        warn!("no glyph. char:{}", c);
         let width = match UnicodeWidthChar::width_cjk(c) {
             Some(1) => GlyphWidth::Regular,
             Some(_) => GlyphWidth::Wide,
@@ -400,9 +399,11 @@ impl OutlineBuilder for GlyphVertexBuilder {
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use font_collector::FontCollector;
 
-    use super::{FontVertexConverter, GlyphWidth};
+    use super::{FontVertexConverter, GlyphWidth, GlyphWidthCalculator};
 
     const FONT_DATA: &[u8] = include_bytes!("../examples/font/HackGenConsole-Regular.ttf");
     const EMOJI_FONT_DATA: &[u8] = include_bytes!("../examples/font/NotoEmoji-Regular.ttf");
@@ -448,7 +449,9 @@ mod test {
                 .convert_font(EMOJI_FONT_DATA.to_vec(), None)
                 .unwrap(),
         ];
-        let converter = FontVertexConverter::new(font_binaries);
+
+        let font_binaries = Arc::new(font_binaries);
+        let mut converter = GlyphWidthCalculator::new(font_binaries);
 
         let mut cases = vec![
             // 縦書きでも同じグリフが使われる文字
@@ -470,10 +473,7 @@ mod test {
             .collect::<Vec<_>>();
         cases.append(&mut zen_alpha_cases);
         for (c, expected) in cases {
-            let (face, _) = converter
-                .get_face_and_glyph_ids(c)
-                .expect("get char glyph ids");
-            let actual = super::GlyphWidth::get_width(c, &face);
+            let actual = converter.get_width(c);
             assert_eq!(actual, expected, "char:{}", c);
         }
     }
