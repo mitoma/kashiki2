@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashSet},
     ops::Range,
+    sync::Arc,
 };
 
 use anyhow::Context;
@@ -10,7 +11,7 @@ use log::{debug, info};
 use wgpu::BufferUsages;
 
 use crate::font_converter::{
-    FontVertexConverter, GlyphVertex, GlyphVertexData, GlyphWidth, Vertex,
+    FontVertexConverter, GlyphVertex, GlyphVertexData, GlyphWidth, GlyphWidthCalculator, Vertex,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -104,6 +105,7 @@ pub(crate) struct DrawInfo<'a> {
 
 pub struct GlyphVertexBuffer {
     font_vertex_converter: FontVertexConverter,
+    glyph_width_calculator: GlyphWidthCalculator,
     buffer_index: BTreeMap<char, (BufferIndexEntry, Option<BufferIndexEntry>)>,
     vertex_buffers: Vec<VertexBuffer>,
     index_buffers: Vec<IndexBuffer>,
@@ -111,9 +113,12 @@ pub struct GlyphVertexBuffer {
 
 impl GlyphVertexBuffer {
     pub fn new(font_binaries: Vec<FontData>) -> GlyphVertexBuffer {
-        let font_vertex_converter = FontVertexConverter::new(font_binaries);
+        let font_binaries = Arc::new(font_binaries);
+        let font_vertex_converter = FontVertexConverter::new(font_binaries.clone());
+        let glyph_width_calculator = GlyphWidthCalculator::new(font_binaries);
         GlyphVertexBuffer {
             font_vertex_converter,
+            glyph_width_calculator,
             buffer_index: BTreeMap::default(),
             vertex_buffers: Vec::new(),
             index_buffers: Vec::new(),
@@ -182,7 +187,10 @@ impl GlyphVertexBuffer {
         // char を全て Glyph 情報に変換する
         let mut glyphs = chars
             .iter()
-            .flat_map(|c| self.font_vertex_converter.convert(*c))
+            .flat_map(|c| {
+                let width = self.glyph_width_calculator.get_width(*c);
+                self.font_vertex_converter.convert(*c, width)
+            })
             .collect::<Vec<_>>();
 
         while let Some(glyph) = glyphs.pop() {
@@ -326,10 +334,6 @@ impl GlyphVertexBuffer {
     }
 
     pub fn width(&self, c: char) -> GlyphWidth {
-        if let Ok(draw_info) = self.draw_info(&c, &Direction::Horizontal) {
-            *draw_info.glyph_width
-        } else {
-            GlyphWidth::Regular
-        }
+        self.glyph_width_calculator.get_width_from_cache(c)
     }
 }

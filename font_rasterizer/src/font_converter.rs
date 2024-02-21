@@ -14,11 +14,11 @@ use unicode_width::UnicodeWidthChar;
 use crate::debug_mode::DEBUG_FLAGS;
 
 pub(crate) struct FontVertexConverter {
-    fonts: Vec<FontData>,
+    fonts: Arc<Vec<FontData>>,
 }
 
 impl FontVertexConverter {
-    pub(crate) fn new(fonts: Vec<FontData>) -> Self {
+    pub(crate) fn new(fonts: Arc<Vec<FontData>>) -> Self {
         Self { fonts }
     }
 
@@ -55,7 +55,7 @@ impl FontVertexConverter {
         anyhow::bail!("no glyph. char:{}", c)
     }
 
-    pub(crate) fn convert(&self, c: char) -> anyhow::Result<GlyphVertex> {
+    pub(crate) fn convert(&self, c: char, width: GlyphWidth) -> anyhow::Result<GlyphVertex> {
         let (
             face,
             CharGlyphIds {
@@ -63,7 +63,6 @@ impl FontVertexConverter {
                 vertical_glyph_id,
             },
         ) = self.get_face_and_glyph_ids(c)?;
-        let width = GlyphWidth::get_width(c, &face);
         let h_vertex = GlyphVertexBuilder::new().build(horizontal_glyph_id, width, &face)?;
         let v_vertex = vertical_glyph_id.and_then(|vertical_glyph_id| {
             GlyphVertexBuilder::new()
@@ -126,6 +125,10 @@ impl GlyphWidthCalculator {
         width
     }
 
+    pub(crate) fn get_width_from_cache(&self, c: char) -> GlyphWidth {
+        self.cache.get(&c).copied().unwrap_or(GlyphWidth::Regular)
+    }
+
     fn calc_width(c: char, face: &Face) -> Option<GlyphWidth> {
         if let Some(glyph_id) = face.glyph_index(c) {
             if let Some(rect) = face.glyph_bounding_box(glyph_id) {
@@ -140,32 +143,6 @@ impl GlyphWidthCalculator {
 }
 
 impl GlyphWidth {
-    fn get_width(c: char, face: &Face) -> Self {
-        debug!("get_width:{}", c);
-        if let Some(glyph_id) = face.glyph_index(c) {
-            if let Some(rect) = face.glyph_bounding_box(glyph_id) {
-                debug!(
-                    "glyph_id:{:?}, rect[width:{:?}, height:{:?}], face[width:{:?}, height:{:?}]",
-                    glyph_id,
-                    rect.width(),
-                    rect.height(),
-                    face.width(),
-                    face.height(),
-                );
-                // rect の横幅が face の高さの半分を超える場合は Wide とする
-                if face.height() < rect.width() * 2 {
-                    return GlyphWidth::Wide;
-                }
-                // 超えない場合は UnicodeWidthChar で判定する
-            }
-        }
-        match UnicodeWidthChar::width_cjk(c) {
-            Some(1) => GlyphWidth::Regular,
-            Some(_) => GlyphWidth::Wide,
-            None => GlyphWidth::Regular,
-        }
-    }
-
     /// 描画時に左にどれぐらい移動させるか
     pub fn left(&self) -> f32 {
         match self {
@@ -417,7 +394,7 @@ mod test {
                 .convert_font(EMOJI_FONT_DATA.to_vec(), None)
                 .unwrap(),
         ];
-        let converter = FontVertexConverter::new(font_binaries);
+        let converter = FontVertexConverter::new(Arc::new(font_binaries));
 
         let cases = vec![
             // 縦書きでも同じグリフが使われる文字
