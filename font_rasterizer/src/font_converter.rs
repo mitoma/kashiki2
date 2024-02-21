@@ -1,7 +1,9 @@
+use std::{collections::HashMap, sync::Arc};
+
 use anyhow::Context;
 use bezier_converter::CubicBezier;
 use font_collector::FontData;
-use log::debug;
+use log::{debug, warn};
 use rustybuzz::{
     shape,
     ttf_parser::{GlyphId, OutlineBuilder},
@@ -86,6 +88,56 @@ struct CharGlyphIds {
 pub enum GlyphWidth {
     Regular,
     Wide,
+}
+
+pub(crate) struct GlyphWidthCalculator {
+    faces: Arc<Vec<FontData>>,
+    cache: HashMap<char, GlyphWidth>,
+}
+
+impl GlyphWidthCalculator {
+    pub(crate) fn new(faces: Arc<Vec<FontData>>) -> Self {
+        Self {
+            faces,
+            cache: HashMap::new(),
+        }
+    }
+
+    pub(crate) fn get_width(&mut self, c: char) -> GlyphWidth {
+        if let Some(&width) = self.cache.get(&c) {
+            return width;
+        }
+        for face in self
+            .faces
+            .iter()
+            .flat_map(|f| Face::from_slice(&f.binary, f.index))
+        {
+            if let Some(width) = Self::calc_width(c, &face) {
+                self.cache.insert(c, width);
+                return width;
+            }
+        }
+        warn!("no glyph. char:{}", c);
+        let width = match UnicodeWidthChar::width_cjk(c) {
+            Some(1) => GlyphWidth::Regular,
+            Some(_) => GlyphWidth::Wide,
+            None => GlyphWidth::Regular,
+        };
+        self.cache.insert(c, width);
+        width
+    }
+
+    fn calc_width(c: char, face: &Face) -> Option<GlyphWidth> {
+        if let Some(glyph_id) = face.glyph_index(c) {
+            if let Some(rect) = face.glyph_bounding_box(glyph_id) {
+                // rect の横幅が face の高さの半分を超える場合は Wide とする
+                if face.height() < rect.width() * 2 {
+                    return Some(GlyphWidth::Wide);
+                }
+            }
+        }
+        None
+    }
 }
 
 impl GlyphWidth {
