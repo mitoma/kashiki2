@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::Context;
 use bezier_converter::CubicBezier;
 use font_collector::FontData;
-use log::{debug, warn};
+use log::debug;
 use rustybuzz::{
     shape,
     ttf_parser::{GlyphId, OutlineBuilder},
@@ -73,7 +73,6 @@ impl FontVertexConverter {
             c,
             h_vertex,
             v_vertex,
-            width,
         })
     }
 }
@@ -212,7 +211,6 @@ pub(crate) struct GlyphVertex {
     pub(crate) c: char,
     pub(crate) h_vertex: GlyphVertexData,
     pub(crate) v_vertex: Option<GlyphVertexData>,
-    pub(crate) width: GlyphWidth,
 }
 
 pub(crate) struct GlyphVertexData {

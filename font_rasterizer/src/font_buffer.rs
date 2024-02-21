@@ -25,7 +25,6 @@ struct BufferIndexEntry {
     vertex_buffer_index: usize,
     index_buffer_index: usize,
     index_buffer_range: Range<u32>,
-    glyph_width: GlyphWidth,
 }
 
 // バッファを 1M ずつ確保する
@@ -100,7 +99,6 @@ pub(crate) struct DrawInfo<'a> {
     pub(crate) vertex: &'a wgpu::Buffer,
     pub(crate) index: &'a wgpu::Buffer,
     pub(crate) index_range: &'a Range<u32>,
-    pub(crate) glyph_width: &'a GlyphWidth,
 }
 
 pub struct GlyphVertexBuffer {
@@ -142,7 +140,6 @@ impl GlyphVertexBuffer {
             vertex: &vertex_buffer.wgpu_buffer,
             index: &index_buffer.wgpu_buffer,
             index_range: &index.index_buffer_range,
-            glyph_width: &index.glyph_width,
         };
         Ok(draw_info)
     }
@@ -198,14 +195,11 @@ impl GlyphVertexBuffer {
                 c,
                 h_vertex,
                 v_vertex,
-                width,
             } = glyph;
 
-            let h_entry = self.inner_append_glyph(device, queue, c, width, h_vertex)?;
-            let v_entry = v_vertex.and_then(|v_vertex| {
-                self.inner_append_glyph(device, queue, c, width, v_vertex)
-                    .ok()
-            });
+            let h_entry = self.inner_append_glyph(device, queue, c, h_vertex)?;
+            let v_entry = v_vertex
+                .and_then(|v_vertex| self.inner_append_glyph(device, queue, c, v_vertex).ok());
             self.buffer_index.insert(c, (h_entry, v_entry));
         }
 
@@ -224,7 +218,6 @@ impl GlyphVertexBuffer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         c: char,
-        width: GlyphWidth,
         glyph_data: GlyphVertexData,
     ) -> anyhow::Result<BufferIndexEntry> {
         self.ensure_buffer_capacity(device, queue, &glyph_data);
@@ -287,7 +280,6 @@ impl GlyphVertexBuffer {
             vertex_buffer_index,
             index_buffer_index,
             index_buffer_range: range_start..range_end,
-            glyph_width: width,
         })
     }
 
