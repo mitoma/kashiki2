@@ -28,7 +28,8 @@ pub struct TextEdit {
     removed_carets: BTreeMap<Caret, EasingPoint3>,
     motion: MotionFlags,
     instances: TextInstances,
-    updated: bool,
+    text_updated: bool,
+    position_updated: bool,
     position: Point3<f32>,
     rotation: Quaternion<f32>,
     bound: (f32, f32),
@@ -49,7 +50,8 @@ impl Default for TextEdit {
             removed_carets: BTreeMap::new(),
             motion: MotionFlags::ZERO_MOTION,
             instances: TextInstances::default(),
-            updated: true,
+            text_updated: true,
+            position_updated: true,
             position: Point3::new(0.0, 0.0, 0.0),
             rotation: cgmath::Quaternion::from_axis_angle(
                 cgmath::Vector3::unit_y(),
@@ -67,7 +69,7 @@ impl Model for TextEdit {
             return;
         }
         self.position = position;
-        self.updated = true;
+        self.position_updated = true;
     }
 
     fn position(&self) -> Point3<f32> {
@@ -117,6 +119,8 @@ impl Model for TextEdit {
         self.calc_position_and_bound(glyph_vertex_buffer);
         self.calc_instance_positions();
         self.instances.update(device, queue);
+        self.text_updated = false;
+        self.position_updated = false;
     }
 
     fn editor_operation(&mut self, op: &text_buffer::action::EditorOperation) {
@@ -131,15 +135,15 @@ impl Model for TextEdit {
                     Direction::Vertical => self.direction = Direction::Horizontal,
                 }
                 self.instances.set_direction(&self.direction);
-                self.updated = true;
+                self.text_updated = true;
             }
             ModelOperation::IncreaseCharInterval => {
                 self.char_interval += 0.05;
-                self.updated = true;
+                self.text_updated = true;
             }
             ModelOperation::DecreaseCharInterval => {
                 self.char_interval -= 0.05;
-                self.updated = true;
+                self.text_updated = true;
             }
         }
     }
@@ -154,7 +158,7 @@ impl TextEdit {
     #[inline]
     fn sync_editor_events(&mut self, device: &wgpu::Device, color_theme: &color_theme::ColorTheme) {
         while let Ok(event) = self.receiver.try_recv() {
-            self.updated = true;
+            self.text_updated = true;
             match event {
                 ChangeEvent::AddChar(c) => {
                     let caret_pos = self
@@ -217,7 +221,7 @@ impl TextEdit {
     // 文字と caret の x, y の論理的な位置を計算する
     #[inline]
     fn calc_position_and_bound(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) {
-        if !self.updated {
+        if !self.text_updated {
             return;
         }
         let caret_width = glyph_vertex_buffer.width('_');
@@ -306,8 +310,6 @@ impl TextEdit {
                 );
             }
         }
-
-        self.updated = false;
     }
 
     fn get_adjusted_position(
@@ -329,7 +331,7 @@ impl TextEdit {
 
         // update caret
         for (c, i) in self.carets.iter_mut() {
-            if !i.in_animation() {
+            if Self::dismiss_update(i, self.position_updated) {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
@@ -339,7 +341,7 @@ impl TextEdit {
 
         // update chars
         for (c, i) in self.buffer_chars.iter_mut() {
-            if !i.in_animation() {
+            if Self::dismiss_update(i, self.position_updated) {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
@@ -350,6 +352,7 @@ impl TextEdit {
         // update removed chars
         self.removed_buffer_chars.retain(|c, i| {
             let in_animation = i.in_animation();
+            // こいつは消えゆく運命の文字なので position_updated なんて考慮せずに in_animation だけ見る
             if !in_animation {
                 self.instances.remove_from_dustbox(&(*c).into());
             }
@@ -360,6 +363,11 @@ impl TextEdit {
                 Self::update_instance(instance, i, &center, &self.position, &self.rotation);
             }
         }
+    }
+
+    #[inline]
+    fn dismiss_update(easiong_point: &mut EasingPoint3, position_updated: bool) -> bool {
+        !easiong_point.in_animation() && !position_updated
     }
 
     #[inline]

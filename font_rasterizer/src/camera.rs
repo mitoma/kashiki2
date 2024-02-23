@@ -97,6 +97,7 @@ pub enum CameraAdjustment {
     FitBoth,
     FitWidth,
     FitHeight,
+    NoCare,
 }
 
 pub struct CameraController {
@@ -208,6 +209,13 @@ impl CameraController {
     }
 
     pub fn look_at(&self, camera: &mut Camera, target: &dyn Model, adjustment: CameraAdjustment) {
+        let forward_mag = {
+            let forward =
+                Point3::<f32>::from(camera.target.last()) - Point3::<f32>::from(camera.eye.last());
+            // 向きへの距離
+            forward.magnitude()
+        };
+
         let target_position: Point3<f32> = target.position();
         let normal = cgmath::Vector3::<f32>::unit_z();
 
@@ -224,6 +232,7 @@ impl CameraController {
             }
             CameraAdjustment::FitWidth => w,
             CameraAdjustment::FitHeight => h * camera.aspect,
+            CameraAdjustment::NoCare => forward_mag,
         };
 
         let camera_position = target_position + (target.rotation() * normal * (size));

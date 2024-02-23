@@ -38,7 +38,10 @@ pub trait World {
     fn look_next(&mut self, adjustment: CameraAdjustment);
     // 前のモデルに視点を移す
     fn look_prev(&mut self, adjustment: CameraAdjustment);
-
+    // 次のモデルに視点を移す
+    fn swap_next(&mut self);
+    // 次のモデルに視点を移す
+    fn swap_prev(&mut self);
     // カメラの参照を返す
     fn camera(&self) -> &Camera;
     // カメラを動かす
@@ -177,6 +180,26 @@ impl World for HorizontalWorld {
 
     fn remove_current(&mut self) {
         self.models.remove(self.focus);
+    }
+
+    fn swap_next(&mut self) {
+        let has_next = self.focus + 1 < self.model_length();
+        if !has_next {
+            return;
+        }
+        self.models.swap(self.focus, self.focus + 1);
+        self.re_layout();
+        self.look_at(self.focus + 1, CameraAdjustment::NoCare);
+    }
+
+    fn swap_prev(&mut self) {
+        let has_prev = self.focus > 0;
+        if !has_prev {
+            return;
+        }
+        self.models.swap(self.focus, self.focus - 1);
+        self.re_layout();
+        self.look_at(self.focus - 1, CameraAdjustment::NoCare);
     }
 }
 

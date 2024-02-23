@@ -43,6 +43,8 @@ C-X K memopad:remove-memo
 C-L       world:look-current
 C-Right   world:right
 C-Left    world:left
+C-S-Right world:swap-next
+C-S-Left  world:swap-prev
 C-Up      world:forward
 C-Down    world:back
 A-D       world:change-direction

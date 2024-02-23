@@ -180,6 +180,8 @@ impl SimpleStateCallback for MemoPadCallback {
                         "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
                         "left" => self.world.look_prev(CameraAdjustment::FitBoth),
                         "right" => self.world.look_next(CameraAdjustment::FitBoth),
+                        "swap-next" => self.world.swap_next(),
+                        "swap-prev" => self.world.swap_prev(),
                         "forward" => self.world.camera_operation(CameraOperation::Forward),
                         "back" => self.world.camera_operation(CameraOperation::Backward),
                         "change-direction" => {
