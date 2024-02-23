@@ -29,7 +29,7 @@ A-W system:copy
 C-K system:kill-ring
 C-W system:cut
 C-Y system:paste
-C-Z system:undo
+C-Slash system:undo
 
 C-X C-C system:exit
 
@@ -40,11 +40,15 @@ C-X C-S memopad:save
 C-X N memopad:add-memo
 C-X K memopad:remove-memo
 
-C-L     world:look-current
-C-Right world:right
-C-Left  world:left
-C-Up    world:forward
-C-Down  world:back
-A-D     world:change-direction
-A-Up    world:increase-char-interval
-A-Down  world:decrease-char-interval
+C-L       world:look-current
+C-Right   world:right
+C-Left    world:left
+C-Up      world:forward
+C-Down    world:back
+A-D       world:change-direction
+A-Up      world:increase-char-interval
+A-Down    world:decrease-char-interval
+A-S-Up    world:fit-width
+A-S-Down  world:fit-height
+C-Z Space world:right
+C-Z P     world:left
