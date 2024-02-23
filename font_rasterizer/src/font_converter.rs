@@ -417,7 +417,7 @@ mod test {
         ];
 
         let font_binaries = Arc::new(font_binaries);
-        let mut converter = GlyphWidthCalculator::new(font_binaries);
+        let converter = GlyphWidthCalculator::new(font_binaries);
 
         let mut cases = vec![
             // 縦書きでも同じグリフが使われる文字
