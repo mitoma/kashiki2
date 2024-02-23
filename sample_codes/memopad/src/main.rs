@@ -125,7 +125,6 @@ impl SimpleStateCallback for MemoPadCallback {
             .append_glyph(device, queue, chars)
             .unwrap();
         self.world.look_at(0, CameraAdjustment::FitBoth);
-        self.update(glyph_vertex_buffer, device, queue);
     }
 
     fn resize(&mut self, width: u32, height: u32) {
