@@ -326,6 +326,6 @@ impl GlyphVertexBuffer {
     }
 
     pub fn width(&self, c: char) -> GlyphWidth {
-        self.glyph_width_calculator.get_width_from_cache(c)
+        self.glyph_width_calculator.get_width(c)
     }
 }
