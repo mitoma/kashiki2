@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, sync::mpsc::Receiver};
 
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 
+use instant::Duration;
 use text_buffer::{
     buffer::BufferChar,
     caret::Caret,
@@ -29,8 +30,7 @@ pub struct TextEdit {
     motion: MotionFlags,
     instances: TextInstances,
     text_updated: bool,
-    position_updated: bool,
-    position: Point3<f32>,
+    position: EasingPoint3,
     rotation: Quaternion<f32>,
     bound: (f32, f32),
     char_interval: f32,
@@ -40,6 +40,11 @@ impl Default for TextEdit {
     fn default() -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
 
+        let mut position = EasingPoint3::new(0.0, 0.0, 0.0);
+        position.update_duration_and_easing_func(
+            Duration::from_millis(800),
+            nenobi::functions::sin_in_out,
+        );
         Self {
             editor: Editor::new(tx),
             direction: Direction::Horizontal,
@@ -51,8 +56,7 @@ impl Default for TextEdit {
             motion: MotionFlags::ZERO_MOTION,
             instances: TextInstances::default(),
             text_updated: true,
-            position_updated: true,
-            position: Point3::new(0.0, 0.0, 0.0),
+            position,
             rotation: cgmath::Quaternion::from_axis_angle(
                 cgmath::Vector3::unit_y(),
                 cgmath::Deg(0.0),
@@ -65,11 +69,10 @@ impl Default for TextEdit {
 
 impl Model for TextEdit {
     fn set_position(&mut self, position: Point3<f32>) {
-        if self.position == position {
+        if self.position.last() == position.into() {
             return;
         }
-        self.position = position;
-        self.position_updated = true;
+        self.position.update(position);
     }
 
     fn position(&self) -> Point3<f32> {
@@ -82,16 +85,17 @@ impl Model for TextEdit {
             })
             .unwrap_or_else(|| Point3::new(0.0, 0.0, 0.0));
 
+        let position: Point3<f32> = self.position.last().into();
         match self.direction {
             Direction::Horizontal => Point3::new(
-                self.position.x,
-                self.position.y + caret_position.y + self.bound.1 / 2.0,
-                self.position.z,
+                position.x,
+                position.y + caret_position.y + self.bound.1 / 2.0,
+                position.z,
             ),
             Direction::Vertical => Point3::new(
-                self.position.x + caret_position.x - self.bound.0 / 2.0,
-                self.position.y,
-                self.position.z,
+                position.x + caret_position.x - self.bound.0 / 2.0,
+                position.y,
+                position.z,
             ),
         }
     }
@@ -120,7 +124,6 @@ impl Model for TextEdit {
         self.calc_instance_positions();
         self.instances.update(device, queue);
         self.text_updated = false;
-        self.position_updated = false;
     }
 
     fn editor_operation(&mut self, op: &text_buffer::action::EditorOperation) {
@@ -328,24 +331,26 @@ impl TextEdit {
     fn calc_instance_positions(&mut self) {
         let (bound_x, bound_y) = &self.bound;
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
+        let position_in_animation = self.position.in_animation();
+        let current_position: Point3<f32> = self.position.current().into();
 
         // update caret
         for (c, i) in self.carets.iter_mut() {
-            if Self::dismiss_update(i, self.position_updated) {
+            if Self::dismiss_update(i, position_in_animation) {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                Self::update_instance(instance, i, &center, &self.position, &self.rotation);
+                Self::update_instance(instance, i, &center, &current_position, &self.rotation);
             }
         }
 
         // update chars
         for (c, i) in self.buffer_chars.iter_mut() {
-            if Self::dismiss_update(i, self.position_updated) {
+            if Self::dismiss_update(i, position_in_animation) {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                Self::update_instance(instance, i, &center, &self.position, &self.rotation);
+                Self::update_instance(instance, i, &center, &current_position, &self.rotation);
             }
         }
 
@@ -360,14 +365,14 @@ impl TextEdit {
         });
         for (c, i) in self.removed_buffer_chars.iter() {
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
-                Self::update_instance(instance, i, &center, &self.position, &self.rotation);
+                Self::update_instance(instance, i, &center, &current_position, &self.rotation);
             }
         }
     }
 
     #[inline]
-    fn dismiss_update(easiong_point: &mut EasingPoint3, position_updated: bool) -> bool {
-        !easiong_point.in_animation() && !position_updated
+    fn dismiss_update(easiong_point: &mut EasingPoint3, position_in_animation: bool) -> bool {
+        !easiong_point.in_animation() && !position_in_animation
     }
 
     #[inline]

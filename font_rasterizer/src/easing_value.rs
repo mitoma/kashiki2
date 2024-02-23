@@ -6,6 +6,8 @@ pub struct EasingPoint3 {
     x: TimeBaseEasingValue<f32>,
     y: TimeBaseEasingValue<f32>,
     z: TimeBaseEasingValue<f32>,
+    duration: Duration,
+    easing_func: fn(f32) -> f32,
 }
 
 impl EasingPoint3 {
@@ -15,6 +17,8 @@ impl EasingPoint3 {
             x: TimeBaseEasingValue::new(x),
             y: TimeBaseEasingValue::new(y),
             z: TimeBaseEasingValue::new(z),
+            duration: Duration::from_millis(500),
+            easing_func: nenobi::functions::sin_out,
         }
     }
 
@@ -57,31 +61,28 @@ impl EasingPoint3 {
     }
 
     pub(crate) fn update(&mut self, p: cgmath::Point3<f32>) {
-        let x_modify = self
-            .x
-            .update(p.x, Duration::from_millis(500), nenobi::functions::sin_out);
-        let y_modify = self
-            .y
-            .update(p.y, Duration::from_millis(500), nenobi::functions::sin_out);
-        let z_modify = self
-            .z
-            .update(p.z, Duration::from_millis(500), nenobi::functions::sin_out);
+        let x_modify = self.x.update(p.x, self.duration, self.easing_func);
+        let y_modify = self.y.update(p.y, self.duration, self.easing_func);
+        let z_modify = self.z.update(p.z, self.duration, self.easing_func);
         self.in_animation = x_modify || y_modify || z_modify;
         self.gc();
     }
 
     pub(crate) fn add(&mut self, p: cgmath::Point3<f32>) {
-        let x_modify = self
-            .x
-            .add(p.x, Duration::from_millis(500), nenobi::functions::sin_out);
-        let y_modify = self
-            .y
-            .add(p.y, Duration::from_millis(500), nenobi::functions::sin_out);
-        let z_modify = self
-            .z
-            .add(p.z, Duration::from_millis(500), nenobi::functions::sin_out);
+        let x_modify = self.x.add(p.x, self.duration, self.easing_func);
+        let y_modify = self.y.add(p.y, self.duration, self.easing_func);
+        let z_modify = self.z.add(p.z, self.duration, self.easing_func);
         self.in_animation = x_modify || y_modify || z_modify;
         self.gc();
+    }
+
+    pub(crate) fn update_duration_and_easing_func(
+        &mut self,
+        duration: Duration,
+        easing_func: fn(f32) -> f32,
+    ) {
+        self.duration = duration;
+        self.easing_func = easing_func;
     }
 }
 
