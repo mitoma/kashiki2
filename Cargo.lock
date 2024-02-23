@@ -1360,6 +1360,7 @@ dependencies = [
  "env_logger",
  "font_collector",
  "font_rasterizer",
+ "image",
  "log",
  "pollster",
  "serde",

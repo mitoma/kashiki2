@@ -16,7 +16,9 @@ use font_rasterizer::{
 use log::info;
 use std::{collections::HashSet, path::Path};
 use std::{fs, path::PathBuf};
-use winit::event::WindowEvent;
+use winit::{event::WindowEvent, window::Icon};
+
+const ICON_IMAGE: &[u8] = include_bytes!("memopad-logo.png");
 
 const FONT_DATA: &[u8] =
     include_bytes!("../../../font_rasterizer/examples/font/HackGenConsole-Regular.ttf");
@@ -33,10 +35,14 @@ const COLOR_THEME: ColorTheme = ColorTheme::SolarizedDark;
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
+    // setup icon
+    let icon_image = image::load_from_memory(ICON_IMAGE).unwrap().to_rgba8();
+    let icon = Icon::from_rgba(icon_image.to_vec(), icon_image.width(), icon_image.height()).ok();
+
+    // setup font
     let mut collector = FontCollector::default();
     collector.add_system_fonts();
     let kyokasho_font = collector.load_font("UD デジタル 教科書体 N-R");
-
     let mut font_binaries = Vec::new();
     if let Some(kyokasho_font) = kyokasho_font {
         font_binaries.push(kyokasho_font);
@@ -50,6 +56,7 @@ pub async fn run() {
 
     let callback = MemoPadCallback::new();
     let support = SimpleStateSupport {
+        window_icon: icon,
         window_title: "Memopad".to_string(),
         window_size: (800, 600),
         callback: Box::new(callback),

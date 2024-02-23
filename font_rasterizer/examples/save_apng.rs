@@ -39,6 +39,7 @@ pub async fn run() {
 
     let callback = SingleCharCallback::new();
     let support = SimpleStateSupport {
+        window_icon: None,
         window_title: "Hello".to_string(),
         window_size: (256, 256),
         callback: Box::new(callback),

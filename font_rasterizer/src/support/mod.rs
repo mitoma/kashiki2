@@ -18,7 +18,7 @@ use winit::{
     event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::EventLoop,
     keyboard::{Key, NamedKey},
-    window::{Fullscreen, Window, WindowBuilder},
+    window::{Fullscreen, Icon, Window, WindowBuilder},
 };
 
 bitflags! {
@@ -32,6 +32,7 @@ bitflags! {
 }
 
 pub struct SimpleStateSupport {
+    pub window_icon: Option<Icon>,
     pub window_title: String,
     pub window_size: (u16, u16),
     pub callback: Box<dyn SimpleStateCallback>,
@@ -53,6 +54,7 @@ pub async fn run_support(support: SimpleStateSupport) {
 
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
+        .with_window_icon(support.window_icon)
         .with_title(support.window_title)
         .with_inner_size(winit::dpi::LogicalSize {
             width: support.window_size.0,
