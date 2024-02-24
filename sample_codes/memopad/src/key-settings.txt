@@ -37,8 +37,8 @@ C-X C-C system:exit
 C-S-P system:command-pallet
 
 C-X C-S memopad:save
-C-X N memopad:add-memo
-C-X K memopad:remove-memo
+C-Z N   memopad:add-memo
+C-Z K   memopad:remove-memo
 
 C-L       world:look-current
 C-Right   world:right
