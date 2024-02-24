@@ -19,6 +19,10 @@ C-N system:next
 C-P system:previous
 A-S-Comma  system:buffer-head
 A-S-Period system:buffer-last
+PageDown system:page-down
+A-V      system:page-down
+PageUp   system:page-up
+C-V      system:page-up
 
 C-H system:backspace
 C-D system:delete
