@@ -17,6 +17,7 @@ serde_json = { workspace = true }
 
 chrono = "0.4.34"
 dirs = "5.0.1"
+clipboard = "0.5.0"
 
 font_collector = { version = "0.1.0", path = "../../font_collector" }
 font_rasterizer = { version = "0.1.0", path = "../../font_rasterizer" }

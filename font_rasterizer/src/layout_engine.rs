@@ -53,6 +53,7 @@ pub trait World {
 
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation);
+    fn current_string(&self) -> String;
     fn strings(&self) -> Vec<String>;
 }
 
@@ -172,6 +173,10 @@ impl World for HorizontalWorld {
         if let Some(model) = self.get_current_mut() {
             model.model_operation(op);
         }
+    }
+
+    fn current_string(&self) -> String {
+        self.models[self.focus].to_string()
     }
 
     fn strings(&self) -> Vec<String> {

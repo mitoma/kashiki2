@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use clipboard::{ClipboardContext, ClipboardProvider};
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
 use text_buffer::action::EditorOperation;
@@ -167,6 +168,22 @@ impl SimpleStateCallback for MemoPadCallback {
                         "undo" => EditorOperation::Undo,
                         "buffer-head" => EditorOperation::BufferHead,
                         "buffer-last" => EditorOperation::BufferLast,
+                        "paste" => {
+                            match ClipboardContext::new()
+                                .and_then(|mut context| context.get_contents())
+                            {
+                                Ok(text) => EditorOperation::InsertString(text),
+                                Err(_) => EditorOperation::Noop,
+                            }
+                        }
+                        // TODO 一旦雑に全体をコピーするけど、本来は選択範囲のみをコピーするとかした方がよい
+                        // copy all や copy selected などで分類を分ける方がいいかもしれない
+                        "copy" => {
+                            let text = self.world.current_string();
+                            let _ = ClipboardContext::new()
+                                .and_then(|mut context| context.set_contents(text));
+                            EditorOperation::Noop
+                        }
                         _ => EditorOperation::Noop,
                     };
                     self.world.editor_operation(&action);
