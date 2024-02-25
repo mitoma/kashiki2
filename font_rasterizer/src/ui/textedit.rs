@@ -103,6 +103,15 @@ impl Model for TextEdit {
         }
     }
 
+    fn set_rotation(&mut self, rotation: Quaternion<f32>) {
+        if self.rotation == rotation {
+            return;
+        }
+        self.rotation = rotation;
+        // FIXME 意味が違うので後でなおす
+        self.text_updated = true;
+    }
+
     fn rotation(&self) -> Quaternion<f32> {
         self.rotation
     }

@@ -1,4 +1,4 @@
-use cgmath::{Point3, Quaternion};
+use cgmath::{Point3, Quaternion, Rotation3};
 use log::info;
 use text_buffer::action::EditorOperation;
 
@@ -94,6 +94,10 @@ impl World for HorizontalWorld {
             model.set_position((x_position, 0.0, 0.0).into());
             x_position += w / 2.0;
             x_position += INTERVAL;
+
+            let rotation =
+                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_y(), cgmath::Deg(0.0));
+            model.set_rotation(rotation);
         }
     }
 
@@ -214,6 +218,8 @@ pub trait Model {
     // モデルの位置を返す
     fn position(&self) -> Point3<f32>;
     // モデルの回転を設定する
+    fn set_rotation(&mut self, rotation: Quaternion<f32>);
+    // モデルの回転を返す
     fn rotation(&self) -> Quaternion<f32>;
     // モデルの縦横の長さを返す
     fn bound(&self) -> (f32, f32);

@@ -40,6 +40,14 @@ impl Model for PlaneTextReader {
         self.position
     }
 
+    fn set_rotation(&mut self, rotation: Quaternion<f32>) {
+        if self.rotation == rotation {
+            return;
+        }
+        self.rotation = rotation;
+        self.updated = true;
+    }
+
     fn rotation(&self) -> cgmath::Quaternion<f32> {
         self.rotation
     }
