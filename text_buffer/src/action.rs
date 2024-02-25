@@ -51,11 +51,6 @@ impl ReverseAction {
     }
 }
 
-pub enum BufferStateAction {
-    Mark(),
-    Copy(),
-}
-
 #[derive(Debug, Default)]
 pub struct ReverseActions {
     actions: Vec<ReverseAction>,
