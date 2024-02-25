@@ -1,4 +1,4 @@
-use std::sync::mpsc::Sender;
+use std::{ops::RangeBounds, sync::mpsc::Sender};
 
 use crate::{caret::Caret, editor::ChangeEvent};
 
@@ -172,6 +172,41 @@ impl Buffer {
             RemovedChar::None
         }
     }
+
+    pub(crate) fn copy_string(&self, mark_caret: &Caret, current_caret: &Caret) -> String {
+        if mark_caret == current_caret {
+            return String::new();
+        }
+        let (start, end) = if mark_caret < current_caret {
+            (mark_caret, current_caret)
+        } else {
+            (current_caret, mark_caret)
+        };
+        let mut result = String::new();
+        if start.row == end.row {
+            if let Some(line) = self.lines.get(start.row) {
+                result.push_str(&line.substring(start.col..end.col));
+            }
+        } else {
+            if let Some(start_line) = self.lines.get(start.row) {
+                result.push_str(&start_line.substring(start.col..));
+                result.push('\n');
+            }
+            for line in self
+                .lines
+                .iter()
+                .skip(start.row + 1)
+                .take(end.row - start.row - 1)
+            {
+                result.push_str(&line.to_line_string());
+                result.push('\n');
+            }
+            if let Some(end_line) = self.lines.get(end.row) {
+                result.push_str(&end_line.substring(..end.col));
+            }
+        }
+        result
+    }
 }
 
 #[derive(Default)]
@@ -243,6 +278,23 @@ impl BufferLine {
                 c
             })
             .for_each(|c| self.chars.push(c))
+    }
+
+    fn substring<R>(&self, range: R) -> String
+    where
+        R: RangeBounds<usize>,
+    {
+        let start = match range.start_bound() {
+            std::ops::Bound::Included(&s) => s,
+            std::ops::Bound::Excluded(&s) => s + 1,
+            std::ops::Bound::Unbounded => 0,
+        };
+        let end = match range.end_bound() {
+            std::ops::Bound::Included(&e) => e + 1,
+            std::ops::Bound::Excluded(&e) => e,
+            std::ops::Bound::Unbounded => self.chars.len(),
+        };
+        self.chars[start..end].iter().map(|c| c.c).collect()
     }
 }
 
@@ -683,6 +735,43 @@ mod tests {
                     ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 3, c: 'え' }, to: BufferChar { row: 0, col: 2, c: 'え' } },
                     ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 4, c: 'お' }, to: BufferChar { row: 0, col: 3, c: 'お' } },
                 ]
+            );
+        }
+    }
+
+    #[test]
+    fn buffer_copy() {
+        let (tx, _rx) = channel::<ChangeEvent>();
+        let mut sut = Buffer::new(tx.clone());
+        sut.insert_string(
+            &mut Caret::new(0, 0, &tx),
+            "あいうえお\nかきくけこ\nさしすせそそ".to_string(),
+        );
+        {
+            // Caret が隣接する時には一文字だけ
+            assert_eq!(
+                sut.copy_string(&Caret::new(0, 1, &tx), &Caret::new(0, 2, &tx)),
+                "い"
+            );
+            assert_eq!(
+                sut.copy_string(&Caret::new(0, 2, &tx), &Caret::new(0, 1, &tx)),
+                "い"
+            );
+        }
+        {
+            // 複数行
+            assert_eq!(
+                sut.copy_string(&Caret::new(1, 2, &tx), &Caret::new(2, 3, &tx)),
+                "くけこ\nさしす"
+            );
+            assert_eq!(
+                sut.copy_string(&Caret::new(0, 4, &tx), &Caret::new(2, 3, &tx)),
+                "お\nかきくけこ\nさしす"
+            );
+            // Caret の位置によっては前後に改行を取ってくる動きをする
+            assert_eq!(
+                sut.copy_string(&Caret::new(0, 5, &tx), &Caret::new(2, 0, &tx)),
+                "\nかきくけこ\n"
             );
         }
     }

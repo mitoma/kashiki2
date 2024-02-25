@@ -24,12 +24,21 @@ impl Editor {
     }
 
     pub fn operation(&mut self, op: &EditorOperation) {
-        if let EditorOperation::Undo = op {
+        if EditorOperation::Undo == *op {
             self.undo();
             return;
         }
-        let reverse_actions =
-            BufferApplyer::apply_action(&mut self.buffer, &mut self.main_caret, op, &self.sender);
+        if EditorOperation::Mark == *op {
+            self.mark();
+            return;
+        }
+        let reverse_actions = BufferApplyer::apply_action(
+            &mut self.buffer,
+            &mut self.main_caret,
+            self.mark.as_ref(),
+            op,
+            &self.sender,
+        );
         self.undo_list.push(reverse_actions);
     }
 
@@ -38,6 +47,7 @@ impl Editor {
             BufferApplyer::apply_reserve_actions(
                 &mut self.buffer,
                 &mut self.main_caret,
+                self.mark.as_ref(),
                 &reverse_action,
                 &self.sender,
             );
