@@ -5,3 +5,4 @@ authors = ["mitoma <mutetheradio@gmail.com>"]
 edition = "2021"
 
 [dependencies]
+instant = { workspace = true }

@@ -24,7 +24,7 @@ impl From<BufferChar> for TextInstancesKey {
 
 impl From<Caret> for TextInstancesKey {
     fn from(value: Caret) -> Self {
-        let Caret { row, col } = value;
+        let Caret { row, col, .. } = value;
         Self { c: '_', row, col }
     }
 }

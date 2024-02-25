@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, sync::mpsc::Receiver};
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 
 use instant::Duration;
+use log::debug;
 use text_buffer::{
     buffer::BufferChar,
     caret::Caret,
@@ -78,7 +79,9 @@ impl Model for TextEdit {
     fn position(&self) -> Point3<f32> {
         let caret_position = self
             .carets
-            .first_key_value()
+            .iter()
+            // TODO Mark ではない caret を判定する方法が unique_key の大小で行うのはあまりよろしい実装ではないのでいずれ見直す
+            .min_by(|(l, _), (r, _)| l.unique_key.cmp(&r.unique_key))
             .map(|(_, c)| {
                 let (x, y, z) = c.last();
                 Point3::new(x, y, z)
@@ -205,6 +208,7 @@ impl TextEdit {
                     self.instances.add(c.into(), caret_instance, device);
                 }
                 ChangeEvent::MoveCaret { from, to } => {
+                    debug!("MoveCaret: from: {:?}, to: {:?}", from, to);
                     if let Some(position) = self.carets.remove(&from) {
                         self.carets.insert(to, position);
                     }
@@ -235,7 +239,11 @@ impl TextEdit {
         let mut x: f32 = 0.0;
         let mut y: f32 = 0.0;
 
-        if let Some(caret_position) = self.carets.get_mut(&Caret::new_without_event(0, 0)) {
+        if let Some((_, caret_position)) = self
+            .carets
+            .iter_mut()
+            .find(|(caret, _)| caret.row == 0 && caret.col == 0)
+        {
             let caret_x = initial_x + caret_width.left();
             let caret_y = y;
             caret_position.update(
@@ -250,8 +258,10 @@ impl TextEdit {
             // 行が変わっている時は、行の先頭に caret を移動させる
             if current_row != c.row {
                 for r in ((current_row + 1)..=(c.row)).rev() {
-                    if let Some(caret_position) =
-                        self.carets.get_mut(&Caret::new_without_event(r, 0))
+                    if let Some((_, caret_position)) = self
+                        .carets
+                        .iter_mut()
+                        .find(|(caret, _)| caret.row == r && caret.col == 0)
                     {
                         let caret_x = initial_x + caret_width.left();
                         let caret_y = y - (r - current_row) as f32;
@@ -280,17 +290,20 @@ impl TextEdit {
             x += glyph_width.left() * self.char_interval;
             i.update(Self::get_adjusted_position(self.direction, max_width, (x, y, 0.0)).into());
 
-            if let Some(caret_position) =
-                self.carets.get_mut(&Caret::new_without_event(c.row, c.col))
+            if let Some((_, caret_position)) = self
+                .carets
+                .iter_mut()
+                .find(|(caret, _)| caret.row == c.row && caret.col == c.col)
             {
                 caret_position.update(
                     Self::get_adjusted_position(self.direction, max_width, (x, y, 0.0)).into(),
                 );
             }
             x += glyph_width.right() * self.char_interval;
-            if let Some(caret_position) = self
+            if let Some((_, caret_position)) = self
                 .carets
-                .get_mut(&Caret::new_without_event(c.row, c.col + 1))
+                .iter_mut()
+                .find(|(caret, _)| caret.row == c.row && caret.col == c.col + 1)
             {
                 caret_position.update(
                     Self::get_adjusted_position(
