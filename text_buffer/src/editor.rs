@@ -57,7 +57,7 @@ impl Editor {
     pub fn mark(&mut self) {
         if let Some(current_mark) = self.mark {
             self.sender
-                .send(ChangeEvent::RmoveCaret(current_mark))
+                .send(ChangeEvent::RemoveCaret(current_mark))
                 .unwrap();
         }
         self.mark = Some(Caret::new(
@@ -79,5 +79,5 @@ pub enum ChangeEvent {
     RemoveChar(BufferChar),
     AddCaret(Caret),
     MoveCaret { from: Caret, to: Caret },
-    RmoveCaret(Caret),
+    RemoveCaret(Caret),
 }

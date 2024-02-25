@@ -216,7 +216,7 @@ impl TextEdit {
                         self.instances.add(to.into(), instance, device);
                     }
                 }
-                ChangeEvent::RmoveCaret(c) => {
+                ChangeEvent::RemoveCaret(c) => {
                     if let Some(position) = self.carets.remove(&c) {
                         self.removed_carets.insert(c, position);
                     }

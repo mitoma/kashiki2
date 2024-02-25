@@ -37,7 +37,7 @@ impl Caret {
         if self.row == row && self.col == col {
             return;
         }
-        let from = self.clone();
+        let from = *self;
         self.row = row;
         self.col = col;
         let event = ChangeEvent::MoveCaret { from, to: *self };
