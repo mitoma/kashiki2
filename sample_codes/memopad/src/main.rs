@@ -28,6 +28,7 @@ const EMOJI_FONT_DATA: &[u8] =
 
 pub fn main() {
     //std::env::set_var("RUST_LOG", "simple_text=debug");
+    //std::env::set_var("RUST_LOG", "font_rasterizer::ui::textedit=debug");
     //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
     pollster::block_on(run());
 }
@@ -178,12 +179,11 @@ impl SimpleStateCallback for MemoPadCallback {
                         }
                         // TODO 一旦雑に全体をコピーするけど、本来は選択範囲のみをコピーするとかした方がよい
                         // copy all や copy selected などで分類を分ける方がいいかもしれない
-                        "copy" => {
-                            let text = self.world.current_string();
+                        "copy" => EditorOperation::Copy(|text| {
                             let _ = ClipboardContext::new()
                                 .and_then(|mut context| context.set_contents(text));
-                            EditorOperation::Noop
-                        }
+                        }),
+                        "mark" => EditorOperation::Mark,
                         _ => EditorOperation::Noop,
                     };
                     self.world.editor_operation(&action);

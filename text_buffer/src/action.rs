@@ -186,7 +186,7 @@ impl BufferApplyer {
             }
             EditorOperation::Copy(func) => {
                 if let Some(mark_caret) = mark_caret {
-                    let text = buffer.copy_string(current_caret, mark_caret);
+                    let text = buffer.copy_string(mark_caret, current_caret);
                     func(text);
                 }
             }
@@ -217,12 +217,15 @@ mod tests {
             &EditorOperation::InsertString("ABCD\nEFGH\nIJKL\nMNO".to_string()),
             &tx,
         );
-        assert_eq!(caret, Caret::new(3, 3, &tx));
+        assert_eq!(caret.row, 3);
+        assert_eq!(caret.col, 3);
         let result =
             BufferApplyer::apply_action(&mut sut, &mut caret, None, &EditorOperation::Head, &tx);
-        assert_eq!(caret, Caret::new(3, 0, &tx));
+        assert_eq!(caret.row, 3);
+        assert_eq!(caret.col, 0);
         BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, None, &result, &tx);
-        assert_eq!(caret, Caret::new(3, 3, &tx));
+        assert_eq!(caret.row, 3);
+        assert_eq!(caret.col, 3);
     }
 
     #[test]

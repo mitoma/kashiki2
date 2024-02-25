@@ -21,3 +21,4 @@ log = "0.4"
 pollster = "0.3"
 image = "0.24"
 rustybuzz = "0.13.0"
+instant = { version = "0.1.12", features = ["wasm-bindgen"] }

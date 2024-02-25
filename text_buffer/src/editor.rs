@@ -55,9 +55,14 @@ impl Editor {
     }
 
     pub fn mark(&mut self) {
+        if let Some(current_mark) = self.mark {
+            self.sender
+                .send(ChangeEvent::RmoveCaret(current_mark))
+                .unwrap();
+        }
         self.mark = Some(Caret::new(
             self.main_caret.row,
-            self.main_caret.row,
+            self.main_caret.col,
             &self.sender,
         ));
     }
