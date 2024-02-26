@@ -120,6 +120,21 @@ impl World for HorizontalWorld {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
+        /*
+        フォーカス近くのモデルのみを表示するパフォーマンス最適化。必要な日が来るかも？
+        let around = 5;
+        let min = if self.focus > around {
+            self.focus - around
+        } else {
+            0
+        };
+        let max = if self.focus + around < self.models.len() {
+            self.focus + around
+        } else {
+            self.models.len()
+        };
+        self.models[min..max]
+         */
         self.models
             .iter()
             .flat_map(|m| m.glyph_instances())
