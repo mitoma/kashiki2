@@ -192,7 +192,8 @@ impl SimpleStateCallback for MemoPadCallback {
                 }
                 "world" => {
                     match &*name.to_string() {
-                        "look-current" => self.world.look_current(CameraAdjustment::FitBoth),
+                        "reset-zoom" => self.world.look_current(CameraAdjustment::FitBoth),
+                        "look-current" => self.world.look_current(CameraAdjustment::NoCare),
                         "fit-width" => self.world.look_current(CameraAdjustment::FitWidth),
                         "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
                         "left" => self.world.look_prev(CameraAdjustment::NoCare),
@@ -228,12 +229,12 @@ impl SimpleStateCallback for MemoPadCallback {
                             self.world.add(model);
                             self.world.re_layout();
                             self.world
-                                .look_at(self.world.model_length() - 1, CameraAdjustment::FitBoth);
+                                .look_at(self.world.model_length() - 1, CameraAdjustment::NoCare);
                         }
                         "remove-memo" => {
                             self.world.remove_current();
                             self.world.re_layout();
-                            self.world.look_prev(CameraAdjustment::FitBoth);
+                            self.world.look_prev(CameraAdjustment::NoCare);
                         }
                         _ => {}
                     };

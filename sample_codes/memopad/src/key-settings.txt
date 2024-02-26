@@ -44,6 +44,7 @@ C-X C-S memopad:save
 C-Z N   memopad:add-memo
 C-Z K   memopad:remove-memo
 
+C-Key0    world:reset-zoom
 C-L       world:look-current
 C-Right   world:right
 C-Left    world:left
