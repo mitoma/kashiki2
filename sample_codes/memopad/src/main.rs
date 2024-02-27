@@ -183,6 +183,10 @@ impl SimpleStateCallback for MemoPadCallback {
                             let _ = ClipboardContext::new()
                                 .and_then(|mut context| context.set_contents(text));
                         }),
+                        "cut" => EditorOperation::Cut(|text| {
+                            let _ = ClipboardContext::new()
+                                .and_then(|mut context| context.set_contents(text));
+                        }),
                         "mark" => EditorOperation::Mark,
                         _ => EditorOperation::Noop,
                     };

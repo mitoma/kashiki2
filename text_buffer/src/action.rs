@@ -76,42 +76,23 @@ impl BufferApplyer {
     pub fn apply_reserve_actions(
         buffer: &mut Buffer,
         current_caret: &mut Caret,
-        mark_caret: Option<&mut Caret>,
+        mark_caret: &mut Option<Caret>,
         reverse_actions: &ReverseActions,
         sender: &Sender<ChangeEvent>,
     ) -> ReverseActions {
         let mut reverse_reverse_actions = ReverseActions::default();
-        match mark_caret {
-            Some(mark_caret) => {
-                for action in reverse_actions.actions.iter() {
-                    let reverse_reverse_action = BufferApplyer::apply_action(
-                        buffer,
-                        current_caret,
-                        Some(mark_caret),
-                        &action.to_editor_operation(),
-                        sender,
-                    );
-                    reverse_reverse_action
-                        .actions
-                        .into_iter()
-                        .for_each(|reverse_action| reverse_reverse_actions.push(reverse_action));
-                }
-            }
-            None => {
-                for action in reverse_actions.actions.iter() {
-                    let reverse_reverse_action = BufferApplyer::apply_action(
-                        buffer,
-                        current_caret,
-                        None,
-                        &action.to_editor_operation(),
-                        sender,
-                    );
-                    reverse_reverse_action
-                        .actions
-                        .into_iter()
-                        .for_each(|reverse_action| reverse_reverse_actions.push(reverse_action));
-                }
-            }
+        for action in reverse_actions.actions.iter() {
+            let reverse_reverse_action = BufferApplyer::apply_action(
+                buffer,
+                current_caret,
+                mark_caret,
+                &action.to_editor_operation(),
+                sender,
+            );
+            reverse_reverse_action
+                .actions
+                .into_iter()
+                .for_each(|reverse_action| reverse_reverse_actions.push(reverse_action));
         }
         reverse_reverse_actions
     }
@@ -119,7 +100,7 @@ impl BufferApplyer {
     pub fn apply_action(
         buffer: &mut Buffer,
         current_caret: &mut Caret,
-        mark_caret: Option<&mut Caret>,
+        mark_caret: &mut Option<Caret>,
         action: &EditorOperation,
         sender: &Sender<ChangeEvent>,
     ) -> ReverseActions {
@@ -220,7 +201,17 @@ impl BufferApplyer {
                     reverse_actions
                         .actions
                         .push(ReverseAction::InsertString(text));
-                    //
+                    let (from, to) = if mark_caret < current_caret {
+                        (mark_caret, current_caret)
+                    } else {
+                        (current_caret, mark_caret)
+                    };
+                    loop {
+                        if from.row == to.row && from.col == to.col {
+                            break;
+                        }
+                        let _removed_char = buffer.backspace(to);
+                    }
                 }
             }
         };
@@ -243,17 +234,22 @@ mod tests {
         BufferApplyer::apply_action(
             &mut sut,
             &mut caret,
-            None,
+            &mut None,
             &EditorOperation::InsertString("ABCD\nEFGH\nIJKL\nMNO".to_string()),
             &tx,
         );
         assert_eq!(caret.row, 3);
         assert_eq!(caret.col, 3);
-        let result =
-            BufferApplyer::apply_action(&mut sut, &mut caret, None, &EditorOperation::Head, &tx);
+        let result = BufferApplyer::apply_action(
+            &mut sut,
+            &mut caret,
+            &mut None,
+            &EditorOperation::Head,
+            &tx,
+        );
         assert_eq!(caret.row, 3);
         assert_eq!(caret.col, 0);
-        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, None, &result, &tx);
+        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &mut None, &result, &tx);
         assert_eq!(caret.row, 3);
         assert_eq!(caret.col, 3);
     }
@@ -267,7 +263,7 @@ mod tests {
         let result = BufferApplyer::apply_action(
             &mut sut,
             &mut caret,
-            None,
+            &mut None,
             &EditorOperation::InsertChar('花'),
             &tx,
         );
@@ -275,7 +271,7 @@ mod tests {
         let result = BufferApplyer::apply_action(
             &mut sut,
             &mut caret,
-            None,
+            &mut None,
             &EditorOperation::InsertChar('鳥'),
             &tx,
         );
@@ -283,7 +279,7 @@ mod tests {
         let result = BufferApplyer::apply_action(
             &mut sut,
             &mut caret,
-            None,
+            &mut None,
             &EditorOperation::InsertEnter,
             &tx,
         );
@@ -292,15 +288,15 @@ mod tests {
         assert_eq!(caret, Caret::new(1, 0, &tx));
 
         let reverse_action = reverses.pop().unwrap();
-        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, None, &reverse_action, &tx);
+        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &mut None, &reverse_action, &tx);
         assert_eq!(sut.to_buffer_string(), "花鳥".to_string());
 
         let reverse_action = reverses.pop().unwrap();
-        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, None, &reverse_action, &tx);
+        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &mut None, &reverse_action, &tx);
         assert_eq!(sut.to_buffer_string(), "花".to_string());
 
         let reverse_action = reverses.pop().unwrap();
-        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, None, &reverse_action, &tx);
+        BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &mut None, &reverse_action, &tx);
         assert_eq!(sut.to_buffer_string(), "".to_string());
         assert_eq!(caret, Caret::new(0, 0, &tx));
     }
@@ -312,7 +308,7 @@ mod tests {
         BufferApplyer::apply_action(
             &mut sut,
             &mut Caret::new(0, 0, &tx),
-            None,
+            &mut None,
             &EditorOperation::InsertString("ABCD\nEFGH\nIJKL\nMNO".to_string()),
             &tx,
         );
@@ -320,7 +316,7 @@ mod tests {
         BufferApplyer::apply_action(
             &mut sut,
             &mut Caret::new(1, 1, &tx),
-            Some(&mut Caret::new(2, 2, &tx)),
+            &mut Some(Caret::new(2, 2, &tx)),
             &EditorOperation::Copy(|text| {
                 assert_eq!(text, "FGH\nIJ".to_string());
             }),
