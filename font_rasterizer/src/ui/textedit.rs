@@ -14,6 +14,7 @@ use crate::{
     color_theme,
     easing_value::EasingPoint3,
     font_buffer::{Direction, GlyphVertexBuffer},
+    font_converter::GlyphWidth,
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::{Model, ModelOperation},
     motion::MotionFlags,
@@ -133,7 +134,7 @@ impl Model for TextEdit {
     ) {
         self.sync_editor_events(device, color_theme);
         self.calc_position_and_bound(glyph_vertex_buffer);
-        self.calc_instance_positions();
+        self.calc_instance_positions(glyph_vertex_buffer);
         self.instances.update(device, queue);
         self.text_updated = false;
     }
@@ -350,7 +351,7 @@ impl TextEdit {
 
     // 文字と caret の GPU で描画すべき位置やモーションを計算する
     #[inline]
-    fn calc_instance_positions(&mut self) {
+    fn calc_instance_positions(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) {
         let (bound_x, bound_y) = &self.bound;
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
         let position_in_animation = self.position.in_animation();
@@ -362,7 +363,14 @@ impl TextEdit {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                Self::update_instance(instance, i, &center, &current_position, &self.rotation);
+                Self::update_instance(
+                    instance,
+                    i,
+                    &center,
+                    &current_position,
+                    &self.rotation,
+                    None,
+                );
             }
         }
 
@@ -372,7 +380,15 @@ impl TextEdit {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                Self::update_instance(instance, i, &center, &current_position, &self.rotation);
+                // width が Reguler の時は rotation を 90 度回転させる
+                Self::update_instance(
+                    instance,
+                    i,
+                    &center,
+                    &current_position,
+                    &self.rotation,
+                    Self::calc_rotation(c.c, self.direction, glyph_vertex_buffer),
+                );
             }
         }
 
@@ -387,7 +403,35 @@ impl TextEdit {
         });
         for (c, i) in self.removed_buffer_chars.iter() {
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
-                Self::update_instance(instance, i, &center, &current_position, &self.rotation);
+                Self::update_instance(
+                    instance,
+                    i,
+                    &center,
+                    &current_position,
+                    &self.rotation,
+                    Self::calc_rotation(c.c, self.direction, glyph_vertex_buffer),
+                );
+            }
+        }
+    }
+
+    #[inline]
+    fn calc_rotation(
+        c: char,
+        direction: Direction,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+    ) -> Option<Quaternion<f32>> {
+        match direction {
+            Direction::Horizontal => None,
+            Direction::Vertical => {
+                let width = glyph_vertex_buffer.width(c);
+                match width {
+                    GlyphWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_z(),
+                        cgmath::Deg(-90.0),
+                    )),
+                    GlyphWidth::Wide => None,
+                }
             }
         }
     }
@@ -404,6 +448,7 @@ impl TextEdit {
         center: &Point2<f32>,
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
+        char_rotation: Option<Quaternion<f32>>,
     ) {
         let (x, y, z) = i.current();
         let pos = cgmath::Matrix4::from(*rotation)
@@ -414,6 +459,9 @@ impl TextEdit {
             z: pos.z + position.z,
         };
         instance.position = new_position;
-        instance.rotation = *rotation;
+        instance.rotation = match char_rotation {
+            Some(r) => *rotation * r,
+            None => *rotation,
+        }
     }
 }
