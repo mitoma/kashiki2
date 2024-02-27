@@ -177,8 +177,6 @@ impl SimpleStateCallback for MemoPadCallback {
                                 Err(_) => EditorOperation::Noop,
                             }
                         }
-                        // TODO 一旦雑に全体をコピーするけど、本来は選択範囲のみをコピーするとかした方がよい
-                        // copy all や copy selected などで分類を分ける方がいいかもしれない
                         "copy" => EditorOperation::Copy(|text| {
                             let _ = ClipboardContext::new()
                                 .and_then(|mut context| context.set_contents(text));
