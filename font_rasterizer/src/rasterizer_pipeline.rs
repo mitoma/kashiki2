@@ -362,15 +362,30 @@ impl RasterizerPipeline {
 
             overlay_render_pass.set_pipeline(&self.overlap_render_pipeline);
             overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
+            // vertex_buffer と index_buffer はほとんどの場合同一の buffer に収まると
+            // 考えられるので ID を保持しておいて切り替え不要な場合には切り替えない。
+            // 涙ぐましい最適化だがあまり効果がなさそうな気もするのでできればバッサリ消したい。
+            // 微妙に意味があるかもしれないのでいったん残す。
+            let mut vertex_buffer_id = None;
+            let mut index_buffer_id = None;
             for ((c, direction), instances) in instance_buffers.iter() {
                 for (len, buffer) in instances {
                     if let Ok(draw_info) = glyph_vertex_buffer.draw_info(c, direction) {
-                        // グリフの座標情報
-                        overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
+                        // グリフの座標情報(vertex)
+                        if vertex_buffer_id != Some(draw_info.vertex.global_id()) {
+                            overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
+                            vertex_buffer_id = Some(draw_info.vertex.global_id());
+                        }
+                        // グリフの座標情報(index)
+                        if index_buffer_id != Some(draw_info.index.global_id()) {
+                            overlay_render_pass.set_index_buffer(
+                                draw_info.index.slice(..),
+                                wgpu::IndexFormat::Uint32,
+                            );
+                            index_buffer_id = Some(draw_info.index.global_id());
+                        }
                         // インスタンスの位置
                         overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));
-                        overlay_render_pass
-                            .set_index_buffer(draw_info.index.slice(..), wgpu::IndexFormat::Uint32);
                         overlay_render_pass.draw_indexed(
                             draw_info.index_range.clone(),
                             0,
