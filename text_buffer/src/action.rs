@@ -27,6 +27,7 @@ pub enum EditorOperation {
     Noop,
 
     Copy(fn(String)),
+    Cut(fn(String)),
     Mark,
 }
 
@@ -75,31 +76,50 @@ impl BufferApplyer {
     pub fn apply_reserve_actions(
         buffer: &mut Buffer,
         current_caret: &mut Caret,
-        mark_caret: Option<&Caret>,
+        mark_caret: Option<&mut Caret>,
         reverse_actions: &ReverseActions,
         sender: &Sender<ChangeEvent>,
     ) -> ReverseActions {
         let mut reverse_reverse_actions = ReverseActions::default();
-        reverse_actions.actions.iter().for_each(|action| {
-            let reverse_reverse_action = BufferApplyer::apply_action(
-                buffer,
-                current_caret,
-                mark_caret,
-                &action.to_editor_operation(),
-                sender,
-            );
-            reverse_reverse_action
-                .actions
-                .into_iter()
-                .for_each(|reverse_action| reverse_reverse_actions.push(reverse_action));
-        });
+        match mark_caret {
+            Some(mark_caret) => {
+                for action in reverse_actions.actions.iter() {
+                    let reverse_reverse_action = BufferApplyer::apply_action(
+                        buffer,
+                        current_caret,
+                        Some(mark_caret),
+                        &action.to_editor_operation(),
+                        sender,
+                    );
+                    reverse_reverse_action
+                        .actions
+                        .into_iter()
+                        .for_each(|reverse_action| reverse_reverse_actions.push(reverse_action));
+                }
+            }
+            None => {
+                for action in reverse_actions.actions.iter() {
+                    let reverse_reverse_action = BufferApplyer::apply_action(
+                        buffer,
+                        current_caret,
+                        None,
+                        &action.to_editor_operation(),
+                        sender,
+                    );
+                    reverse_reverse_action
+                        .actions
+                        .into_iter()
+                        .for_each(|reverse_action| reverse_reverse_actions.push(reverse_action));
+                }
+            }
+        }
         reverse_reverse_actions
     }
 
     pub fn apply_action(
         buffer: &mut Buffer,
         current_caret: &mut Caret,
-        mark_caret: Option<&Caret>,
+        mark_caret: Option<&mut Caret>,
         action: &EditorOperation,
         sender: &Sender<ChangeEvent>,
     ) -> ReverseActions {
@@ -193,6 +213,16 @@ impl BufferApplyer {
             EditorOperation::Noop => {}
             EditorOperation::Undo => {}
             EditorOperation::Mark => {}
+            EditorOperation::Cut(func) => {
+                if let Some(mark_caret) = mark_caret {
+                    let text = buffer.copy_string(mark_caret, current_caret);
+                    func(text.clone());
+                    reverse_actions
+                        .actions
+                        .push(ReverseAction::InsertString(text));
+                    //
+                }
+            }
         };
         reverse_actions
     }
@@ -290,7 +320,7 @@ mod tests {
         BufferApplyer::apply_action(
             &mut sut,
             &mut Caret::new(1, 1, &tx),
-            Some(&Caret::new(2, 2, &tx)),
+            Some(&mut Caret::new(2, 2, &tx)),
             &EditorOperation::Copy(|text| {
                 assert_eq!(text, "FGH\nIJ".to_string());
             }),

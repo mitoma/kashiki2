@@ -35,7 +35,7 @@ impl Editor {
         let reverse_actions = BufferApplyer::apply_action(
             &mut self.buffer,
             &mut self.main_caret,
-            self.mark.as_ref(),
+            self.mark.as_mut(),
             op,
             &self.sender,
         );
@@ -47,7 +47,7 @@ impl Editor {
             BufferApplyer::apply_reserve_actions(
                 &mut self.buffer,
                 &mut self.main_caret,
-                self.mark.as_ref(),
+                self.mark.as_mut(),
                 &reverse_action,
                 &self.sender,
             );
