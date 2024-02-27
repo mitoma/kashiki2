@@ -364,7 +364,6 @@ impl RasterizerPipeline {
             overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
             for ((c, direction), instances) in instance_buffers.iter() {
                 for (len, buffer) in instances {
-                    // TODO おそらく Instances に Direction の情報を持たせてここで使うべき
                     if let Ok(draw_info) = glyph_vertex_buffer.draw_info(c, direction) {
                         // グリフの座標情報
                         overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
