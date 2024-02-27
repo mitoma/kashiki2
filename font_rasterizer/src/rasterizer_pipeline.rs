@@ -24,6 +24,8 @@ pub enum Quarity {
     VeryLow,
     /// 固定クオリティの設定
     Fixed(u32, u32),
+    /// 基本的に 2 倍サンプリングするが最大解像度を超えないようにする設定
+    CappedVeryHigh(u32, u32),
 }
 
 /// フォントをラスタライズするためのパイプラインを提供する。
@@ -78,6 +80,19 @@ impl RasterizerPipeline {
             Quarity::Low => (width - width / 4, height - height / 4),
             Quarity::VeryLow => (width / 2, height / 2),
             Quarity::Fixed(width, height) => (width, height),
+            Quarity::CappedVeryHigh(capped_width, capped_height) => {
+                let width = if width * 2 > capped_width {
+                    capped_width
+                } else {
+                    width * 2
+                };
+                let height = if height * 2 > capped_height {
+                    capped_height
+                } else {
+                    height * 2
+                };
+                (width, height)
+            }
         };
         // GPU の上限によってはテクスチャのサイズを制限する
         let max = device.limits().max_texture_dimension_2d;
