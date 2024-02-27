@@ -306,6 +306,37 @@ fn vs_main(
     return out;
 }
 
+// 最小限の Vertex Shader
+// ただし vs_main と比べてもさほどパフォーマンス改善には寄与しなさそう
+@vertex
+fn vs_main_minimum(
+    model: VertexInput,
+    instances: InstancesInput,
+) -> VertexOutput {
+    let instance_matrix = mat4x4<f32>(
+        instances.model_matrix_0,
+        instances.model_matrix_1,
+        instances.model_matrix_2,
+        instances.model_matrix_3,
+    );
+
+    let motion = instances.motion;
+    let ignore_camera = bit_check(motion, 20u);
+
+    var moved = vec4<f32>(model.position.x, model.position.y, 0.0, 1.0);
+
+    var out: VertexOutput;
+    out.wait = vec3<f32>(1f, model.wait.xy);
+    out.color = instances.color;
+    if ignore_camera {
+        //out.clip_position = instance_matrix * moved;
+        out.clip_position = u_buffer.u_default_view_proj * instance_matrix * moved;
+    } else {
+        out.clip_position = u_buffer.u_view_proj * instance_matrix * moved;
+    }
+    return out;
+}
+
 const UNIT :f32 = 0.00390625;
 // Fragment shader
 
