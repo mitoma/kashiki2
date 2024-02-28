@@ -28,6 +28,41 @@ pub enum Quarity {
     CappedVeryHigh(u32, u32),
 }
 
+impl Quarity {
+    pub fn capped_size(&self, width: u32, height: u32, hard_limit: u32) -> (u32, u32) {
+        let (width, height) = match self {
+            Quarity::VeryHigh => (width * 2, height * 2),
+            Quarity::High => (width + width / 2, height + height / 2),
+            Quarity::Middle => (width, height),
+            Quarity::Low => (width - width / 4, height - height / 4),
+            Quarity::VeryLow => (width / 2, height / 2),
+            Quarity::Fixed(width, height) => (*width, *height),
+            Quarity::CappedVeryHigh(capped_width, capped_height) => {
+                let width = if width * 2 > *capped_width {
+                    *capped_width
+                } else {
+                    width * 2
+                };
+                let height = if height * 2 > *capped_height {
+                    *capped_height
+                } else {
+                    height * 2
+                };
+                (width, height)
+            }
+        };
+        if width > hard_limit || height > hard_limit {
+            if width > height {
+                (hard_limit, height * hard_limit / width)
+            } else {
+                (width * hard_limit / height, hard_limit)
+            }
+        } else {
+            (width, height)
+        }
+    }
+}
+
 /// フォントをラスタライズするためのパイプラインを提供する。
 ///
 /// このブログの記事の内容を元に実装されている。
@@ -73,38 +108,9 @@ impl RasterizerPipeline {
         quarity: Quarity,
         bg_color: wgpu::Color,
     ) -> Self {
-        let (width, height) = match quarity {
-            Quarity::VeryHigh => (width * 2, height * 2),
-            Quarity::High => (width + width / 2, height + height / 2),
-            Quarity::Middle => (width, height),
-            Quarity::Low => (width - width / 4, height - height / 4),
-            Quarity::VeryLow => (width / 2, height / 2),
-            Quarity::Fixed(width, height) => (width, height),
-            Quarity::CappedVeryHigh(capped_width, capped_height) => {
-                let width = if width * 2 > capped_width {
-                    capped_width
-                } else {
-                    width * 2
-                };
-                let height = if height * 2 > capped_height {
-                    capped_height
-                } else {
-                    height * 2
-                };
-                (width, height)
-            }
-        };
-        // GPU の上限によってはテクスチャのサイズを制限する
-        let max = device.limits().max_texture_dimension_2d;
-        let (width, height) = if width > max || height > max {
-            if width > height {
-                (max, height * max / width)
-            } else {
-                (width * max / height, max)
-            }
-        } else {
-            (width, height)
-        };
+        // GPU の制限によってはテクスチャのサイズを制限する
+        let (width, height) =
+            quarity.capped_size(width, height, device.limits().max_texture_dimension_2d);
 
         // overlap
         let overlap_texture =
@@ -475,6 +481,128 @@ impl RasterizerPipeline {
                 wgpu::IndexFormat::Uint16,
             );
             screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn capped_size_test() {
+        struct Expect {
+            quarity: super::Quarity,
+            width: u32,
+            height: u32,
+            hard_limit: u32,
+            expected: (u32, u32),
+        }
+        let cases: Vec<Expect> = vec![
+            Expect {
+                quarity: super::Quarity::VeryHigh,
+                width: 100,
+                height: 100,
+                hard_limit: 1000,
+                expected: (200, 200),
+            },
+            Expect {
+                quarity: super::Quarity::VeryHigh,
+                width: 1000,
+                height: 1000,
+                hard_limit: 1000,
+                expected: (1000, 1000),
+            },
+            Expect {
+                quarity: super::Quarity::High,
+                width: 100,
+                height: 100,
+                hard_limit: 1000,
+                expected: (150, 150),
+            },
+            Expect {
+                quarity: super::Quarity::High,
+                width: 1000,
+                height: 1000,
+                hard_limit: 1000,
+                expected: (1000, 1000),
+            },
+            Expect {
+                quarity: super::Quarity::Middle,
+                width: 100,
+                height: 100,
+                hard_limit: 1000,
+                expected: (100, 100),
+            },
+            Expect {
+                quarity: super::Quarity::Middle,
+                width: 1000,
+                height: 1000,
+                hard_limit: 1000,
+                expected: (1000, 1000),
+            },
+            Expect {
+                quarity: super::Quarity::Low,
+                width: 100,
+                height: 100,
+                hard_limit: 1000,
+                expected: (75, 75),
+            },
+            Expect {
+                quarity: super::Quarity::Low,
+                width: 1000,
+                height: 1000,
+                hard_limit: 1000,
+                expected: (750, 750),
+            },
+            Expect {
+                quarity: super::Quarity::VeryLow,
+                width: 100,
+                height: 100,
+                hard_limit: 1000,
+                expected: (50, 50),
+            },
+            Expect {
+                quarity: super::Quarity::VeryLow,
+                width: 1000,
+                height: 1000,
+                hard_limit: 1000,
+                expected: (500, 500),
+            },
+            Expect {
+                quarity: super::Quarity::Fixed(200, 200),
+                width: 100,
+                height: 100,
+                hard_limit: 1000,
+                expected: (200, 200),
+            },
+            Expect {
+                quarity: super::Quarity::Fixed(1500, 800),
+                width: 100,
+                height: 100,
+                hard_limit: 1000,
+                expected: (1000, 533),
+            },
+            Expect {
+                quarity: super::Quarity::CappedVeryHigh(800, 600),
+                width: 100,
+                height: 100,
+                hard_limit: 1000,
+                expected: (200, 200),
+            },
+            Expect {
+                quarity: super::Quarity::CappedVeryHigh(800, 600),
+                width: 1000,
+                height: 500,
+                hard_limit: 1000,
+                expected: (200, 200),
+            },
+        ];
+        for case in cases {
+            assert_eq!(
+                case.quarity
+                    .capped_size(case.width, case.height, case.hard_limit),
+                case.expected
+            );
         }
     }
 }
