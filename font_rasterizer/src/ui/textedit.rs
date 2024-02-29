@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::mpsc::Receiver};
+use std::{cell::OnceCell, collections::BTreeMap, sync::mpsc::Receiver};
 
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 
@@ -426,10 +426,19 @@ impl TextEdit {
             Direction::Vertical => {
                 let width = glyph_vertex_buffer.width(c);
                 match width {
-                    GlyphWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_z(),
-                        cgmath::Deg(-90.0),
-                    )),
+                    GlyphWidth::Regular => {
+                        // そこまで意味あるかは疑問だが、一応キャッシュしておく
+                        const HANKAKU_GLYPH_ANGLE: OnceCell<Quaternion<f32>> = OnceCell::new();
+                        let angle = HANKAKU_GLYPH_ANGLE
+                            .get_or_init(|| {
+                                cgmath::Quaternion::from_axis_angle(
+                                    cgmath::Vector3::unit_z(),
+                                    cgmath::Deg(-90.0),
+                                )
+                            })
+                            .clone();
+                        Some(angle)
+                    }
                     GlyphWidth::Wide => None,
                 }
             }
