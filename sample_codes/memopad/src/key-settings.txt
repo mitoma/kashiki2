@@ -50,8 +50,8 @@ C-Right   world:look-next
 C-Left    world:look-prev
 C-S-Right world:swap-next
 C-S-Left  world:swap-prev
-C-Up      world:forward
-C-Down    world:back
+C-S-Plus  world:forward
+C-Minus   world:back
 A-D       world:change-direction
 A-Up      world:increase-char-interval
 A-Down    world:decrease-char-interval

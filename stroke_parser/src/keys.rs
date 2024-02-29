@@ -287,6 +287,7 @@ impl KeyCode {
                 "\\" => KeyCode::Backslash,
                 "@" => KeyCode::At,
                 ";" => KeyCode::Semicolon,
+                "+" => KeyCode::Plus,
                 ":" => KeyCode::Colon,
                 "[" => KeyCode::LBracket,
                 "]" => KeyCode::RBracket,
