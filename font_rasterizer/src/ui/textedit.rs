@@ -1,4 +1,4 @@
-use std::{cell::OnceCell, collections::BTreeMap, sync::mpsc::Receiver};
+use std::{collections::BTreeMap, sync::mpsc::Receiver};
 
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 
@@ -6,7 +6,7 @@ use instant::Duration;
 use log::debug;
 use text_buffer::{
     buffer::BufferChar,
-    caret::Caret,
+    caret::{Caret, CaretType},
     editor::{ChangeEvent, Editor},
 };
 
@@ -81,8 +81,7 @@ impl Model for TextEdit {
         let caret_position = self
             .carets
             .iter()
-            // TODO Mark ではない caret を判定する方法が unique_key の大小で行うのはあまりよろしい実装ではないのでいずれ見直す
-            .min_by(|(l, _), (r, _)| l.unique_key.cmp(&r.unique_key))
+            .find(|(c, _)| c.caret_type == CaretType::Primary)
             .map(|(_, c)| {
                 let (x, y, z) = c.last();
                 Point3::new(x, y, z)
@@ -426,19 +425,10 @@ impl TextEdit {
             Direction::Vertical => {
                 let width = glyph_vertex_buffer.width(c);
                 match width {
-                    GlyphWidth::Regular => {
-                        // そこまで意味あるかは疑問だが、一応キャッシュしておく
-                        const HANKAKU_GLYPH_ANGLE: OnceCell<Quaternion<f32>> = OnceCell::new();
-                        let angle = HANKAKU_GLYPH_ANGLE
-                            .get_or_init(|| {
-                                cgmath::Quaternion::from_axis_angle(
-                                    cgmath::Vector3::unit_z(),
-                                    cgmath::Deg(-90.0),
-                                )
-                            })
-                            .clone();
-                        Some(angle)
-                    }
+                    GlyphWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_z(),
+                        cgmath::Deg(-90.0),
+                    )),
                     GlyphWidth::Wide => None,
                 }
             }

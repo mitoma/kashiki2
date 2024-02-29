@@ -342,7 +342,7 @@ mod tests {
 
     use std::sync::mpsc::channel;
 
-    use crate::editor::ChangeEvent;
+    use crate::{caret::CaretType, editor::ChangeEvent};
 
     use super::*;
 
@@ -602,9 +602,9 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::AddCaret(Caret::new_without_event(0, 0)),
+                    ChangeEvent::AddCaret(Caret::new_without_event(0, 0, CaretType::Primary)),
                     ChangeEvent::AddChar(BufferChar { row: 0, col: 0, c: 'あ' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 0), to: Caret::new_without_event(0, 1) }
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 0, CaretType::Primary), to: Caret::new_without_event(0, 1, CaretType::Primary) }
                 ]
             );
         }
@@ -616,7 +616,7 @@ mod tests {
                 events,
                 vec![
                     ChangeEvent::AddChar(BufferChar { row: 0, col: 1, c: 'い' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 1), to: Caret::new_without_event(0, 2) }
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 1, CaretType::Primary), to: Caret::new_without_event(0, 2, CaretType::Primary) }
                 ]
             );
         }
@@ -627,10 +627,10 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 2), to: Caret::new_without_event(1, 0) }
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 2, CaretType::Primary), to: Caret::new_without_event(1, 0, CaretType::Primary) }
                 ]
             );
-            assert_eq!(caret, Caret::new_without_event(1, 0));
+            assert_eq!(caret, Caret::new_without_event(1, 0, CaretType::Primary));
         }
         sut.insert_char(&mut caret, 'え');
         {
@@ -640,7 +640,7 @@ mod tests {
                 events,
                 vec![
                     ChangeEvent::AddChar(BufferChar { row: 1, col: 0, c: 'え' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(1, 0), to: Caret::new_without_event(1, 1) }
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event(1, 0, CaretType::Primary), to: Caret::new_without_event(1, 1, CaretType::Primary) }
                 ]
             );
         }
@@ -652,7 +652,7 @@ mod tests {
                 events,
                 vec![
                     ChangeEvent::AddChar(BufferChar { row: 1, col: 1, c: 'お' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(1, 1), to: Caret::new_without_event(1, 2) }
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event(1, 1, CaretType::Primary), to: Caret::new_without_event(1, 2, CaretType::Primary) }
                 ]
             );
         }
@@ -684,7 +684,7 @@ mod tests {
                     ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 2, c: 'う' }, to: BufferChar { row: 1, col: 0, c: 'う' } },
                     ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 3, c: 'え' }, to: BufferChar { row: 1, col: 1, c: 'え' } },
                     ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 4, c: 'お' }, to: BufferChar { row: 1, col: 2, c: 'お' } },
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 2), to: Caret::new_without_event(1, 0) },
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 2, CaretType::Primary), to: Caret::new_without_event(1, 0, CaretType::Primary) },
                 ]
             );
         }
@@ -712,7 +712,7 @@ mod tests {
                     ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 2, c: 'う' }, to: BufferChar { row: 0, col: 3, c: 'う' } },
                     ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 1, c: 'い' }, to: BufferChar { row: 0, col: 2, c: 'い' } },
                     ChangeEvent::AddChar(BufferChar { row: 0, col: 1, c: 'A' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 1), to: Caret::new_without_event(0, 2) },
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 1, CaretType::Primary), to: Caret::new_without_event(0, 2, CaretType::Primary) },
                 ]
             );
         }
@@ -736,7 +736,7 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 3), to: Caret::new_without_event(0, 2)},
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 3, CaretType::Primary), to: Caret::new_without_event(0, 2, CaretType::Primary)},
                     ChangeEvent::RemoveChar(BufferChar { row: 0, col: 2, c: 'う' }),
                     ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 3, c: 'え' }, to: BufferChar { row: 0, col: 2, c: 'え' } },
                     ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 4, c: 'お' }, to: BufferChar { row: 0, col: 3, c: 'お' } },
