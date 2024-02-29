@@ -196,12 +196,12 @@ impl SimpleStateCallback for MemoPadCallback {
                     match &*name.to_string() {
                         "reset-zoom" => self.world.look_current(CameraAdjustment::FitBoth),
                         "look-current" => self.world.look_current(CameraAdjustment::NoCare),
-                        "fit-width" => self.world.look_current(CameraAdjustment::FitWidth),
-                        "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
-                        "left" => self.world.look_prev(CameraAdjustment::NoCare),
-                        "right" => self.world.look_next(CameraAdjustment::NoCare),
+                        "look-next" => self.world.look_next(CameraAdjustment::NoCare),
+                        "look-prev" => self.world.look_prev(CameraAdjustment::NoCare),
                         "swap-next" => self.world.swap_next(),
                         "swap-prev" => self.world.swap_prev(),
+                        "fit-width" => self.world.look_current(CameraAdjustment::FitWidth),
+                        "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
                         "forward" => self.world.camera_operation(CameraOperation::Forward),
                         "back" => self.world.camera_operation(CameraOperation::Backward),
                         "change-direction" => {
