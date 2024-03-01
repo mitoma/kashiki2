@@ -37,6 +37,7 @@ C-Slash system:undo
 
 C-X C-C system:exit
 
+F11   system:toggle-fullscreen
 # 
 C-S-P system:command-pallet
 

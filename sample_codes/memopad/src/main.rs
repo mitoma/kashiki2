@@ -153,6 +153,9 @@ impl SimpleStateCallback for MemoPadCallback {
                             save_memos(memos).unwrap();
                             return InputResult::SendExit;
                         }
+                        "toggle-fullscreen" => {
+                            return InputResult::ToggleFullScreen;
+                        }
                         "return" => EditorOperation::InsertEnter,
                         "backspace" => EditorOperation::Backspace,
                         "delete" => EditorOperation::Delete,

@@ -148,6 +148,16 @@ pub async fn run_support(support: SimpleStateSupport) {
                     match state.input(event) {
                         InputResult::InputConsumed => {}
                         InputResult::SendExit => control_flow.exit(),
+                        InputResult::ToggleFullScreen => {
+                            if support.flags.contains(Flags::FULL_SCREEN) {
+                                match window.fullscreen() {
+                                    Some(_) => window.set_fullscreen(None),
+                                    None => {
+                                        window.set_fullscreen(Some(Fullscreen::Borderless(None)))
+                                    }
+                                }
+                            }
+                        }
                         InputResult::Noop => {
                             match event {
                                 WindowEvent::CloseRequested => control_flow.exit(),
@@ -225,6 +235,7 @@ pub async fn run_support(support: SimpleStateSupport) {
 
 pub enum InputResult {
     InputConsumed,
+    ToggleFullScreen,
     SendExit,
     Noop,
 }
