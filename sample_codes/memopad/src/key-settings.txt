@@ -41,7 +41,7 @@ C-X C-C system:exit
 C-S-P system:command-pallet
 
 C-X C-S memopad:save
-C-Z N   memopad:add-memo
+C-Z C   memopad:add-memo
 C-Z K   memopad:remove-memo
 
 C-Key0    world:reset-zoom
@@ -57,5 +57,5 @@ A-Up      world:increase-char-interval
 A-Down    world:decrease-char-interval
 A-S-Up    world:fit-width
 A-S-Down  world:fit-height
-C-Z Space world:right
-C-Z P     world:left
+C-Z Space world:look-next
+C-Z P     world:look-prev
