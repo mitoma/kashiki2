@@ -49,7 +49,7 @@ pub async fn run() {
         window_size: (800, 600),
         callback: Box::new(callback),
         quarity: Quarity::High,
-        bg_color: SolarizedDark.background().into(),
+        color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
         font_binaries,
     };
@@ -59,7 +59,6 @@ pub async fn run() {
 struct SingleCharCallback {
     camera: Camera,
     camera_controller: CameraController,
-    color_theme: ColorTheme,
     store: ActionStore,
     editor: Editor,
     reader: PlaneTextReader,
@@ -96,7 +95,6 @@ impl SingleCharCallback {
         Self {
             camera: Camera::basic((800, 600)),
             camera_controller: CameraController::new(10.0),
-            color_theme: ColorTheme::SolarizedDark,
             editor: text_buffer::editor::Editor::new(tx),
             store,
             reader: PlaneTextReader::new("".to_string()),
@@ -109,6 +107,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn init(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        _color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
@@ -140,6 +139,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
@@ -152,9 +152,9 @@ impl SimpleStateCallback for SingleCharCallback {
             .unwrap();
         self.reader.update_value(texts);
         self.reader
-            .generate_instances(&self.color_theme, glyph_vertex_buffer, device, queue);
+            .generate_instances(color_theme, glyph_vertex_buffer, device, queue);
         self.ime
-            .generate_instances(&self.color_theme, glyph_vertex_buffer, device, queue);
+            .generate_instances(color_theme, glyph_vertex_buffer, device, queue);
         let (width, height) = self.reader.calc_bound(glyph_vertex_buffer);
         self.camera_controller.process(
             &font_rasterizer::camera::CameraOperation::CangeTargetAndEye(

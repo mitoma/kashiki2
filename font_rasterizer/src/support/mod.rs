@@ -2,6 +2,7 @@ use std::{collections::HashSet, iter, sync::Arc};
 
 use crate::{
     camera::Camera,
+    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
@@ -77,7 +78,7 @@ pub struct SimpleStateSupport {
     pub window_size: (u16, u16),
     pub callback: Box<dyn SimpleStateCallback>,
     pub quarity: Quarity,
-    pub bg_color: wgpu::Color,
+    pub color_theme: ColorTheme,
     pub flags: Flags,
     pub font_binaries: Vec<FontData>,
 }
@@ -128,7 +129,7 @@ pub async fn run_support(support: SimpleStateSupport) {
     let mut state = SimpleState::new(
         window.clone(),
         support.quarity,
-        support.bg_color,
+        support.color_theme,
         support.callback,
         support.font_binaries,
     )
@@ -232,6 +233,7 @@ pub trait SimpleStateCallback {
     fn init(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     );
@@ -239,6 +241,7 @@ pub trait SimpleStateCallback {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     );
@@ -248,7 +251,7 @@ pub trait SimpleStateCallback {
 
 pub struct SimpleState {
     quarity: Quarity,
-    bg_color: wgpu::Color,
+    color_theme: ColorTheme,
 
     surface: wgpu::Surface<'static>,
     device: wgpu::Device,
@@ -266,7 +269,7 @@ impl SimpleState {
     pub async fn new(
         window: Arc<Window>,
         quarity: Quarity,
-        bg_color: wgpu::Color,
+        color_theme: ColorTheme,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
         font_binaries: Vec<FontData>,
     ) -> Self {
@@ -327,13 +330,13 @@ impl SimpleState {
             size.height,
             config.format,
             quarity,
-            bg_color,
+            color_theme.background().into(),
         );
         let mut glyph_vertex_buffer = GlyphVertexBuffer::new(font_binaries);
-        simple_state_callback.init(&mut glyph_vertex_buffer, &device, &queue);
+        simple_state_callback.init(&mut glyph_vertex_buffer, &color_theme, &device, &queue);
 
         Self {
-            bg_color,
+            color_theme,
 
             surface,
             device,
@@ -370,7 +373,7 @@ impl SimpleState {
                 new_size.height,
                 self.config.format,
                 self.quarity,
-                self.bg_color,
+                self.color_theme.background().into(),
             )
         }
     }
@@ -380,8 +383,12 @@ impl SimpleState {
     }
 
     pub fn update(&mut self) {
-        self.simple_state_callback
-            .update(&mut self.glyph_vertex_buffer, &self.device, &self.queue);
+        self.simple_state_callback.update(
+            &mut self.glyph_vertex_buffer,
+            &self.color_theme,
+            &self.device,
+            &self.queue,
+        );
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -438,6 +445,8 @@ pub struct ImageState {
     rasterizer_pipeline: RasterizerPipeline,
     glyph_vertex_buffer: GlyphVertexBuffer,
 
+    color_theme: ColorTheme,
+
     simple_state_callback: Box<dyn SimpleStateCallback>,
 }
 
@@ -445,7 +454,7 @@ impl ImageState {
     pub async fn new(
         image_size: (u32, u32),
         quarity: Quarity,
-        bg_color: wgpu::Color,
+        color_theme: ColorTheme,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
         font_binaries: Vec<FontData>,
     ) -> Self {
@@ -520,10 +529,10 @@ impl ImageState {
             size.height,
             surface_texture.format(),
             quarity,
-            bg_color,
+            color_theme.background().into(),
         );
         let mut glyph_vertex_buffer = GlyphVertexBuffer::new(font_binaries);
-        simple_state_callback.init(&mut glyph_vertex_buffer, &device, &queue);
+        simple_state_callback.init(&mut glyph_vertex_buffer, &color_theme, &device, &queue);
         simple_state_callback.resize(size.width, size.height);
 
         Self {
@@ -538,12 +547,18 @@ impl ImageState {
 
             glyph_vertex_buffer,
             simple_state_callback,
+
+            color_theme,
         }
     }
 
     pub fn update(&mut self) {
-        self.simple_state_callback
-            .update(&mut self.glyph_vertex_buffer, &self.device, &self.queue);
+        self.simple_state_callback.update(
+            &mut self.glyph_vertex_buffer,
+            &self.color_theme,
+            &self.device,
+            &self.queue,
+        );
     }
 
     pub fn render(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, wgpu::SurfaceError> {
@@ -644,7 +659,7 @@ pub async fn generate_images<F>(
     let mut state = ImageState::new(
         (support.window_size.0 as u32, support.window_size.1 as u32),
         support.quarity,
-        support.bg_color,
+        support.color_theme,
         support.callback,
         support.font_binaries,
     )
@@ -671,7 +686,7 @@ pub async fn generate_image_iter(
     let mut state = ImageState::new(
         (support.window_size.0 as u32, support.window_size.1 as u32),
         support.quarity,
-        support.bg_color,
+        support.color_theme,
         support.callback,
         support.font_binaries,
     )

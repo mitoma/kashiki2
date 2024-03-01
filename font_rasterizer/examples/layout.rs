@@ -40,7 +40,7 @@ pub async fn run() {
         window_size: (800, 600),
         callback: Box::new(callback),
         quarity: Quarity::High,
-        bg_color: SolarizedDark.background().into(),
+        color_theme: SolarizedDark,
         flags: Flags::DEFAULT,
         font_binaries,
     };
@@ -49,7 +49,6 @@ pub async fn run() {
 
 struct SingleCharCallback {
     world: Box<dyn World>,
-    color_theme: ColorTheme,
     look_at: usize,
 }
 
@@ -73,11 +72,7 @@ impl SingleCharCallback {
         world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
 
-        Self {
-            world,
-            color_theme: ColorTheme::SolarizedLight,
-            look_at,
-        }
+        Self { world, look_at }
     }
 }
 
@@ -85,10 +80,11 @@ impl SimpleStateCallback for SingleCharCallback {
     fn init(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        self.update(glyph_vertex_buffer, device, queue);
+        self.update(glyph_vertex_buffer, &color_theme, device, queue);
     }
 
     fn resize(&mut self, _width: u32, _height: u32) {
@@ -98,12 +94,13 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         mut glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
         self.world.re_layout();
         self.world
-            .update(&self.color_theme, &mut glyph_vertex_buffer, &device, &queue);
+            .update(color_theme, &mut glyph_vertex_buffer, &device, &queue);
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {

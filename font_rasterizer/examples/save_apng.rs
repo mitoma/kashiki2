@@ -5,7 +5,7 @@ use instant::Duration;
 use cgmath::Rotation3;
 use font_rasterizer::{
     camera::{Camera, CameraController},
-    color_theme::ColorTheme::SolarizedDark,
+    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
@@ -44,7 +44,7 @@ pub async fn run() {
         window_size: (256, 256),
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
-        bg_color: SolarizedDark.background().into(),
+        color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
         font_binaries,
     };
@@ -108,6 +108,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn init(
         &mut self,
         _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        color_theme: &ColorTheme,
         device: &wgpu::Device,
         _queue: &wgpu::Queue,
     ) {
@@ -115,7 +116,7 @@ impl SimpleStateCallback for SingleCharCallback {
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             1.0,
-            SolarizedDark.cyan().get_color(),
+            color_theme.cyan().get_color(),
             //MotionFlags::ZERO_MOTION,
             MotionFlags::builder()
                 .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, true))
@@ -135,6 +136,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        _color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {

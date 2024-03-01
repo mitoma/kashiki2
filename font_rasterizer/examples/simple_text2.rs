@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
-    color_theme::ColorTheme::{self, SolarizedDark},
+    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, ModelOperation, World},
@@ -47,7 +47,7 @@ pub async fn run() {
         window_size: (800, 600),
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
-        bg_color: SolarizedDark.background().into(),
+        color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
         font_binaries,
     };
@@ -55,7 +55,6 @@ pub async fn run() {
 }
 
 struct SingleCharCallback {
-    color_theme: ColorTheme,
     store: ActionStore,
     world: Box<dyn World>,
     ime: ImeInput,
@@ -85,12 +84,7 @@ impl SingleCharCallback {
         world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
 
-        Self {
-            color_theme: ColorTheme::SolarizedDark,
-            store,
-            world,
-            ime,
-        }
+        Self { store, world, ime }
     }
 }
 
@@ -98,11 +92,12 @@ impl SimpleStateCallback for SingleCharCallback {
     fn init(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
         self.world.look_at(0, CameraAdjustment::FitBoth);
-        self.update(glyph_vertex_buffer, device, queue);
+        self.update(glyph_vertex_buffer, color_theme, device, queue);
     }
 
     fn resize(&mut self, width: u32, height: u32) {
@@ -112,13 +107,14 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
         self.world
-            .update(&self.color_theme, glyph_vertex_buffer, &device, &queue);
+            .update(color_theme, glyph_vertex_buffer, &device, &queue);
         self.ime
-            .update(&self.color_theme, glyph_vertex_buffer, device, queue);
+            .update(color_theme, glyph_vertex_buffer, device, queue);
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {

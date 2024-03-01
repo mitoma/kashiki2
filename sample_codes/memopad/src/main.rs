@@ -63,7 +63,7 @@ pub async fn run() {
         window_size: (800, 600),
         callback: Box::new(callback),
         quarity: Quarity::CappedVeryHigh((1920.0 * 1.5) as u32, (1200.0 * 1.5) as u32),
-        bg_color: COLOR_THEME.background().into(),
+        color_theme: COLOR_THEME,
         flags: Flags::DEFAULT,
         font_binaries,
     };
@@ -71,7 +71,6 @@ pub async fn run() {
 }
 
 struct MemoPadCallback {
-    color_theme: ColorTheme,
     store: ActionStore,
     world: Box<dyn World>,
     ime: ImeInput,
@@ -101,12 +100,7 @@ impl MemoPadCallback {
         world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
 
-        Self {
-            color_theme: COLOR_THEME,
-            store,
-            world,
-            ime,
-        }
+        Self { store, world, ime }
     }
 }
 
@@ -114,6 +108,7 @@ impl SimpleStateCallback for MemoPadCallback {
     fn init(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        _color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
@@ -136,13 +131,14 @@ impl SimpleStateCallback for MemoPadCallback {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        color_theme: &ColorTheme,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
         self.world
-            .update(&self.color_theme, glyph_vertex_buffer, device, queue);
+            .update(color_theme, glyph_vertex_buffer, device, queue);
         self.ime
-            .update(&self.color_theme, glyph_vertex_buffer, device, queue);
+            .update(color_theme, glyph_vertex_buffer, device, queue);
     }
 
     fn input(&mut self, event: &WindowEvent) -> InputResult {
