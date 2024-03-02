@@ -231,7 +231,8 @@ mod tests {
         struct TestCase {
             input: Vec<EditorOperation>,
             max_width: usize,
-            caret_phisical_pos: PhisicalPosition,
+            main_caret_pos: PhisicalPosition,
+            mark_pos: Option<PhisicalPosition>,
         }
         let cases = vec![
             TestCase {
@@ -239,19 +240,22 @@ mod tests {
                     "ABCDE\nFGHIJ\nKLMNO".to_string(),
                 )],
                 max_width: 4,
-                caret_phisical_pos: PhisicalPosition { row: 5, col: 1 },
+                main_caret_pos: PhisicalPosition { row: 5, col: 1 },
+                mark_pos: None,
             },
             TestCase {
                 input: vec![EditorOperation::InsertString(
                     "ABCDE\nFGHIJ\nKLMNO".to_string(),
                 )],
                 max_width: 10,
-                caret_phisical_pos: PhisicalPosition { row: 2, col: 5 },
+                main_caret_pos: PhisicalPosition { row: 2, col: 5 },
+                mark_pos: None,
             },
             TestCase {
                 input: vec![EditorOperation::InsertString("日本の四季折々".to_string())],
                 max_width: 10,
-                caret_phisical_pos: PhisicalPosition { row: 1, col: 4 },
+                main_caret_pos: PhisicalPosition { row: 1, col: 4 },
+                mark_pos: None,
             },
             TestCase {
                 input: vec![
@@ -260,18 +264,21 @@ mod tests {
                     EditorOperation::Forward,
                 ],
                 max_width: 10,
-                caret_phisical_pos: PhisicalPosition { row: 1, col: 0 },
+                main_caret_pos: PhisicalPosition { row: 1, col: 0 },
+                mark_pos: None,
             },
             TestCase {
                 input: vec![
                     EditorOperation::InsertString("ABCDEFGHIJK".to_string()),
                     EditorOperation::BufferHead,
                     EditorOperation::Forward,
+                    EditorOperation::Mark,
                     EditorOperation::Forward,
                     EditorOperation::Forward,
                 ],
                 max_width: 3,
-                caret_phisical_pos: PhisicalPosition { row: 1, col: 0 },
+                main_caret_pos: PhisicalPosition { row: 1, col: 0 },
+                mark_pos: Some(PhisicalPosition { row: 0, col: 1 }),
             },
         ];
         for case in cases.iter() {
@@ -290,7 +297,8 @@ mod tests {
             });
             println!("main_caret :{:?}", layout.main_caret_pos);
             println!("mark       :{:?}", layout.mark_pos);
-            assert_eq!(layout.main_caret_pos, case.caret_phisical_pos);
+            assert_eq!(layout.main_caret_pos, case.main_caret_pos);
+            assert_eq!(layout.mark_pos, case.mark_pos);
         }
     }
 }
