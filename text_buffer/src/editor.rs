@@ -148,6 +148,7 @@ impl Editor {
         }
     }
 
+    #[inline]
     fn update_caret_position(
         caret_pos: &mut PhisicalPosition,
         caret: &Caret,
@@ -228,31 +229,55 @@ mod tests {
     #[test]
     fn test_calc_phisical_layout() {
         struct TestCase {
-            input: String,
+            input: Vec<EditorOperation>,
             max_width: usize,
             caret_phisical_pos: PhisicalPosition,
         }
         let cases = vec![
             TestCase {
-                input: "ABCDE\nFGHIJ\nKLMNO".to_string(),
+                input: vec![EditorOperation::InsertString(
+                    "ABCDE\nFGHIJ\nKLMNO".to_string(),
+                )],
                 max_width: 4,
                 caret_phisical_pos: PhisicalPosition { row: 5, col: 1 },
             },
             TestCase {
-                input: "ABCDE\nFGHIJ\nKLMNO".to_string(),
+                input: vec![EditorOperation::InsertString(
+                    "ABCDE\nFGHIJ\nKLMNO".to_string(),
+                )],
                 max_width: 10,
                 caret_phisical_pos: PhisicalPosition { row: 2, col: 5 },
             },
             TestCase {
-                input: "日本の四季折々".to_string(),
+                input: vec![EditorOperation::InsertString("日本の四季折々".to_string())],
                 max_width: 10,
                 caret_phisical_pos: PhisicalPosition { row: 1, col: 4 },
+            },
+            TestCase {
+                input: vec![
+                    EditorOperation::InsertString("\n\n日本の四季折々".to_string()),
+                    EditorOperation::BufferHead,
+                    EditorOperation::Forward,
+                ],
+                max_width: 10,
+                caret_phisical_pos: PhisicalPosition { row: 1, col: 0 },
+            },
+            TestCase {
+                input: vec![
+                    EditorOperation::InsertString("ABCDEFGHIJK".to_string()),
+                    EditorOperation::BufferHead,
+                    EditorOperation::Forward,
+                    EditorOperation::Forward,
+                    EditorOperation::Forward,
+                ],
+                max_width: 3,
+                caret_phisical_pos: PhisicalPosition { row: 1, col: 0 },
             },
         ];
         for case in cases.iter() {
             let (sender, receiver) = std::sync::mpsc::channel();
             let mut editor = Editor::new(sender.clone());
-            editor.operation(&EditorOperation::InsertString(case.input.clone()));
+            case.input.iter().for_each(|op| editor.operation(op));
             let _ = receiver.try_iter().collect::<Vec<_>>();
 
             let layout = editor.calc_phisical_layout(
