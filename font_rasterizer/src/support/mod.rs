@@ -28,7 +28,9 @@ bitflags! {
         const EXIT_ON_ESC  = 0b_0000_0010;
         const TRANCEPARENT = 0b_0000_0100;
         const NO_TITLEBAR  = 0b_0000_1000;
-        const DEFAULT      = Self::EXIT_ON_ESC.bits() | Self::FULL_SCREEN.bits();
+        // focus が無い時に省エネモードにするかは選択可能にする
+        const SLEEP_WHEN_FOCUS_LOST = 0b_0001_0000;
+        const DEFAULT      = Self::EXIT_ON_ESC.bits() | Self::FULL_SCREEN.bits() | Self::SLEEP_WHEN_FOCUS_LOST.bits();
     }
 }
 
@@ -136,7 +138,14 @@ pub async fn run_support(support: SimpleStateSupport) {
     .await;
 
     // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
-    let mut render_rate_adjuster = RenderRateAdjuster::new(120, 5);
+    let mut render_rate_adjuster = RenderRateAdjuster::new(
+        120,
+        if support.flags.contains(Flags::SLEEP_WHEN_FOCUS_LOST) {
+            5
+        } else {
+            120
+        },
+    );
 
     event_loop
         .run(move |event, control_flow| {
