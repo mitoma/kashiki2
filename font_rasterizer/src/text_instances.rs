@@ -115,4 +115,8 @@ impl TextInstances {
     pub fn to_instances(&self) -> Vec<&GlyphInstances> {
         self.glyph_instances.values().collect()
     }
+
+    pub fn len(&self) -> usize {
+        self.glyph_instances.len()
+    }
 }

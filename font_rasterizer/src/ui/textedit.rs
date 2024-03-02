@@ -3,11 +3,11 @@ use std::{collections::BTreeMap, sync::mpsc::Receiver};
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 
 use instant::Duration;
-use log::debug;
+use log::info;
 use text_buffer::{
     buffer::BufferChar,
     caret::{Caret, CaretType},
-    editor::{ChangeEvent, Editor},
+    editor::{ChangeEvent, Editor, LineBoundaryProhibitedChars},
 };
 
 use crate::{
@@ -27,10 +27,12 @@ pub struct TextEdit {
     receiver: Receiver<ChangeEvent>,
     buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
     removed_buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
-    carets: BTreeMap<Caret, EasingPoint3>,
+    main_caret: Option<(Caret, EasingPoint3)>,
+    mark: Option<(Caret, EasingPoint3)>,
     removed_carets: BTreeMap<Caret, EasingPoint3>,
     motion: MotionFlags,
     instances: TextInstances,
+    caret_instances: TextInstances,
     text_updated: bool,
     position: EasingPoint3,
     rotation: Quaternion<f32>,
@@ -53,10 +55,12 @@ impl Default for TextEdit {
             receiver: rx,
             buffer_chars: BTreeMap::new(),
             removed_buffer_chars: BTreeMap::new(),
-            carets: BTreeMap::new(),
+            main_caret: None,
+            mark: None,
             removed_carets: BTreeMap::new(),
             motion: MotionFlags::ZERO_MOTION,
             instances: TextInstances::default(),
+            caret_instances: TextInstances::default(),
             text_updated: true,
             position,
             rotation: cgmath::Quaternion::from_axis_angle(
@@ -79,9 +83,8 @@ impl Model for TextEdit {
 
     fn position(&self) -> Point3<f32> {
         let caret_position = self
-            .carets
-            .iter()
-            .find(|(c, _)| c.caret_type == CaretType::Primary)
+            .main_caret
+            .as_ref()
             .map(|(_, c)| {
                 let (x, y, z) = c.last();
                 Point3::new(x, y, z)
@@ -121,7 +124,10 @@ impl Model for TextEdit {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        self.instances.to_instances()
+        let mut char_insatnces = self.instances.to_instances();
+        let mut caret_instances = self.caret_instances.to_instances();
+        char_insatnces.append(&mut caret_instances);
+        char_insatnces
     }
 
     fn update(
@@ -177,8 +183,8 @@ impl TextEdit {
             match event {
                 ChangeEvent::AddChar(c) => {
                     let caret_pos = self
-                        .carets
-                        .first_key_value()
+                        .main_caret
+                        .as_ref()
                         .map(|(_, c)| {
                             let (x, y, z) = c.current();
                             (x, y + 1.0, z)
@@ -212,23 +218,34 @@ impl TextEdit {
                         color: color_theme.text_emphasized().get_color(),
                         ..GlyphInstance::default()
                     };
-                    self.carets
-                        .insert(c, (c.row as f32, c.col as f32, 0.0).into());
-                    self.instances.add(c.into(), caret_instance, device);
+                    self.caret_instances.add(c.into(), caret_instance, device);
+                    if c.caret_type == CaretType::Primary {
+                        self.main_caret = Some((c, (c.row as f32, c.col as f32, 0.0).into()));
+                    } else {
+                        self.mark = Some((c, (c.row as f32, c.col as f32, 0.0).into()));
+                    }
                 }
                 ChangeEvent::MoveCaret { from, to } => {
-                    debug!("MoveCaret: from: {:?}, to: {:?}", from, to);
-                    if let Some(position) = self.carets.remove(&from) {
-                        self.carets.insert(to, position);
-                    }
-                    if let Some(instance) = self.instances.remove(&from.into()) {
-                        self.instances.add(to.into(), instance, device);
+                    if let Some(instance) = self.caret_instances.remove(&from.into()) {
+                        self.caret_instances.add(to.into(), instance, device);
                     }
                 }
                 ChangeEvent::RemoveCaret(c) => {
-                    if let Some(position) = self.carets.remove(&c) {
-                        self.removed_carets.insert(c, position);
+                    match CaretType::Primary {
+                        CaretType::Primary => {
+                            if let Some((_, mut position)) = self.main_caret.take() {
+                                position.add((0.0, -1.0, 0.0).into());
+                                self.removed_carets.insert(c, position);
+                            }
+                        }
+                        CaretType::Mark => {
+                            if let Some((_, mut position)) = self.mark.take() {
+                                position.add((0.0, -1.0, 0.0).into());
+                                self.removed_carets.insert(c, position);
+                            }
+                        }
                     }
+                    self.caret_instances.pre_remove(&c.into());
                 }
             }
         }
@@ -240,111 +257,97 @@ impl TextEdit {
         if !self.text_updated {
             return;
         }
-        let caret_width = glyph_vertex_buffer.width('_');
+        let max_line_width = 40;
 
-        let max_width = self.bound.0;
-        let initial_x: f32 = 0.0;
-        let mut current_row: usize = 0;
-        let mut x: f32 = 0.0;
-        let mut y: f32 = 0.0;
+        let layout = self.editor.calc_phisical_layout(
+            (max_line_width as f32 / self.char_interval).abs() as usize,
+            &LineBoundaryProhibitedChars::new(vec![], vec![]),
+            glyph_vertex_buffer,
+        );
 
-        if let Some((_, caret_position)) = self
-            .carets
-            .iter_mut()
-            .find(|(caret, _)| caret.row == 0 && caret.col == 0)
         {
-            let caret_x = initial_x + caret_width.left();
-            let caret_y = y;
-            caret_position.update(
-                Self::get_adjusted_position(self.direction, max_width, (caret_x, caret_y, 0.0))
-                    .into(),
+            // update bound
+            let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
+                (result.0.max(pos.col), result.1.max(pos.row))
+            });
+            let (max_x, max_y, _) = Self::get_adjusted_position(
+                self.direction,
+                self.char_interval,
+                0.0,
+                (max_col as f32, max_row as f32, 0.0),
             );
+            self.bound = (max_x.abs(), max_y.abs());
         }
 
-        // caret の位置決め
-        // 文字と caret (文中あるいは文末時の位置決め)
-        for (c, i) in self.buffer_chars.iter_mut() {
-            // 行が変わっている時は、行の先頭に caret を移動させる
-            if current_row != c.row {
-                for r in ((current_row + 1)..=(c.row)).rev() {
-                    if let Some((_, caret_position)) = self
-                        .carets
-                        .iter_mut()
-                        .find(|(caret, _)| caret.row == r && caret.col == 0)
-                    {
-                        let caret_x = initial_x + caret_width.left();
-                        let caret_y = y - (r - current_row) as f32;
-                        caret_position.update(
-                            Self::get_adjusted_position(
-                                self.direction,
-                                max_width,
-                                (caret_x, caret_y, 0.0),
-                            )
-                            .into(),
-                        );
-                    }
-                }
-
-                let y_gain = c.row - current_row;
-                current_row = c.row;
-                y -= 1.0 * y_gain as f32;
-                x = initial_x;
-            }
-            if x >= max_width {
-                y -= 1.0;
-                x = initial_x;
-            }
-
-            let glyph_width = glyph_vertex_buffer.width(c.c);
-            x += glyph_width.left() * self.char_interval;
-            i.update(Self::get_adjusted_position(self.direction, max_width, (x, y, 0.0)).into());
-
-            if let Some((_, caret_position)) = self
-                .carets
-                .iter_mut()
-                .find(|(caret, _)| caret.row == c.row && caret.col == c.col)
-            {
-                caret_position.update(
-                    Self::get_adjusted_position(self.direction, max_width, (x, y, 0.0)).into(),
-                );
-            }
-            x += glyph_width.right() * self.char_interval;
-            if let Some((_, caret_position)) = self
-                .carets
-                .iter_mut()
-                .find(|(caret, _)| caret.row == c.row && caret.col == c.col + 1)
-            {
-                caret_position.update(
+        layout.chars.iter().for_each(|(c, pos)| {
+            self.buffer_chars.get_mut(c).map(|c_pos| {
+                let width = glyph_vertex_buffer.width(c.c);
+                c_pos.update(
                     Self::get_adjusted_position(
                         self.direction,
-                        max_width,
-                        (x + caret_width.left(), y, 0.0),
+                        self.char_interval,
+                        max_line_width as f32,
+                        ((pos.col as f32 / 2.0) + width.left(), pos.row as f32, 0.0),
                     )
                     .into(),
                 );
-            }
-        }
+            });
+        });
 
-        for (c, i) in self.carets.iter_mut() {
-            if current_row < c.row {
-                let caret_x = initial_x + caret_width.left();
-                let caret_y = y - (c.row - current_row) as f32;
-                i.update(
-                    Self::get_adjusted_position(self.direction, max_width, (caret_x, caret_y, 0.0))
-                        .into(),
+        let caret_width = glyph_vertex_buffer.width('_');
+        self.main_caret
+            .as_mut()
+            .map(|(_, c)| {
+                info!("main_caret_pos layout: {:?}", layout.main_caret_pos);
+                info!("main_caret_pos easing: {:?}", c.last());
+                c.update(
+                    Self::get_adjusted_position(
+                        self.direction,
+                        self.char_interval,
+                        max_line_width as f32,
+                        (
+                            (layout.main_caret_pos.col as f32 / 2.0) + caret_width.left(),
+                            layout.main_caret_pos.row as f32,
+                            0.0,
+                        ),
+                    )
+                    .into(),
                 );
-            }
-        }
+            })
+            .unwrap();
+        self.mark
+            .as_mut()
+            .map(|(_, c)| {
+                if let Some(mark_pos) = layout.mark_pos {
+                    c.update(
+                        Self::get_adjusted_position(
+                            self.direction,
+                            self.char_interval,
+                            max_line_width as f32,
+                            (
+                                (mark_pos.col as f32 / 2.0) + caret_width.left(),
+                                mark_pos.row as f32,
+                                0.0,
+                            ),
+                        )
+                        .into(),
+                    )
+                }
+            })
+            .unwrap_or(());
     }
 
+    #[inline]
     fn get_adjusted_position(
         direction: Direction,
+        char_interval: f32,
         max_width: f32,
-        position: (f32, f32, f32),
+        (x, y, z): (f32, f32, f32),
     ) -> (f32, f32, f32) {
+        let x = x * char_interval;
         match direction {
-            Direction::Horizontal => position,
-            Direction::Vertical => (max_width + position.1, -position.0, position.2),
+            Direction::Horizontal => (x, -y, z),
+            Direction::Vertical => (max_width - y, -x, z),
         }
     }
 
@@ -357,11 +360,29 @@ impl TextEdit {
         let current_position: Point3<f32> = self.position.current().into();
 
         // update caret
-        for (c, i) in self.carets.iter_mut() {
-            if Self::dismiss_update(i, position_in_animation) {
-                continue;
+        info!("caret_instances len: {}", self.caret_instances.len());
+        if let Some((c, i)) = self.main_caret.as_mut() {
+            //if Self::dismiss_update(i, position_in_animation) {
+            //
+            //}
+            if let Some(instance) = self.caret_instances.get_mut(&c.clone().into()) {
+                info!("update position: {:?}", i.current());
+                info!("update position: {:?}", i.last());
+                Self::update_instance(
+                    instance,
+                    i,
+                    &center,
+                    &current_position,
+                    &self.rotation,
+                    None,
+                );
             }
-            if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+        }
+        if let Some((c, i)) = self.mark.as_mut() {
+            if Self::dismiss_update(i, position_in_animation) {
+                //
+            }
+            if let Some(instance) = self.caret_instances.get_mut(&c.clone().into()) {
                 Self::update_instance(
                     instance,
                     i,
@@ -435,6 +456,7 @@ impl TextEdit {
         }
     }
 
+    // この関数は更新が必要かどうかを判定するための関数。true なら更新が不要。
     #[inline]
     fn dismiss_update(easiong_point: &mut EasingPoint3, position_in_animation: bool) -> bool {
         !easiong_point.in_animation() && !position_in_animation

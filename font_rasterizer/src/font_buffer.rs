@@ -8,6 +8,7 @@ use anyhow::Context;
 
 use font_collector::FontData;
 use log::{debug, info};
+use text_buffer::editor::CharWidthResolver;
 use wgpu::BufferUsages;
 
 use crate::font_converter::{
@@ -327,5 +328,14 @@ impl GlyphVertexBuffer {
 
     pub fn width(&self, c: char) -> GlyphWidth {
         self.glyph_width_calculator.get_width(c)
+    }
+}
+
+impl CharWidthResolver for GlyphVertexBuffer {
+    fn resolve_width(&self, c: char) -> usize {
+        match self.width(c) {
+            GlyphWidth::Regular => 1,
+            GlyphWidth::Wide => 2,
+        }
     }
 }
