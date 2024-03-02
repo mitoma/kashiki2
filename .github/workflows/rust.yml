@@ -32,12 +32,10 @@ jobs:
         with:
           os: ${{ matrix.job.os }}
 
-      # os が linux の場合のみ xorg-dev 関連のライブラリを apt でインストールする
-      # rust-clipboard が依存しているため
-      # https://github.com/aweinstock314/rust-clipboard/blob/07d080be58a361a5bbdb548fafe9449843d968be/README.md#prerequisites
-      - name: install xorg-dev
+      # os が linux の場合のみ libxcb関連のライブラリを apt でインストールする
+      - name: install libxcb
         if: ${{ matrix.job.os == 'linux' }}
-        run: sudo apt-get install -y xorg-dev
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
 
       # ci phase
       - name: check all
