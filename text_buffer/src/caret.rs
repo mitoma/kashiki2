@@ -1,6 +1,6 @@
 use std::sync::mpsc::Sender;
 
-use crate::editor::ChangeEvent;
+use crate::{buffer::BufferChar, editor::ChangeEvent};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Caret {
@@ -58,5 +58,9 @@ impl Caret {
 
     pub fn to(&mut self, to: &Caret, sender: &Sender<ChangeEvent>) {
         self.move_to(to.row, to.col, sender);
+    }
+
+    pub fn is_same_or_after_on_row(&self, c: &BufferChar) -> bool {
+        self.row == c.row && self.col >= c.col
     }
 }

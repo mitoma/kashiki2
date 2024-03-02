@@ -70,6 +70,132 @@ impl Editor {
     pub fn to_buffer_string(&self) -> String {
         self.buffer.to_buffer_string()
     }
+
+    pub fn calc_phisical_layout(
+        &self,
+        max_line_width: usize,
+        _line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
+        width_resolver: &dyn CharWidthResolver,
+    ) -> PhisicalLayout {
+        let mut chars = Vec::new();
+        let mut phisical_row = 0;
+
+        let mut main_caret_pos = PhisicalPosition { row: 0, col: 0 };
+        let mut mark_pos = self.mark.map(|_| PhisicalPosition { row: 0, col: 0 });
+
+        for line in self.buffer.lines.iter() {
+            let mut phisical_col = 0;
+
+            // 空行に caret だけ存在するケース
+            if line.chars.is_empty() {
+                if self.main_caret.row == line.row_num {
+                    main_caret_pos.row = phisical_row;
+                    main_caret_pos.col = phisical_col;
+                }
+                if let Some(mark) = mark_pos.as_mut() {
+                    if self.mark.unwrap().row == line.row_num {
+                        mark.row = phisical_row;
+                        mark.col = phisical_col;
+                    }
+                }
+            }
+            for buffer_char in line.chars.iter() {
+                // 物理位置を計算
+                let char_width = width_resolver.resolve_width(buffer_char.c);
+                // TODO 禁則文字の計算をするならこのあたりでやる
+                if buffer_char.col == 0 {
+                    // 論理行の行頭では禁則文字を考慮しない
+                } else if phisical_col + char_width > max_line_width {
+                    phisical_row += 1;
+                    phisical_col = 0;
+                }
+
+                // char の位置を確定
+                let phisical_position = PhisicalPosition {
+                    row: phisical_row,
+                    col: phisical_col,
+                };
+                chars.push((*buffer_char, phisical_position));
+
+                // キャレットの位置を確定
+                Self::update_caret_position(
+                    &mut main_caret_pos,
+                    &self.main_caret,
+                    buffer_char,
+                    phisical_row,
+                    phisical_col,
+                    char_width,
+                );
+                if let Some(mark) = mark_pos.as_mut() {
+                    Self::update_caret_position(
+                        mark,
+                        &self.mark.unwrap(),
+                        buffer_char,
+                        phisical_row,
+                        phisical_col,
+                        char_width,
+                    );
+                }
+
+                phisical_col += char_width;
+            }
+            phisical_row += 1;
+        }
+        PhisicalLayout {
+            chars,
+            main_caret_pos,
+            mark_pos,
+        }
+    }
+
+    fn update_caret_position(
+        caret_pos: &mut PhisicalPosition,
+        caret: &Caret,
+        buffer_char: &BufferChar,
+        phisical_row: usize,
+        phisical_col: usize,
+        char_width: usize,
+    ) {
+        if caret.row == buffer_char.row {
+            if caret.col == buffer_char.col {
+                caret_pos.row = phisical_row;
+                caret_pos.col = phisical_col;
+            } else if caret.col == buffer_char.col + 1 {
+                caret_pos.row = phisical_row;
+                caret_pos.col = phisical_col + char_width;
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct PhisicalLayout {
+    pub chars: Vec<(BufferChar, PhisicalPosition)>,
+    pub main_caret_pos: PhisicalPosition,
+    pub mark_pos: Option<PhisicalPosition>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct PhisicalPosition {
+    pub row: usize,
+    pub col: usize,
+}
+
+/// 禁則文字の定義を持つ enum
+pub struct LineBoundaryProhibitedChars {
+    pub start: Vec<char>,
+    pub end: Vec<char>,
+}
+
+impl LineBoundaryProhibitedChars {
+    pub fn new(start: Vec<char>, end: Vec<char>) -> Self {
+        Self { start, end }
+    }
+}
+
+/// 文字の幅を解決する trait
+pub trait CharWidthResolver {
+    fn resolve_width(&self, char: char) -> usize;
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -80,4 +206,66 @@ pub enum ChangeEvent {
     AddCaret(Caret),
     MoveCaret { from: Caret, to: Caret },
     RemoveCaret(Caret),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TestWidthResolver;
+
+    impl CharWidthResolver for TestWidthResolver {
+        fn resolve_width(&self, c: char) -> usize {
+            // テスト用なので雑に判定
+            if c.is_ascii() {
+                1
+            } else {
+                2
+            }
+        }
+    }
+
+    #[test]
+    fn test_calc_phisical_layout() {
+        struct TestCase {
+            input: String,
+            max_width: usize,
+            caret_phisical_pos: PhisicalPosition,
+        }
+        let cases = vec![
+            TestCase {
+                input: "ABCDE\nFGHIJ\nKLMNO".to_string(),
+                max_width: 4,
+                caret_phisical_pos: PhisicalPosition { row: 5, col: 1 },
+            },
+            TestCase {
+                input: "ABCDE\nFGHIJ\nKLMNO".to_string(),
+                max_width: 10,
+                caret_phisical_pos: PhisicalPosition { row: 2, col: 5 },
+            },
+            TestCase {
+                input: "日本の四季折々".to_string(),
+                max_width: 10,
+                caret_phisical_pos: PhisicalPosition { row: 1, col: 4 },
+            },
+        ];
+        for case in cases.iter() {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let mut editor = Editor::new(sender.clone());
+            editor.operation(&EditorOperation::InsertString(case.input.clone()));
+            let _ = receiver.try_iter().collect::<Vec<_>>();
+
+            let layout = editor.calc_phisical_layout(
+                case.max_width,
+                &LineBoundaryProhibitedChars::new(vec![], vec![]),
+                &TestWidthResolver,
+            );
+            layout.chars.iter().for_each(|(c, p)| {
+                println!("{:?} {:?}", c, p);
+            });
+            println!("main_caret :{:?}", layout.main_caret_pos);
+            println!("mark       :{:?}", layout.mark_pos);
+            assert_eq!(layout.main_caret_pos, case.caret_phisical_pos);
+        }
+    }
 }

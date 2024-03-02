@@ -211,8 +211,9 @@ impl Buffer {
 
 #[derive(Default)]
 pub struct BufferLine {
-    row_num: usize,
-    chars: Vec<BufferChar>,
+    // 0 origin
+    pub(crate) row_num: usize,
+    pub(crate) chars: Vec<BufferChar>,
 }
 
 impl BufferLine {
@@ -306,7 +307,9 @@ impl BufferLine {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct BufferChar {
+    // 0 origin
     pub row: usize,
+    // 0 origin
     pub col: usize,
     pub c: char,
 }
