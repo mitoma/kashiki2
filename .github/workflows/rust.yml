@@ -32,6 +32,11 @@ jobs:
         with:
           os: ${{ matrix.job.os }}
 
+      # os が linux の場合のみ libxcb1-dev を apt でインストールする
+      - name: install libxcb1-dev
+        if: ${{ matrix.job.os == 'linux' }}
+        run: sudo apt-get install -y libxcb1-dev
+
       # ci phase
       - name: check all
         uses: mitoma/sver-actions/exec@v1
