@@ -32,7 +32,7 @@ jobs:
         with:
           os: ${{ matrix.job.os }}
 
-      # os が linux の場合のみ libxcb1-dev を apt でインストールする
+      # os が linux の場合のみ libxcb関連のライブラリを apt でインストールする
       - name: install libxcb1-dev
         if: ${{ matrix.job.os == 'linux' }}
         run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
