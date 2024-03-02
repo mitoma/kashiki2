@@ -156,6 +156,12 @@ impl SimpleStateCallback for MemoPadCallback {
                         "toggle-fullscreen" => {
                             return InputResult::ToggleFullScreen;
                         }
+                        "change-theme-dark" => {
+                            return InputResult::ChangeColorTheme(ColorTheme::SolarizedDark);
+                        }
+                        "change-theme-light" => {
+                            return InputResult::ChangeColorTheme(ColorTheme::SolarizedLight);
+                        }
                         "return" => EditorOperation::InsertEnter,
                         "backspace" => EditorOperation::Backspace,
                         "delete" => EditorOperation::Delete,

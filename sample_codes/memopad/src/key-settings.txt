@@ -37,6 +37,10 @@ C-Slash system:undo
 
 C-X C-C system:exit
 
+# 実験的(テーマの選択UIが実装されたら消す)
+C-X C-T D system:change-theme-dark
+C-X C-T L system:change-theme-light
+
 F11   system:toggle-fullscreen
 # 
 C-S-P system:command-pallet

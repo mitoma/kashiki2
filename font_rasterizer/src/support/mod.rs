@@ -158,6 +158,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                                 }
                             }
                         }
+                        InputResult::ChangeColorTheme(color_theme) => {
+                            state.change_color_theme(color_theme);
+                        }
                         InputResult::Noop => {
                             match event {
                                 WindowEvent::CloseRequested => control_flow.exit(),
@@ -236,6 +239,7 @@ pub async fn run_support(support: SimpleStateSupport) {
 pub enum InputResult {
     InputConsumed,
     ToggleFullScreen,
+    ChangeColorTheme(ColorTheme),
     SendExit,
     Noop,
 }
@@ -365,6 +369,12 @@ impl SimpleState {
 
     pub fn redraw(&mut self) {
         self.resize(self.size)
+    }
+
+    fn change_color_theme(&mut self, color_theme: ColorTheme) {
+        self.color_theme = color_theme;
+        // カラーテーマ変更時にはパイプラインの色も同時に変更する
+        self.rasterizer_pipeline.bg_color = self.color_theme.background().into();
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
