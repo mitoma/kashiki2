@@ -143,14 +143,14 @@ impl EasingPoint2 {
         false
     }
 
-    pub(crate) fn update(&mut self, p: cgmath::Point3<f32>) {
+    pub(crate) fn update(&mut self, p: cgmath::Point2<f32>) {
         let x_modify = self.x.update(p.x, self.duration, self.easing_func);
         let y_modify = self.y.update(p.y, self.duration, self.easing_func);
         self.in_animation = x_modify || y_modify;
         self.gc();
     }
 
-    pub(crate) fn add(&mut self, p: cgmath::Point3<f32>) {
+    pub(crate) fn add(&mut self, p: cgmath::Point2<f32>) {
         let x_modify = self.x.add(p.x, self.duration, self.easing_func);
         let y_modify = self.y.add(p.y, self.duration, self.easing_func);
         self.in_animation = x_modify || y_modify;
