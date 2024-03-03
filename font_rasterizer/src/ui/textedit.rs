@@ -21,44 +21,72 @@ use crate::{
     text_instances::TextInstances,
 };
 
-pub struct TextEdit {
-    editor: Editor,
+pub struct TextEditConfig {
     direction: Direction,
+    row_interval: f32,
+    col_interval: f32,
+    max_col: usize,
+    min_bound: Point2<f32>,
+    position_easing: (Duration, fn(f32) -> f32),
+    char_motion: MotionFlags,
+    caret_motion: MotionFlags,
+}
+
+impl Default for TextEditConfig {
+    fn default() -> Self {
+        Self {
+            direction: Direction::Horizontal,
+            row_interval: 1.0,
+            col_interval: 0.7,
+            max_col: 40,
+            min_bound: (10.0, 10.0).into(),
+            position_easing: (Duration::from_millis(800), nenobi::functions::sin_in_out),
+            char_motion: MotionFlags::ZERO_MOTION,
+            caret_motion: MotionFlags::ZERO_MOTION,
+        }
+    }
+}
+
+pub struct TextEdit {
+    config: TextEditConfig,
+
+    editor: Editor,
     receiver: Receiver<ChangeEvent>,
+
     buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
     removed_buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
+
     main_caret: Option<(Caret, EasingPoint3)>,
     mark: Option<(Caret, EasingPoint3)>,
     removed_carets: BTreeMap<Caret, EasingPoint3>,
-    motion: MotionFlags,
+
     instances: TextInstances,
     caret_instances: TextInstances,
     text_updated: bool,
+
     position: EasingPoint3,
     rotation: Quaternion<f32>,
     bound: EasingPoint2,
-    char_interval: f32,
 }
 
 impl Default for TextEdit {
     fn default() -> Self {
+        let config = TextEditConfig::default();
         let (tx, rx) = std::sync::mpsc::channel();
 
         let mut position = EasingPoint3::new(0.0, 0.0, 0.0);
-        position.update_duration_and_easing_func(
-            Duration::from_millis(800),
-            nenobi::functions::sin_in_out,
-        );
+        position
+            .update_duration_and_easing_func(config.position_easing.0, config.position_easing.1);
+        let bound = EasingPoint2::new(config.min_bound.x, config.min_bound.y);
         Self {
+            config,
             editor: Editor::new(tx),
-            direction: Direction::Horizontal,
             receiver: rx,
             buffer_chars: BTreeMap::new(),
             removed_buffer_chars: BTreeMap::new(),
             main_caret: None,
             mark: None,
             removed_carets: BTreeMap::new(),
-            motion: MotionFlags::ZERO_MOTION,
             instances: TextInstances::default(),
             caret_instances: TextInstances::default(),
             text_updated: true,
@@ -67,8 +95,7 @@ impl Default for TextEdit {
                 cgmath::Vector3::unit_y(),
                 cgmath::Deg(0.0),
             ),
-            bound: EasingPoint2::new(20.0, 20.0),
-            char_interval: 0.8,
+            bound,
         }
     }
 }
@@ -93,7 +120,7 @@ impl Model for TextEdit {
 
         let position: Point3<f32> = self.position.last().into();
         let current_bound = self.bound.last();
-        match self.direction {
+        match self.config.direction {
             Direction::Horizontal => Point3::new(
                 position.x,
                 position.y + caret_position.y + current_bound.1 / 2.0,
@@ -153,19 +180,19 @@ impl Model for TextEdit {
     fn model_operation(&mut self, op: &ModelOperation) {
         match op {
             ModelOperation::ChangeDirection => {
-                match self.direction {
-                    Direction::Horizontal => self.direction = Direction::Vertical,
-                    Direction::Vertical => self.direction = Direction::Horizontal,
+                match self.config.direction {
+                    Direction::Horizontal => self.config.direction = Direction::Vertical,
+                    Direction::Vertical => self.config.direction = Direction::Horizontal,
                 }
-                self.instances.set_direction(&self.direction);
+                self.instances.set_direction(&self.config.direction);
                 self.text_updated = true;
             }
             ModelOperation::IncreaseCharInterval => {
-                self.char_interval += 0.05;
+                self.config.col_interval += 0.05;
                 self.text_updated = true;
             }
             ModelOperation::DecreaseCharInterval => {
-                self.char_interval -= 0.05;
+                self.config.col_interval -= 0.05;
                 self.text_updated = true;
             }
         }
@@ -195,7 +222,7 @@ impl TextEdit {
                     self.buffer_chars.insert(c, caret_pos.into());
                     let instance = GlyphInstance {
                         color: color_theme.text().get_color(),
-                        motion: self.motion,
+                        motion: self.config.char_motion,
                         ..GlyphInstance::default()
                     };
                     self.instances.add(c.into(), instance, device);
@@ -218,6 +245,7 @@ impl TextEdit {
                 ChangeEvent::AddCaret(c) => {
                     let caret_instance = GlyphInstance {
                         color: color_theme.text_emphasized().get_color(),
+                        motion: self.config.caret_motion,
                         ..GlyphInstance::default()
                     };
                     self.caret_instances.add(c.into(), caret_instance, device);
@@ -262,7 +290,7 @@ impl TextEdit {
         let max_line_width = 40;
 
         let layout = self.editor.calc_phisical_layout(
-            (max_line_width as f32 / self.char_interval).abs() as usize,
+            (max_line_width as f32 / self.config.col_interval).abs() as usize,
             &LineBoundaryProhibitedChars::new(vec![], vec![]),
             glyph_vertex_buffer,
         );
@@ -273,11 +301,13 @@ impl TextEdit {
                 (result.0.max(pos.col), result.1.max(pos.row))
             });
             let (max_x, max_y, _) = Self::get_adjusted_position(
-                self.direction,
-                self.char_interval,
-                0.0,
+                &self.config,
                 GlyphWidth::Wide, /* この指定に深い意図はない */
                 (max_col, max_row),
+            );
+            let (max_x, max_y) = (
+                max_x.abs().max(self.config.min_bound.x),
+                max_y.abs().max(self.config.min_bound.y),
             );
             self.bound.update((max_x.abs(), max_y.abs()).into());
         }
@@ -286,27 +316,16 @@ impl TextEdit {
             if let Some(c_pos) = self.buffer_chars.get_mut(c) {
                 let width = glyph_vertex_buffer.width(c.c);
                 c_pos.update(
-                    Self::get_adjusted_position(
-                        self.direction,
-                        self.char_interval,
-                        max_line_width as f32,
-                        width,
-                        (pos.col, pos.row),
-                    )
-                    .into(),
+                    Self::get_adjusted_position(&self.config, width, (pos.col, pos.row)).into(),
                 );
             }
         });
 
         let caret_width = glyph_vertex_buffer.width('_');
         if let Some((_, c)) = self.main_caret.as_mut() {
-            info!("main_caret_pos layout: {:?}", layout.main_caret_pos);
-            info!("main_caret_pos easing: {:?}", c.last());
             c.update(
                 Self::get_adjusted_position(
-                    self.direction,
-                    self.char_interval,
-                    max_line_width as f32,
+                    &self.config,
                     caret_width,
                     (layout.main_caret_pos.col, layout.main_caret_pos.row),
                 )
@@ -317,9 +336,7 @@ impl TextEdit {
         if let (Some((_, c)), Some(mark_pos)) = (self.mark.as_mut(), layout.mark_pos) {
             c.update(
                 Self::get_adjusted_position(
-                    self.direction,
-                    self.char_interval,
-                    max_line_width as f32,
+                    &self.config,
                     caret_width,
                     (mark_pos.col, mark_pos.row),
                 )
@@ -330,17 +347,15 @@ impl TextEdit {
 
     #[inline]
     fn get_adjusted_position(
-        direction: Direction,
-        char_interval: f32,
-        max_width: f32,
+        config: &TextEditConfig,
         glyph_width: GlyphWidth,
         (x, y): (usize, usize),
     ) -> (f32, f32, f32) {
-        let x = ((x as f32) / 2.0 + glyph_width.left()) * char_interval;
-        let y = y as f32;
-        match direction {
+        let x = ((x as f32) / 2.0 + glyph_width.left()) * config.col_interval;
+        let y = y as f32 * config.row_interval;
+        match config.direction {
             Direction::Horizontal => (x, -y, 0.0),
-            Direction::Vertical => (max_width - y, -x, 0.0),
+            Direction::Vertical => (config.max_col as f32 - y, -x, 0.0),
         }
     }
 
@@ -399,7 +414,7 @@ impl TextEdit {
                     &center,
                     &current_position,
                     &self.rotation,
-                    Self::calc_rotation(c.c, self.direction, glyph_vertex_buffer),
+                    Self::calc_rotation(c.c, &self.config, glyph_vertex_buffer),
                 );
             }
         }
@@ -421,7 +436,7 @@ impl TextEdit {
                     &center,
                     &current_position,
                     &self.rotation,
-                    Self::calc_rotation(c.c, self.direction, glyph_vertex_buffer),
+                    Self::calc_rotation(c.c, &self.config, glyph_vertex_buffer),
                 );
             }
         }
@@ -430,10 +445,10 @@ impl TextEdit {
     #[inline]
     fn calc_rotation(
         c: char,
-        direction: Direction,
+        config: &TextEditConfig,
         glyph_vertex_buffer: &GlyphVertexBuffer,
     ) -> Option<Quaternion<f32>> {
-        match direction {
+        match config.direction {
             Direction::Horizontal => None,
             Direction::Vertical => {
                 let width = glyph_vertex_buffer.width(c);
