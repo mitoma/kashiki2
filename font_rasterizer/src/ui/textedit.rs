@@ -3,7 +3,6 @@ use std::{collections::BTreeMap, sync::mpsc::Receiver};
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 
 use instant::Duration;
-use log::info;
 use text_buffer::{
     buffer::BufferChar,
     caret::{Caret, CaretType},
