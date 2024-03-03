@@ -291,7 +291,7 @@ impl TextEdit {
         }
     }
 
-    // 文字と caret の x, y の論理的な位置を計算する
+    // 文字と caret の x, y の論理的な位置を計算し、bound を更新する
     #[inline]
     fn calc_position_and_bound(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) {
         if !self.text_updated {
@@ -389,7 +389,7 @@ impl TextEdit {
                     &center,
                     &current_position,
                     &self.rotation,
-                    None,
+                    Self::calc_rotation('_', &self.config, glyph_vertex_buffer),
                 );
             }
         }
@@ -403,7 +403,7 @@ impl TextEdit {
                     &center,
                     &current_position,
                     &self.rotation,
-                    None,
+                    Self::calc_rotation('_', &self.config, glyph_vertex_buffer),
                 );
             }
         }
