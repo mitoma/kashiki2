@@ -276,7 +276,8 @@ impl TextEdit {
                 self.direction,
                 self.char_interval,
                 0.0,
-                (max_col as f32, max_row as f32, 0.0),
+                GlyphWidth::Wide, /* この指定に深い意図はない */
+                (max_col, max_row),
             );
             self.bound.update((max_x.abs(), max_y.abs()).into());
         }
@@ -289,7 +290,8 @@ impl TextEdit {
                         self.direction,
                         self.char_interval,
                         max_line_width as f32,
-                        ((pos.col as f32 / 2.0) + width.left(), pos.row as f32, 0.0),
+                        width,
+                        (pos.col, pos.row),
                     )
                     .into(),
                 );
@@ -305,11 +307,8 @@ impl TextEdit {
                     self.direction,
                     self.char_interval,
                     max_line_width as f32,
-                    (
-                        (layout.main_caret_pos.col as f32 / 2.0) + caret_width.left(),
-                        layout.main_caret_pos.row as f32,
-                        0.0,
-                    ),
+                    caret_width,
+                    (layout.main_caret_pos.col, layout.main_caret_pos.row),
                 )
                 .into(),
             );
@@ -321,11 +320,8 @@ impl TextEdit {
                     self.direction,
                     self.char_interval,
                     max_line_width as f32,
-                    (
-                        (mark_pos.col as f32 / 2.0) + caret_width.left(),
-                        mark_pos.row as f32,
-                        0.0,
-                    ),
+                    caret_width,
+                    (mark_pos.col, mark_pos.row),
                 )
                 .into(),
             )
@@ -337,12 +333,14 @@ impl TextEdit {
         direction: Direction,
         char_interval: f32,
         max_width: f32,
-        (x, y, z): (f32, f32, f32),
+        glyph_width: GlyphWidth,
+        (x, y): (usize, usize),
     ) -> (f32, f32, f32) {
-        let x = x * char_interval;
+        let x = ((x as f32) / 2.0 + glyph_width.left()) * char_interval;
+        let y = y as f32;
         match direction {
-            Direction::Horizontal => (x, -y, z),
-            Direction::Vertical => (max_width - y, -x, z),
+            Direction::Horizontal => (x, -y, 0.0),
+            Direction::Vertical => (max_width - y, -x, 0.0),
         }
     }
 
@@ -473,10 +471,8 @@ impl TextEdit {
         let pos = cgmath::Matrix4::from(*rotation)
             * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
         let new_position = cgmath::Vector3 {
-            // FIXME center の値をさらに半分にしているのは前の段階で
-            // 半角のサイズを 1 → 1.0 に変換しているのが原因と思われる。いい感じに直してくれ。
-            x: pos.x - (center.x / 2.0) + position.x,
-            y: pos.y - (center.y / 2.0) + position.y,
+            x: pos.x - center.x + position.x,
+            y: pos.y - center.y + position.y,
             z: pos.z + position.z,
         };
         instance.position = new_position;
