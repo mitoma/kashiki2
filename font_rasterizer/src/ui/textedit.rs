@@ -12,7 +12,7 @@ use text_buffer::{
 
 use crate::{
     color_theme,
-    easing_value::EasingPoint3,
+    easing_value::{EasingPoint2, EasingPoint3},
     font_buffer::{Direction, GlyphVertexBuffer},
     font_converter::GlyphWidth,
     instances::{GlyphInstance, GlyphInstances},
@@ -36,7 +36,7 @@ pub struct TextEdit {
     text_updated: bool,
     position: EasingPoint3,
     rotation: Quaternion<f32>,
-    bound: (f32, f32),
+    bound: EasingPoint2,
     char_interval: f32,
 }
 
@@ -67,7 +67,7 @@ impl Default for TextEdit {
                 cgmath::Vector3::unit_y(),
                 cgmath::Deg(0.0),
             ),
-            bound: (20.0, 20.0),
+            bound: EasingPoint2::new(20.0, 20.0),
             char_interval: 0.8,
         }
     }
@@ -92,14 +92,15 @@ impl Model for TextEdit {
             .unwrap_or_else(|| Point3::new(0.0, 0.0, 0.0));
 
         let position: Point3<f32> = self.position.last().into();
+        let current_bound = self.bound.last();
         match self.direction {
             Direction::Horizontal => Point3::new(
                 position.x,
-                position.y + caret_position.y + self.bound.1 / 2.0,
+                position.y + caret_position.y + current_bound.1 / 2.0,
                 position.z,
             ),
             Direction::Vertical => Point3::new(
-                position.x + caret_position.x - self.bound.0 / 2.0,
+                position.x + caret_position.x - current_bound.0 / 2.0,
                 position.y,
                 position.z,
             ),
@@ -120,7 +121,8 @@ impl Model for TextEdit {
     }
 
     fn bound(&self) -> (f32, f32) {
-        self.bound
+        // 外向けには最終のサイズを出す
+        self.bound.last()
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
@@ -189,7 +191,7 @@ impl TextEdit {
                             let (x, y, z) = c.current();
                             (x, y + 1.0, z)
                         })
-                        .unwrap_or_else(|| (0.0, 0.0, 0.0));
+                        .unwrap_or_else(|| (0.0, 1.0, 0.0));
                     self.buffer_chars.insert(c, caret_pos.into());
                     let instance = GlyphInstance {
                         color: color_theme.text().get_color(),
@@ -276,7 +278,8 @@ impl TextEdit {
                 0.0,
                 (max_col as f32, max_row as f32, 0.0),
             );
-            self.bound = (max_x.abs(), max_y.abs());
+            self.bound.update((max_x.abs(), max_y.abs()).into());
+            self.position();
         }
 
         layout.chars.iter().for_each(|(c, pos)| {
@@ -354,7 +357,8 @@ impl TextEdit {
     // 文字と caret の GPU で描画すべき位置やモーションを計算する
     #[inline]
     fn calc_instance_positions(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) {
-        let (bound_x, bound_y) = &self.bound;
+        let bound_in_animation = self.bound.in_animation();
+        let (bound_x, bound_y) = &self.bound.current();
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
         let position_in_animation = self.position.in_animation();
         let current_position: Point3<f32> = self.position.current().into();
@@ -362,10 +366,9 @@ impl TextEdit {
         // update caret
         info!("caret_instances len: {}", self.caret_instances.len());
         if let Some((c, i)) = self.main_caret.as_mut() {
-            //if Self::dismiss_update(i, position_in_animation) {
-            //
-            //}
-            if let Some(instance) = self.caret_instances.get_mut(&c.clone().into()) {
+            if Self::dismiss_update(i, position_in_animation, bound_in_animation) {
+                //
+            } else if let Some(instance) = self.caret_instances.get_mut(&c.clone().into()) {
                 info!("update position: {:?}", i.current());
                 info!("update position: {:?}", i.last());
                 Self::update_instance(
@@ -379,10 +382,9 @@ impl TextEdit {
             }
         }
         if let Some((c, i)) = self.mark.as_mut() {
-            if Self::dismiss_update(i, position_in_animation) {
+            if Self::dismiss_update(i, position_in_animation, bound_in_animation) {
                 //
-            }
-            if let Some(instance) = self.caret_instances.get_mut(&c.clone().into()) {
+            } else if let Some(instance) = self.caret_instances.get_mut(&c.clone().into()) {
                 Self::update_instance(
                     instance,
                     i,
@@ -396,7 +398,7 @@ impl TextEdit {
 
         // update chars
         for (c, i) in self.buffer_chars.iter_mut() {
-            if Self::dismiss_update(i, position_in_animation) {
+            if Self::dismiss_update(i, position_in_animation, bound_in_animation) {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
@@ -458,8 +460,12 @@ impl TextEdit {
 
     // この関数は更新が必要かどうかを判定するための関数。true なら更新が不要。
     #[inline]
-    fn dismiss_update(easiong_point: &mut EasingPoint3, position_in_animation: bool) -> bool {
-        !easiong_point.in_animation() && !position_in_animation
+    fn dismiss_update(
+        easiong_point: &mut EasingPoint3,
+        position_in_animation: bool,
+        bound_in_animation: bool,
+    ) -> bool {
+        !easiong_point.in_animation() && !position_in_animation && !bound_in_animation
     }
 
     #[inline]
