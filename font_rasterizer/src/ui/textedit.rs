@@ -305,28 +305,32 @@ impl TextEdit {
             glyph_vertex_buffer,
         );
 
-        {
+        let bound = {
             // update bound
             let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
                 (result.0.max(pos.col), result.1.max(pos.row))
             });
             let (max_x, max_y, _) = Self::get_adjusted_position(
                 &self.config,
-                GlyphWidth::Wide, /* この指定に深い意図はない */
+                GlyphWidth::Wide,             /* この指定に深い意図はない */
+                Point2::<f32>::new(0.0, 0.0), /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
                 (max_col, max_row),
             );
             let (max_x, max_y) = (
                 max_x.abs().max(self.config.min_bound.x),
                 max_y.abs().max(self.config.min_bound.y),
             );
-            self.bound.update((max_x.abs(), max_y.abs()).into());
-        }
+            let bound = (max_x.abs() + 2.0, max_y.abs() + 2.0).into();
+            self.bound.update(bound);
+            bound
+        };
 
         layout.chars.iter().for_each(|(c, pos)| {
             if let Some(c_pos) = self.buffer_chars.get_mut(c) {
                 let width = glyph_vertex_buffer.width(c.c);
                 c_pos.update(
-                    Self::get_adjusted_position(&self.config, width, (pos.col, pos.row)).into(),
+                    Self::get_adjusted_position(&self.config, width, bound, (pos.col, pos.row))
+                        .into(),
                 );
             }
         });
@@ -337,6 +341,7 @@ impl TextEdit {
                 Self::get_adjusted_position(
                     &self.config,
                     caret_width,
+                    bound,
                     (layout.main_caret_pos.col, layout.main_caret_pos.row),
                 )
                 .into(),
@@ -348,6 +353,7 @@ impl TextEdit {
                 Self::get_adjusted_position(
                     &self.config,
                     caret_width,
+                    bound,
                     (mark_pos.col, mark_pos.row),
                 )
                 .into(),
@@ -359,13 +365,14 @@ impl TextEdit {
     fn get_adjusted_position(
         config: &TextEditConfig,
         glyph_width: GlyphWidth,
+        bound: Point2<f32>,
         (x, y): (usize, usize),
     ) -> (f32, f32, f32) {
         let x = ((x as f32) / 2.0 + glyph_width.left()) * config.col_interval;
         let y = y as f32 * config.row_interval;
         match config.direction {
             Direction::Horizontal => (x, -y, 0.0),
-            Direction::Vertical => (config.max_col as f32 - y, -x, 0.0),
+            Direction::Vertical => (bound.y - y, -x, 0.0),
         }
     }
 
