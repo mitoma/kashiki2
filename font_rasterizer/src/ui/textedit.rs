@@ -283,7 +283,7 @@ impl TextEdit {
         }
 
         layout.chars.iter().for_each(|(c, pos)| {
-            self.buffer_chars.get_mut(c).map(|c_pos| {
+            if let Some(c_pos) = self.buffer_chars.get_mut(c) {
                 let width = glyph_vertex_buffer.width(c.c);
                 c_pos.update(
                     Self::get_adjusted_position(
@@ -294,50 +294,43 @@ impl TextEdit {
                     )
                     .into(),
                 );
-            });
+            }
         });
 
         let caret_width = glyph_vertex_buffer.width('_');
-        self.main_caret
-            .as_mut()
-            .map(|(_, c)| {
-                info!("main_caret_pos layout: {:?}", layout.main_caret_pos);
-                info!("main_caret_pos easing: {:?}", c.last());
-                c.update(
-                    Self::get_adjusted_position(
-                        self.direction,
-                        self.char_interval,
-                        max_line_width as f32,
-                        (
-                            (layout.main_caret_pos.col as f32 / 2.0) + caret_width.left(),
-                            layout.main_caret_pos.row as f32,
-                            0.0,
-                        ),
-                    )
-                    .into(),
-                );
-            })
-            .unwrap();
-        self.mark
-            .as_mut()
-            .map(|(_, c)| {
-                if let Some(mark_pos) = layout.mark_pos {
-                    c.update(
-                        Self::get_adjusted_position(
-                            self.direction,
-                            self.char_interval,
-                            max_line_width as f32,
-                            (
-                                (mark_pos.col as f32 / 2.0) + caret_width.left(),
-                                mark_pos.row as f32,
-                                0.0,
-                            ),
-                        )
-                        .into(),
-                    )
-                }
-            })
-            .unwrap_or(());
+        if let Some((_, c)) = self.main_caret.as_mut() {
+            info!("main_caret_pos layout: {:?}", layout.main_caret_pos);
+            info!("main_caret_pos easing: {:?}", c.last());
+            c.update(
+                Self::get_adjusted_position(
+                    self.direction,
+                    self.char_interval,
+                    max_line_width as f32,
+                    (
+                        (layout.main_caret_pos.col as f32 / 2.0) + caret_width.left(),
+                        layout.main_caret_pos.row as f32,
+                        0.0,
+                    ),
+                )
+                .into(),
+            );
+        }
+
+        if let (Some((_, c)), Some(mark_pos)) = (self.mark.as_mut(), layout.mark_pos) {
+            c.update(
+                Self::get_adjusted_position(
+                    self.direction,
+                    self.char_interval,
+                    max_line_width as f32,
+                    (
+                        (mark_pos.col as f32 / 2.0) + caret_width.left(),
+                        mark_pos.row as f32,
+                        0.0,
+                    ),
+                )
+                .into(),
+            )
+        }
     }
 
     #[inline]
