@@ -153,10 +153,11 @@ impl Model for TextEdit {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        let mut char_insatnces = self.instances.to_instances();
-        let mut caret_instances = self.caret_instances.to_instances();
-        char_insatnces.append(&mut caret_instances);
-        char_insatnces
+        [
+            self.caret_instances.to_instances(),
+            self.instances.to_instances(),
+        ]
+        .concat()
     }
 
     fn update(
@@ -170,6 +171,7 @@ impl Model for TextEdit {
         self.calc_position_and_bound(glyph_vertex_buffer);
         self.calc_instance_positions(glyph_vertex_buffer);
         self.instances.update(device, queue);
+        self.caret_instances.update(device, queue);
         self.text_updated = false;
     }
 
@@ -256,6 +258,12 @@ impl TextEdit {
                     }
                 }
                 ChangeEvent::MoveCaret { from, to } => {
+                    match from.caret_type {
+                        CaretType::Primary => {
+                            self.main_caret = Some((to, self.main_caret.take().unwrap().1))
+                        }
+                        CaretType::Mark => self.mark = Some((to, self.mark.take().unwrap().1)),
+                    }
                     if let Some(instance) = self.caret_instances.remove(&from.into()) {
                         self.caret_instances.add(to.into(), instance, device);
                     }
@@ -369,13 +377,10 @@ impl TextEdit {
         let current_position: Point3<f32> = self.position.current().into();
 
         // update caret
-        info!("caret_instances len: {}", self.caret_instances.len());
         if let Some((c, i)) = self.main_caret.as_mut() {
             if Self::dismiss_update(i, position_in_animation, bound_in_animation) {
                 //
             } else if let Some(instance) = self.caret_instances.get_mut(&c.clone().into()) {
-                info!("update position: {:?}", i.current());
-                info!("update position: {:?}", i.last());
                 Self::update_instance(
                     instance,
                     i,
