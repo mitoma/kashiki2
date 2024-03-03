@@ -119,4 +119,8 @@ impl TextInstances {
     pub fn len(&self) -> usize {
         self.glyph_instances.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.glyph_instances.is_empty()
+    }
 }
