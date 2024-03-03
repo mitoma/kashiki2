@@ -279,7 +279,6 @@ impl TextEdit {
                 (max_col as f32, max_row as f32, 0.0),
             );
             self.bound.update((max_x.abs(), max_y.abs()).into());
-            self.position();
         }
 
         layout.chars.iter().for_each(|(c, pos)| {
@@ -474,11 +473,15 @@ impl TextEdit {
         let pos = cgmath::Matrix4::from(*rotation)
             * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
         let new_position = cgmath::Vector3 {
-            x: pos.x - center.x + position.x,
-            y: pos.y - center.y + position.y,
+            // FIXME center の値をさらに半分にしているのは前の段階で
+            // 半角のサイズを 1 → 1.0 に変換しているのが原因と思われる。いい感じに直してくれ。
+            x: pos.x - (center.x / 2.0) + position.x,
+            y: pos.y - (center.y / 2.0) + position.y,
             z: pos.z + position.z,
         };
         instance.position = new_position;
+
+        // 縦書きの場合は char_rotation が必要なのでここで回転する
         instance.rotation = match char_rotation {
             Some(r) => *rotation * r,
             None => *rotation,
