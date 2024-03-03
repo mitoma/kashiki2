@@ -15,7 +15,7 @@ use crate::{
     font_buffer::{Direction, GlyphVertexBuffer},
     font_converter::GlyphWidth,
     instances::{GlyphInstance, GlyphInstances},
-    layout_engine::{Model, ModelOperation},
+    layout_engine::{Model, ModelOperation, ModelOperationResult},
     motion::MotionFlags,
     text_instances::TextInstances,
 };
@@ -178,7 +178,7 @@ impl Model for TextEdit {
         self.editor.operation(op)
     }
 
-    fn model_operation(&mut self, op: &ModelOperation) {
+    fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult {
         match op {
             ModelOperation::ChangeDirection => {
                 match self.config.direction {
@@ -187,14 +187,17 @@ impl Model for TextEdit {
                 }
                 self.instances.set_direction(&self.config.direction);
                 self.text_updated = true;
+                ModelOperationResult::RequireReLayout
             }
             ModelOperation::IncreaseCharInterval => {
                 self.config.col_interval += 0.05;
                 self.text_updated = true;
+                ModelOperationResult::RequireReLayout
             }
             ModelOperation::DecreaseCharInterval => {
                 self.config.col_interval -= 0.05;
                 self.text_updated = true;
+                ModelOperationResult::RequireReLayout
             }
         }
     }
@@ -379,7 +382,7 @@ impl TextEdit {
         if let Some((c, i)) = self.main_caret.as_mut() {
             if Self::dismiss_update(i, position_in_animation, bound_in_animation) {
                 //
-            } else if let Some(instance) = self.caret_instances.get_mut(&c.clone().into()) {
+            } else if let Some(instance) = self.caret_instances.get_mut(&(*c).into()) {
                 Self::update_instance(
                     instance,
                     i,
@@ -393,7 +396,7 @@ impl TextEdit {
         if let Some((c, i)) = self.mark.as_mut() {
             if Self::dismiss_update(i, position_in_animation, bound_in_animation) {
                 //
-            } else if let Some(instance) = self.caret_instances.get_mut(&c.clone().into()) {
+            } else if let Some(instance) = self.caret_instances.get_mut(&(*c).into()) {
                 Self::update_instance(
                     instance,
                     i,

@@ -190,7 +190,10 @@ impl World for HorizontalWorld {
 
     fn model_operation(&mut self, op: &ModelOperation) {
         if let Some(model) = self.get_current_mut() {
-            model.model_operation(op);
+            match model.model_operation(op) {
+                ModelOperationResult::NoCare => {}
+                ModelOperationResult::RequireReLayout => self.re_layout(),
+            }
         }
     }
 
@@ -247,7 +250,7 @@ pub trait Model {
         queue: &wgpu::Queue,
     );
     fn editor_operation(&mut self, op: &EditorOperation);
-    fn model_operation(&mut self, op: &ModelOperation);
+    fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult;
     fn to_string(&self) -> String;
 }
 
@@ -257,4 +260,9 @@ pub enum ModelOperation {
     IncreaseCharInterval,
     // 文字間を減少させる
     DecreaseCharInterval,
+}
+
+pub enum ModelOperationResult {
+    NoCare,
+    RequireReLayout,
 }

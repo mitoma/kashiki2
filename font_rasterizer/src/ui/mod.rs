@@ -11,7 +11,7 @@ use crate::{
     color_theme::ColorTheme,
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::{GlyphInstance, GlyphInstances},
-    layout_engine::{Model, ModelOperation},
+    layout_engine::{Model, ModelOperation, ModelOperationResult},
     motion::MotionFlags,
     time::now_millis,
 };
@@ -77,7 +77,7 @@ impl Model for PlaneTextReader {
         // noop
     }
 
-    fn model_operation(&mut self, op: &ModelOperation) {
+    fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult {
         match op {
             ModelOperation::ChangeDirection => {
                 match self.direction {
@@ -85,9 +85,10 @@ impl Model for PlaneTextReader {
                     Direction::Vertical => self.direction = Direction::Horizontal,
                 }
                 self.updated = true;
+                ModelOperationResult::RequireReLayout
             }
-            ModelOperation::IncreaseCharInterval => {}
-            ModelOperation::DecreaseCharInterval => {}
+            ModelOperation::IncreaseCharInterval => ModelOperationResult::NoCare,
+            ModelOperation::DecreaseCharInterval => ModelOperationResult::NoCare,
         }
     }
 
