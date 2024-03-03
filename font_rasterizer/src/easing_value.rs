@@ -150,6 +150,7 @@ impl EasingPoint2 {
         self.gc();
     }
 
+    #[allow(dead_code)]
     pub(crate) fn add(&mut self, p: cgmath::Point2<f32>) {
         let x_modify = self.x.add(p.x, self.duration, self.easing_func);
         let y_modify = self.y.add(p.y, self.duration, self.easing_func);
@@ -157,6 +158,7 @@ impl EasingPoint2 {
         self.gc();
     }
 
+    #[allow(dead_code)]
     pub(crate) fn update_duration_and_easing_func(
         &mut self,
         duration: Duration,
