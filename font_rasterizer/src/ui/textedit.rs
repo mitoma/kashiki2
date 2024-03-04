@@ -25,6 +25,7 @@ pub struct TextEditConfig {
     row_interval: f32,
     col_interval: f32,
     max_col: usize,
+    line_prohibited_chars: LineBoundaryProhibitedChars,
     min_bound: Point2<f32>,
     position_easing: (Duration, fn(f32) -> f32),
     char_motion: MotionFlags,
@@ -38,6 +39,7 @@ impl Default for TextEditConfig {
             row_interval: 1.0,
             col_interval: 0.7,
             max_col: 40,
+            line_prohibited_chars: LineBoundaryProhibitedChars::default(),
             min_bound: (10.0, 10.0).into(),
             position_easing: (Duration::from_millis(800), nenobi::functions::sin_in_out),
             char_motion: MotionFlags::ZERO_MOTION,
@@ -297,11 +299,10 @@ impl TextEdit {
         if !self.text_updated {
             return;
         }
-        let max_line_width = 40;
 
         let layout = self.editor.calc_phisical_layout(
-            (max_line_width as f32 / self.config.col_interval).abs() as usize,
-            &LineBoundaryProhibitedChars::new(vec![], vec![]),
+            (self.config.max_col as f32 / self.config.col_interval).abs() as usize,
+            &self.config.line_prohibited_chars,
             glyph_vertex_buffer,
         );
 
