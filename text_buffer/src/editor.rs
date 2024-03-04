@@ -71,6 +71,24 @@ impl Editor {
         self.buffer.to_buffer_string()
     }
 
+    #[inline]
+    fn calc_indent(line_string: &str, width_resolver: &dyn CharWidthResolver) -> usize {
+        let mut list_indent_pattern: Vec<&str> =
+            vec!["* ", "* [ ] ", "* [x] ", "- ", "- [ ] ", "- [x] ", "・"];
+        list_indent_pattern.sort_by(|l, r| l.len().cmp(&r.len()).reverse());
+        for pattern in list_indent_pattern {
+            if line_string.trim_start().starts_with(pattern) {
+                // line_string の何文字目に pattern がマッチするかを取得する
+                return line_string.find(pattern).unwrap()
+                    + pattern
+                        .chars()
+                        .map(|c| width_resolver.resolve_width(c))
+                        .sum::<usize>();
+            }
+        }
+        0
+    }
+
     pub fn calc_phisical_layout(
         &self,
         max_line_width: usize,
@@ -99,6 +117,8 @@ impl Editor {
                     }
                 }
             }
+
+            let indent = Self::calc_indent(&line.to_line_string(), width_resolver);
             for buffer_char in line.chars.iter() {
                 // 物理位置を計算
                 let char_width = width_resolver.resolve_width(buffer_char.c);
@@ -110,7 +130,7 @@ impl Editor {
                 {
                     // 行末禁則文字の場合は max_line_width に達する前に改行する
                     phisical_row += 1;
-                    phisical_col = 0;
+                    phisical_col = indent;
                 } else if phisical_col + char_width > max_line_width {
                     if line_boundary_prohibited_chars
                         .start
@@ -120,7 +140,7 @@ impl Editor {
                         // 行頭禁則文字の場合は、改行を 1 回猶予する。
                     } else {
                         phisical_row += 1;
-                        phisical_col = 0;
+                        phisical_col = indent;
                     }
                 }
 
@@ -197,6 +217,7 @@ impl ToString for PhisicalLayout {
         for (c, position) in self.chars.iter() {
             while current_row != position.row {
                 result.push('\n');
+                result.push_str(&" ".repeat(position.col));
                 current_row += 1;
             }
             result.push(c.c);
@@ -395,6 +416,46 @@ mod tests {
                     "Power is [chikara]".to_string(),
                 )],
                 output: "Power is \n[chikara]".to_string(),
+                prohibited_chars: LineBoundaryProhibitedChars::default(),
+                max_width: 10,
+            },
+        ];
+        for case in cases.iter() {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let mut editor = Editor::new(sender.clone());
+            case.input.iter().for_each(|op| editor.operation(op));
+            let _ = receiver.try_iter().collect::<Vec<_>>();
+
+            let layout = editor.calc_phisical_layout(
+                case.max_width,
+                &case.prohibited_chars,
+                &TestWidthResolver,
+            );
+            assert_eq!(layout.to_string(), case.output);
+        }
+    }
+    #[test]
+    fn test_indent() {
+        struct TestCase {
+            input: Vec<EditorOperation>,
+            output: String,
+            prohibited_chars: LineBoundaryProhibitedChars,
+            max_width: usize,
+        }
+        let cases = vec![
+            TestCase {
+                input: vec![EditorOperation::InsertString(
+                    "- [ ] abcdefghijklmn".to_string(),
+                )],
+                output: "- [ ] abcd\n      efgh\n      ijkl\n      mn".to_string(),
+                prohibited_chars: LineBoundaryProhibitedChars::default(),
+                max_width: 10,
+            },
+            TestCase {
+                input: vec![EditorOperation::InsertString(
+                    "  - スーパーマンはどこにいる？".to_string(),
+                )],
+                output: "  - スーパー\n    マンは\n    どこに\n    いる？".to_string(),
                 prohibited_chars: LineBoundaryProhibitedChars::default(),
                 max_width: 10,
             },
