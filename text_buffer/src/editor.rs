@@ -118,11 +118,13 @@ impl Editor {
                 }
             }
 
+            // 箇条書きっぽい行では折り返し時にインデントを入れる
             let indent = Self::calc_indent(&line.to_line_string(), width_resolver);
             for buffer_char in line.chars.iter() {
                 // 物理位置を計算
                 let char_width = width_resolver.resolve_width(buffer_char.c);
-                // TODO 禁則文字の計算をするならこのあたりでやる
+
+                // 禁則文字の計算
                 if buffer_char.col == 0 {
                     // 論理行の行頭では禁則文字を考慮しない
                 } else if phisical_col + char_width >= max_line_width
@@ -135,9 +137,9 @@ impl Editor {
                     if line_boundary_prohibited_chars
                         .start
                         .contains(&buffer_char.c)
-                        && phisical_col + (char_width * 2) > max_line_width
+                        && max_line_width >= phisical_col
                     {
-                        // 行頭禁則文字の場合は、改行を 1 回猶予する。
+                        // 行頭禁則文字の場合は max_line_width を超えていても 1 文字だけ改行しない
                     } else {
                         phisical_row += 1;
                         phisical_col = indent;
@@ -245,8 +247,8 @@ impl LineBoundaryProhibitedChars {
 }
 
 const DEFAULT_STARTS: &str =
-    ",.!?;:)]}”’〉》〕〗〙〛｝〉》〕〗〙〛｝」』】、。！？；：-ー…～〃々ゝゞヽヾ";
-const DEFAULT_ENDS: &str = "([{“‘〈《〔〖〘〚｛〈《〔〖〘〚｛「『【";
+    ",.!?;:)]}”’）〉》〕〗〙〛｝〉》〕〗〙〛｝」』】、。！？；：-ー…～〃々ゝゞヽヾ";
+const DEFAULT_ENDS: &str = "([{“‘（〈《〔〖〘〚｛〈《〔〖〘〚｛「『【";
 
 impl Default for LineBoundaryProhibitedChars {
     fn default() -> Self {
