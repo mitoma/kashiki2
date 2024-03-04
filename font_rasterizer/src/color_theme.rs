@@ -111,22 +111,22 @@ impl SolarizedColor {
     #[allow(clippy::excessive_precision)]
     pub fn get_color(&self) -> [f32; 3] {
         match self {
-            SolarizedColor::Base03 => [0.0000000000, 0.0241576303, 0.0368894450],
-            SolarizedColor::Base02 => [0.0021246888, 0.0368894450, 0.0544802807],
-            SolarizedColor::Base01 => [0.0975873619, 0.1559264660, 0.1778884083],
-            SolarizedColor::Base00 => [0.1301364899, 0.1980693042, 0.2269658893],
-            SolarizedColor::Base0 => [0.2269658893, 0.2961383164, 0.3049873710],
-            SolarizedColor::Base1 => [0.2917706966, 0.3564002514, 0.3564002514],
-            SolarizedColor::Base2 => [0.8549926877, 0.8069523573, 0.6653873324],
-            SolarizedColor::Base3 => [0.9822505713, 0.9215820432, 0.7681512833],
-            SolarizedColor::Yellow => [0.4620770514, 0.2501583695, 0.0000000000],
-            SolarizedColor::Orange => [0.5972018838, 0.0703601092, 0.0080231922],
-            SolarizedColor::Red => [0.7156936526, 0.0318960287, 0.0284260381],
-            SolarizedColor::Magenta => [0.6514056921, 0.0368894450, 0.2232279778],
-            SolarizedColor::Violet => [0.1499598026, 0.1651322246, 0.5520114899],
-            SolarizedColor::Blue => [0.0193823613, 0.2581829131, 0.6444797516],
-            SolarizedColor::Cyan => [0.0231533647, 0.3564002514, 0.3139887452],
-            SolarizedColor::Green => [0.2345506549, 0.3185468316, 0.0000000000],
+            SolarizedColor::Base03 => [0.0000000000, 0.0199178383, 0.0328759179],
+            SolarizedColor::Base02 => [0.0003671363, 0.0328759179, 0.0511220507],
+            SolarizedColor::Base01 => [0.0962661207, 0.1572807282, 0.1801442951],
+            SolarizedColor::Base00 => [0.1303522736, 0.2010957301, 0.2309981287],
+            SolarizedColor::Base0 => [0.2309981287, 0.3021254838, 0.3111805022],
+            SolarizedColor::Base1 => [0.2976526320, 0.3636038899, 0.3636038899],
+            SolarizedColor::Base2 => [0.8591735959, 0.8122414947, 0.6730490923],
+            SolarizedColor::Base3 => [0.9828262329, 0.9239933491, 0.7742273211],
+            SolarizedColor::Yellow => [0.4704402387, 0.2549158633, 0.0000000000],
+            SolarizedColor::Orange => [0.6054843068, 0.0677245930, 0.0045597549],
+            SolarizedColor::Red => [0.7226724625, 0.0277552791, 0.0242229421],
+            SolarizedColor::Magenta => [0.6592239738, 0.0328759179, 0.2271365225],
+            SolarizedColor::Violet => [0.1510580480, 0.1668722779, 0.5604991317],
+            SolarizedColor::Blue => [0.0151752383, 0.2631747127, 0.6523700953],
+            SolarizedColor::Cyan => [0.0189129841, 0.3636038899, 0.3203815520],
+            SolarizedColor::Green => [0.2388279885, 0.3250369728, 0.0000000000],
         }
     }
 }
@@ -174,7 +174,7 @@ mod test {
         SCHEMES.iter().for_each(|scheme| {
             println!(
                 "{:10}({:.10}, {:.10}, {:.10}),",
-                scheme.0.to_uppercase(),
+                scheme.0,
                 linear_to_srgb(scheme.1),
                 linear_to_srgb(scheme.2),
                 linear_to_srgb(scheme.3)
@@ -185,7 +185,7 @@ mod test {
         SCHEMES.iter().for_each(|scheme| {
             println!(
                 "SolarizedColor::{:10} => [{:.10}, {:.10}, {:.10}],",
-                scheme.0.to_uppercase(),
+                scheme.0,
                 linear_to_srgb(scheme.1),
                 linear_to_srgb(scheme.2),
                 linear_to_srgb(scheme.3)
@@ -194,10 +194,16 @@ mod test {
         println!("}};");
     }
 
+    // learn-wgpu の注釈を元に変換する
+    fn linear_to_srgb(value: u32) -> f32 {
+        (value as f64 / 255.0).powf(2.2) as f32
+    }
+
     // こちらの記事を参考に linear の RGB 情報を sRGB に変換
     // http://www.psy.ritsumei.ac.jp/~akitaoka/RGBtoXYZ_etal01.html
     // https://en.wikipedia.org/wiki/SRGB
-    fn linear_to_srgb(value: u32) -> f32 {
+    #[allow(dead_code)]
+    fn linear_to_srgb_bak(value: u32) -> f32 {
         let value: f32 = value as f32 / 255.0;
         if value <= 0.04045 {
             value / 12.92
