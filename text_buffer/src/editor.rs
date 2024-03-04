@@ -339,11 +339,6 @@ mod tests {
                 &LineBoundaryProhibitedChars::new(vec![], vec![]),
                 &TestWidthResolver,
             );
-            layout.chars.iter().for_each(|(c, p)| {
-                println!("{:?} {:?}", c, p);
-            });
-            println!("main_caret :{:?}", layout.main_caret_pos);
-            println!("mark       :{:?}", layout.mark_pos);
             assert_eq!(layout.to_string(), case.output);
             assert_eq!(layout.main_caret_pos, case.main_caret_pos);
             assert_eq!(layout.mark_pos, case.mark_pos);
