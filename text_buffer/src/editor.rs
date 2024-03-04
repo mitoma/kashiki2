@@ -223,7 +223,8 @@ impl LineBoundaryProhibitedChars {
     }
 }
 
-const DEFAULT_STARTS: &str = ",.!?;:)]}”’〉》〕〗〙〛｝〉》〕〗〙〛｝」』】、。！？；：";
+const DEFAULT_STARTS: &str =
+    ",.!?;:)]}”’〉》〕〗〙〛｝〉》〕〗〙〛｝」』】、。！？；：-ー…～〃々ゝゞヽヾ";
 const DEFAULT_ENDS: &str = "([{“‘〈《〔〖〘〚｛〈《〔〖〘〚｛「『【";
 
 impl Default for LineBoundaryProhibitedChars {
