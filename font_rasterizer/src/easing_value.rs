@@ -1,3 +1,4 @@
+use cgmath::{Point2, Point3};
 use instant::Duration;
 use nenobi::TimeBaseEasingValue;
 
@@ -92,6 +93,12 @@ impl From<(f32, f32, f32)> for EasingPoint3 {
     }
 }
 
+impl From<Point3<f32>> for EasingPoint3 {
+    fn from(v: Point3<f32>) -> Self {
+        Self::new(v.x, v.y, v.z)
+    }
+}
+
 //  bounce の値に必要そうなので EasingPoint2 も導入する。
 // これは EasingPoint3 と合わせて抽象化できるかもしれないが、
 // 実装が複雑になるのでいったんベタ書きでの対応とする。
@@ -172,5 +179,11 @@ impl EasingPoint2 {
 impl From<(f32, f32)> for EasingPoint2 {
     fn from((x, y): (f32, f32)) -> Self {
         Self::new(x, y)
+    }
+}
+
+impl From<Point2<f32>> for EasingPoint2 {
+    fn from(v: Point2<f32>) -> Self {
+        Self::new(v.x, v.y)
     }
 }
