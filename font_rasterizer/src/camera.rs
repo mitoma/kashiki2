@@ -216,7 +216,7 @@ impl CameraController {
             forward.magnitude()
         };
 
-        let target_position: Point3<f32> = target.position();
+        let target_position: Point3<f32> = target.focus_position();
         let normal = cgmath::Vector3::<f32>::unit_z();
 
         // aspect は width / height

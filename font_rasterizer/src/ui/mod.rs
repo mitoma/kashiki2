@@ -40,6 +40,10 @@ impl Model for PlaneTextReader {
         self.position
     }
 
+    fn focus_position(&self) -> Point3<f32> {
+        self.position()
+    }
+
     fn set_rotation(&mut self, rotation: Quaternion<f32>) {
         if self.rotation == rotation {
             return;

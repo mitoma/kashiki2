@@ -109,7 +109,11 @@ impl Model for TextEdit {
         self.position.update(position);
     }
 
-    fn position(&self) -> Point3<f32> {
+    fn position(&self) -> cgmath::Point3<f32> {
+        self.position.current().into()
+    }
+
+    fn focus_position(&self) -> Point3<f32> {
         let caret_position = self
             .main_caret
             .as_ref()

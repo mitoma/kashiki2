@@ -235,6 +235,9 @@ pub trait Model {
     fn set_position(&mut self, position: Point3<f32>);
     // モデルの位置を返す
     fn position(&self) -> Point3<f32>;
+    // モデル中、カメラがフォーカスすべき位置を返す
+    // position はモデルの中心を指す
+    fn focus_position(&self) -> Point3<f32>;
     // モデルの回転を設定する
     fn set_rotation(&mut self, rotation: Quaternion<f32>);
     // モデルの回転を返す
