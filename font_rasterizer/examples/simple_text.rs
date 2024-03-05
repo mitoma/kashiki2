@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
     camera::{Camera, CameraController},
-    color_theme::ColorTheme::{self, SolarizedDark},
+    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},

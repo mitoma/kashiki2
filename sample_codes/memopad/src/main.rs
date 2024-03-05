@@ -28,7 +28,7 @@ const EMOJI_FONT_DATA: &[u8] =
 
 pub fn main() {
     //std::env::set_var("RUST_LOG", "simple_text=debug");
-    //std::env::set_var("RUST_LOG", "font_rasterizer::ui::textedit=debug");
+    std::env::set_var("RUST_LOG", "font_rasterizer::ui::textedit=info");
     //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
     pollster::block_on(run());
 }
@@ -112,12 +112,13 @@ impl SimpleStateCallback for MemoPadCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        let chars = self
+        let mut chars = self
             .world
             .strings()
             .join("")
             .chars()
             .collect::<HashSet<char>>();
+        chars.insert('_');
         glyph_vertex_buffer
             .append_glyph(device, queue, chars)
             .unwrap();
@@ -212,10 +213,16 @@ impl SimpleStateCallback for MemoPadCallback {
                         "change-direction" => {
                             self.world.model_operation(&ModelOperation::ChangeDirection)
                         }
-                        "increase-char-interval" => self
+                        "increase-row-interval" => self
+                            .world
+                            .model_operation(&ModelOperation::IncreaseRowInterval),
+                        "decrease-row-interval" => self
+                            .world
+                            .model_operation(&ModelOperation::DecreaseRowInterval),
+                        "increase-col-interval" => self
                             .world
                             .model_operation(&ModelOperation::IncreaseCharInterval),
-                        "decrease-char-interval" => self
+                        "decrease-col-interval" => self
                             .world
                             .model_operation(&ModelOperation::DecreaseCharInterval),
                         _ => {}
@@ -285,7 +292,8 @@ struct Memos {
 fn memos_file() -> PathBuf {
     // いわゆるホームディレクトリのパスを取得する
     let home_dir = dirs::home_dir().unwrap();
-    Path::new(&home_dir).join(".config/memopad/memos.json")
+    //Path::new(&home_dir).join(".config/memopad/memos.json")
+    Path::new(&home_dir).join(".config/memopad/debug.json")
 }
 
 // $HOME/.config/memopad/memos.json に保存されたメモを読み込む

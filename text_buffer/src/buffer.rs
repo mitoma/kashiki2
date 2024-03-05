@@ -228,7 +228,7 @@ impl BufferLine {
         })
     }
 
-    fn to_line_string(&self) -> String {
+    pub(crate) fn to_line_string(&self) -> String {
         self.chars.iter().map(|c| c.c).collect()
     }
 
