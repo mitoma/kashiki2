@@ -56,13 +56,13 @@ pub struct TextEdit {
 
     buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
     removed_buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
+    instances: TextInstances,
 
     main_caret: Option<(Caret, EasingPoint3)>,
     mark: Option<(Caret, EasingPoint3)>,
     removed_carets: BTreeMap<Caret, EasingPoint3>,
-
-    instances: TextInstances,
     caret_instances: TextInstances,
+
     text_updated: bool,
 
     position: EasingPoint3,
@@ -78,18 +78,21 @@ impl Default for TextEdit {
         let mut position = EasingPoint3::new(0.0, 0.0, 0.0);
         position
             .update_duration_and_easing_func(config.position_easing.0, config.position_easing.1);
-        let bound = EasingPoint2::new(config.min_bound.x, config.min_bound.y);
+        let bound = config.min_bound.into();
         Self {
             config,
             editor: Editor::new(tx),
             receiver: rx,
+
             buffer_chars: BTreeMap::new(),
             removed_buffer_chars: BTreeMap::new(),
+            instances: TextInstances::default(),
+
             main_caret: None,
             mark: None,
             removed_carets: BTreeMap::new(),
-            instances: TextInstances::default(),
             caret_instances: TextInstances::default(),
+
             text_updated: true,
             position,
             rotation: cgmath::Quaternion::from_axis_angle(
@@ -113,6 +116,7 @@ impl Model for TextEdit {
         self.position.current().into()
     }
 
+    // キャレットの位置と direction を考慮してテキストエディタ中のフォーカス位置を返す
     fn focus_position(&self) -> Point3<f32> {
         let caret_position = self
             .main_caret
@@ -153,7 +157,8 @@ impl Model for TextEdit {
     }
 
     fn bound(&self) -> (f32, f32) {
-        // 外向けには最終のサイズを出す
+        // 外向けにはアニメーション完了後の最終的なサイズを返す
+        // この値はレイアウトの計算に使われるためである
         self.bound.last()
     }
 
@@ -192,6 +197,16 @@ impl Model for TextEdit {
                     Direction::Vertical => self.config.direction = Direction::Horizontal,
                 }
                 self.instances.set_direction(&self.config.direction);
+                self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::IncreaseRowInterval => {
+                self.config.row_interval += 0.05;
+                self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::DecreaseRowInterval => {
+                self.config.row_interval -= 0.05;
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
@@ -325,7 +340,7 @@ impl TextEdit {
                 max_x.abs().max(self.config.min_bound.x),
                 max_y.abs().max(self.config.min_bound.y),
             );
-            let bound = (max_x.abs() + 2.0, max_y.abs() + 2.0).into();
+            let bound = (max_x.abs(), max_y.abs()).into();
             self.bound.update(bound);
             bound
         };
@@ -377,7 +392,7 @@ impl TextEdit {
         let y = y as f32 * config.row_interval;
         match config.direction {
             Direction::Horizontal => (x, -y, 0.0),
-            Direction::Vertical => (bound.y - y, -x, 0.0),
+            Direction::Vertical => (bound.x - y, -x, 0.0),
         }
     }
 

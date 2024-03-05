@@ -62,6 +62,7 @@ pub struct HorizontalWorld {
     camera_controller: CameraController,
     models: Vec<Box<dyn Model>>,
     focus: usize,
+    world_updated: bool,
 }
 
 impl HorizontalWorld {
@@ -71,6 +72,7 @@ impl HorizontalWorld {
             camera_controller: CameraController::new(10.0),
             models: Vec::new(),
             focus: 0,
+            world_updated: true,
         }
     }
 
@@ -151,6 +153,11 @@ impl World for HorizontalWorld {
         for model in self.models.iter_mut() {
             model.update(color_theme, glyph_vertex_buffer, device, queue);
         }
+        if self.world_updated {
+            self.re_layout();
+            self.look_current(CameraAdjustment::NoCare);
+            self.world_updated = false;
+        }
     }
 
     fn change_window_size(&mut self, window_size: (u32, u32)) {
@@ -183,6 +190,7 @@ impl World for HorizontalWorld {
     }
 
     fn editor_operation(&mut self, op: &EditorOperation) {
+        self.world_updated = true;
         if let Some(model) = self.get_current_mut() {
             model.editor_operation(op);
         }
@@ -192,7 +200,9 @@ impl World for HorizontalWorld {
         if let Some(model) = self.get_current_mut() {
             match model.model_operation(op) {
                 ModelOperationResult::NoCare => {}
-                ModelOperationResult::RequireReLayout => self.re_layout(),
+                ModelOperationResult::RequireReLayout => {
+                    self.world_updated = true;
+                }
             }
         }
     }
@@ -206,20 +216,22 @@ impl World for HorizontalWorld {
     }
 
     fn remove_current(&mut self) {
+        self.world_updated = true;
         self.models.remove(self.focus);
     }
 
     fn swap_next(&mut self) {
+        self.world_updated = true;
         let has_next = self.focus + 1 < self.model_length();
         if !has_next {
             return;
         }
         self.models.swap(self.focus, self.focus + 1);
-        self.re_layout();
         self.look_at(self.focus + 1, CameraAdjustment::NoCare);
     }
 
     fn swap_prev(&mut self) {
+        self.world_updated = true;
         let has_prev = self.focus > 0;
         if !has_prev {
             return;
@@ -259,6 +271,10 @@ pub trait Model {
 
 pub enum ModelOperation {
     ChangeDirection,
+    // 行間を増加させる
+    IncreaseRowInterval,
+    // 行間を減少させる
+    DecreaseRowInterval,
     // 文字間を増加させる
     IncreaseCharInterval,
     // 文字間を減少させる

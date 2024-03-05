@@ -213,10 +213,16 @@ impl SimpleStateCallback for MemoPadCallback {
                         "change-direction" => {
                             self.world.model_operation(&ModelOperation::ChangeDirection)
                         }
-                        "increase-char-interval" => self
+                        "increase-row-interval" => self
+                            .world
+                            .model_operation(&ModelOperation::IncreaseRowInterval),
+                        "decrease-row-interval" => self
+                            .world
+                            .model_operation(&ModelOperation::DecreaseRowInterval),
+                        "increase-col-interval" => self
                             .world
                             .model_operation(&ModelOperation::IncreaseCharInterval),
-                        "decrease-char-interval" => self
+                        "decrease-col-interval" => self
                             .world
                             .model_operation(&ModelOperation::DecreaseCharInterval),
                         _ => {}

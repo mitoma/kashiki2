@@ -93,6 +93,8 @@ impl Model for PlaneTextReader {
             }
             ModelOperation::IncreaseCharInterval => ModelOperationResult::NoCare,
             ModelOperation::DecreaseCharInterval => ModelOperationResult::NoCare,
+            ModelOperation::IncreaseRowInterval => ModelOperationResult::NoCare,
+            ModelOperation::DecreaseRowInterval => ModelOperationResult::NoCare,
         }
     }
 
