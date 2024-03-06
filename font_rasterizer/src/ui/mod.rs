@@ -91,8 +91,8 @@ impl Model for PlaneTextReader {
                 self.updated = true;
                 ModelOperationResult::RequireReLayout
             }
-            ModelOperation::IncreaseCharInterval => ModelOperationResult::NoCare,
-            ModelOperation::DecreaseCharInterval => ModelOperationResult::NoCare,
+            ModelOperation::IncreaseColInterval => ModelOperationResult::NoCare,
+            ModelOperation::DecreaseColInterval => ModelOperationResult::NoCare,
             ModelOperation::IncreaseRowInterval => ModelOperationResult::NoCare,
             ModelOperation::DecreaseRowInterval => ModelOperationResult::NoCare,
         }

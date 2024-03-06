@@ -221,10 +221,10 @@ impl SimpleStateCallback for MemoPadCallback {
                             .model_operation(&ModelOperation::DecreaseRowInterval),
                         "increase-col-interval" => self
                             .world
-                            .model_operation(&ModelOperation::IncreaseCharInterval),
+                            .model_operation(&ModelOperation::IncreaseColInterval),
                         "decrease-col-interval" => self
                             .world
-                            .model_operation(&ModelOperation::DecreaseCharInterval),
+                            .model_operation(&ModelOperation::DecreaseColInterval),
                         _ => {}
                     };
                     InputResult::InputConsumed

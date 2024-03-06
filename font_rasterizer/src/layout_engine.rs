@@ -276,9 +276,9 @@ pub enum ModelOperation {
     // 行間を減少させる
     DecreaseRowInterval,
     // 文字間を増加させる
-    IncreaseCharInterval,
+    IncreaseColInterval,
     // 文字間を減少させる
-    DecreaseCharInterval,
+    DecreaseColInterval,
 }
 
 pub enum ModelOperationResult {

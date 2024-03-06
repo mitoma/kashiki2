@@ -210,12 +210,12 @@ impl Model for TextEdit {
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
-            ModelOperation::IncreaseCharInterval => {
+            ModelOperation::IncreaseColInterval => {
                 self.config.col_interval += 0.05;
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
-            ModelOperation::DecreaseCharInterval => {
+            ModelOperation::DecreaseColInterval => {
                 self.config.col_interval -= 0.05;
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
