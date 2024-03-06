@@ -20,6 +20,11 @@ use crate::{
     text_instances::TextInstances,
 };
 
+pub struct EasingConfig {
+    duration: Duration,
+    easing_func: fn(f32) -> f32,
+}
+
 pub struct TextEditConfig {
     direction: Direction,
     row_interval: f32,
@@ -27,7 +32,7 @@ pub struct TextEditConfig {
     max_col: usize,
     line_prohibited_chars: LineBoundaryProhibitedChars,
     min_bound: Point2<f32>,
-    position_easing: (Duration, fn(f32) -> f32),
+    position_easing: EasingConfig,
     char_motion: MotionFlags,
     caret_motion: MotionFlags,
 }
@@ -41,7 +46,10 @@ impl Default for TextEditConfig {
             max_col: 40,
             line_prohibited_chars: LineBoundaryProhibitedChars::default(),
             min_bound: (10.0, 10.0).into(),
-            position_easing: (Duration::from_millis(800), nenobi::functions::sin_in_out),
+            position_easing: EasingConfig {
+                duration: Duration::from_millis(800),
+                easing_func: nenobi::functions::sin_in_out,
+            },
             char_motion: MotionFlags::ZERO_MOTION,
             caret_motion: MotionFlags::ZERO_MOTION,
         }
@@ -76,8 +84,10 @@ impl Default for TextEdit {
         let (tx, rx) = std::sync::mpsc::channel();
 
         let mut position = EasingPoint3::new(0.0, 0.0, 0.0);
-        position
-            .update_duration_and_easing_func(config.position_easing.0, config.position_easing.1);
+        position.update_duration_and_easing_func(
+            config.position_easing.duration,
+            config.position_easing.easing_func,
+        );
         let bound = config.min_bound.into();
         Self {
             config,
