@@ -54,4 +54,3 @@ jobs:
           cache_path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
