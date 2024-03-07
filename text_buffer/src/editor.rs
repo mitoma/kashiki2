@@ -79,11 +79,16 @@ impl Editor {
         for pattern in list_indent_pattern {
             if line_string.trim_start().starts_with(pattern) {
                 // line_string の何文字目に pattern がマッチするかを取得する
-                return line_string.find(pattern).unwrap()
-                    + pattern
-                        .chars()
-                        .map(|c| width_resolver.resolve_width(c))
-                        .sum::<usize>();
+                let space_num = line_string.find(pattern).unwrap();
+                let space_size = line_string[0..space_num]
+                    .chars()
+                    .map(|c| width_resolver.resolve_width(c))
+                    .sum::<usize>();
+                let pattern_size = pattern
+                    .chars()
+                    .map(|c| width_resolver.resolve_width(c))
+                    .sum::<usize>();
+                return space_size + pattern_size;
             }
         }
         0
@@ -458,6 +463,14 @@ mod tests {
                     "  - スーパーマンはどこにいる？".to_string(),
                 )],
                 output: "  - スーパー\n    マンは\n    どこに\n    いる？".to_string(),
+                prohibited_chars: LineBoundaryProhibitedChars::default(),
+                max_width: 10,
+            },
+            TestCase {
+                input: vec![EditorOperation::InsertString(
+                    "　- 全角文字、ゆるせん！".to_string(),
+                )],
+                output: "　- 全角文\n    字、ゆ\n    るせん！".to_string(),
                 prohibited_chars: LineBoundaryProhibitedChars::default(),
                 max_width: 10,
             },
