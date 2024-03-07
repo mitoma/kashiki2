@@ -11,7 +11,7 @@ use text_buffer::{
 
 use crate::{
     color_theme,
-    easing_value::{EasingPoint2, EasingPoint3},
+    easing_value::EasingPointN,
     font_buffer::{Direction, GlyphVertexBuffer},
     font_converter::GlyphWidth,
     instances::{GlyphInstance, GlyphInstances},
@@ -62,20 +62,20 @@ pub struct TextEdit {
     editor: Editor,
     receiver: Receiver<ChangeEvent>,
 
-    buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
-    removed_buffer_chars: BTreeMap<BufferChar, EasingPoint3>,
+    buffer_chars: BTreeMap<BufferChar, EasingPointN<3>>,
+    removed_buffer_chars: BTreeMap<BufferChar, EasingPointN<3>>,
     instances: TextInstances,
 
-    main_caret: Option<(Caret, EasingPoint3)>,
-    mark: Option<(Caret, EasingPoint3)>,
-    removed_carets: BTreeMap<Caret, EasingPoint3>,
+    main_caret: Option<(Caret, EasingPointN<3>)>,
+    mark: Option<(Caret, EasingPointN<3>)>,
+    removed_carets: BTreeMap<Caret, EasingPointN<3>>,
     caret_instances: TextInstances,
 
     text_updated: bool,
 
-    position: EasingPoint3,
+    position: EasingPointN<3>,
     rotation: Quaternion<f32>,
-    bound: EasingPoint2,
+    bound: EasingPointN<2>,
 }
 
 impl Default for TextEdit {
@@ -83,7 +83,7 @@ impl Default for TextEdit {
         let config = TextEditConfig::default();
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let mut position = EasingPoint3::new(0.0, 0.0, 0.0);
+        let mut position = EasingPointN::new([0.0, 0.0, 0.0]);
         position.update_duration_and_easing_func(
             config.position_easing.duration,
             config.position_easing.easing_func,
@@ -116,10 +116,11 @@ impl Default for TextEdit {
 
 impl Model for TextEdit {
     fn set_position(&mut self, position: Point3<f32>) {
-        if self.position.last() == position.into() {
+        let p: [f32; 3] = position.into();
+        if self.position.last() == p {
             return;
         }
-        self.position.update(position);
+        self.position.update(position.into());
     }
 
     fn position(&self) -> cgmath::Point3<f32> {
@@ -128,27 +129,24 @@ impl Model for TextEdit {
 
     // キャレットの位置と direction を考慮してテキストエディタ中のフォーカス位置を返す
     fn focus_position(&self) -> Point3<f32> {
-        let caret_position = self
+        let [caret_position_x, caret_position_y, _caret_position_z] = self
             .main_caret
             .as_ref()
-            .map(|(_, c)| {
-                let (x, y, z) = c.last();
-                Point3::new(x, y, z)
-            })
-            .unwrap_or_else(|| Point3::new(0.0, 0.0, 0.0));
+            .map(|(_, c)| c.last())
+            .unwrap_or_else(|| [0.0, 0.0, 0.0]);
 
-        let position: Point3<f32> = self.position.last().into();
-        let current_bound = self.bound.last();
+        let [position_x, position_y, position_z] = self.position.last();
+        let [current_bound_x, current_bound_y] = self.bound.last();
         match self.config.direction {
             Direction::Horizontal => Point3::new(
-                position.x,
-                position.y + caret_position.y + current_bound.1 / 2.0,
-                position.z,
+                position_x,
+                position_y + caret_position_y + current_bound_y / 2.0,
+                position_z,
             ),
             Direction::Vertical => Point3::new(
-                position.x + caret_position.x - current_bound.0 / 2.0,
-                position.y,
-                position.z,
+                position_x + caret_position_x - current_bound_x / 2.0,
+                position_y,
+                position_z,
             ),
         }
     }
@@ -169,7 +167,7 @@ impl Model for TextEdit {
     fn bound(&self) -> (f32, f32) {
         // 外向けにはアニメーション完了後の最終的なサイズを返す
         // この値はレイアウトの計算に使われるためである
-        self.bound.last()
+        self.bound.last().into()
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
@@ -250,10 +248,10 @@ impl TextEdit {
                         .main_caret
                         .as_ref()
                         .map(|(_, c)| {
-                            let (x, y, z) = c.current();
-                            (x, y + 1.0, z)
+                            let [x, y, z] = c.current();
+                            [x, y + 1.0, z]
                         })
-                        .unwrap_or_else(|| (0.0, 1.0, 0.0));
+                        .unwrap_or_else(|| [0.0, 1.0, 0.0]);
                     self.buffer_chars.insert(c, caret_pos.into());
                     let instance = GlyphInstance {
                         color: color_theme.text().get_color(),
@@ -285,9 +283,9 @@ impl TextEdit {
                     };
                     self.caret_instances.add(c.into(), caret_instance, device);
                     if c.caret_type == CaretType::Primary {
-                        self.main_caret = Some((c, (c.row as f32, c.col as f32, 0.0).into()));
+                        self.main_caret = Some((c, [c.row as f32, c.col as f32, 0.0].into()));
                     } else {
-                        self.mark = Some((c, (c.row as f32, c.col as f32, 0.0).into()));
+                        self.mark = Some((c, [c.row as f32, c.col as f32, 0.0].into()));
                     }
                 }
                 ChangeEvent::MoveCaret { from, to } => {
@@ -340,11 +338,11 @@ impl TextEdit {
             let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
                 (result.0.max(pos.col), result.1.max(pos.row))
             });
-            let (max_x, max_y, _) = Self::get_adjusted_position(
+            let [max_x, max_y, _max_z] = Self::get_adjusted_position(
                 &self.config,
-                GlyphWidth::Wide,             /* この指定に深い意図はない */
-                Point2::<f32>::new(0.0, 0.0), /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
-                (max_col, max_row),
+                GlyphWidth::Wide, /* この指定に深い意図はない */
+                [0.0, 0.0],       /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
+                [max_col, max_row],
             );
             let (max_x, max_y) = (
                 max_x.abs().max(self.config.min_bound.x),
@@ -358,36 +356,32 @@ impl TextEdit {
         layout.chars.iter().for_each(|(c, pos)| {
             if let Some(c_pos) = self.buffer_chars.get_mut(c) {
                 let width = glyph_vertex_buffer.width(c.c);
-                c_pos.update(
-                    Self::get_adjusted_position(&self.config, width, bound, (pos.col, pos.row))
-                        .into(),
-                );
+                c_pos.update(Self::get_adjusted_position(
+                    &self.config,
+                    width,
+                    bound,
+                    [pos.col, pos.row],
+                ));
             }
         });
 
         let caret_width = glyph_vertex_buffer.width('_');
         if let Some((_, c)) = self.main_caret.as_mut() {
-            c.update(
-                Self::get_adjusted_position(
-                    &self.config,
-                    caret_width,
-                    bound,
-                    (layout.main_caret_pos.col, layout.main_caret_pos.row),
-                )
-                .into(),
-            );
+            c.update(Self::get_adjusted_position(
+                &self.config,
+                caret_width,
+                bound,
+                [layout.main_caret_pos.col, layout.main_caret_pos.row],
+            ));
         }
 
         if let (Some((_, c)), Some(mark_pos)) = (self.mark.as_mut(), layout.mark_pos) {
-            c.update(
-                Self::get_adjusted_position(
-                    &self.config,
-                    caret_width,
-                    bound,
-                    (mark_pos.col, mark_pos.row),
-                )
-                .into(),
-            )
+            c.update(Self::get_adjusted_position(
+                &self.config,
+                caret_width,
+                bound,
+                [mark_pos.col, mark_pos.row],
+            ))
         }
     }
 
@@ -395,14 +389,14 @@ impl TextEdit {
     fn get_adjusted_position(
         config: &TextEditConfig,
         glyph_width: GlyphWidth,
-        bound: Point2<f32>,
-        (x, y): (usize, usize),
-    ) -> (f32, f32, f32) {
+        [bound_x, _bound_y]: [f32; 2],
+        [x, y]: [usize; 2],
+    ) -> [f32; 3] {
         let x = ((x as f32) / 2.0 + glyph_width.left()) * config.col_interval;
         let y = y as f32 * config.row_interval;
         match config.direction {
-            Direction::Horizontal => (x, -y, 0.0),
-            Direction::Vertical => (bound.x - y, -x, 0.0),
+            Direction::Horizontal => [x, -y, 0.0],
+            Direction::Vertical => [bound_x - y, -x, 0.0],
         }
     }
 
@@ -410,7 +404,7 @@ impl TextEdit {
     #[inline]
     fn calc_instance_positions(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) {
         let bound_in_animation = self.bound.in_animation();
-        let (bound_x, bound_y) = &self.bound.current();
+        let [bound_x, bound_y] = &self.bound.current();
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
         let position_in_animation = self.position.in_animation();
         let current_position: Point3<f32> = self.position.current().into();
@@ -510,7 +504,7 @@ impl TextEdit {
     // この関数は更新が必要かどうかを判定するための関数。true なら更新が不要。
     #[inline]
     fn dismiss_update(
-        easiong_point: &mut EasingPoint3,
+        easiong_point: &mut EasingPointN<3>,
         position_in_animation: bool,
         bound_in_animation: bool,
     ) -> bool {
@@ -520,13 +514,13 @@ impl TextEdit {
     #[inline]
     fn update_instance(
         instance: &mut GlyphInstance,
-        i: &EasingPoint3,
+        i: &EasingPointN<3>,
         center: &Point2<f32>,
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
         char_rotation: Option<Quaternion<f32>>,
     ) {
-        let (x, y, z) = i.current();
+        let [x, y, z] = i.current();
         let pos = cgmath::Matrix4::from(*rotation)
             * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
         let new_position = cgmath::Vector3 {

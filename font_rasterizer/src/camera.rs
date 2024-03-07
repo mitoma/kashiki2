@@ -1,6 +1,6 @@
 use cgmath::{InnerSpace, Point3};
 
-use crate::{easing_value::EasingPoint3, layout_engine::Model};
+use crate::{easing_value::EasingPointN, layout_engine::Model};
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -11,8 +11,8 @@ const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 );
 
 pub struct Camera {
-    eye: EasingPoint3,
-    target: EasingPoint3,
+    eye: EasingPointN<3>,
+    target: EasingPointN<3>,
     up: cgmath::Vector3<f32>,
     aspect: f32,
     fovy: f32,
@@ -23,8 +23,8 @@ pub struct Camera {
 impl Camera {
     pub fn basic(aspect: (u32, u32)) -> Self {
         Self::new(
-            (0.0, 0.0, 1.0).into(),
-            (0.0, 0.0, 0.0).into(),
+            [0.0, 0.0, 1.0].into(),
+            [0.0, 0.0, 0.0].into(),
             cgmath::Vector3::unit_y(),
             aspect.0 as f32 / aspect.1 as f32,
             // fovy は視野角。ここでは45度を指定
@@ -35,8 +35,8 @@ impl Camera {
     }
 
     pub fn new(
-        eye: EasingPoint3,        // 視点の位置
-        target: EasingPoint3,     // ターゲットの位置
+        eye: EasingPointN<3>,     // 視点の位置
+        target: EasingPointN<3>,  // ターゲットの位置
         up: cgmath::Vector3<f32>, // 上を指す単位行列 (x:0, y:1, z:0)
         aspect: f32,
         fovy: f32,
@@ -161,10 +161,10 @@ impl CameraController {
 
     pub fn update_camera(&self, camera: &mut Camera) {
         if let Some(next_target) = self.next_target {
-            camera.target.update(next_target);
+            camera.target.update(next_target.into());
         }
         if let Some(next_eye) = self.next_eye {
-            camera.eye.update(next_eye);
+            camera.eye.update(next_eye.into());
         }
 
         let mut current_eye: Point3<f32> = camera.eye.last().into();
@@ -205,7 +205,7 @@ impl CameraController {
         if self.is_down_pressed {
             current_eye -= camera.up * self.speed;
         }
-        camera.eye.update(current_eye);
+        camera.eye.update(current_eye.into());
     }
 
     pub fn look_at(&self, camera: &mut Camera, target: &dyn Model, adjustment: CameraAdjustment) {
@@ -237,7 +237,7 @@ impl CameraController {
 
         let camera_position = target_position + (target.rotation() * normal * (size));
 
-        camera.target.update(target_position);
-        camera.eye.update(camera_position);
+        camera.target.update(target_position.into());
+        camera.eye.update(camera_position.into());
     }
 }
