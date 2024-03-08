@@ -292,8 +292,8 @@ struct Memos {
 fn memos_file() -> PathBuf {
     // いわゆるホームディレクトリのパスを取得する
     let home_dir = dirs::home_dir().unwrap();
-    //Path::new(&home_dir).join(".config/memopad/memos.json")
-    Path::new(&home_dir).join(".config/memopad/debug.json")
+    Path::new(&home_dir).join(".config/memopad/memos.json")
+    //Path::new(&home_dir).join(".config/memopad/debug.json")
 }
 
 // $HOME/.config/memopad/memos.json に保存されたメモを読み込む
