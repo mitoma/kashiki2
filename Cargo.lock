@@ -213,7 +213,7 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 [[package]]
 name = "bezier_converter"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#6fdb66fca772e96bbd5c23b0768b85af0630507f"
+source = "git+https://github.com/mitoma/sandbox?branch=main#a842675d1f7248eb7460753258911d5cd75f4871"
 dependencies = [
  "cgmath",
 ]
@@ -278,9 +278,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.15.3"
+version = "3.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ea184aa71bb362a1157c896979544cc23974e08fd265f29ea96b59f0b4a555b"
+checksum = "7ff69b9dd49fd426c69a0db9fc04dd934cdb6645ff000864d98f7e2af8830eaa"
 
 [[package]]
 name = "bytemuck"
@@ -1473,7 +1473,7 @@ dependencies = [
 [[package]]
 name = "nenobi"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#6fdb66fca772e96bbd5c23b0768b85af0630507f"
+source = "git+https://github.com/mitoma/sandbox?branch=main#a842675d1f7248eb7460753258911d5cd75f4871"
 dependencies = [
  "instant",
  "num-traits",
@@ -1839,7 +1839,7 @@ dependencies = [
 [[package]]
 name = "rayon_ordered_bridge"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#6fdb66fca772e96bbd5c23b0768b85af0630507f"
+source = "git+https://github.com/mitoma/sandbox?branch=main#a842675d1f7248eb7460753258911d5cd75f4871"
 dependencies = [
  "rayon",
 ]
