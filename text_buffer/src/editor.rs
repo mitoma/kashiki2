@@ -73,8 +73,9 @@ impl Editor {
 
     #[inline]
     fn calc_indent(line_string: &str, width_resolver: &dyn CharWidthResolver) -> usize {
-        let mut list_indent_pattern: Vec<&str> =
-            vec!["* ", "* [ ] ", "* [x] ", "- ", "- [ ] ", "- [x] ", "・"];
+        let mut list_indent_pattern: Vec<&str> = vec![
+            "* ", "* [ ] ", "* [x] ", "- ", "- [ ] ", "- [x] ", "> ", "・",
+        ];
         list_indent_pattern.sort_by(|l, r| l.len().cmp(&r.len()).reverse());
         for pattern in list_indent_pattern {
             if line_string.trim_start().starts_with(pattern) {
