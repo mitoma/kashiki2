@@ -1,0 +1,19 @@
+[package]
+name = "win_hello"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+winit = { workspace = true }
+
+[dependencies.windows]
+version = "0.54.0"
+features = [
+    "Security_Credentials",
+    "Security_Credentials_UI",
+    "Win32_System_WinRT",
+    #"Storage_Streams",
+    "Win32_UI_WindowsAndMessaging",
+]
