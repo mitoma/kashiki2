@@ -12,10 +12,13 @@ use winit::{
     dpi::PhysicalSize,
     event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::EventLoop,
+    keyboard::Key,
     raw_window_handle::HasWindowHandle,
     window::WindowBuilder,
 };
 
+/// Windows Hello のサンプルコード。bitwarden/clients が参考になる。
+/// https://github.com/bitwarden/clients/blob/bcb2a976b094f57f1f7e1261e2692f12103d7b16/apps/desktop/desktop_native/src/biometric/windows.rs
 fn main() {
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
@@ -32,11 +35,9 @@ fn main() {
 
     // Windows Hello 用のスレッドを作ってチャネルを持たせる
     let (tx, rx) = std::sync::mpsc::channel::<()>();
-    std::thread::spawn(move || loop {
-        if let Ok(_) = rx.recv() {
+    std::thread::spawn(move || {
+        while rx.recv().is_ok() {
             call_hello(&hwnd).unwrap();
-        } else {
-            break;
         }
     });
 
@@ -48,43 +49,39 @@ fn main() {
                         event:
                             KeyEvent {
                                 state: ElementState::Pressed,
-                                logical_key,
+                                logical_key: Key::Character(str),
                                 ..
                             },
                         ..
                     },
                 window_id,
             } => {
-                match logical_key {
-                    winit::keyboard::Key::Character(str) => match str.as_str() {
-                        "a" => {
-                            tx.send(()).unwrap();
-                            // あまりにも意味不明だが Credential Dialog Xaml Host のウィンドウを前面に出さないと
-                            // Windows Hello の顔認証が失敗するため、ウインドウが出たであろうタイミングを待ってから最前面に移動させる。
-                            let class_name = s!("Credential Dialog Xaml Host");
-                            // 100 ms sleep する
-                            std::thread::sleep(std::time::Duration::from_millis(100));
-                            unsafe {
-                                let hello_hwnd = FindWindowA(class_name, None);
-                                if hello_hwnd.0 != 0 {
-                                    SetForegroundWindow(hello_hwnd);
-                                }
+                match str.as_str() {
+                    "a" => {
+                        tx.send(()).unwrap();
+                        // あまりにも意味不明だが Credential Dialog Xaml Host のウィンドウを前面に出さないと
+                        // Windows Hello の顔認証が失敗するため、ウインドウが出たであろうタイミングを待ってから最前面に移動させる。
+                        let class_name = s!("Credential Dialog Xaml Host");
+                        // 100 ms sleep する
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        unsafe {
+                            let hello_hwnd = FindWindowA(class_name, None);
+                            if hello_hwnd.0 != 0 {
+                                SetForegroundWindow(hello_hwnd);
                             }
                         }
-                        "b" => {
-                            call_hello(&HWND(0)).unwrap();
-                        }
-                        "s" => {
-                            setup_first().unwrap();
-                        }
-                        "h" => {
-                            println!("HWND: {:?}, WindowID: {:?}", hwnd, window_id);
-                        }
-                        _ => (),
-                    },
+                    }
+                    "b" => {
+                        call_hello(&HWND(0)).unwrap();
+                    }
+                    "s" => {
+                        setup_first().unwrap();
+                    }
+                    "h" => {
+                        println!("HWND: {:?}, WindowID: {:?}", hwnd, window_id);
+                    }
                     _ => (),
                 }
-                ()
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -138,6 +135,7 @@ fn call_hello(hwnd: &HWND) -> Result<()> {
     }
 }
 
+#[allow(dead_code)]
 fn available() -> Result<bool> {
     let ucv_available = UserConsentVerifier::CheckAvailabilityAsync()?.get()?;
 
