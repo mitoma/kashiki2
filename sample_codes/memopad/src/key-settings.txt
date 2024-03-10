@@ -28,6 +28,7 @@ C-H system:backspace
 C-D system:delete
 C-M system:return
 C-Space system:mark
+C-G system:unmark
 S-Insert system:paste
 A-W system:copy
 C-K system:kill-ring

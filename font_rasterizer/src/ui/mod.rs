@@ -433,7 +433,8 @@ pub fn split_preedit_string(
     (first, center, last)
 }
 
-fn caret_char(caret: &Caret) -> char{
+#[inline]
+pub fn caret_char(caret: &Caret) -> char {
     match caret.caret_type {
         text_buffer::caret::CaretType::Primary => '_',
         text_buffer::caret::CaretType::Mark => '^',

@@ -6,6 +6,7 @@ use wgpu::{Device, Queue};
 use crate::{
     font_buffer::Direction,
     instances::{GlyphInstance, GlyphInstances, InstanceKey},
+    ui::caret_char,
 };
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -25,7 +26,11 @@ impl From<BufferChar> for TextInstancesKey {
 impl From<Caret> for TextInstancesKey {
     fn from(value: Caret) -> Self {
         let Caret { row, col, .. } = value;
-        Self { c: '_', row, col }
+        Self {
+            c: caret_char(&value),
+            row,
+            col,
+        }
     }
 }
 

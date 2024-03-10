@@ -2,7 +2,7 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
-use text_buffer::action::EditorOperation;
+use text_buffer::{action::EditorOperation, caret::Caret};
 
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
@@ -12,7 +12,7 @@ use font_rasterizer::{
     layout_engine::{HorizontalWorld, Model, ModelOperation, World},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
-    ui::{ime_input::ImeInput, textedit::TextEdit},
+    ui::{caret_char, ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
 use std::{collections::HashSet, path::Path};
@@ -118,7 +118,16 @@ impl SimpleStateCallback for MemoPadCallback {
             .join("")
             .chars()
             .collect::<HashSet<char>>();
-        chars.insert('_');
+        chars.insert(caret_char(&Caret::new_without_event(
+            0,
+            0,
+            text_buffer::caret::CaretType::Primary,
+        )));
+        chars.insert(caret_char(&Caret::new_without_event(
+            0,
+            0,
+            text_buffer::caret::CaretType::Mark,
+        )));
         glyph_vertex_buffer
             .append_glyph(device, queue, chars)
             .unwrap();
@@ -192,6 +201,7 @@ impl SimpleStateCallback for MemoPadCallback {
                                 .and_then(|mut context| context.set_contents(text));
                         }),
                         "mark" => EditorOperation::Mark,
+                        "unmark" => EditorOperation::UnMark,
                         _ => EditorOperation::Noop,
                     };
                     self.world.editor_operation(&action);

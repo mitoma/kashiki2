@@ -20,6 +20,8 @@ use crate::{
     text_instances::TextInstances,
 };
 
+use super::caret_char;
+
 pub struct EasingConfig {
     duration: Duration,
     easing_func: fn(f32) -> f32,
@@ -310,7 +312,7 @@ impl TextEdit {
                     }
                 }
                 ChangeEvent::RemoveCaret(c) => {
-                    match CaretType::Primary {
+                    match c.caret_type {
                         CaretType::Primary => {
                             if let Some((_, mut position)) = self.main_caret.take() {
                                 position.add((0.0, -1.0, 0.0).into());
@@ -375,8 +377,8 @@ impl TextEdit {
             }
         });
 
-        let caret_width = glyph_vertex_buffer.width('_');
-        if let Some((_, c)) = self.main_caret.as_mut() {
+        if let Some((caret, c)) = self.main_caret.as_mut() {
+            let caret_width = glyph_vertex_buffer.width(caret_char(&caret));
             c.update(Self::get_adjusted_position(
                 &self.config,
                 caret_width,
@@ -385,7 +387,8 @@ impl TextEdit {
             ));
         }
 
-        if let (Some((_, c)), Some(mark_pos)) = (self.mark.as_mut(), layout.mark_pos) {
+        if let (Some((caret, c)), Some(mark_pos)) = (self.mark.as_mut(), layout.mark_pos) {
+            let caret_width = glyph_vertex_buffer.width(caret_char(&caret));
             c.update(Self::get_adjusted_position(
                 &self.config,
                 caret_width,
@@ -436,7 +439,7 @@ impl TextEdit {
                     &current_position,
                     &self.rotation,
                     self.config.color_theme.text_emphasized().get_color(),
-                    Self::calc_rotation('_', &self.config, glyph_vertex_buffer),
+                    Self::calc_rotation(caret_char(c), &self.config, glyph_vertex_buffer),
                 );
             }
         }
@@ -456,7 +459,7 @@ impl TextEdit {
                     &current_position,
                     &self.rotation,
                     self.config.color_theme.text_emphasized().get_color(),
-                    Self::calc_rotation('_', &self.config, glyph_vertex_buffer),
+                    Self::calc_rotation(caret_char(c), &self.config, glyph_vertex_buffer),
                 );
             }
         }
@@ -479,7 +482,7 @@ impl TextEdit {
                     &current_position,
                     &self.rotation,
                     self.config.color_theme.text_comment().get_color(),
-                    Self::calc_rotation('_', &self.config, glyph_vertex_buffer),
+                    Self::calc_rotation(caret_char(c), &self.config, glyph_vertex_buffer),
                 );
             }
         }

@@ -29,6 +29,7 @@ pub enum EditorOperation {
     Copy(fn(String)),
     Cut(fn(String)),
     Mark,
+    UnMark,
 }
 
 #[derive(Debug)]
@@ -191,9 +192,6 @@ impl BufferApplyer {
                     func(text);
                 }
             }
-            EditorOperation::Noop => {}
-            EditorOperation::Undo => {}
-            EditorOperation::Mark => {}
             EditorOperation::Cut(func) => {
                 if let Some(mark_caret) = mark_caret {
                     let text = buffer.copy_string(mark_caret, current_caret);
@@ -214,6 +212,10 @@ impl BufferApplyer {
                     }
                 }
             }
+            EditorOperation::Noop => {}
+            EditorOperation::Undo => {}
+            EditorOperation::Mark => {}
+            EditorOperation::UnMark => {}
         };
         reverse_actions
     }

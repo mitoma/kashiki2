@@ -32,6 +32,10 @@ impl Editor {
             self.mark();
             return;
         }
+        if EditorOperation::UnMark == *op {
+            self.unmark();
+            return;
+        }
         let reverse_actions = BufferApplyer::apply_action(
             &mut self.buffer,
             &mut self.main_caret,
@@ -60,11 +64,20 @@ impl Editor {
                 .send(ChangeEvent::RemoveCaret(current_mark))
                 .unwrap();
         }
-        self.mark = Some(Caret::new(
+        self.mark = Some(Caret::new_mark(
             self.main_caret.row,
             self.main_caret.col,
             &self.sender,
         ));
+    }
+
+    pub fn unmark(&mut self) {
+        if let Some(current_mark) = self.mark {
+            self.sender
+                .send(ChangeEvent::RemoveCaret(current_mark))
+                .unwrap();
+            self.mark = None;
+        }
     }
 
     pub fn to_buffer_string(&self) -> String {
