@@ -461,6 +461,29 @@ impl TextEdit {
             }
         }
 
+        // update removed carets
+        self.removed_carets.retain(|c, i| {
+            let in_animation = i.in_animation();
+            // こいつは消えゆく運命の Caret なので position_updated なんて考慮せずに in_animation だけ見る
+            if !in_animation {
+                self.caret_instances.remove_from_dustbox(&(*c).into());
+            }
+            in_animation
+        });
+        for (c, i) in self.removed_carets.iter() {
+            if let Some(instance) = self.caret_instances.get_mut_from_dustbox(&(*c).into()) {
+                Self::update_instance(
+                    instance,
+                    i,
+                    &center,
+                    &current_position,
+                    &self.rotation,
+                    self.config.color_theme.text_comment().get_color(),
+                    Self::calc_rotation('_', &self.config, glyph_vertex_buffer),
+                );
+            }
+        }
+
         // update chars
         for (c, i) in self.buffer_chars.iter_mut() {
             if Self::dismiss_update(

@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use cgmath::{num_traits::ToPrimitive, Point3, Quaternion, Rotation3};
 use instant::Duration;
 use log::info;
+use text_buffer::caret::Caret;
 
 use crate::{
     color_theme::ColorTheme,
@@ -430,6 +431,13 @@ pub fn split_preedit_string(
         .flat_map(|p| if let Pos::Last(c) = p { Some(c) } else { None })
         .collect();
     (first, center, last)
+}
+
+fn caret_char(caret: &Caret) -> char{
+    match caret.caret_type {
+        text_buffer::caret::CaretType::Primary => '_',
+        text_buffer::caret::CaretType::Mark => '^',
+    }
 }
 
 #[cfg(test)]
