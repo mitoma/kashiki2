@@ -73,9 +73,9 @@ impl Editor {
 
     #[inline]
     fn calc_indent(line_string: &str, width_resolver: &dyn CharWidthResolver) -> usize {
-        let mut list_indent_pattern: Vec<&str> = vec![
-            "* ", "* [ ] ", "* [x] ", "- ", "- [ ] ", "- [x] ", "> ", "・",
-        ];
+        let mut list_indent_pattern = DEFAULT_LIST_INDENT_PATTERN.to_vec();
+        // インデントパターンを長い順で評価しないと、長いパターンが使われないケースがある
+        // 例えば "- " と "- [ ] " がある場合、"- [ ] " が先に評価されないと "- " がマッチしてしまう
         list_indent_pattern.sort_by(|l, r| l.len().cmp(&r.len()).reverse());
         for pattern in list_indent_pattern {
             if line_string.trim_start().starts_with(pattern) {
@@ -239,6 +239,10 @@ pub struct PhisicalPosition {
     pub row: usize,
     pub col: usize,
 }
+
+const DEFAULT_LIST_INDENT_PATTERN: [&str; 8] = [
+    "* ", "* [ ] ", "* [x] ", "- ", "- [ ] ", "- [x] ", "> ", "・",
+];
 
 /// 禁則文字の定義を持つ enum
 pub struct LineBoundaryProhibitedChars {
