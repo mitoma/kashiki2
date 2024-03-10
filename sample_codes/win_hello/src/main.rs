@@ -28,7 +28,7 @@ mod windows {
 
     /// Windows Hello のサンプルコード。bitwarden/clients が参考になる。
     /// https://github.com/bitwarden/clients/blob/bcb2a976b094f57f1f7e1261e2692f12103d7b16/apps/desktop/desktop_native/src/biometric/windows.rs
-    fn inner_main() {
+    pub(crate) fn inner_main() {
         let event_loop = EventLoop::new().unwrap();
         let window = WindowBuilder::new()
             .with_inner_size(PhysicalSize::new(800, 600))
