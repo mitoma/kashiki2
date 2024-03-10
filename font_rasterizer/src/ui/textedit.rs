@@ -10,7 +10,7 @@ use text_buffer::{
 };
 
 use crate::{
-    color_theme,
+    color_theme::ColorTheme,
     easing_value::EasingPointN,
     font_buffer::{Direction, GlyphVertexBuffer},
     font_converter::GlyphWidth,
@@ -35,6 +35,7 @@ pub struct TextEditConfig {
     position_easing: EasingConfig,
     char_motion: MotionFlags,
     caret_motion: MotionFlags,
+    color_theme: ColorTheme,
 }
 
 impl Default for TextEditConfig {
@@ -52,6 +53,7 @@ impl Default for TextEditConfig {
             },
             char_motion: MotionFlags::ZERO_MOTION,
             caret_motion: MotionFlags::ZERO_MOTION,
+            color_theme: ColorTheme::SolarizedDark,
         }
     }
 }
@@ -72,6 +74,7 @@ pub struct TextEdit {
     caret_instances: TextInstances,
 
     text_updated: bool,
+    config_updated: bool,
 
     position: EasingPointN<3>,
     rotation: Quaternion<f32>,
@@ -104,6 +107,8 @@ impl Default for TextEdit {
             caret_instances: TextInstances::default(),
 
             text_updated: true,
+            config_updated: true,
+
             position,
             rotation: cgmath::Quaternion::from_axis_angle(
                 cgmath::Vector3::unit_y(),
@@ -185,12 +190,18 @@ impl Model for TextEdit {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
+        if self.config.color_theme != *color_theme {
+            self.config.color_theme = *color_theme;
+            self.config_updated = true;
+        }
+
         self.sync_editor_events(device, color_theme);
         self.calc_position_and_bound(glyph_vertex_buffer);
         self.calc_instance_positions(glyph_vertex_buffer);
         self.instances.update(device, queue);
         self.caret_instances.update(device, queue);
         self.text_updated = false;
+        self.config_updated = false;
     }
 
     fn editor_operation(&mut self, op: &text_buffer::action::EditorOperation) {
@@ -239,7 +250,7 @@ impl Model for TextEdit {
 impl TextEdit {
     // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。
     #[inline]
-    fn sync_editor_events(&mut self, device: &wgpu::Device, color_theme: &color_theme::ColorTheme) {
+    fn sync_editor_events(&mut self, device: &wgpu::Device, color_theme: &ColorTheme) {
         while let Ok(event) = self.receiver.try_recv() {
             self.text_updated = true;
             match event {
@@ -411,7 +422,12 @@ impl TextEdit {
 
         // update caret
         if let Some((c, i)) = self.main_caret.as_mut() {
-            if Self::dismiss_update(i, position_in_animation, bound_in_animation) {
+            if Self::dismiss_update(
+                i,
+                position_in_animation,
+                bound_in_animation,
+                self.config_updated,
+            ) {
                 //
             } else if let Some(instance) = self.caret_instances.get_mut(&(*c).into()) {
                 Self::update_instance(
@@ -420,12 +436,18 @@ impl TextEdit {
                     &center,
                     &current_position,
                     &self.rotation,
+                    self.config.color_theme.text_emphasized().get_color(),
                     Self::calc_rotation('_', &self.config, glyph_vertex_buffer),
                 );
             }
         }
         if let Some((c, i)) = self.mark.as_mut() {
-            if Self::dismiss_update(i, position_in_animation, bound_in_animation) {
+            if Self::dismiss_update(
+                i,
+                position_in_animation,
+                bound_in_animation,
+                self.config_updated,
+            ) {
                 //
             } else if let Some(instance) = self.caret_instances.get_mut(&(*c).into()) {
                 Self::update_instance(
@@ -434,6 +456,7 @@ impl TextEdit {
                     &center,
                     &current_position,
                     &self.rotation,
+                    self.config.color_theme.text_emphasized().get_color(),
                     Self::calc_rotation('_', &self.config, glyph_vertex_buffer),
                 );
             }
@@ -441,7 +464,12 @@ impl TextEdit {
 
         // update chars
         for (c, i) in self.buffer_chars.iter_mut() {
-            if Self::dismiss_update(i, position_in_animation, bound_in_animation) {
+            if Self::dismiss_update(
+                i,
+                position_in_animation,
+                bound_in_animation,
+                self.config_updated,
+            ) {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
@@ -452,6 +480,7 @@ impl TextEdit {
                     &center,
                     &current_position,
                     &self.rotation,
+                    self.config.color_theme.text().get_color(),
                     Self::calc_rotation(c.c, &self.config, glyph_vertex_buffer),
                 );
             }
@@ -474,6 +503,7 @@ impl TextEdit {
                     &center,
                     &current_position,
                     &self.rotation,
+                    self.config.color_theme.text_comment().get_color(),
                     Self::calc_rotation(c.c, &self.config, glyph_vertex_buffer),
                 );
             }
@@ -507,8 +537,12 @@ impl TextEdit {
         easiong_point: &mut EasingPointN<3>,
         position_in_animation: bool,
         bound_in_animation: bool,
+        config_updated: bool,
     ) -> bool {
-        !easiong_point.in_animation() && !position_in_animation && !bound_in_animation
+        !easiong_point.in_animation()
+            && !position_in_animation
+            && !bound_in_animation
+            && !config_updated
     }
 
     #[inline]
@@ -518,8 +552,10 @@ impl TextEdit {
         center: &Point2<f32>,
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
+        color: [f32; 3],
         char_rotation: Option<Quaternion<f32>>,
     ) {
+        instance.color = color;
         let [x, y, z] = i.current();
         let pos = cgmath::Matrix4::from(*rotation)
             * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
