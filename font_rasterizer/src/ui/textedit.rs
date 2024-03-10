@@ -161,8 +161,7 @@ impl Model for TextEdit {
             return;
         }
         self.rotation = rotation;
-        // FIXME 意味が違うので後でなおす
-        self.text_updated = true;
+        self.config_updated = true;
     }
 
     fn rotation(&self) -> Quaternion<f32> {
