@@ -28,8 +28,7 @@ fn main() {
         winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle.hwnd,
         _ => panic!("Not Windows"),
     };
-    // winit の HWND のエンディアンが windows-rs の HWND と異なるため、エンディアンを変換する
-    let hwnd = HWND(winit_hwnd.get().swap_bytes());
+    let hwnd = HWND(winit_hwnd.get());
 
     // Windows Hello 用のスレッドを作ってチャネルを持たせる
     let (tx, rx) = std::sync::mpsc::channel::<()>();
