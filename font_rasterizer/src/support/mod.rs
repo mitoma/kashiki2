@@ -1,3 +1,6 @@
+mod metrics_counter;
+mod render_rate_adjuster;
+
 use std::{collections::HashSet, iter, sync::Arc};
 
 use crate::{
@@ -6,6 +9,7 @@ use crate::{
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
+    support::render_rate_adjuster::RenderRateAdjuster,
     time::{increment_fixed_clock, set_clock_mode, ClockMode},
 };
 
@@ -22,6 +26,8 @@ use winit::{
     window::{Fullscreen, Icon, Window, WindowBuilder},
 };
 
+use self::metrics_counter::MetricsCounter;
+
 bitflags! {
     pub struct Flags: u32 {
         const FULL_SCREEN  = 0b_0000_0001;
@@ -31,46 +37,6 @@ bitflags! {
         // focus が無い時に省エネモードにするかは選択可能にする
         const SLEEP_WHEN_FOCUS_LOST = 0b_0001_0000;
         const DEFAULT      = Self::EXIT_ON_ESC.bits() | Self::FULL_SCREEN.bits() | Self::SLEEP_WHEN_FOCUS_LOST.bits();
-    }
-}
-
-struct RenderRateAdjuster {
-    has_focus: bool,
-    last_render_time: instant::Instant,
-    focused_target_frame_duration: Duration,
-    unfocused_target_frame_duration: Duration,
-}
-
-impl RenderRateAdjuster {
-    fn new(focused_target_frame_rate: u32, unfocused_target_frame_rate: u32) -> Self {
-        let focused_target_frame_duration =
-            instant::Duration::from_secs_f32(1.0 / focused_target_frame_rate as f32);
-        let unfocused_target_frame_duration =
-            instant::Duration::from_secs_f32(1.0 / unfocused_target_frame_rate as f32);
-        Self {
-            has_focus: true,
-            last_render_time: instant::Instant::now(),
-            focused_target_frame_duration,
-            unfocused_target_frame_duration,
-        }
-    }
-
-    fn change_focus(&mut self, focused: bool) {
-        self.has_focus = focused;
-    }
-
-    fn skip(&mut self) -> bool {
-        let target_frame_duration = if self.has_focus {
-            self.focused_target_frame_duration
-        } else {
-            self.unfocused_target_frame_duration
-        };
-        if self.last_render_time.elapsed() < target_frame_duration {
-            true
-        } else {
-            self.last_render_time = instant::Instant::now();
-            false
-        }
     }
 }
 
@@ -94,6 +60,8 @@ pub async fn run_support(support: SimpleStateSupport) {
             env_logger::try_init().unwrap_or_default();
         }
     }
+    let mut metrics_counter = MetricsCounter::default();
+    metrics_counter.start_phase("initialize");
 
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
@@ -128,6 +96,8 @@ pub async fn run_support(support: SimpleStateSupport) {
             })
             .expect("Couldn't append canvas to document body.");
     }
+
+    metrics_counter.start_phase("setup simple state");
     let mut state = SimpleState::new(
         window.clone(),
         support.quarity,
@@ -154,9 +124,13 @@ pub async fn run_support(support: SimpleStateSupport) {
                     ref event,
                     window_id,
                 } if window_id == window.id() => {
+                    metrics_counter.start_phase("state input");
                     match state.input(event) {
                         InputResult::InputConsumed => {}
-                        InputResult::SendExit => control_flow.exit(),
+                        InputResult::SendExit => {
+                            println!("report\n\n{}", metrics_counter.to_string());
+                            control_flow.exit()
+                        }
                         InputResult::ToggleFullScreen => {
                             if support.flags.contains(Flags::FULL_SCREEN) {
                                 match window.fullscreen() {
@@ -172,7 +146,10 @@ pub async fn run_support(support: SimpleStateSupport) {
                         }
                         InputResult::Noop => {
                             match event {
-                                WindowEvent::CloseRequested => control_flow.exit(),
+                                WindowEvent::CloseRequested => {
+                                    println!("report\n\n{}", metrics_counter.to_string());
+                                    control_flow.exit()
+                                }
                                 WindowEvent::KeyboardInput {
                                     event:
                                         KeyEvent {
@@ -183,6 +160,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     ..
                                 } => {
                                     if support.flags.contains(Flags::EXIT_ON_ESC) {
+                                        println!("report\n\n{}", metrics_counter.to_string());
                                         control_flow.exit();
                                     }
                                 }
@@ -207,16 +185,19 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     render_rate_adjuster.change_focus(*focused);
                                 }
                                 WindowEvent::Resized(physical_size) => {
+                                    metrics_counter.start_phase("state resize");
                                     state.resize(*physical_size);
                                 }
                                 WindowEvent::ScaleFactorChanged { .. } => {
                                     // TODO スケールファクタ変更時に何かする？
                                 }
                                 WindowEvent::RedrawRequested => {
+                                    metrics_counter.start_phase("state update");
                                     if render_rate_adjuster.skip() {
                                         return;
                                     }
                                     state.update();
+                                    metrics_counter.start_phase("state render");
                                     match state.render() {
                                         Ok(_) => {}
                                         // Reconfigure the surface if it's lost or outdated
