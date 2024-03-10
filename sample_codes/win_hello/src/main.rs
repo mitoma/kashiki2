@@ -1,3 +1,4 @@
+#[cfg(target_os = "windows")]
 use windows::{
     core::{factory, h, s, Result},
     Foundation::IAsyncOperation,
