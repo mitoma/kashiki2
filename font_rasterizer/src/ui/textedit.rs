@@ -378,7 +378,7 @@ impl TextEdit {
         });
 
         if let Some((caret, c)) = self.main_caret.as_mut() {
-            let caret_width = glyph_vertex_buffer.width(caret_char(&caret));
+            let caret_width = glyph_vertex_buffer.width(caret_char(caret));
             c.update(Self::get_adjusted_position(
                 &self.config,
                 caret_width,
@@ -388,7 +388,7 @@ impl TextEdit {
         }
 
         if let (Some((caret, c)), Some(mark_pos)) = (self.mark.as_mut(), layout.mark_pos) {
-            let caret_width = glyph_vertex_buffer.width(caret_char(&caret));
+            let caret_width = glyph_vertex_buffer.width(caret_char(caret));
             c.update(Self::get_adjusted_position(
                 &self.config,
                 caret_width,
