@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::BTreeMap, sync::Mutex};
 
 use instant::{Duration, Instant};
 use once_cell::sync::Lazy;
@@ -18,7 +18,7 @@ pub(super) fn print_metrics_to_stdout() {
 #[derive(Default)]
 struct MetricsCounter {
     current_phase: Option<Phase>,
-    phase_times: HashMap<String, PhaseStats>,
+    phase_times: BTreeMap<String, PhaseStats>,
 }
 
 struct Phase {

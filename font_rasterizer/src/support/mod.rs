@@ -406,6 +406,7 @@ impl SimpleState {
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        record_start_of_phase("render 1: setup encoder");
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -413,16 +414,20 @@ impl SimpleState {
             });
 
         // run all stage
+        record_start_of_phase("render 2: update buffer");
         self.rasterizer_pipeline
             .overlap_bind_group
             .update_buffer(&self.queue);
+        record_start_of_phase("render 2-2: create texture");
         let screen_output = self.surface.get_current_texture()?;
         let screen_view = screen_output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
+        record_start_of_phase("render 3: callback render");
         let (camera, glyph_instances) = self.simple_state_callback.render();
 
+        record_start_of_phase("render 4: run all stage");
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.device,
@@ -436,6 +441,7 @@ impl SimpleState {
             screen_view,
         );
 
+        record_start_of_phase("render 5: submit");
         self.queue.submit(iter::once(encoder.finish()));
         screen_output.present();
 
