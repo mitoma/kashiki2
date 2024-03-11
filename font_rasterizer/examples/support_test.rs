@@ -101,10 +101,10 @@ impl SingleCharCallback {
 impl SimpleStateCallback for SingleCharCallback {
     fn init(
         &mut self,
-        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        glyph_vertex_buffer: &mut GlyphVertexBuffer,
         color_theme: &ColorTheme,
         device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        queue: &wgpu::Queue,
     ) {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),
@@ -119,6 +119,9 @@ impl SimpleStateCallback for SingleCharCallback {
         let mut instance = GlyphInstances::new('あ', device);
         instance.push(value);
         self.glyphs.push(instance);
+        glyph_vertex_buffer
+            .append_glyph(device, queue, ['あ'].iter().cloned().collect())
+            .unwrap();
     }
 
     fn update(

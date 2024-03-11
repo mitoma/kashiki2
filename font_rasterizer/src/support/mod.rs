@@ -423,11 +423,6 @@ impl SimpleState {
 
         let (camera, glyph_instances) = self.simple_state_callback.render();
 
-        let chars = glyph_instances.iter().map(|i| i.c).collect::<HashSet<_>>();
-        self.glyph_vertex_buffer
-            .append_glyph(&self.device, &self.queue, chars)
-            .unwrap();
-
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.device,
