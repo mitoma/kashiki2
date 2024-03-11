@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+/*#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]*/
 use clipboard::{ClipboardContext, ClipboardProvider};
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};

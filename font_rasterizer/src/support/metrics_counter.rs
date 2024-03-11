@@ -1,38 +1,52 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Mutex};
 
-use instant::Instant;
+use instant::{Duration, Instant};
+use once_cell::sync::Lazy;
+
+static METRICS_COUNTER: Lazy<Mutex<MetricsCounter>> = Lazy::new(Default::default);
+
+#[inline]
+pub(super) fn record_start_of_phase(phase_name: &str) {
+    METRICS_COUNTER.lock().unwrap().start_phase(phase_name);
+}
+
+#[inline]
+pub(super) fn print_metrics_to_stdout() {
+    println!("{}", METRICS_COUNTER.lock().unwrap().to_string());
+}
 
 #[derive(Default)]
-pub(super) struct MetricsCounter {
+struct MetricsCounter {
     current_phase: Option<Phase>,
     phase_times: HashMap<String, PhaseStats>,
 }
 
 struct Phase {
     name: String,
-    start_time: u128,
+    start_time: Instant,
 }
 
 struct PhaseStats {
     count: u64,
-    total_time: u128,
-    max_time: u128,
-    min_time: u128,
+    total_time: Duration,
+    max_time: Duration,
+    min_time: Duration,
 }
 
 impl MetricsCounter {
-    pub(super) fn start_phase(&mut self, phase_name: &str) {
-        let current_time = Instant::now().elapsed().as_nanos();
+    #[inline]
+    fn start_phase(&mut self, phase_name: &str) {
+        let current_time = Instant::now();
         if let Some(phase) = &self.current_phase {
-            let phase_time = current_time.saturating_sub(phase.start_time);
+            let phase_time = current_time - phase.start_time;
             let stats = self
                 .phase_times
                 .entry(phase.name.clone())
                 .or_insert(PhaseStats {
                     count: 0,
-                    total_time: 0,
-                    max_time: 0,
-                    min_time: std::u128::MAX,
+                    total_time: Duration::ZERO,
+                    max_time: Duration::ZERO,
+                    min_time: Duration::MAX,
                 });
             stats.count += 1;
             stats.total_time += phase_time;
@@ -51,13 +65,13 @@ impl ToString for MetricsCounter {
         let mut result = String::new();
         for (phase_name, stats) in &self.phase_times {
             result.push_str(&format!(
-                "Phase: {}\tcount: {}\ttotal time:{}\taverage time: {}ms\tmax time: {}ms\tmin time: {}ms\n",
+                "Phase: {}\tcount: {}\ttotal:{}\tavg: {}ms\tmax: {}ms\tmin: {}ms\n",
                 phase_name,
                 stats.count,
-                stats.total_time,
-                stats.total_time as f64 / stats.count as f64 / 1000000.0,
-                stats.max_time as f64 / 1000000.0,
-                stats.min_time as f64 / 1000000.0,
+                stats.total_time.as_millis(),
+                stats.total_time.as_millis() / stats.count as u128,
+                stats.max_time.as_millis(),
+                stats.min_time.as_millis(),
             ));
         }
         result

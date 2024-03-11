@@ -9,7 +9,10 @@ use crate::{
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
-    support::render_rate_adjuster::RenderRateAdjuster,
+    support::{
+        metrics_counter::{print_metrics_to_stdout, record_start_of_phase},
+        render_rate_adjuster::RenderRateAdjuster,
+    },
     time::{increment_fixed_clock, set_clock_mode, ClockMode},
 };
 
@@ -25,8 +28,6 @@ use winit::{
     keyboard::{Key, NamedKey},
     window::{Fullscreen, Icon, Window, WindowBuilder},
 };
-
-use self::metrics_counter::MetricsCounter;
 
 bitflags! {
     pub struct Flags: u32 {
@@ -60,8 +61,7 @@ pub async fn run_support(support: SimpleStateSupport) {
             env_logger::try_init().unwrap_or_default();
         }
     }
-    let mut metrics_counter = MetricsCounter::default();
-    metrics_counter.start_phase("initialize");
+    record_start_of_phase("initialize");
 
     let event_loop = EventLoop::new().unwrap();
     let window = WindowBuilder::new()
@@ -97,7 +97,7 @@ pub async fn run_support(support: SimpleStateSupport) {
             .expect("Couldn't append canvas to document body.");
     }
 
-    metrics_counter.start_phase("setup simple state");
+    record_start_of_phase("setup state");
     let mut state = SimpleState::new(
         window.clone(),
         support.quarity,
@@ -124,11 +124,13 @@ pub async fn run_support(support: SimpleStateSupport) {
                     ref event,
                     window_id,
                 } if window_id == window.id() => {
-                    metrics_counter.start_phase("state input");
+                    record_start_of_phase("state input");
                     match state.input(event) {
-                        InputResult::InputConsumed => {}
+                        InputResult::InputConsumed => {
+                            // state 内で処理が行われたので何もしない
+                        }
                         InputResult::SendExit => {
-                            println!("report\n\n{}", metrics_counter.to_string());
+                            print_metrics_to_stdout();
                             control_flow.exit()
                         }
                         InputResult::ToggleFullScreen => {
@@ -147,7 +149,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                         InputResult::Noop => {
                             match event {
                                 WindowEvent::CloseRequested => {
-                                    println!("report\n\n{}", metrics_counter.to_string());
+                                    print_metrics_to_stdout();
                                     control_flow.exit()
                                 }
                                 WindowEvent::KeyboardInput {
@@ -160,7 +162,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     ..
                                 } => {
                                     if support.flags.contains(Flags::EXIT_ON_ESC) {
-                                        println!("report\n\n{}", metrics_counter.to_string());
+                                        print_metrics_to_stdout();
                                         control_flow.exit();
                                     }
                                 }
@@ -185,19 +187,19 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     render_rate_adjuster.change_focus(*focused);
                                 }
                                 WindowEvent::Resized(physical_size) => {
-                                    metrics_counter.start_phase("state resize");
+                                    record_start_of_phase("state resize");
                                     state.resize(*physical_size);
                                 }
                                 WindowEvent::ScaleFactorChanged { .. } => {
                                     // TODO スケールファクタ変更時に何かする？
                                 }
                                 WindowEvent::RedrawRequested => {
-                                    metrics_counter.start_phase("state update");
+                                    record_start_of_phase("state update");
                                     if render_rate_adjuster.skip() {
                                         return;
                                     }
                                     state.update();
-                                    metrics_counter.start_phase("state render");
+                                    record_start_of_phase("state render");
                                     match state.render() {
                                         Ok(_) => {}
                                         // Reconfigure the surface if it's lost or outdated
@@ -222,6 +224,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                 }
                 _ => {}
             }
+            record_start_of_phase("wait for next event");
         })
         .unwrap();
 }
