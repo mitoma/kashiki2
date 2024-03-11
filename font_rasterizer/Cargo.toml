@@ -52,4 +52,4 @@ stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
 rayon = "1.8.0"
 clap = "4.4.8"
-pulldown-cmark = "0.9.3"
+pulldown-cmark = "0.10.0"

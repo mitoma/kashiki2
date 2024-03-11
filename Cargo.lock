@@ -878,7 +878,7 @@ dependencies = [
  "nenobi",
  "once_cell",
  "pollster",
- "pulldown-cmark 0.9.6",
+ "pulldown-cmark",
  "rand",
  "rayon",
  "rustybuzz",
@@ -1718,18 +1718,6 @@ checksum = "43d84d1d7a6ac92673717f9f6d1518374ef257669c24ebc5ac25d5033828be58"
 
 [[package]]
 name = "pulldown-cmark"
-version = "0.9.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57206b407293d2bcd3af849ce869d52068623f19e1b5ff8e8778e3309439682b"
-dependencies = [
- "bitflags 2.4.2",
- "getopts",
- "memchr",
- "unicase",
-]
-
-[[package]]
-name = "pulldown-cmark"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dce76ce678ffc8e5675b22aa1405de0b7037e2fdf8913fea40d1926c6fe1e6e7"
@@ -2040,7 +2028,7 @@ dependencies = [
  "font_rasterizer",
  "log",
  "pollster",
- "pulldown-cmark 0.10.0",
+ "pulldown-cmark",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
