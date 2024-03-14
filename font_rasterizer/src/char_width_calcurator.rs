@@ -1,0 +1,134 @@
+use std::sync::Arc;
+
+use cached::proc_macro::cached;
+use font_collector::FontData;
+use rustybuzz::Face;
+use unicode_width::UnicodeWidthChar;
+
+pub(crate) struct CharWidthCalculator {
+    faces: Arc<Vec<FontData>>,
+}
+
+impl CharWidthCalculator {
+    pub(crate) fn new(faces: Arc<Vec<FontData>>) -> Self {
+        Self { faces }
+    }
+
+    pub(crate) fn get_width(&self, c: char) -> CharWidth {
+        inner_get_width(&self.faces, c)
+    }
+}
+
+#[cached(key = "char", convert = "{ c }")]
+fn inner_get_width(faces: &[FontData], c: char) -> CharWidth {
+    for face in faces
+        .iter()
+        .flat_map(|f| Face::from_slice(&f.binary, f.index))
+    {
+        if let Some(width) = calc_width(c, &face) {
+            return width;
+        }
+    }
+    match UnicodeWidthChar::width_cjk(c) {
+        Some(1) => CharWidth::Regular,
+        Some(_) => CharWidth::Wide,
+        None => CharWidth::Regular,
+    }
+}
+
+fn calc_width(c: char, face: &Face) -> Option<CharWidth> {
+    if let Some(glyph_id) = face.glyph_index(c) {
+        if let Some(rect) = face.glyph_bounding_box(glyph_id) {
+            // rect の横幅が face の高さの半分を超える場合は Wide とする
+            if face.height() < rect.width() * 2 {
+                return Some(CharWidth::Wide);
+            }
+        }
+    }
+    None
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CharWidth {
+    Regular,
+    Wide,
+}
+
+impl CharWidth {
+    /// 描画時に左にどれぐらい移動させるか
+    pub fn left(&self) -> f32 {
+        match self {
+            CharWidth::Regular => -0.25,
+            CharWidth::Wide => 0.0,
+        }
+    }
+
+    /// 描画時に右にどれぐらい移動させるか
+    pub fn right(&self) -> f32 {
+        match self {
+            CharWidth::Regular => 0.75,
+            CharWidth::Wide => 1.0,
+        }
+    }
+
+    /// グリフ自体の横幅
+    pub fn to_f32(self) -> f32 {
+        match self {
+            CharWidth::Regular => 0.5,
+            CharWidth::Wide => 1.0,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::sync::Arc;
+
+    use font_collector::FontCollector;
+
+    use super::{CharWidth, CharWidthCalculator};
+
+    const FONT_DATA: &[u8] = include_bytes!("../examples/font/HackGenConsole-Regular.ttf");
+    const EMOJI_FONT_DATA: &[u8] = include_bytes!("../examples/font/NotoEmoji-Regular.ttf");
+
+    #[test]
+    fn get_width() {
+        std::env::set_var("RUST_LOG", "debug");
+        env_logger::try_init().unwrap_or_default();
+
+        let collector = FontCollector::default();
+        let font_binaries = vec![
+            collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
+            collector
+                .convert_font(EMOJI_FONT_DATA.to_vec(), None)
+                .unwrap(),
+        ];
+
+        let font_binaries = Arc::new(font_binaries);
+        let converter = CharWidthCalculator::new(font_binaries);
+
+        let mut cases = vec![
+            // 縦書きでも同じグリフが使われる文字
+            ('a', CharWidth::Regular),
+            ('あ', CharWidth::Wide),
+            ('🐖', CharWidth::Wide),
+            ('☺', CharWidth::Wide),
+            // 全角スペースは Wide
+            ('　', CharWidth::Wide),
+        ];
+        // 半角アルファベットは GlyphWidth::Regular
+        let mut alpha_cases = ('A'..='z')
+            .map(|c| (c, CharWidth::Regular))
+            .collect::<Vec<_>>();
+        cases.append(&mut alpha_cases);
+        // 全角アルファベットは GlyphWidth::Wide
+        let mut zen_alpha_cases = ('Ａ'..='ｚ')
+            .map(|c| (c, CharWidth::Wide))
+            .collect::<Vec<_>>();
+        cases.append(&mut zen_alpha_cases);
+        for (c, expected) in cases {
+            let actual = converter.get_width(c);
+            assert_eq!(actual, expected, "char:{}", c);
+        }
+    }
+}
