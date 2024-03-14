@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use bezier_converter::CubicBezier;
-use cached::proc_macro::cached;
 use font_collector::FontData;
 use log::debug;
 use rustybuzz::{
@@ -10,9 +9,8 @@ use rustybuzz::{
     ttf_parser::{GlyphId, OutlineBuilder},
     Direction, Face, UnicodeBuffer,
 };
-use unicode_width::UnicodeWidthChar;
 
-use crate::debug_mode::DEBUG_FLAGS;
+use crate::{char_width_calcurator::CharWidth, debug_mode::DEBUG_FLAGS};
 
 pub(crate) struct FontVertexConverter {
     fonts: Arc<Vec<FontData>>,
@@ -56,7 +54,7 @@ impl FontVertexConverter {
         anyhow::bail!("no glyph. char:{}", c)
     }
 
-    pub(crate) fn convert(&self, c: char, width: GlyphWidth) -> anyhow::Result<GlyphVertex> {
+    pub(crate) fn convert(&self, c: char, width: CharWidth) -> anyhow::Result<GlyphVertex> {
         let (
             face,
             CharGlyphIds {
@@ -81,81 +79,6 @@ impl FontVertexConverter {
 struct CharGlyphIds {
     horizontal_glyph_id: GlyphId,
     vertical_glyph_id: Option<GlyphId>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum GlyphWidth {
-    Regular,
-    Wide,
-}
-
-pub(crate) struct GlyphWidthCalculator {
-    faces: Arc<Vec<FontData>>,
-}
-
-impl GlyphWidthCalculator {
-    pub(crate) fn new(faces: Arc<Vec<FontData>>) -> Self {
-        Self { faces }
-    }
-
-    pub(crate) fn get_width(&self, c: char) -> GlyphWidth {
-        inner_get_width(&self.faces, c)
-    }
-}
-
-#[cached(key = "char", convert = "{ c }")]
-fn inner_get_width(faces: &[FontData], c: char) -> GlyphWidth {
-    for face in faces
-        .iter()
-        .flat_map(|f| Face::from_slice(&f.binary, f.index))
-    {
-        if let Some(width) = calc_width(c, &face) {
-            return width;
-        }
-    }
-    match UnicodeWidthChar::width_cjk(c) {
-        Some(1) => GlyphWidth::Regular,
-        Some(_) => GlyphWidth::Wide,
-        None => GlyphWidth::Regular,
-    }
-}
-
-fn calc_width(c: char, face: &Face) -> Option<GlyphWidth> {
-    if let Some(glyph_id) = face.glyph_index(c) {
-        if let Some(rect) = face.glyph_bounding_box(glyph_id) {
-            // rect の横幅が face の高さの半分を超える場合は Wide とする
-            if face.height() < rect.width() * 2 {
-                return Some(GlyphWidth::Wide);
-            }
-        }
-    }
-    None
-}
-
-impl GlyphWidth {
-    /// 描画時に左にどれぐらい移動させるか
-    pub fn left(&self) -> f32 {
-        match self {
-            GlyphWidth::Regular => -0.25,
-            GlyphWidth::Wide => 0.0,
-        }
-    }
-
-    /// 描画時に右にどれぐらい移動させるか
-    pub fn right(&self) -> f32 {
-        match self {
-            GlyphWidth::Regular => 0.75,
-            GlyphWidth::Wide => 1.0,
-        }
-    }
-
-    /// グリフ自体の横幅
-    pub fn to_f32(self) -> f32 {
-        match self {
-            GlyphWidth::Regular => 0.5,
-            GlyphWidth::Wide => 1.0,
-        }
-    }
 }
 
 #[repr(C)]
@@ -244,7 +167,7 @@ impl GlyphVertexBuilder {
     pub(crate) fn build(
         mut self,
         glyph_id: GlyphId,
-        width: GlyphWidth,
+        width: CharWidth,
         face: &Face,
     ) -> anyhow::Result<GlyphVertexData> {
         let rect = face
@@ -369,7 +292,7 @@ mod test {
 
     use font_collector::FontCollector;
 
-    use super::{FontVertexConverter, GlyphWidth, GlyphWidthCalculator};
+    use super::FontVertexConverter;
 
     const FONT_DATA: &[u8] = include_bytes!("../examples/font/HackGenConsole-Regular.ttf");
     const EMOJI_FONT_DATA: &[u8] = include_bytes!("../examples/font/NotoEmoji-Regular.ttf");
@@ -400,47 +323,6 @@ mod test {
                 .get_face_and_glyph_ids(c)
                 .expect("get char glyph ids");
             assert_eq!(ids.vertical_glyph_id.is_some(), expected);
-        }
-    }
-
-    #[test]
-    fn get_width() {
-        std::env::set_var("RUST_LOG", "debug");
-        env_logger::try_init().unwrap_or_default();
-
-        let collector = FontCollector::default();
-        let font_binaries = vec![
-            collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
-            collector
-                .convert_font(EMOJI_FONT_DATA.to_vec(), None)
-                .unwrap(),
-        ];
-
-        let font_binaries = Arc::new(font_binaries);
-        let converter = GlyphWidthCalculator::new(font_binaries);
-
-        let mut cases = vec![
-            // 縦書きでも同じグリフが使われる文字
-            ('a', GlyphWidth::Regular),
-            ('あ', GlyphWidth::Wide),
-            ('🐖', GlyphWidth::Wide),
-            ('☺', GlyphWidth::Wide),
-            // 全角スペースは Wide
-            ('　', GlyphWidth::Wide),
-        ];
-        // 半角アルファベットは GlyphWidth::Regular
-        let mut alpha_cases = ('A'..='z')
-            .map(|c| (c, GlyphWidth::Regular))
-            .collect::<Vec<_>>();
-        cases.append(&mut alpha_cases);
-        // 全角アルファベットは GlyphWidth::Wide
-        let mut zen_alpha_cases = ('Ａ'..='ｚ')
-            .map(|c| (c, GlyphWidth::Wide))
-            .collect::<Vec<_>>();
-        cases.append(&mut zen_alpha_cases);
-        for (c, expected) in cases {
-            let actual = converter.get_width(c);
-            assert_eq!(actual, expected, "char:{}", c);
         }
     }
 }

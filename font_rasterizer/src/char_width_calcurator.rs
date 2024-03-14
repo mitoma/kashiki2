@@ -116,12 +116,12 @@ mod test {
             // 全角スペースは Wide
             ('　', CharWidth::Wide),
         ];
-        // 半角アルファベットは GlyphWidth::Regular
+        // 半角アルファベットは CharWidth::Regular
         let mut alpha_cases = ('A'..='z')
             .map(|c| (c, CharWidth::Regular))
             .collect::<Vec<_>>();
         cases.append(&mut alpha_cases);
-        // 全角アルファベットは GlyphWidth::Wide
+        // 全角アルファベットは CharWidth::Wide
         let mut zen_alpha_cases = ('Ａ'..='ｚ')
             .map(|c| (c, CharWidth::Wide))
             .collect::<Vec<_>>();

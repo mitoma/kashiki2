@@ -10,10 +10,10 @@ use text_buffer::{
 };
 
 use crate::{
+    char_width_calcurator::CharWidth,
     color_theme::ColorTheme,
     easing_value::EasingPointN,
     font_buffer::{Direction, GlyphVertexBuffer},
-    font_converter::GlyphWidth,
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::{Model, ModelOperation, ModelOperationResult},
     motion::MotionFlags,
@@ -352,8 +352,8 @@ impl TextEdit {
             });
             let [max_x, max_y, _max_z] = Self::get_adjusted_position(
                 &self.config,
-                GlyphWidth::Wide, /* この指定に深い意図はない */
-                [0.0, 0.0],       /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
+                CharWidth::Wide, /* この指定に深い意図はない */
+                [0.0, 0.0],      /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
                 [max_col, max_row],
             );
             let (max_x, max_y) = (
@@ -401,11 +401,11 @@ impl TextEdit {
     #[inline]
     fn get_adjusted_position(
         config: &TextEditConfig,
-        glyph_width: GlyphWidth,
+        char_width: CharWidth,
         [bound_x, _bound_y]: [f32; 2],
         [x, y]: [usize; 2],
     ) -> [f32; 3] {
-        let x = ((x as f32) / 2.0 + glyph_width.left()) * config.col_interval;
+        let x = ((x as f32) / 2.0 + char_width.left()) * config.col_interval;
         let y = y as f32 * config.row_interval;
         match config.direction {
             Direction::Horizontal => [x, -y, 0.0],
@@ -546,11 +546,11 @@ impl TextEdit {
             Direction::Vertical => {
                 let width = glyph_vertex_buffer.width(c);
                 match width {
-                    GlyphWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
+                    CharWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_z(),
                         cgmath::Deg(-90.0),
                     )),
-                    GlyphWidth::Wide => None,
+                    CharWidth::Wide => None,
                 }
             }
         }

@@ -118,8 +118,8 @@ impl PlaneTextReader {
                     max_width = Self::MAX_WIDTH;
                     max_height += 1.0;
                 }
-                let glyph_width = glyph_vertex_buffer.width(c);
-                width += glyph_width.to_f32();
+                let char_width = glyph_vertex_buffer.width(c);
+                width += char_width.to_f32();
             }
             max_height += 1.0;
             if width > max_width {
@@ -205,8 +205,8 @@ impl PlaneTextReader {
                     x = initial_x;
                     y -= 1.0;
                 }
-                let glyph_width = glyph_vertex_buffer.width(c);
-                x += glyph_width.left();
+                let char_width = glyph_vertex_buffer.width(c);
+                x += char_width.left();
 
                 self.instances
                     .entry(c)
@@ -243,7 +243,7 @@ impl PlaneTextReader {
                     0.5,
                     Duration::from_millis(1000),
                 );
-                x += glyph_width.right();
+                x += char_width.right();
 
                 instance.push(i);
             }
@@ -355,8 +355,8 @@ impl SingleLineComponent {
         let mut x: f32 = initial_x;
         let y_pos = -0.3 / self.scale;
         for c in self.value.chars() {
-            let glyph_width = glyph_vertex_buffer.width(c);
-            x += glyph_width.left();
+            let char_width = glyph_vertex_buffer.width(c);
+            x += char_width.left();
 
             self.instances
                 .entry(c)
@@ -376,7 +376,7 @@ impl SingleLineComponent {
                 0.5,
                 Duration::from_millis(300),
             );
-            x += glyph_width.right();
+            x += char_width.right();
 
             instance.push(i);
         }
