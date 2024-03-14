@@ -253,8 +253,10 @@ pub struct PhisicalPosition {
     pub col: usize,
 }
 
-const DEFAULT_LIST_INDENT_PATTERN: [&str; 8] = [
+const DEFAULT_LIST_INDENT_PATTERN: [&str; 17] = [
     "* ", "* [ ] ", "* [x] ", "- ", "- [ ] ", "- [x] ", "> ", "・",
+    // TODO 数字の箇条書きをもっとちゃんとサポートしたいが、現状は 1. ～ 9. まで雑に対応
+    "1. ", "2. ", "3. ", "4. ", "5. ", "6. ", "7. ", "8. ", "9. ",
 ];
 
 /// 禁則文字の定義を持つ enum
