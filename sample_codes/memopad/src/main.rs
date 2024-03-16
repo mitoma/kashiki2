@@ -74,6 +74,7 @@ struct MemoPadCallback {
     store: ActionStore,
     world: Box<dyn World>,
     ime: ImeInput,
+    new_chars: HashSet<char>,
 }
 
 impl MemoPadCallback {
@@ -99,8 +100,14 @@ impl MemoPadCallback {
         let look_at = 0;
         world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
+        let new_chars = HashSet::new();
 
-        Self { store, world, ime }
+        Self {
+            store,
+            world,
+            ime,
+            new_chars,
+        }
     }
 }
 
@@ -145,6 +152,14 @@ impl SimpleStateCallback for MemoPadCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
+        // 入力などで新しい char が追加されたら、グリフバッファに追加する
+        if !self.new_chars.is_empty() {
+            let new_chars = self.new_chars.clone();
+            glyph_vertex_buffer
+                .append_glyph(device, queue, new_chars)
+                .unwrap();
+            self.new_chars.clear();
+        }
         self.world
             .update(color_theme, glyph_vertex_buffer, device, queue);
         self.ime
@@ -192,7 +207,10 @@ impl SimpleStateCallback for MemoPadCallback {
                             match ClipboardContext::new()
                                 .and_then(|mut context| context.get_contents())
                             {
-                                Ok(text) => EditorOperation::InsertString(text),
+                                Ok(text) => {
+                                    self.new_chars.extend(text.chars());
+                                    EditorOperation::InsertString(text)
+                                }
                                 Err(_) => EditorOperation::Noop,
                             }
                         }
@@ -281,17 +299,20 @@ impl SimpleStateCallback for MemoPadCallback {
                 _ => InputResult::Noop,
             },
             Some(Action::Keytype(c)) => {
+                self.new_chars.insert(c);
                 let action = EditorOperation::InsertChar(c);
                 self.world.editor_operation(&action);
                 InputResult::InputConsumed
             }
             Some(Action::ImeInput(value)) => {
+                self.new_chars.extend(value.chars());
                 self.ime.apply_ime_event(&Action::ImeInput(value.clone()));
                 self.world
                     .editor_operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
             Some(Action::ImePreedit(value, position)) => {
+                self.new_chars.extend(value.chars());
                 self.ime
                     .apply_ime_event(&Action::ImePreedit(value, position));
                 InputResult::InputConsumed
