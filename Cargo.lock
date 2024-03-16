@@ -157,11 +157,11 @@ checksum = "0952808a6c2afd1aa8947271f3a60f1a6763c7b912d210184c5149b5cf147247"
 [[package]]
 name = "apng"
 version = "0.3.1"
-source = "git+https://github.com/mitoma/apng?branch=master#6255fc7bbef47b02ce781f46568a008a04e82db7"
+source = "git+https://github.com/mitoma/apng?branch=master#84a772be8820078a79545a84b45b3362a7269496"
 dependencies = [
  "byteorder",
  "flate2",
- "image 0.24.9",
+ "image",
  "png",
  "rayon",
  "rayon_ordered_bridge",
@@ -940,7 +940,7 @@ dependencies = [
  "font_collector",
  "fs_extra",
  "glob",
- "image 0.25.0",
+ "image",
  "instant",
  "log",
  "nenobi",
@@ -1238,19 +1238,6 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 
 [[package]]
 name = "image"
-version = "0.24.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5690139d2f55868e080017335e4b94cb7414274c74f1669c84fb5feba2c9f69d"
-dependencies = [
- "bytemuck",
- "byteorder",
- "color_quant",
- "num-traits",
- "png",
-]
-
-[[package]]
-name = "image"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9b4f005360d32e9325029b38ba47ebd7a56f3316df09249368939562d518645"
@@ -1539,7 +1526,7 @@ dependencies = [
  "env_logger",
  "font_collector",
  "font_rasterizer",
- "image 0.25.0",
+ "image",
  "log",
  "pollster",
  "serde",
