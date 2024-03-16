@@ -117,7 +117,11 @@ impl SimpleStateCallback for SingleCharCallback {
             .update(color_theme, glyph_vertex_buffer, device, queue);
     }
 
-    fn input(&mut self, event: &WindowEvent) -> InputResult {
+    fn input(
+        &mut self,
+        _glyph_vertex_buffer: &GlyphVertexBuffer,
+        event: &WindowEvent,
+    ) -> InputResult {
         match self.store.winit_window_event_to_action(event) {
             Some(Action::Command(category, name)) if *category == "system" => {
                 let action = match &*name.to_string() {

@@ -240,6 +240,18 @@ impl Model for TextEdit {
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
+            ModelOperation::CopyDisplayString(width_resolver, result_callback) => {
+                result_callback(
+                    self.editor
+                        .calc_phisical_layout(
+                            self.max_display_width(),
+                            &self.config.line_prohibited_chars,
+                            *width_resolver,
+                        )
+                        .to_string(),
+                );
+                ModelOperationResult::NoCare
+            }
         }
     }
 
@@ -340,7 +352,7 @@ impl TextEdit {
         }
 
         let layout = self.editor.calc_phisical_layout(
-            (self.config.max_col as f32 / self.config.col_interval).abs() as usize,
+            self.max_display_width(),
             &self.config.line_prohibited_chars,
             glyph_vertex_buffer,
         );
@@ -596,5 +608,9 @@ impl TextEdit {
             Some(r) => *rotation * r,
             None => *rotation,
         }
+    }
+
+    fn max_display_width(&self) -> usize {
+        (self.config.max_col as f32 / self.config.col_interval).abs() as usize
     }
 }

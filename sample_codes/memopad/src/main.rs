@@ -151,7 +151,11 @@ impl SimpleStateCallback for MemoPadCallback {
             .update(color_theme, glyph_vertex_buffer, device, queue);
     }
 
-    fn input(&mut self, event: &WindowEvent) -> InputResult {
+    fn input(
+        &mut self,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+        event: &WindowEvent,
+    ) -> InputResult {
         match self.store.winit_window_event_to_action(event) {
             Some(Action::Command(category, name)) => match &*category.to_string() {
                 "system" => {
@@ -235,6 +239,16 @@ impl SimpleStateCallback for MemoPadCallback {
                         "decrease-col-interval" => self
                             .world
                             .model_operation(&ModelOperation::DecreaseColInterval),
+                        "copy-display" => {
+                            self.world
+                                .model_operation(&ModelOperation::CopyDisplayString(
+                                    glyph_vertex_buffer,
+                                    |text| {
+                                        let _ = ClipboardContext::new()
+                                            .and_then(|mut context| context.set_contents(text));
+                                    },
+                                ))
+                        }
                         _ => {}
                     };
                     InputResult::InputConsumed

@@ -253,7 +253,11 @@ pub trait SimpleStateCallback {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     );
-    fn input(&mut self, event: &WindowEvent) -> InputResult;
+    fn input(
+        &mut self,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+        event: &WindowEvent,
+    ) -> InputResult;
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
 }
 
@@ -393,7 +397,8 @@ impl SimpleState {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> InputResult {
-        self.simple_state_callback.input(event)
+        self.simple_state_callback
+            .input(&self.glyph_vertex_buffer, event)
     }
 
     pub fn update(&mut self) {

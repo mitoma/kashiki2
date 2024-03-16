@@ -1,6 +1,6 @@
 use cgmath::{Point3, Quaternion, Rotation3};
 use log::info;
-use text_buffer::action::EditorOperation;
+use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
@@ -269,7 +269,7 @@ pub trait Model {
     fn to_string(&self) -> String;
 }
 
-pub enum ModelOperation {
+pub enum ModelOperation<'a> {
     ChangeDirection,
     // 行間を増加させる
     IncreaseRowInterval,
@@ -279,6 +279,8 @@ pub enum ModelOperation {
     IncreaseColInterval,
     // 文字間を減少させる
     DecreaseColInterval,
+    // Copy Display String
+    CopyDisplayString(&'a dyn CharWidthResolver, fn(String)),
 }
 
 pub enum ModelOperationResult {

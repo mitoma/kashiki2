@@ -165,7 +165,11 @@ impl SimpleStateCallback for SingleCharCallback {
         self.camera_controller.update_camera(&mut self.camera);
     }
 
-    fn input(&mut self, event: &WindowEvent) -> InputResult {
+    fn input(
+        &mut self,
+        _glyph_vertex_buffer: &GlyphVertexBuffer,
+        event: &WindowEvent,
+    ) -> InputResult {
         match self.store.winit_window_event_to_action(event) {
             Some(Action::Command(category, name)) if *category == "system" => {
                 let action = match &*name.to_string() {

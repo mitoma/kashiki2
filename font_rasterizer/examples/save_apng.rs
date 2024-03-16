@@ -145,7 +145,11 @@ impl SimpleStateCallback for SingleCharCallback {
             .for_each(|i| i.update_buffer(device, queue));
     }
 
-    fn input(&mut self, _event: &WindowEvent) -> InputResult {
+    fn input(
+        &mut self,
+        _glyph_vertex_buffer: &GlyphVertexBuffer,
+        _event: &WindowEvent,
+    ) -> InputResult {
         InputResult::Noop
     }
 

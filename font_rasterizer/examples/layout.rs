@@ -103,7 +103,11 @@ impl SimpleStateCallback for SingleCharCallback {
             .update(color_theme, &mut glyph_vertex_buffer, &device, &queue);
     }
 
-    fn input(&mut self, event: &WindowEvent) -> InputResult {
+    fn input(
+        &mut self,
+        _glyph_vertex_buffer: &GlyphVertexBuffer,
+        event: &WindowEvent,
+    ) -> InputResult {
         match event {
             WindowEvent::KeyboardInput {
                 event:

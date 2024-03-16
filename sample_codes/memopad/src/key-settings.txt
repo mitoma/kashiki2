@@ -67,3 +67,4 @@ A-S-Up    world:fit-width
 A-S-Down  world:fit-height
 C-Z Space world:look-next
 C-Z P     world:look-prev
+A-S-W     world:copy-display
