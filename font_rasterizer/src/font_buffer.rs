@@ -11,8 +11,9 @@ use log::{debug, info};
 use text_buffer::editor::CharWidthResolver;
 use wgpu::BufferUsages;
 
-use crate::font_converter::{
-    FontVertexConverter, GlyphVertex, GlyphVertexData, GlyphWidth, GlyphWidthCalculator, Vertex,
+use crate::{
+    char_width_calcurator::{CharWidth, CharWidthCalculator},
+    font_converter::{FontVertexConverter, GlyphVertex, GlyphVertexData, Vertex},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -104,7 +105,7 @@ pub(crate) struct DrawInfo<'a> {
 
 pub struct GlyphVertexBuffer {
     font_vertex_converter: FontVertexConverter,
-    glyph_width_calculator: GlyphWidthCalculator,
+    char_width_calculator: CharWidthCalculator,
     buffer_index: BTreeMap<char, (BufferIndexEntry, Option<BufferIndexEntry>)>,
     vertex_buffers: Vec<VertexBuffer>,
     index_buffers: Vec<IndexBuffer>,
@@ -114,10 +115,10 @@ impl GlyphVertexBuffer {
     pub fn new(font_binaries: Vec<FontData>) -> GlyphVertexBuffer {
         let font_binaries = Arc::new(font_binaries);
         let font_vertex_converter = FontVertexConverter::new(font_binaries.clone());
-        let glyph_width_calculator = GlyphWidthCalculator::new(font_binaries);
+        let char_width_calculator = CharWidthCalculator::new(font_binaries);
         GlyphVertexBuffer {
             font_vertex_converter,
-            glyph_width_calculator,
+            char_width_calculator,
             buffer_index: BTreeMap::default(),
             vertex_buffers: Vec::new(),
             index_buffers: Vec::new(),
@@ -186,7 +187,7 @@ impl GlyphVertexBuffer {
         let mut glyphs = chars
             .iter()
             .flat_map(|c| {
-                let width = self.glyph_width_calculator.get_width(*c);
+                let width = self.char_width_calculator.get_width(*c);
                 self.font_vertex_converter.convert(*c, width)
             })
             .collect::<Vec<_>>();
@@ -326,16 +327,16 @@ impl GlyphVertexBuffer {
             .map(|r| r.0)
     }
 
-    pub fn width(&self, c: char) -> GlyphWidth {
-        self.glyph_width_calculator.get_width(c)
+    pub fn width(&self, c: char) -> CharWidth {
+        self.char_width_calculator.get_width(c)
     }
 }
 
 impl CharWidthResolver for GlyphVertexBuffer {
     fn resolve_width(&self, c: char) -> usize {
         match self.width(c) {
-            GlyphWidth::Regular => 1,
-            GlyphWidth::Wide => 2,
+            CharWidth::Regular => 1,
+            CharWidth::Wide => 2,
         }
     }
 }
