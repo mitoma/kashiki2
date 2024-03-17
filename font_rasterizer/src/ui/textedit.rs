@@ -91,15 +91,35 @@ impl TextEditConfig {
     }
 }
 
+struct ViewCharState {
+    position: EasingPointN<3>,
+    color: EasingPointN<3>,
+}
+
+#[derive(Default)]
+struct ViewCharStates {
+    buffer_chars: BTreeMap<BufferChar, ViewCharState>,
+    removed_buffer_chars: BTreeMap<BufferChar, ViewCharState>,
+    instances: TextInstances,
+}
+
+impl ViewCharStates {
+    fn insert(&mut self, c: BufferChar, position: [f32; 3], color: [f32; 3]) {
+        let mut state = ViewCharState {
+            position: EasingPointN::new(position),
+            color: EasingPointN::new(color),
+        };
+        self.buffer_chars.insert(c, state);
+    }
+}
+
 pub struct TextEdit {
     config: TextEditConfig,
 
     editor: Editor,
     receiver: Receiver<ChangeEvent>,
 
-    buffer_chars: BTreeMap<BufferChar, EasingPointN<3>>,
-    removed_buffer_chars: BTreeMap<BufferChar, EasingPointN<3>>,
-    instances: TextInstances,
+    view_char_states: ViewCharStates,
 
     main_caret: Option<(Caret, EasingPointN<3>)>,
     mark: Option<(Caret, EasingPointN<3>)>,
@@ -130,9 +150,7 @@ impl Default for TextEdit {
             editor: Editor::new(tx),
             receiver: rx,
 
-            buffer_chars: BTreeMap::new(),
-            removed_buffer_chars: BTreeMap::new(),
-            instances: TextInstances::default(),
+            view_char_states: ViewCharStates::default(),
 
             main_caret: None,
             mark: None,
@@ -210,7 +228,7 @@ impl Model for TextEdit {
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
         [
             self.caret_instances.to_instances(),
-            self.instances.to_instances(),
+            self.view_char_states.instances.to_instances(),
         ]
         .concat()
     }
@@ -230,7 +248,7 @@ impl Model for TextEdit {
         self.sync_editor_events(device, color_theme);
         self.calc_position_and_bound(glyph_vertex_buffer);
         self.calc_instance_positions(glyph_vertex_buffer);
-        self.instances.update(device, queue);
+        self.view_char_states.instances.update(device, queue);
         self.caret_instances.update(device, queue);
         self.text_updated = false;
         self.config_updated = false;
@@ -247,7 +265,9 @@ impl Model for TextEdit {
                     Direction::Horizontal => self.config.direction = Direction::Vertical,
                     Direction::Vertical => self.config.direction = Direction::Horizontal,
                 }
-                self.instances.set_direction(&self.config.direction);
+                self.view_char_states
+                    .instances
+                    .set_direction(&self.config.direction);
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
@@ -285,8 +305,8 @@ impl Model for TextEdit {
             }
             ModelOperation::TogglePsychedelic => {
                 self.config.psychedelic = !self.config.psychedelic;
-                for (c, _) in self.buffer_chars.iter_mut() {
-                    if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                for (c, _) in self.view_char_states.buffer_chars.iter_mut() {
+                    if let Some(instance) = self.view_char_states.instances.get_mut(&(*c).into()) {
                         self.config.set_motion_and_color(instance);
                     }
                 }
@@ -308,6 +328,10 @@ impl TextEdit {
             self.text_updated = true;
             match event {
                 ChangeEvent::AddChar(c) => {
+                    self.view_char_states.insert()
+
+
+
                     let caret_pos = self
                         .main_caret
                         .as_ref()
