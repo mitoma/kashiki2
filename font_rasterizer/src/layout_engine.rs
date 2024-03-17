@@ -281,6 +281,8 @@ pub enum ModelOperation<'a> {
     DecreaseColInterval,
     // Copy Display String
     CopyDisplayString(&'a dyn CharWidthResolver, fn(String)),
+    // サイケデリックモードを切り替える(実験的なお遊び機能)
+    TogglePsychedelic,
 }
 
 pub enum ModelOperationResult {

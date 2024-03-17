@@ -41,6 +41,8 @@ C-X C-C system:exit
 # 実験的(テーマの選択UIが実装されたら消す)
 C-X C-T C-D system:change-theme-dark
 C-X C-T C-L system:change-theme-light
+# 実験的(遊び)
+C-X C-P     world:toggle-psychedelic
 
 F11   system:toggle-fullscreen
 # 

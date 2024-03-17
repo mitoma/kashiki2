@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, sync::mpsc::Receiver};
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 
 use instant::Duration;
+use rand::Rng;
 use text_buffer::{
     buffer::BufferChar,
     caret::{Caret, CaretType},
@@ -18,6 +19,7 @@ use crate::{
     layout_engine::{Model, ModelOperation, ModelOperationResult},
     motion::MotionFlags,
     text_instances::TextInstances,
+    time::now_millis,
 };
 
 use super::caret_char;
@@ -38,6 +40,7 @@ pub struct TextEditConfig {
     char_motion: MotionFlags,
     caret_motion: MotionFlags,
     color_theme: ColorTheme,
+    psychedelic: bool,
 }
 
 impl Default for TextEditConfig {
@@ -56,6 +59,34 @@ impl Default for TextEditConfig {
             char_motion: MotionFlags::ZERO_MOTION,
             caret_motion: MotionFlags::ZERO_MOTION,
             color_theme: ColorTheme::SolarizedDark,
+            psychedelic: false,
+        }
+    }
+}
+
+impl TextEditConfig {
+    fn set_motion_and_color(&self, instance: &mut GlyphInstance) {
+        if self.psychedelic {
+            instance.motion = MotionFlags::random_motion();
+            instance.start_time = now_millis();
+            instance.duration = Duration::from_millis(rand::thread_rng().gen_range(300..3000));
+            instance.gain = rand::thread_rng().gen_range(0.1..1.0);
+            instance.color = match rand::thread_rng().gen_range(0..8) {
+                0 => self.color_theme.yellow().get_color(),
+                1 => self.color_theme.orange().get_color(),
+                2 => self.color_theme.red().get_color(),
+                3 => self.color_theme.magenta().get_color(),
+                4 => self.color_theme.violet().get_color(),
+                5 => self.color_theme.blue().get_color(),
+                6 => self.color_theme.cyan().get_color(),
+                7 => self.color_theme.green().get_color(),
+                _ => self.color_theme.text().get_color(),
+            }
+        } else {
+            instance.motion = self.caret_motion;
+            instance.start_time = now_millis();
+            instance.duration = Duration::ZERO;
+            instance.color = self.color_theme.text().get_color();
         }
     }
 }
@@ -252,6 +283,15 @@ impl Model for TextEdit {
                 );
                 ModelOperationResult::NoCare
             }
+            ModelOperation::TogglePsychedelic => {
+                self.config.psychedelic = !self.config.psychedelic;
+                for (c, _) in self.buffer_chars.iter_mut() {
+                    if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                        self.config.set_motion_and_color(instance);
+                    }
+                }
+                ModelOperationResult::RequireReLayout
+            }
         }
     }
 
@@ -277,11 +317,12 @@ impl TextEdit {
                         })
                         .unwrap_or_else(|| [0.0, 1.0, 0.0]);
                     self.buffer_chars.insert(c, caret_pos.into());
-                    let instance = GlyphInstance {
+                    let mut instance = GlyphInstance {
                         color: color_theme.text().get_color(),
                         motion: self.config.char_motion,
                         ..GlyphInstance::default()
                     };
+                    self.config.set_motion_and_color(&mut instance);
                     self.instances.add(c.into(), instance, device);
                 }
                 ChangeEvent::MoveChar { from, to } => {
@@ -589,10 +630,11 @@ impl TextEdit {
         center: &Point2<f32>,
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
-        color: [f32; 3],
+        _color: [f32; 3],
         char_rotation: Option<Quaternion<f32>>,
     ) {
-        instance.color = color;
+        // FIXME いったん色変更の実装を外すが、インスタンスの情報をもう少し良い感じに管理する必要がある
+        // instance.color = color;
         let [x, y, z] = i.current();
         let pos = cgmath::Matrix4::from(*rotation)
             * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
