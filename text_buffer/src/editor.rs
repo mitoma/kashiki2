@@ -44,6 +44,21 @@ impl Editor {
             &self.sender,
         );
         self.undo_list.push(reverse_actions);
+
+        let unmark_operation = match op {
+            EditorOperation::InsertString(_)
+            | EditorOperation::InsertChar(_)
+            | EditorOperation::InsertEnter
+            | EditorOperation::Backspace
+            | EditorOperation::Delete
+            | EditorOperation::Copy(_)
+            | EditorOperation::Cut(_)
+            | EditorOperation::UnMark => true,
+            _ => false,
+        };
+        if unmark_operation {
+            self.unmark();
+        }
     }
 
     fn undo(&mut self) {
