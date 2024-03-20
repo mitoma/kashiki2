@@ -260,7 +260,6 @@ impl SimpleStateCallback for MemoPadCallback {
                                 ))
                         }
                         "toggle-psychedelic" => {
-                            println!("toggle-psychedelic");
                             self.world
                                 .model_operation(&ModelOperation::TogglePsychedelic)
                         }
