@@ -2,7 +2,7 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
-use text_buffer::{action::EditorOperation, caret::Caret};
+use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
@@ -125,16 +125,8 @@ impl SimpleStateCallback for MemoPadCallback {
             .join("")
             .chars()
             .collect::<HashSet<char>>();
-        chars.insert(caret_char(&Caret::new_without_event(
-            0,
-            0,
-            text_buffer::caret::CaretType::Primary,
-        )));
-        chars.insert(caret_char(&Caret::new_without_event(
-            0,
-            0,
-            text_buffer::caret::CaretType::Mark,
-        )));
+        chars.insert(caret_char(text_buffer::caret::CaretType::Primary));
+        chars.insert(caret_char(text_buffer::caret::CaretType::Mark));
         glyph_vertex_buffer
             .append_glyph(device, queue, chars)
             .unwrap();

@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 use instant::Duration;
 use rand::Rng;
-use text_buffer::buffer::BufferChar;
+use text_buffer::{
+    buffer::BufferChar,
+    caret::{Caret, CaretType},
+};
 use wgpu::Device;
 
 use crate::{
@@ -17,11 +20,11 @@ use crate::{
     time::now_millis,
 };
 
-use super::textedit::TextEditConfig;
+use super::{caret_char, textedit::TextEditConfig};
 
 struct ViewElementState {
-    position: EasingPointN<3>,
-    color: EasingPointN<3>,
+    pub(crate) position: EasingPointN<3>,
+    pub(crate) color: EasingPointN<3>,
 }
 
 #[derive(Default)]
@@ -58,7 +61,7 @@ impl CharStates {
         self.instances.add(c.into(), instance, device);
     }
 
-    pub(crate) fn update_char(&mut self, from: BufferChar, to: BufferChar, device: &Device) {
+    pub(crate) fn move_char(&mut self, from: BufferChar, to: BufferChar, device: &Device) {
         if let Some(position) = self.chars.remove(&from) {
             self.chars.insert(to, position);
         }
@@ -94,8 +97,8 @@ impl CharStates {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                let char_rotation = Self::calc_rotation(c.c, text_edit_config, glyph_vertex_buffer);
-                Self::update_instance(instance, i, center, position, rotation, char_rotation);
+                let char_rotation = calc_rotation(c.c, text_edit_config, glyph_vertex_buffer);
+                update_instance(instance, i, center, position, rotation, char_rotation);
             }
         }
 
@@ -106,59 +109,8 @@ impl CharStates {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
-                let char_rotation = Self::calc_rotation(c.c, text_edit_config, glyph_vertex_buffer);
-                Self::update_instance(instance, i, center, position, rotation, char_rotation);
-            }
-        }
-    }
-
-    fn update_instance(
-        instance: &mut GlyphInstance,
-        view_char_state: &mut ViewElementState,
-        center: &Point2<f32>,
-        position: &Point3<f32>,
-        rotation: &Quaternion<f32>,
-        char_rotation: Option<Quaternion<f32>>,
-    ) {
-        // set color
-        instance.color = view_char_state.color.current();
-
-        // set position
-        let [x, y, z] = view_char_state.position.current();
-        let pos = cgmath::Matrix4::from(*rotation)
-            * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-        let new_position = cgmath::Vector3 {
-            x: pos.x - center.x + position.x,
-            y: pos.y - center.y + position.y,
-            z: pos.z + position.z,
-        };
-        instance.position = new_position;
-
-        // set rotation
-        // 縦書きの場合は char_rotation が必要なのでここで回転する
-        instance.rotation = match char_rotation {
-            Some(r) => *rotation * r,
-            None => *rotation,
-        }
-    }
-
-    #[inline]
-    fn calc_rotation(
-        c: char,
-        text_edit_config: &TextEditConfig,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
-    ) -> Option<Quaternion<f32>> {
-        match text_edit_config.direction {
-            Direction::Horizontal => None,
-            Direction::Vertical => {
-                let width = glyph_vertex_buffer.width(c);
-                match width {
-                    CharWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_z(),
-                        cgmath::Deg(-90.0),
-                    )),
-                    CharWidth::Wide => None,
-                }
+                let char_rotation = calc_rotation(c.c, text_edit_config, glyph_vertex_buffer);
+                update_instance(instance, i, center, position, rotation, char_rotation);
             }
         }
     }
@@ -216,6 +168,217 @@ impl CharStates {
                     i.color
                         .update(text_edit_config.color_theme.text().get_color());
                 }
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct CaretStates {
+    pub(crate) default_motion: MotionFlags,
+    main_caret: Option<(Caret, ViewElementState)>,
+    mark: Option<(Caret, ViewElementState)>,
+    removed_carets: BTreeMap<Caret, ViewElementState>,
+    pub(crate) instances: TextInstances,
+}
+
+impl CaretStates {
+    pub(crate) fn main_caret_position(&self) -> Option<[f32; 3]> {
+        self.main_caret.as_ref().map(|(_, s)| s.position.last())
+    }
+
+    pub(crate) fn add_caret(&mut self, c: Caret, color: [f32; 3], device: &Device) {
+        let position = [c.row as f32, c.col as f32, 0.0];
+
+        let mut easing_color = EasingPointN::new(color);
+        easing_color.update_duration_and_easing_func(
+            Duration::from_millis(800),
+            nenobi::functions::sin_in_out,
+        );
+        let state = ViewElementState {
+            position: EasingPointN::new(position),
+            color: easing_color,
+        };
+        if c.caret_type == CaretType::Primary {
+            self.main_caret.replace((c, state));
+        } else {
+            self.mark.replace((c, state));
+        }
+
+        let caret_instance = GlyphInstance {
+            color,
+            motion: self.default_motion,
+            ..GlyphInstance::default()
+        };
+        self.instances.add(c.into(), caret_instance, device);
+    }
+
+    pub(crate) fn move_caret(&mut self, from: Caret, to: Caret, device: &Device) {
+        match from.caret_type {
+            CaretType::Primary => self.main_caret = Some((to, self.main_caret.take().unwrap().1)),
+            CaretType::Mark => self.mark = Some((to, self.mark.take().unwrap().1)),
+        }
+        if let Some(instance) = self.instances.remove(&from.into()) {
+            self.instances.add(to.into(), instance, device);
+        }
+    }
+
+    // BufferChar をゴミ箱に移動する(削除モーションに入る)
+    pub(crate) fn caret_to_dustbox(&mut self, c: Caret) {
+        match c.caret_type {
+            CaretType::Primary => {
+                if let Some((_, mut state)) = self.main_caret.take() {
+                    state.position.add((0.0, -1.0, 0.0).into());
+                    self.removed_carets.insert(c, state);
+                }
+            }
+            CaretType::Mark => {
+                if let Some((_, mut state)) = self.mark.take() {
+                    state.position.add((0.0, -1.0, 0.0).into());
+                    self.removed_carets.insert(c, state);
+                }
+            }
+        }
+        self.instances.pre_remove(&c.into());
+    }
+
+    pub(crate) fn update_state_position(&mut self, caret_type: CaretType, position: [f32; 3]) {
+        match caret_type {
+            CaretType::Primary => {
+                if let Some((_, c_pos)) = self.main_caret.as_mut() {
+                    c_pos.position.update(position);
+                }
+            }
+            CaretType::Mark => {
+                if let Some((_, c_pos)) = self.mark.as_mut() {
+                    c_pos.position.update(position);
+                }
+            }
+        }
+    }
+
+    pub(crate) fn update_instances(
+        &mut self,
+        update_environment: bool,
+        center: &Point2<f32>,
+        position: &Point3<f32>,
+        rotation: &Quaternion<f32>,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+        text_edit_config: &TextEditConfig,
+    ) {
+        // update caret
+        if let Some((c, i)) = self.main_caret.as_mut() {
+            if !update_environment && !i.position.in_animation() && !i.color.in_animation() {
+                //
+            } else if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                update_instance(
+                    instance,
+                    i,
+                    center,
+                    position,
+                    rotation,
+                    calc_rotation(
+                        caret_char(c.caret_type),
+                        text_edit_config,
+                        glyph_vertex_buffer,
+                    ),
+                );
+            }
+        }
+        if let Some((c, i)) = self.mark.as_mut() {
+            if !update_environment && !i.position.in_animation() && !i.color.in_animation() {
+                //
+            } else if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                update_instance(
+                    instance,
+                    i,
+                    center,
+                    position,
+                    rotation,
+                    calc_rotation(
+                        caret_char(c.caret_type),
+                        text_edit_config,
+                        glyph_vertex_buffer,
+                    ),
+                );
+            }
+        }
+
+        // update removed carets
+        self.removed_carets.retain(|c, i| {
+            let in_animation = i.position.in_animation();
+            // こいつは消えゆく運命の Caret なので position_updated なんて考慮せずに in_animation だけ見る
+            if !in_animation {
+                self.instances.remove_from_dustbox(&(*c).into());
+            }
+            in_animation
+        });
+        for (c, i) in self.removed_carets.iter_mut() {
+            if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
+                update_instance(
+                    instance,
+                    i,
+                    center,
+                    position,
+                    rotation,
+                    calc_rotation(
+                        caret_char(c.caret_type),
+                        text_edit_config,
+                        glyph_vertex_buffer,
+                    ),
+                );
+            }
+        }
+    }
+}
+
+#[inline]
+fn update_instance(
+    instance: &mut GlyphInstance,
+    view_char_state: &mut ViewElementState,
+    center: &Point2<f32>,
+    position: &Point3<f32>,
+    rotation: &Quaternion<f32>,
+    char_rotation: Option<Quaternion<f32>>,
+) {
+    // set color
+    instance.color = view_char_state.color.current();
+
+    // set position
+    let [x, y, z] = view_char_state.position.current();
+    let pos = cgmath::Matrix4::from(*rotation)
+        * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+    let new_position = cgmath::Vector3 {
+        x: pos.x - center.x + position.x,
+        y: pos.y - center.y + position.y,
+        z: pos.z + position.z,
+    };
+    instance.position = new_position;
+
+    // set rotation
+    // 縦書きの場合は char_rotation が必要なのでここで回転する
+    instance.rotation = match char_rotation {
+        Some(r) => *rotation * r,
+        None => *rotation,
+    }
+}
+
+#[inline]
+fn calc_rotation(
+    c: char,
+    text_edit_config: &TextEditConfig,
+    glyph_vertex_buffer: &GlyphVertexBuffer,
+) -> Option<Quaternion<f32>> {
+    match text_edit_config.direction {
+        Direction::Horizontal => None,
+        Direction::Vertical => {
+            let width = glyph_vertex_buffer.width(c);
+            match width {
+                CharWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
+                    cgmath::Vector3::unit_z(),
+                    cgmath::Deg(-90.0),
+                )),
+                CharWidth::Wide => None,
             }
         }
     }
