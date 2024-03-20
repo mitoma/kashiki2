@@ -132,7 +132,7 @@ impl SolarizedColor {
 }
 
 // テーマの色を取得するための列挙型
-enum ThemedColor {
+pub enum ThemedColor {
     Text,
     TextComment,
     TextEmphasized,
