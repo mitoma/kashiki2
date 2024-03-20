@@ -11,7 +11,7 @@ use wgpu::Device;
 
 use crate::{
     char_width_calcurator::CharWidth,
-    color_theme::ColorTheme,
+    color_theme::{ColorTheme, ThemedColor},
     easing_value::EasingPointN,
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstance,
@@ -24,6 +24,7 @@ use super::{caret_char, textedit::TextEditConfig};
 
 struct ViewElementState {
     pub(crate) position: EasingPointN<3>,
+    pub(crate) base_color: ThemedColor,
     pub(crate) color: EasingPointN<3>,
 }
 
@@ -50,6 +51,7 @@ impl CharStates {
         );
         let state = ViewElementState {
             position: EasingPointN::new(position),
+            base_color: ThemedColor::Text,
             color: easing_color,
         };
         self.chars.insert(c, state);
@@ -78,7 +80,7 @@ impl CharStates {
 
     pub(crate) fn update_char_theme(&mut self, color_theme: &ColorTheme) {
         self.chars.iter_mut().for_each(|(_, i)| {
-            i.color.update(color_theme.text().get_color());
+            i.color.update(i.base_color.get_color(color_theme));
         });
     }
 
@@ -145,17 +147,19 @@ impl CharStates {
                     instance.duration =
                         Duration::from_millis(rand::thread_rng().gen_range(300..3000));
                     instance.gain = rand::thread_rng().gen_range(0.1..1.0);
-                    i.color.update(match rand::thread_rng().gen_range(0..8) {
-                        0 => text_edit_config.color_theme.yellow().get_color(),
-                        1 => text_edit_config.color_theme.orange().get_color(),
-                        2 => text_edit_config.color_theme.red().get_color(),
-                        3 => text_edit_config.color_theme.magenta().get_color(),
-                        4 => text_edit_config.color_theme.violet().get_color(),
-                        5 => text_edit_config.color_theme.blue().get_color(),
-                        6 => text_edit_config.color_theme.cyan().get_color(),
-                        7 => text_edit_config.color_theme.green().get_color(),
-                        _ => text_edit_config.color_theme.text().get_color(),
-                    });
+                    i.base_color = match rand::thread_rng().gen_range(0..8) {
+                        0 => ThemedColor::Yellow,
+                        1 => ThemedColor::Orange,
+                        2 => ThemedColor::Red,
+                        3 => ThemedColor::Magenta,
+                        4 => ThemedColor::Violet,
+                        5 => ThemedColor::Blue,
+                        6 => ThemedColor::Cyan,
+                        7 => ThemedColor::Green,
+                        _ => ThemedColor::Text,
+                    };
+                    i.color
+                        .update(i.base_color.get_color(&text_edit_config.color_theme));
                 }
             }
         } else {
@@ -165,8 +169,9 @@ impl CharStates {
                     instance.start_time = now_millis();
                     instance.duration = Duration::ZERO;
                     instance.gain = rand::thread_rng().gen_range(0.1..1.0);
+                    i.base_color = ThemedColor::Text;
                     i.color
-                        .update(text_edit_config.color_theme.text().get_color());
+                        .update(i.base_color.get_color(&text_edit_config.color_theme));
                 }
             }
         }
@@ -197,6 +202,7 @@ impl CaretStates {
         );
         let state = ViewElementState {
             position: EasingPointN::new(position),
+            base_color: ThemedColor::TextEmphasized,
             color: easing_color,
         };
         if c.caret_type == CaretType::Primary {
