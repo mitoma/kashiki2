@@ -67,7 +67,7 @@ impl CharStates {
         }
     }
 
-    pub(crate) fn update_position(&mut self, c: &BufferChar, position: [f32; 3]) {
+    pub(crate) fn update_state_position(&mut self, c: &BufferChar, position: [f32; 3]) {
         if let Some(c_pos) = self.chars.get_mut(c) {
             c_pos.position.update(position);
         }

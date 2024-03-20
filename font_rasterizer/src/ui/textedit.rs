@@ -374,7 +374,7 @@ impl TextEdit {
             let width = glyph_vertex_buffer.width(c.c);
             let position =
                 Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
-            self.char_states.update_position(c, position)
+            self.char_states.update_state_position(c, position)
         });
 
         if let Some((caret, c)) = self.main_caret.as_mut() {
