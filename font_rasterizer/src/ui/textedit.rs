@@ -19,7 +19,7 @@ use crate::{
     text_instances::TextInstances,
 };
 
-use super::{caret_char, view_element_state::ViewCharStates};
+use super::{caret_char, view_element_state::CharStates};
 
 pub struct EasingConfig {
     duration: Duration,
@@ -65,7 +65,7 @@ pub struct TextEdit {
     editor: Editor,
     receiver: Receiver<ChangeEvent>,
 
-    view_char_states: ViewCharStates,
+    char_states: CharStates,
 
     main_caret: Option<(Caret, EasingPointN<3>)>,
     mark: Option<(Caret, EasingPointN<3>)>,
@@ -96,7 +96,7 @@ impl Default for TextEdit {
             editor: Editor::new(tx),
             receiver: rx,
 
-            view_char_states: ViewCharStates::default(),
+            char_states: CharStates::default(),
 
             main_caret: None,
             mark: None,
@@ -174,7 +174,7 @@ impl Model for TextEdit {
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
         [
             self.caret_instances.to_instances(),
-            self.view_char_states.instances.to_instances(),
+            self.char_states.instances.to_instances(),
         ]
         .concat()
     }
@@ -188,14 +188,14 @@ impl Model for TextEdit {
     ) {
         if self.config.color_theme != *color_theme {
             self.config.color_theme = *color_theme;
-            self.view_char_states.update_char_theme(color_theme);
+            self.char_states.update_char_theme(color_theme);
             self.config_updated = true;
         }
 
         self.sync_editor_events(device, color_theme);
         self.calc_position_and_bound(glyph_vertex_buffer);
         self.calc_instance_positions(glyph_vertex_buffer);
-        self.view_char_states.instances.update(device, queue);
+        self.char_states.instances.update(device, queue);
         self.caret_instances.update(device, queue);
         self.text_updated = false;
         self.config_updated = false;
@@ -212,7 +212,7 @@ impl Model for TextEdit {
                     Direction::Horizontal => self.config.direction = Direction::Vertical,
                     Direction::Vertical => self.config.direction = Direction::Horizontal,
                 }
-                self.view_char_states
+                self.char_states
                     .instances
                     .set_direction(&self.config.direction);
                 self.text_updated = true;
@@ -252,7 +252,7 @@ impl Model for TextEdit {
             }
             ModelOperation::TogglePsychedelic => {
                 self.config.psychedelic = !self.config.psychedelic;
-                self.view_char_states.set_motion_and_color(&self.config);
+                self.char_states.set_motion_and_color(&self.config);
                 ModelOperationResult::RequireReLayout
             }
         }
@@ -279,7 +279,7 @@ impl TextEdit {
                             [x, y + 1.0, z]
                         })
                         .unwrap_or_else(|| [0.0, 1.0, 0.0]);
-                    self.view_char_states.add_char(
+                    self.char_states.add_char(
                         c,
                         caret_pos,
                         color_theme.text().get_color(),
@@ -287,10 +287,10 @@ impl TextEdit {
                     );
                 }
                 ChangeEvent::MoveChar { from, to } => {
-                    self.view_char_states.update_char(from, to, device);
+                    self.char_states.update_char(from, to, device);
                 }
                 ChangeEvent::RemoveChar(c) => {
-                    self.view_char_states.char_to_dustbox(c);
+                    self.char_states.char_to_dustbox(c);
                 }
                 ChangeEvent::AddCaret(c) => {
                     let caret_instance = GlyphInstance {
@@ -374,7 +374,7 @@ impl TextEdit {
             let width = glyph_vertex_buffer.width(c.c);
             let position =
                 Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
-            self.view_char_states.update_position(c, position)
+            self.char_states.update_position(c, position)
         });
 
         if let Some((caret, c)) = self.main_caret.as_mut() {
@@ -489,7 +489,7 @@ impl TextEdit {
         }
 
         // update chars
-        self.view_char_states.update_instances(
+        self.char_states.update_instances(
             update_environment,
             &center,
             &current_position,

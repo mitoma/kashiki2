@@ -25,14 +25,14 @@ struct ViewElementState {
 }
 
 #[derive(Default)]
-pub(crate) struct ViewCharStates {
+pub(crate) struct CharStates {
     default_motion: MotionFlags,
     chars: BTreeMap<BufferChar, ViewElementState>,
     removed_chars: BTreeMap<BufferChar, ViewElementState>,
     pub(crate) instances: TextInstances,
 }
 
-impl ViewCharStates {
+impl CharStates {
     pub(crate) fn add_char(
         &mut self,
         c: BufferChar,
