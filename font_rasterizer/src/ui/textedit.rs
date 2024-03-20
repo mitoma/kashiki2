@@ -9,6 +9,7 @@ use text_buffer::{
     caret::{Caret, CaretType},
     editor::{ChangeEvent, Editor, LineBoundaryProhibitedChars},
 };
+use wgpu::Device;
 
 use crate::{
     char_width_calcurator::CharWidth,
@@ -37,7 +38,6 @@ pub struct TextEditConfig {
     line_prohibited_chars: LineBoundaryProhibitedChars,
     min_bound: Point2<f32>,
     position_easing: EasingConfig,
-    char_motion: MotionFlags,
     caret_motion: MotionFlags,
     color_theme: ColorTheme,
     psychedelic: bool,
@@ -56,37 +56,9 @@ impl Default for TextEditConfig {
                 duration: Duration::from_millis(800),
                 easing_func: nenobi::functions::sin_in_out,
             },
-            char_motion: MotionFlags::ZERO_MOTION,
             caret_motion: MotionFlags::ZERO_MOTION,
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
-        }
-    }
-}
-
-impl TextEditConfig {
-    fn set_motion_and_color(&self, instance: &mut GlyphInstance) {
-        if self.psychedelic {
-            instance.motion = MotionFlags::random_motion();
-            instance.start_time = now_millis();
-            instance.duration = Duration::from_millis(rand::thread_rng().gen_range(300..3000));
-            instance.gain = rand::thread_rng().gen_range(0.1..1.0);
-            instance.color = match rand::thread_rng().gen_range(0..8) {
-                0 => self.color_theme.yellow().get_color(),
-                1 => self.color_theme.orange().get_color(),
-                2 => self.color_theme.red().get_color(),
-                3 => self.color_theme.magenta().get_color(),
-                4 => self.color_theme.violet().get_color(),
-                5 => self.color_theme.blue().get_color(),
-                6 => self.color_theme.cyan().get_color(),
-                7 => self.color_theme.green().get_color(),
-                _ => self.color_theme.text().get_color(),
-            }
-        } else {
-            instance.motion = self.caret_motion;
-            instance.start_time = now_millis();
-            instance.duration = Duration::ZERO;
-            instance.color = self.color_theme.text().get_color();
         }
     }
 }
@@ -98,18 +70,192 @@ struct ViewCharState {
 
 #[derive(Default)]
 struct ViewCharStates {
-    buffer_chars: BTreeMap<BufferChar, ViewCharState>,
-    removed_buffer_chars: BTreeMap<BufferChar, ViewCharState>,
+    default_motion: MotionFlags,
+    chars: BTreeMap<BufferChar, ViewCharState>,
+    removed_chars: BTreeMap<BufferChar, ViewCharState>,
     instances: TextInstances,
 }
 
 impl ViewCharStates {
-    fn insert(&mut self, c: BufferChar, position: [f32; 3], color: [f32; 3]) {
-        let mut state = ViewCharState {
+    fn add_char(&mut self, c: BufferChar, position: [f32; 3], color: [f32; 3], device: &Device) {
+        let mut easing_color = EasingPointN::new(color);
+        easing_color.update_duration_and_easing_func(
+            Duration::from_millis(800),
+            nenobi::functions::sin_in_out,
+        );
+        let state = ViewCharState {
             position: EasingPointN::new(position),
-            color: EasingPointN::new(color),
+            color: easing_color,
         };
-        self.buffer_chars.insert(c, state);
+        self.chars.insert(c, state);
+        let instance = GlyphInstance {
+            color,
+            motion: self.default_motion,
+            ..GlyphInstance::default()
+        };
+        self.instances.add(c.into(), instance, device);
+    }
+
+    fn update_char(&mut self, from: BufferChar, to: BufferChar, device: &Device) {
+        if let Some(position) = self.chars.remove(&from) {
+            self.chars.insert(to, position);
+        }
+        if let Some(instance) = self.instances.remove(&from.into()) {
+            self.instances.add(to.into(), instance, device);
+        }
+    }
+
+    fn update_position(&mut self, c: &BufferChar, position: [f32; 3]) {
+        if let Some(c_pos) = self.chars.get_mut(c) {
+            c_pos.position.update(position);
+        }
+    }
+
+    fn update_char_theme(&mut self, color_theme: &ColorTheme) {
+        self.chars.iter_mut().for_each(|(_, i)| {
+            i.color.update(color_theme.text().get_color());
+        });
+    }
+
+    fn update_instances(
+        &mut self,
+        update_environment: bool,
+        center: &Point2<f32>,
+        position: &Point3<f32>,
+        rotation: &Quaternion<f32>,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+        text_edit_config: &TextEditConfig,
+    ) {
+        // update chars
+        for (c, i) in self.chars.iter_mut() {
+            if !update_environment && !i.position.in_animation() && !i.color.in_animation() {
+                continue;
+            }
+            if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                let char_rotation = Self::calc_rotation(c.c, text_edit_config, glyph_vertex_buffer);
+                Self::update_instance(instance, i, center, position, rotation, char_rotation);
+            }
+        }
+
+        // update removed chars
+        self.clean_dustbox();
+        for (c, i) in self.removed_chars.iter_mut() {
+            if !update_environment && !i.position.in_animation() && !i.color.in_animation() {
+                continue;
+            }
+            if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
+                let char_rotation = Self::calc_rotation(c.c, text_edit_config, glyph_vertex_buffer);
+                Self::update_instance(instance, i, center, position, rotation, char_rotation);
+            }
+        }
+    }
+
+    fn update_instance(
+        instance: &mut GlyphInstance,
+        view_char_state: &mut ViewCharState,
+        center: &Point2<f32>,
+        position: &Point3<f32>,
+        rotation: &Quaternion<f32>,
+        char_rotation: Option<Quaternion<f32>>,
+    ) {
+        // set color
+        instance.color = view_char_state.color.current();
+
+        // set position
+        let [x, y, z] = view_char_state.position.current();
+        let pos = cgmath::Matrix4::from(*rotation)
+            * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+        let new_position = cgmath::Vector3 {
+            x: pos.x - center.x + position.x,
+            y: pos.y - center.y + position.y,
+            z: pos.z + position.z,
+        };
+        instance.position = new_position;
+
+        // set rotation
+        // 縦書きの場合は char_rotation が必要なのでここで回転する
+        instance.rotation = match char_rotation {
+            Some(r) => *rotation * r,
+            None => *rotation,
+        }
+    }
+
+    #[inline]
+    fn calc_rotation(
+        c: char,
+        text_edit_config: &TextEditConfig,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+    ) -> Option<Quaternion<f32>> {
+        match text_edit_config.direction {
+            Direction::Horizontal => None,
+            Direction::Vertical => {
+                let width = glyph_vertex_buffer.width(c);
+                match width {
+                    CharWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_z(),
+                        cgmath::Deg(-90.0),
+                    )),
+                    CharWidth::Wide => None,
+                }
+            }
+        }
+    }
+
+    // BufferChar をゴミ箱に移動する(削除モーションに入る)
+    fn char_to_dustbox(&mut self, c: BufferChar) {
+        if let Some(mut state) = self.chars.remove(&c) {
+            state.position.add((0.0, -1.0, 0.0).into());
+            self.removed_chars.insert(c, state);
+        }
+        self.instances.pre_remove(&c.into());
+    }
+
+    // ゴミ箱の文字の削除モーションが完了しているものを削除する
+    fn clean_dustbox(&mut self) {
+        self.removed_chars.retain(|c, i| {
+            let in_animation = i.position.in_animation();
+            // こいつは消えゆく運命の文字なので position_updated なんて考慮せずに in_animation だけ見る
+            if !in_animation {
+                self.instances.remove_from_dustbox(&(*c).into());
+            }
+            in_animation
+        });
+    }
+
+    fn set_motion_and_color(&mut self, text_edit_config: &TextEditConfig) {
+        if text_edit_config.psychedelic {
+            for (c, i) in self.chars.iter_mut() {
+                if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                    instance.motion = MotionFlags::random_motion();
+                    instance.start_time = now_millis();
+                    instance.duration =
+                        Duration::from_millis(rand::thread_rng().gen_range(300..3000));
+                    instance.gain = rand::thread_rng().gen_range(0.1..1.0);
+                    i.color.update(match rand::thread_rng().gen_range(0..8) {
+                        0 => text_edit_config.color_theme.yellow().get_color(),
+                        1 => text_edit_config.color_theme.orange().get_color(),
+                        2 => text_edit_config.color_theme.red().get_color(),
+                        3 => text_edit_config.color_theme.magenta().get_color(),
+                        4 => text_edit_config.color_theme.violet().get_color(),
+                        5 => text_edit_config.color_theme.blue().get_color(),
+                        6 => text_edit_config.color_theme.cyan().get_color(),
+                        7 => text_edit_config.color_theme.green().get_color(),
+                        _ => text_edit_config.color_theme.text().get_color(),
+                    });
+                }
+            }
+        } else {
+            for (c, i) in self.chars.iter_mut() {
+                if let Some(instance) = self.instances.get_mut(&(*c).into()) {
+                    instance.motion = self.default_motion;
+                    instance.start_time = now_millis();
+                    instance.duration = Duration::ZERO;
+                    instance.gain = rand::thread_rng().gen_range(0.1..1.0);
+                    i.color
+                        .update(text_edit_config.color_theme.text().get_color());
+                }
+            }
+        }
     }
 }
 
@@ -242,6 +388,7 @@ impl Model for TextEdit {
     ) {
         if self.config.color_theme != *color_theme {
             self.config.color_theme = *color_theme;
+            self.view_char_states.update_char_theme(color_theme);
             self.config_updated = true;
         }
 
@@ -305,11 +452,7 @@ impl Model for TextEdit {
             }
             ModelOperation::TogglePsychedelic => {
                 self.config.psychedelic = !self.config.psychedelic;
-                for (c, _) in self.view_char_states.buffer_chars.iter_mut() {
-                    if let Some(instance) = self.view_char_states.instances.get_mut(&(*c).into()) {
-                        self.config.set_motion_and_color(instance);
-                    }
-                }
+                self.view_char_states.set_motion_and_color(&self.config);
                 ModelOperationResult::RequireReLayout
             }
         }
@@ -328,10 +471,6 @@ impl TextEdit {
             self.text_updated = true;
             match event {
                 ChangeEvent::AddChar(c) => {
-                    self.view_char_states.insert()
-
-
-
                     let caret_pos = self
                         .main_caret
                         .as_ref()
@@ -340,29 +479,18 @@ impl TextEdit {
                             [x, y + 1.0, z]
                         })
                         .unwrap_or_else(|| [0.0, 1.0, 0.0]);
-                    self.buffer_chars.insert(c, caret_pos.into());
-                    let mut instance = GlyphInstance {
-                        color: color_theme.text().get_color(),
-                        motion: self.config.char_motion,
-                        ..GlyphInstance::default()
-                    };
-                    self.config.set_motion_and_color(&mut instance);
-                    self.instances.add(c.into(), instance, device);
+                    self.view_char_states.add_char(
+                        c,
+                        caret_pos,
+                        color_theme.text().get_color(),
+                        device,
+                    );
                 }
                 ChangeEvent::MoveChar { from, to } => {
-                    if let Some(position) = self.buffer_chars.remove(&from) {
-                        self.buffer_chars.insert(to, position);
-                    }
-                    if let Some(instance) = self.instances.remove(&from.into()) {
-                        self.instances.add(to.into(), instance, device);
-                    }
+                    self.view_char_states.update_char(from, to, device);
                 }
                 ChangeEvent::RemoveChar(c) => {
-                    if let Some(mut position) = self.buffer_chars.remove(&c) {
-                        position.add((0.0, -1.0, 0.0).into());
-                        self.removed_buffer_chars.insert(c, position);
-                    }
-                    self.instances.pre_remove(&c.into());
+                    self.view_char_states.char_to_dustbox(c);
                 }
                 ChangeEvent::AddCaret(c) => {
                     let caret_instance = GlyphInstance {
@@ -443,15 +571,10 @@ impl TextEdit {
         };
 
         layout.chars.iter().for_each(|(c, pos)| {
-            if let Some(c_pos) = self.buffer_chars.get_mut(c) {
-                let width = glyph_vertex_buffer.width(c.c);
-                c_pos.update(Self::get_adjusted_position(
-                    &self.config,
-                    width,
-                    bound,
-                    [pos.col, pos.row],
-                ));
-            }
+            let width = glyph_vertex_buffer.width(c.c);
+            let position =
+                Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+            self.view_char_states.update_position(c, position)
         });
 
         if let Some((caret, c)) = self.main_caret.as_mut() {
@@ -498,6 +621,7 @@ impl TextEdit {
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
         let position_in_animation = self.position.in_animation();
         let current_position: Point3<f32> = self.position.current().into();
+        let update_environment = position_in_animation || bound_in_animation || self.config_updated;
 
         // update caret
         if let Some((c, i)) = self.main_caret.as_mut() {
@@ -565,51 +689,14 @@ impl TextEdit {
         }
 
         // update chars
-        for (c, i) in self.buffer_chars.iter_mut() {
-            if Self::dismiss_update(
-                i,
-                position_in_animation,
-                bound_in_animation,
-                self.config_updated,
-            ) {
-                continue;
-            }
-            if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                // width が Reguler の時は rotation を 90 度回転させる
-                Self::update_instance(
-                    instance,
-                    i,
-                    &center,
-                    &current_position,
-                    &self.rotation,
-                    self.config.color_theme.text().get_color(),
-                    Self::calc_rotation(c.c, &self.config, glyph_vertex_buffer),
-                );
-            }
-        }
-
-        // update removed chars
-        self.removed_buffer_chars.retain(|c, i| {
-            let in_animation = i.in_animation();
-            // こいつは消えゆく運命の文字なので position_updated なんて考慮せずに in_animation だけ見る
-            if !in_animation {
-                self.instances.remove_from_dustbox(&(*c).into());
-            }
-            in_animation
-        });
-        for (c, i) in self.removed_buffer_chars.iter() {
-            if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
-                Self::update_instance(
-                    instance,
-                    i,
-                    &center,
-                    &current_position,
-                    &self.rotation,
-                    self.config.color_theme.text_comment().get_color(),
-                    Self::calc_rotation(c.c, &self.config, glyph_vertex_buffer),
-                );
-            }
-        }
+        self.view_char_states.update_instances(
+            update_environment,
+            &center,
+            &current_position,
+            &self.rotation,
+            glyph_vertex_buffer,
+            &self.config,
+        );
     }
 
     #[inline]
