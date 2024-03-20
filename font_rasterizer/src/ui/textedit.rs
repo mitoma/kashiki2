@@ -1,12 +1,10 @@
-use std::{collections::BTreeMap, sync::mpsc::Receiver};
+use std::sync::mpsc::Receiver;
 
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 
 use instant::Duration;
-use rand::Rng;
 use text_buffer::{
-    buffer::BufferChar,
-    caret::{Caret, CaretType},
+    caret::CaretType,
     editor::{ChangeEvent, Editor, LineBoundaryProhibitedChars},
 };
 
@@ -15,14 +13,14 @@ use crate::{
     color_theme::ColorTheme,
     easing_value::EasingPointN,
     font_buffer::{Direction, GlyphVertexBuffer},
-    instances::{GlyphInstance, GlyphInstances},
+    instances::GlyphInstances,
     layout_engine::{Model, ModelOperation, ModelOperationResult},
-    motion::MotionFlags,
-    text_instances::TextInstances,
-    time::now_millis,
 };
 
-use super::caret_char;
+use super::{
+    caret_char,
+    view_element_state::{CaretStates, CharStates},
+};
 
 pub struct EasingConfig {
     duration: Duration,
@@ -30,17 +28,15 @@ pub struct EasingConfig {
 }
 
 pub struct TextEditConfig {
-    direction: Direction,
-    row_interval: f32,
-    col_interval: f32,
-    max_col: usize,
-    line_prohibited_chars: LineBoundaryProhibitedChars,
-    min_bound: Point2<f32>,
-    position_easing: EasingConfig,
-    char_motion: MotionFlags,
-    caret_motion: MotionFlags,
-    color_theme: ColorTheme,
-    psychedelic: bool,
+    pub(crate) direction: Direction,
+    pub(crate) row_interval: f32,
+    pub(crate) col_interval: f32,
+    pub(crate) max_col: usize,
+    pub(crate) line_prohibited_chars: LineBoundaryProhibitedChars,
+    pub(crate) min_bound: Point2<f32>,
+    pub(crate) position_easing: EasingConfig,
+    pub(crate) color_theme: ColorTheme,
+    pub(crate) psychedelic: bool,
 }
 
 impl Default for TextEditConfig {
@@ -56,37 +52,8 @@ impl Default for TextEditConfig {
                 duration: Duration::from_millis(800),
                 easing_func: nenobi::functions::sin_in_out,
             },
-            char_motion: MotionFlags::ZERO_MOTION,
-            caret_motion: MotionFlags::ZERO_MOTION,
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
-        }
-    }
-}
-
-impl TextEditConfig {
-    fn set_motion_and_color(&self, instance: &mut GlyphInstance) {
-        if self.psychedelic {
-            instance.motion = MotionFlags::random_motion();
-            instance.start_time = now_millis();
-            instance.duration = Duration::from_millis(rand::thread_rng().gen_range(300..3000));
-            instance.gain = rand::thread_rng().gen_range(0.1..1.0);
-            instance.color = match rand::thread_rng().gen_range(0..8) {
-                0 => self.color_theme.yellow().get_color(),
-                1 => self.color_theme.orange().get_color(),
-                2 => self.color_theme.red().get_color(),
-                3 => self.color_theme.magenta().get_color(),
-                4 => self.color_theme.violet().get_color(),
-                5 => self.color_theme.blue().get_color(),
-                6 => self.color_theme.cyan().get_color(),
-                7 => self.color_theme.green().get_color(),
-                _ => self.color_theme.text().get_color(),
-            }
-        } else {
-            instance.motion = self.caret_motion;
-            instance.start_time = now_millis();
-            instance.duration = Duration::ZERO;
-            instance.color = self.color_theme.text().get_color();
         }
     }
 }
@@ -97,14 +64,8 @@ pub struct TextEdit {
     editor: Editor,
     receiver: Receiver<ChangeEvent>,
 
-    buffer_chars: BTreeMap<BufferChar, EasingPointN<3>>,
-    removed_buffer_chars: BTreeMap<BufferChar, EasingPointN<3>>,
-    instances: TextInstances,
-
-    main_caret: Option<(Caret, EasingPointN<3>)>,
-    mark: Option<(Caret, EasingPointN<3>)>,
-    removed_carets: BTreeMap<Caret, EasingPointN<3>>,
-    caret_instances: TextInstances,
+    char_states: CharStates,
+    caret_states: CaretStates,
 
     text_updated: bool,
     config_updated: bool,
@@ -130,14 +91,8 @@ impl Default for TextEdit {
             editor: Editor::new(tx),
             receiver: rx,
 
-            buffer_chars: BTreeMap::new(),
-            removed_buffer_chars: BTreeMap::new(),
-            instances: TextInstances::default(),
-
-            main_caret: None,
-            mark: None,
-            removed_carets: BTreeMap::new(),
-            caret_instances: TextInstances::default(),
+            char_states: CharStates::default(),
+            caret_states: CaretStates::default(),
 
             text_updated: true,
             config_updated: true,
@@ -168,10 +123,9 @@ impl Model for TextEdit {
     // キャレットの位置と direction を考慮してテキストエディタ中のフォーカス位置を返す
     fn focus_position(&self) -> Point3<f32> {
         let [caret_position_x, caret_position_y, _caret_position_z] = self
-            .main_caret
-            .as_ref()
-            .map(|(_, c)| c.last())
-            .unwrap_or_else(|| [0.0, 0.0, 0.0]);
+            .caret_states
+            .main_caret_position()
+            .unwrap_or([0.0, 0.0, 0.0]);
 
         let [position_x, position_y, position_z] = self.position.last();
         let [current_bound_x, current_bound_y] = self.bound.last();
@@ -209,8 +163,8 @@ impl Model for TextEdit {
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
         [
-            self.caret_instances.to_instances(),
-            self.instances.to_instances(),
+            self.caret_states.instances.to_instances(),
+            self.char_states.instances.to_instances(),
         ]
         .concat()
     }
@@ -224,14 +178,15 @@ impl Model for TextEdit {
     ) {
         if self.config.color_theme != *color_theme {
             self.config.color_theme = *color_theme;
+            self.char_states.update_char_theme(color_theme);
             self.config_updated = true;
         }
 
         self.sync_editor_events(device, color_theme);
         self.calc_position_and_bound(glyph_vertex_buffer);
         self.calc_instance_positions(glyph_vertex_buffer);
-        self.instances.update(device, queue);
-        self.caret_instances.update(device, queue);
+        self.char_states.instances.update(device, queue);
+        self.caret_states.instances.update(device, queue);
         self.text_updated = false;
         self.config_updated = false;
     }
@@ -247,7 +202,9 @@ impl Model for TextEdit {
                     Direction::Horizontal => self.config.direction = Direction::Vertical,
                     Direction::Vertical => self.config.direction = Direction::Horizontal,
                 }
-                self.instances.set_direction(&self.config.direction);
+                self.char_states
+                    .instances
+                    .set_direction(&self.config.direction);
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
@@ -285,11 +242,7 @@ impl Model for TextEdit {
             }
             ModelOperation::TogglePsychedelic => {
                 self.config.psychedelic = !self.config.psychedelic;
-                for (c, _) in self.buffer_chars.iter_mut() {
-                    if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                        self.config.set_motion_and_color(instance);
-                    }
-                }
+                self.char_states.set_motion_and_color(&self.config);
                 ModelOperationResult::RequireReLayout
             }
         }
@@ -309,77 +262,31 @@ impl TextEdit {
             match event {
                 ChangeEvent::AddChar(c) => {
                     let caret_pos = self
-                        .main_caret
-                        .as_ref()
-                        .map(|(_, c)| {
-                            let [x, y, z] = c.current();
-                            [x, y + 1.0, z]
-                        })
+                        .caret_states
+                        .main_caret_position()
+                        .map(|[x, y, z]| [x, y + 1.0, z])
                         .unwrap_or_else(|| [0.0, 1.0, 0.0]);
-                    self.buffer_chars.insert(c, caret_pos.into());
-                    let mut instance = GlyphInstance {
-                        color: color_theme.text().get_color(),
-                        motion: self.config.char_motion,
-                        ..GlyphInstance::default()
-                    };
-                    self.config.set_motion_and_color(&mut instance);
-                    self.instances.add(c.into(), instance, device);
+                    self.char_states
+                        .add_char(c, caret_pos, color_theme.text().get_color(), device);
                 }
                 ChangeEvent::MoveChar { from, to } => {
-                    if let Some(position) = self.buffer_chars.remove(&from) {
-                        self.buffer_chars.insert(to, position);
-                    }
-                    if let Some(instance) = self.instances.remove(&from.into()) {
-                        self.instances.add(to.into(), instance, device);
-                    }
+                    self.char_states.move_char(from, to, device);
                 }
                 ChangeEvent::RemoveChar(c) => {
-                    if let Some(mut position) = self.buffer_chars.remove(&c) {
-                        position.add((0.0, -1.0, 0.0).into());
-                        self.removed_buffer_chars.insert(c, position);
-                    }
-                    self.instances.pre_remove(&c.into());
+                    self.char_states.char_to_dustbox(c);
                 }
                 ChangeEvent::AddCaret(c) => {
-                    let caret_instance = GlyphInstance {
-                        color: color_theme.text_emphasized().get_color(),
-                        motion: self.config.caret_motion,
-                        ..GlyphInstance::default()
-                    };
-                    self.caret_instances.add(c.into(), caret_instance, device);
-                    if c.caret_type == CaretType::Primary {
-                        self.main_caret = Some((c, [c.row as f32, c.col as f32, 0.0].into()));
-                    } else {
-                        self.mark = Some((c, [c.row as f32, c.col as f32, 0.0].into()));
-                    }
+                    self.caret_states.add_caret(
+                        c,
+                        color_theme.text_emphasized().get_color(),
+                        device,
+                    );
                 }
                 ChangeEvent::MoveCaret { from, to } => {
-                    match from.caret_type {
-                        CaretType::Primary => {
-                            self.main_caret = Some((to, self.main_caret.take().unwrap().1))
-                        }
-                        CaretType::Mark => self.mark = Some((to, self.mark.take().unwrap().1)),
-                    }
-                    if let Some(instance) = self.caret_instances.remove(&from.into()) {
-                        self.caret_instances.add(to.into(), instance, device);
-                    }
+                    self.caret_states.move_caret(from, to, device);
                 }
                 ChangeEvent::RemoveCaret(c) => {
-                    match c.caret_type {
-                        CaretType::Primary => {
-                            if let Some((_, mut position)) = self.main_caret.take() {
-                                position.add((0.0, -1.0, 0.0).into());
-                                self.removed_carets.insert(c, position);
-                            }
-                        }
-                        CaretType::Mark => {
-                            if let Some((_, mut position)) = self.mark.take() {
-                                position.add((0.0, -1.0, 0.0).into());
-                                self.removed_carets.insert(c, position);
-                            }
-                        }
-                    }
-                    self.caret_instances.pre_remove(&c.into());
+                    self.caret_states.caret_to_dustbox(c);
                 }
             }
         }
@@ -419,35 +326,33 @@ impl TextEdit {
         };
 
         layout.chars.iter().for_each(|(c, pos)| {
-            if let Some(c_pos) = self.buffer_chars.get_mut(c) {
-                let width = glyph_vertex_buffer.width(c.c);
-                c_pos.update(Self::get_adjusted_position(
-                    &self.config,
-                    width,
-                    bound,
-                    [pos.col, pos.row],
-                ));
-            }
+            let width = glyph_vertex_buffer.width(c.c);
+            let position =
+                Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+            self.char_states.update_state_position(c, position)
         });
 
-        if let Some((caret, c)) = self.main_caret.as_mut() {
-            let caret_width = glyph_vertex_buffer.width(caret_char(caret));
-            c.update(Self::get_adjusted_position(
+        {
+            let caret_width = glyph_vertex_buffer.width(caret_char(CaretType::Primary));
+            let position = Self::get_adjusted_position(
                 &self.config,
                 caret_width,
                 bound,
                 [layout.main_caret_pos.col, layout.main_caret_pos.row],
-            ));
+            );
+            self.caret_states
+                .update_state_position(CaretType::Primary, position);
         }
-
-        if let (Some((caret, c)), Some(mark_pos)) = (self.mark.as_mut(), layout.mark_pos) {
-            let caret_width = glyph_vertex_buffer.width(caret_char(caret));
-            c.update(Self::get_adjusted_position(
+        if let Some(mark_pos) = layout.mark_pos {
+            let caret_width = glyph_vertex_buffer.width(caret_char(CaretType::Mark));
+            let position = Self::get_adjusted_position(
                 &self.config,
                 caret_width,
                 bound,
                 [mark_pos.col, mark_pos.row],
-            ))
+            );
+            self.caret_states
+                .update_state_position(CaretType::Mark, position);
         }
     }
 
@@ -474,182 +379,27 @@ impl TextEdit {
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
         let position_in_animation = self.position.in_animation();
         let current_position: Point3<f32> = self.position.current().into();
+        let update_environment = position_in_animation || bound_in_animation || self.config_updated;
 
         // update caret
-        if let Some((c, i)) = self.main_caret.as_mut() {
-            if Self::dismiss_update(
-                i,
-                position_in_animation,
-                bound_in_animation,
-                self.config_updated,
-            ) {
-                //
-            } else if let Some(instance) = self.caret_instances.get_mut(&(*c).into()) {
-                Self::update_instance(
-                    instance,
-                    i,
-                    &center,
-                    &current_position,
-                    &self.rotation,
-                    self.config.color_theme.text_emphasized().get_color(),
-                    Self::calc_rotation(caret_char(c), &self.config, glyph_vertex_buffer),
-                );
-            }
-        }
-        if let Some((c, i)) = self.mark.as_mut() {
-            if Self::dismiss_update(
-                i,
-                position_in_animation,
-                bound_in_animation,
-                self.config_updated,
-            ) {
-                //
-            } else if let Some(instance) = self.caret_instances.get_mut(&(*c).into()) {
-                Self::update_instance(
-                    instance,
-                    i,
-                    &center,
-                    &current_position,
-                    &self.rotation,
-                    self.config.color_theme.text_emphasized().get_color(),
-                    Self::calc_rotation(caret_char(c), &self.config, glyph_vertex_buffer),
-                );
-            }
-        }
-
-        // update removed carets
-        self.removed_carets.retain(|c, i| {
-            let in_animation = i.in_animation();
-            // こいつは消えゆく運命の Caret なので position_updated なんて考慮せずに in_animation だけ見る
-            if !in_animation {
-                self.caret_instances.remove_from_dustbox(&(*c).into());
-            }
-            in_animation
-        });
-        for (c, i) in self.removed_carets.iter() {
-            if let Some(instance) = self.caret_instances.get_mut_from_dustbox(&(*c).into()) {
-                Self::update_instance(
-                    instance,
-                    i,
-                    &center,
-                    &current_position,
-                    &self.rotation,
-                    self.config.color_theme.text_comment().get_color(),
-                    Self::calc_rotation(caret_char(c), &self.config, glyph_vertex_buffer),
-                );
-            }
-        }
+        self.caret_states.update_instances(
+            update_environment,
+            &center,
+            &current_position,
+            &self.rotation,
+            glyph_vertex_buffer,
+            &self.config,
+        );
 
         // update chars
-        for (c, i) in self.buffer_chars.iter_mut() {
-            if Self::dismiss_update(
-                i,
-                position_in_animation,
-                bound_in_animation,
-                self.config_updated,
-            ) {
-                continue;
-            }
-            if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                // width が Reguler の時は rotation を 90 度回転させる
-                Self::update_instance(
-                    instance,
-                    i,
-                    &center,
-                    &current_position,
-                    &self.rotation,
-                    self.config.color_theme.text().get_color(),
-                    Self::calc_rotation(c.c, &self.config, glyph_vertex_buffer),
-                );
-            }
-        }
-
-        // update removed chars
-        self.removed_buffer_chars.retain(|c, i| {
-            let in_animation = i.in_animation();
-            // こいつは消えゆく運命の文字なので position_updated なんて考慮せずに in_animation だけ見る
-            if !in_animation {
-                self.instances.remove_from_dustbox(&(*c).into());
-            }
-            in_animation
-        });
-        for (c, i) in self.removed_buffer_chars.iter() {
-            if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
-                Self::update_instance(
-                    instance,
-                    i,
-                    &center,
-                    &current_position,
-                    &self.rotation,
-                    self.config.color_theme.text_comment().get_color(),
-                    Self::calc_rotation(c.c, &self.config, glyph_vertex_buffer),
-                );
-            }
-        }
-    }
-
-    #[inline]
-    fn calc_rotation(
-        c: char,
-        config: &TextEditConfig,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
-    ) -> Option<Quaternion<f32>> {
-        match config.direction {
-            Direction::Horizontal => None,
-            Direction::Vertical => {
-                let width = glyph_vertex_buffer.width(c);
-                match width {
-                    CharWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_z(),
-                        cgmath::Deg(-90.0),
-                    )),
-                    CharWidth::Wide => None,
-                }
-            }
-        }
-    }
-
-    // この関数は更新が必要かどうかを判定するための関数。true なら更新が不要。
-    #[inline]
-    fn dismiss_update(
-        easiong_point: &mut EasingPointN<3>,
-        position_in_animation: bool,
-        bound_in_animation: bool,
-        config_updated: bool,
-    ) -> bool {
-        !easiong_point.in_animation()
-            && !position_in_animation
-            && !bound_in_animation
-            && !config_updated
-    }
-
-    #[inline]
-    fn update_instance(
-        instance: &mut GlyphInstance,
-        i: &EasingPointN<3>,
-        center: &Point2<f32>,
-        position: &Point3<f32>,
-        rotation: &Quaternion<f32>,
-        _color: [f32; 3],
-        char_rotation: Option<Quaternion<f32>>,
-    ) {
-        // FIXME いったん色変更の実装を外すが、インスタンスの情報をもう少し良い感じに管理する必要がある
-        // instance.color = color;
-        let [x, y, z] = i.current();
-        let pos = cgmath::Matrix4::from(*rotation)
-            * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-        let new_position = cgmath::Vector3 {
-            x: pos.x - center.x + position.x,
-            y: pos.y - center.y + position.y,
-            z: pos.z + position.z,
-        };
-        instance.position = new_position;
-
-        // 縦書きの場合は char_rotation が必要なのでここで回転する
-        instance.rotation = match char_rotation {
-            Some(r) => *rotation * r,
-            None => *rotation,
-        }
+        self.char_states.update_instances(
+            update_environment,
+            &center,
+            &current_position,
+            &self.rotation,
+            glyph_vertex_buffer,
+            &self.config,
+        );
     }
 
     fn max_display_width(&self) -> usize {

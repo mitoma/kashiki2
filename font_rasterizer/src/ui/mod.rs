@@ -1,12 +1,13 @@
 pub mod ime_input;
 pub mod textedit;
+mod view_element_state;
 
 use std::collections::BTreeMap;
 
 use cgmath::{num_traits::ToPrimitive, Point3, Quaternion, Rotation3};
 use instant::Duration;
 use log::info;
-use text_buffer::caret::Caret;
+use text_buffer::caret::CaretType;
 
 use crate::{
     color_theme::ColorTheme,
@@ -432,10 +433,10 @@ pub fn split_preedit_string(
 }
 
 #[inline]
-pub fn caret_char(caret: &Caret) -> char {
-    match caret.caret_type {
-        text_buffer::caret::CaretType::Primary => '_',
-        text_buffer::caret::CaretType::Mark => '^',
+pub fn caret_char(caret_type: CaretType) -> char {
+    match caret_type {
+        CaretType::Primary => '_',
+        CaretType::Mark => '^',
     }
 }
 

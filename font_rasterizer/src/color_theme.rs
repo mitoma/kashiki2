@@ -131,6 +131,43 @@ impl SolarizedColor {
     }
 }
 
+// テーマの色を取得するための列挙型
+pub enum ThemedColor {
+    Text,
+    TextComment,
+    TextEmphasized,
+    Background,
+    BackgroundHighlights,
+    Yellow,
+    Orange,
+    Red,
+    Magenta,
+    Violet,
+    Blue,
+    Cyan,
+    Green,
+}
+
+impl ThemedColor {
+    pub fn get_color(&self, theme: &ColorTheme) -> [f32; 3] {
+        match self {
+            ThemedColor::Text => theme.text().get_color(),
+            ThemedColor::TextComment => theme.text_comment().get_color(),
+            ThemedColor::TextEmphasized => theme.text_emphasized().get_color(),
+            ThemedColor::Background => theme.background().get_color(),
+            ThemedColor::BackgroundHighlights => theme.background_highlights().get_color(),
+            ThemedColor::Yellow => theme.yellow().get_color(),
+            ThemedColor::Orange => theme.orange().get_color(),
+            ThemedColor::Red => theme.red().get_color(),
+            ThemedColor::Magenta => theme.magenta().get_color(),
+            ThemedColor::Violet => theme.violet().get_color(),
+            ThemedColor::Blue => theme.blue().get_color(),
+            ThemedColor::Cyan => theme.cyan().get_color(),
+            ThemedColor::Green => theme.green().get_color(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
 

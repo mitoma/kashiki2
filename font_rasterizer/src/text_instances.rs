@@ -27,7 +27,7 @@ impl From<Caret> for TextInstancesKey {
     fn from(value: Caret) -> Self {
         let Caret { row, col, .. } = value;
         Self {
-            c: caret_char(&value),
+            c: caret_char(value.caret_type),
             row,
             col,
         }
