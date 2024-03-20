@@ -354,6 +354,13 @@ impl TextEdit {
             self.caret_states
                 .update_state_position(CaretType::Mark, position);
         }
+
+        if let Some((from, to)) = self.caret_states.get_selection() {
+            self.char_states
+                .apply_selection_color(from, to, &self.config);
+        }else {
+            self.char_states.clear_selection_color(&self.config);
+        }
     }
 
     #[inline]

@@ -132,6 +132,7 @@ impl SolarizedColor {
 }
 
 // テーマの色を取得するための列挙型
+#[derive(Clone, Copy)]
 pub enum ThemedColor {
     Text,
     TextComment,

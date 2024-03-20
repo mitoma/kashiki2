@@ -176,6 +176,43 @@ impl CharStates {
             }
         }
     }
+
+    #[inline]
+    fn apply_color(
+        &mut self,
+        from: Caret,
+        to: Caret,
+        color: ThemedColor,
+        text_edit_config: &TextEditConfig,
+    ) {
+        let (from, to) = if from < to { (from, to) } else { (to, from) };
+        for (c, i) in self.chars.iter_mut() {
+            if c.in_caret_range(from, to) {
+                i.base_color = color;
+            } else {
+                i.base_color = ThemedColor::Text;
+            }
+            i.color
+                .update(i.base_color.get_color(&text_edit_config.color_theme));
+        }
+    }
+
+    pub(crate) fn apply_selection_color(
+        &mut self,
+        from: Caret,
+        to: Caret,
+        text_edit_config: &TextEditConfig,
+    ) {
+        self.apply_color(from, to, ThemedColor::Blue, text_edit_config);
+    }
+
+    pub(crate) fn clear_selection_color(&mut self, text_edit_config: &TextEditConfig) {
+        for (_, i) in self.chars.iter_mut() {
+            i.base_color = ThemedColor::Text;
+            i.color
+                .update(i.base_color.get_color(&text_edit_config.color_theme));
+        }
+    }
 }
 
 #[derive(Default)]
@@ -334,6 +371,14 @@ impl CaretStates {
                     ),
                 );
             }
+        }
+    }
+
+    pub(crate) fn get_selection(&self) -> Option<(Caret, Caret)> {
+        if let (Some((from, _)), Some((to, _))) = (&self.main_caret, &self.mark) {
+            Some((*from, *to))
+        } else {
+            None
         }
     }
 }

@@ -331,6 +331,21 @@ impl BufferChar {
         let event = ChangeEvent::MoveChar { from, to: *self };
         sender.send(event).unwrap();
     }
+
+    // to は含まない
+    pub fn in_caret_range(&self, from: Caret, to: Caret) -> bool {
+        let (from, to) = if from < to { (from, to) } else { (to, from) };
+        if from.row > self.row || to.row < self.row {
+            return false;
+        }
+        if from.row == self.row && from.col > self.col {
+            return false;
+        }
+        if to.row == self.row && to.col <= self.col {
+            return false;
+        }
+        true
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -782,6 +797,73 @@ mod tests {
                 sut.copy_string(&Caret::new(0, 5, &tx), &Caret::new(2, 0, &tx)),
                 "\nかきくけこ\n"
             );
+        }
+    }
+
+    #[test]
+    fn buffer_char_in_caret_range() {
+        let (tx, _rx) = channel::<ChangeEvent>();
+
+        struct Case {
+            from: Caret,
+            to: Caret,
+            target: BufferChar,
+            expected: bool,
+        }
+        let cases = vec![
+            Case {
+                from: Caret::new(0, 0, &tx),
+                to: Caret::new(0, 10, &tx),
+                target: BufferChar {
+                    row: 0,
+                    col: 5,
+                    c: 'あ',
+                },
+                expected: true,
+            },
+            Case {
+                from: Caret::new(0, 0, &tx),
+                to: Caret::new(2, 0, &tx),
+                target: BufferChar {
+                    row: 1,
+                    col: 5,
+                    c: 'あ',
+                },
+                expected: true,
+            },
+            Case {
+                from: Caret::new(0, 0, &tx),
+                to: Caret::new(0, 5, &tx),
+                target: BufferChar {
+                    row: 1,
+                    col: 5,
+                    c: 'あ',
+                },
+                expected: false,
+            },
+            Case {
+                from: Caret::new(0, 0, &tx),
+                to: Caret::new(0, 4, &tx),
+                target: BufferChar {
+                    row: 0,
+                    col: 5,
+                    c: 'あ',
+                },
+                expected: false,
+            },
+            Case {
+                from: Caret::new(0, 0, &tx),
+                to: Caret::new(0, 4, &tx),
+                target: BufferChar {
+                    row: 0,
+                    col: 4,
+                    c: 'あ',
+                },
+                expected: false,
+            },
+        ];
+        for c in cases {
+            assert_eq!(c.target.in_caret_range(c.from, c.to), c.expected);
         }
     }
 }
