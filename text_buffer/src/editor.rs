@@ -45,17 +45,17 @@ impl Editor {
         );
         self.undo_list.push(reverse_actions);
 
-        let unmark_operation = match op {
+        let unmark_operation = matches!(
+            op,
             EditorOperation::InsertString(_)
-            | EditorOperation::InsertChar(_)
-            | EditorOperation::InsertEnter
-            | EditorOperation::Backspace
-            | EditorOperation::Delete
-            | EditorOperation::Copy(_)
-            | EditorOperation::Cut(_)
-            | EditorOperation::UnMark => true,
-            _ => false,
-        };
+                | EditorOperation::InsertChar(_)
+                | EditorOperation::InsertEnter
+                | EditorOperation::Backspace
+                | EditorOperation::Delete
+                | EditorOperation::Copy(_)
+                | EditorOperation::Cut(_)
+                | EditorOperation::UnMark
+        );
         if unmark_operation {
             self.unmark();
         }

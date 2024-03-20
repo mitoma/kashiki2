@@ -259,10 +259,9 @@ impl SimpleStateCallback for MemoPadCallback {
                                     },
                                 ))
                         }
-                        "toggle-psychedelic" => {
-                            self.world
-                                .model_operation(&ModelOperation::TogglePsychedelic)
-                        }
+                        "toggle-psychedelic" => self
+                            .world
+                            .model_operation(&ModelOperation::TogglePsychedelic),
                         _ => {}
                     };
                     InputResult::InputConsumed
