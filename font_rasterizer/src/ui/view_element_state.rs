@@ -187,11 +187,12 @@ impl CharStates {
     ) {
         let (from, to) = if from < to { (from, to) } else { (to, from) };
         for (c, i) in self.chars.iter_mut() {
-            if c.in_caret_range(from, to) {
-                i.base_color = color;
+            let color = if c.in_caret_range(from, to) {
+                color
             } else {
-                i.base_color = ThemedColor::Text;
-            }
+                ThemedColor::Text
+            };
+            i.base_color = color;
             i.color
                 .update(i.base_color.get_color(&text_edit_config.color_theme));
         }
