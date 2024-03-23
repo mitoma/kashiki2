@@ -109,7 +109,7 @@ impl SimpleStateCallback for SingleCharCallback {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-            1.0,
+            [1.0, 1.0],
             color_theme.cyan().get_color(),
             self.motion.motion_flags(),
             now_millis(),
@@ -158,7 +158,7 @@ impl SimpleStateCallback for SingleCharCallback {
                                 cgmath::Vector3::unit_z(),
                                 cgmath::Deg(0.0),
                             ),
-                            1.0,
+                            [1.0, 1.0],
                             SolarizedDark.cyan().get_color(),
                             self.motion.motion_flags(),
                             now_millis(),

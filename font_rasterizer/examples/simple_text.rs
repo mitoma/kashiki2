@@ -83,7 +83,7 @@ impl SingleCharCallback {
                 .motion_target(MotionTarget::STRETCH_X_PLUS)
                 .build(),
         );
-        ime.update_scale(0.1);
+        ime.update_scale([0.1, 0.1]);
 
         let (tx, rx) = std::sync::mpsc::channel::<ChangeEvent>();
         std::thread::spawn(move || {

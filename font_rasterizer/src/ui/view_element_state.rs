@@ -26,6 +26,16 @@ struct ViewElementState {
     pub(crate) position: EasingPointN<3>,
     pub(crate) base_color: ThemedColor,
     pub(crate) color: EasingPointN<3>,
+    pub(crate) scale: EasingPointN<2>,
+}
+
+impl ViewElementState {
+    pub(crate) fn in_animation(&mut self) -> bool {
+        let position_animation = self.position.in_animation();
+        let color_animation = self.color.in_animation();
+        let scale_animation = self.scale.in_animation();
+        position_animation | color_animation | scale_animation
+    }
 }
 
 #[derive(Default)]
@@ -53,6 +63,7 @@ impl CharStates {
             position: EasingPointN::new(position),
             base_color: ThemedColor::Text,
             color: easing_color,
+            scale: EasingPointN::new([1.0, 1.0]),
         };
         self.chars.insert(c, state);
         let instance = GlyphInstance {
@@ -95,7 +106,7 @@ impl CharStates {
     ) {
         // update chars
         for (c, i) in self.chars.iter_mut() {
-            if !update_environment && !i.position.in_animation() && !i.color.in_animation() {
+            if !update_environment && !i.in_animation() {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
@@ -107,7 +118,7 @@ impl CharStates {
         // update removed chars
         self.clean_dustbox();
         for (c, i) in self.removed_chars.iter_mut() {
-            if !update_environment && !i.position.in_animation() && !i.color.in_animation() {
+            if !update_environment && !i.in_animation() {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
@@ -129,7 +140,7 @@ impl CharStates {
     // ゴミ箱の文字の削除モーションが完了しているものを削除する
     fn clean_dustbox(&mut self) {
         self.removed_chars.retain(|c, i| {
-            let in_animation = i.position.in_animation();
+            let in_animation = i.in_animation();
             // こいつは消えゆく運命の文字なので position_updated なんて考慮せずに in_animation だけ見る
             if !in_animation {
                 self.instances.remove_from_dustbox(&(*c).into());
@@ -242,6 +253,7 @@ impl CaretStates {
             position: EasingPointN::new(position),
             base_color: ThemedColor::TextEmphasized,
             color: easing_color,
+            scale: EasingPointN::new([1.0, 1.0]),
         };
         if c.caret_type == CaretType::Primary {
             self.main_caret.replace((c, state));
@@ -312,7 +324,7 @@ impl CaretStates {
     ) {
         // update caret
         if let Some((c, i)) = self.main_caret.as_mut() {
-            if !update_environment && !i.position.in_animation() && !i.color.in_animation() {
+            if !update_environment && !i.in_animation() {
                 //
             } else if let Some(instance) = self.instances.get_mut(&(*c).into()) {
                 update_instance(
@@ -330,7 +342,7 @@ impl CaretStates {
             }
         }
         if let Some((c, i)) = self.mark.as_mut() {
-            if !update_environment && !i.position.in_animation() && !i.color.in_animation() {
+            if !update_environment && !i.in_animation() {
                 //
             } else if let Some(instance) = self.instances.get_mut(&(*c).into()) {
                 update_instance(
@@ -350,7 +362,7 @@ impl CaretStates {
 
         // update removed carets
         self.removed_carets.retain(|c, i| {
-            let in_animation = i.position.in_animation();
+            let in_animation = i.in_animation();
             // こいつは消えゆく運命の Caret なので position_updated なんて考慮せずに in_animation だけ見る
             if !in_animation {
                 self.instances.remove_from_dustbox(&(*c).into());
@@ -395,6 +407,8 @@ fn update_instance(
 ) {
     // set color
     instance.color = view_char_state.color.current();
+    // set scale
+    instance.scale = view_char_state.scale.current();
 
     // set position
     let [x, y, z] = view_char_state.position.current();

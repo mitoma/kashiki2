@@ -239,7 +239,7 @@ impl PlaneTextReader {
                     //    cgmath::Vector3::unit_z(),
                     //    cgmath::Deg(0.0),
                     //),
-                    1.0,
+                    [1.0, 1.0],
                     get_color(color_theme, c),
                     self.motion,
                     now_millis(),
@@ -286,7 +286,7 @@ pub struct SingleLineComponent {
     motion: MotionFlags,
     instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
-    scale: f32,
+    scale: [f32; 2],
 }
 
 impl SingleLineComponent {
@@ -296,7 +296,7 @@ impl SingleLineComponent {
             instances: BTreeMap::new(),
             updated: true,
             motion: MotionFlags::ZERO_MOTION,
-            scale: 1.0,
+            scale: [1.0, 1.0],
         }
     }
 
@@ -322,7 +322,7 @@ impl SingleLineComponent {
         self.updated = true;
     }
 
-    pub fn update_scale(&mut self, scale: f32) {
+    pub fn update_scale(&mut self, scale: [f32; 2]) {
         if self.scale == scale {
             return;
         }
@@ -352,7 +352,7 @@ impl SingleLineComponent {
         let initial_x = (-width / 2.0) + 0.5;
 
         let mut x: f32 = initial_x;
-        let y_pos = -0.3 / self.scale;
+        let y_pos = -0.3 / self.scale[1];
         for c in self.value.chars() {
             let char_width = glyph_vertex_buffer.width(c);
             x += char_width.left();

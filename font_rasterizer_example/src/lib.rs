@@ -149,7 +149,7 @@ impl SimpleStateCallback for SingleCharCallback {
                                 cgmath::Vector3::unit_z(),
                                 cgmath::Deg(0.0),
                             ),
-                            1.0,
+                            [1.0, 1.0],
                             ColorTheme::SolarizedDark.cyan().get_color(),
                             self.motion.motion_flags(),
                             now_millis(),

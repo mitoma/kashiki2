@@ -28,7 +28,7 @@ impl ImeInput {
                 .camera_detail(CameraDetail::IGNORE_CAMERA)
                 .build(),
         );
-        single_line_component.update_scale(0.1);
+        single_line_component.update_scale([0.1, 0.1]);
         Self {
             single_line_component,
         }
