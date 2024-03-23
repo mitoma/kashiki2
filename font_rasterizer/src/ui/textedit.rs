@@ -5,7 +5,7 @@ use cgmath::{Point2, Point3, Quaternion, Rotation3};
 use instant::Duration;
 use text_buffer::{
     caret::CaretType,
-    editor::{ChangeEvent, Editor, LineBoundaryProhibitedChars},
+    editor::{ChangeEvent, Editor, LineBoundaryProhibitedChars, PhisicalLayout},
 };
 
 use crate::{
@@ -183,10 +183,17 @@ impl Model for TextEdit {
         }
 
         self.sync_editor_events(device, color_theme);
-        self.calc_position_and_bound(glyph_vertex_buffer);
+
+        if self.text_updated {
+            let layout = self.calc_phisical_layout(glyph_vertex_buffer);
+            let bound = self.calc_bound(&layout);
+            self.calc_position(glyph_vertex_buffer, &layout, bound);
+        }
+
         self.calc_instance_positions(glyph_vertex_buffer);
         self.char_states.instances.update(device, queue);
         self.caret_states.instances.update(device, queue);
+
         self.text_updated = false;
         self.config_updated = false;
     }
@@ -292,39 +299,46 @@ impl TextEdit {
         }
     }
 
-    // 文字と caret の x, y の論理的な位置を計算し、bound を更新する
     #[inline]
-    fn calc_position_and_bound(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) {
-        if !self.text_updated {
-            return;
-        }
-
-        let layout = self.editor.calc_phisical_layout(
+    fn calc_phisical_layout(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) -> PhisicalLayout {
+        self.editor.calc_phisical_layout(
             self.max_display_width(),
             &self.config.line_prohibited_chars,
             glyph_vertex_buffer,
+        )
+    }
+
+    // レイアウト情報から bound の計算を行い更新する
+    #[inline]
+    fn calc_bound(&mut self, layout: &PhisicalLayout) -> [f32; 2] {
+        // update bound
+        let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
+            (result.0.max(pos.col), result.1.max(pos.row))
+        });
+        let [max_x, max_y, _max_z] = Self::get_adjusted_position(
+            &self.config,
+            CharWidth::Wide, /* この指定に深い意図はない */
+            [0.0, 0.0],      /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
+            [max_col, max_row],
         );
+        let (max_x, max_y) = (
+            max_x.abs().max(self.config.min_bound.x),
+            max_y.abs().max(self.config.min_bound.y),
+        );
+        let bound = (max_x.abs(), max_y.abs()).into();
+        self.bound.update(bound);
+        bound
+    }
 
-        let bound = {
-            // update bound
-            let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
-                (result.0.max(pos.col), result.1.max(pos.row))
-            });
-            let [max_x, max_y, _max_z] = Self::get_adjusted_position(
-                &self.config,
-                CharWidth::Wide, /* この指定に深い意図はない */
-                [0.0, 0.0],      /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
-                [max_col, max_row],
-            );
-            let (max_x, max_y) = (
-                max_x.abs().max(self.config.min_bound.x),
-                max_y.abs().max(self.config.min_bound.y),
-            );
-            let bound = (max_x.abs(), max_y.abs()).into();
-            self.bound.update(bound);
-            bound
-        };
-
+    // 文字と caret の x, y の model 上の位置を計算
+    #[inline]
+    fn calc_position(
+        &mut self,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+        layout: &PhisicalLayout,
+        bound: [f32; 2],
+    ) {
+        // update char position
         layout.chars.iter().for_each(|(c, pos)| {
             let width = glyph_vertex_buffer.width(c.c);
             let position =
@@ -332,6 +346,7 @@ impl TextEdit {
             self.char_states.update_state_position(c, position)
         });
 
+        // update caret position
         {
             let caret_width = glyph_vertex_buffer.width(caret_char(CaretType::Primary));
             let position = Self::get_adjusted_position(
@@ -355,6 +370,8 @@ impl TextEdit {
                 .update_state_position(CaretType::Mark, position);
         }
 
+        // update selection color
+        // FIXME: 毎回 selection を使って状態を更新するのではなく text editor からのイベントで更新するようにするのが望ましい
         if let Some((from, to)) = self.caret_states.get_selection() {
             self.char_states
                 .apply_selection_color(from, to, &self.config);
