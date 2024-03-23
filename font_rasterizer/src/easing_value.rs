@@ -1,6 +1,10 @@
+use std::sync::OnceLock;
+
 use cgmath::{Point2, Point3};
 use instant::Duration;
-use nenobi::array::TimeBaseEasingValueN;
+use nenobi::array::{TimeBaseEasingValueN, TimeBaseEasingValueNFactory};
+
+use crate::time::now_millis;
 
 pub struct EasingPointN<const N: usize> {
     in_animation: bool,
@@ -9,11 +13,20 @@ pub struct EasingPointN<const N: usize> {
     easing_func: fn(f32) -> f32,
 }
 
+// FIXME このキャストなんだかばかばかしいから直したい
+#[inline]
+fn now_millis_i64() -> i64 {
+    now_millis() as i64
+}
+
 impl<const N: usize> EasingPointN<N> {
     pub(crate) fn new(v: [f32; N]) -> Self {
+        static FACTORY: OnceLock<TimeBaseEasingValueNFactory> = OnceLock::new();
+        let factory = FACTORY.get_or_init(|| TimeBaseEasingValueNFactory::new(now_millis_i64));
+        let v = factory.new_value(v);
         Self {
             in_animation: true,
-            v: TimeBaseEasingValueN::new(v),
+            v,
             duration: Duration::from_millis(500),
             easing_func: nenobi::functions::sin_out,
         }

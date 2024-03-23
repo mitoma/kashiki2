@@ -6,6 +6,7 @@ use once_cell::sync::Lazy;
 
 pub enum ClockMode {
     System,
+    StepByStep,
     Fixed,
 }
 
@@ -21,7 +22,7 @@ impl SystemClock {
         Self {
             clock_mode: ClockMode::System,
             start_time,
-            current_time: start_time,
+            current_time: 0,
         }
     }
 }
@@ -30,7 +31,8 @@ impl SystemClock {
     fn now_millis(&self) -> u32 {
         let duration: u128 = match self.clock_mode {
             ClockMode::System => internal_now_millis() - self.start_time,
-            ClockMode::Fixed => self.current_time - self.start_time,
+            ClockMode::StepByStep => self.current_time,
+            ClockMode::Fixed => self.current_time,
         };
         (duration % u32::MAX as u128).to_u32().unwrap()
     }
@@ -38,9 +40,8 @@ impl SystemClock {
     fn increment(&mut self, duration: Duration) {
         match self.clock_mode {
             ClockMode::System => { /* noop */ }
-            ClockMode::Fixed => {
-                self.current_time += duration.as_millis();
-            }
+            ClockMode::StepByStep => self.current_time = internal_now_millis() - self.start_time,
+            ClockMode::Fixed => self.current_time += duration.as_millis(),
         }
     }
 }

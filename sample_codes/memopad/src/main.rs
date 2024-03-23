@@ -12,6 +12,7 @@ use font_rasterizer::{
     layout_engine::{HorizontalWorld, Model, ModelOperation, World},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    time::set_clock_mode,
     ui::{caret_char, ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
@@ -56,6 +57,7 @@ pub async fn run() {
             .unwrap(),
     );
 
+    set_clock_mode(font_rasterizer::time::ClockMode::StepByStep);
     let callback = MemoPadCallback::new();
     let support = SimpleStateSupport {
         window_icon: icon,

@@ -213,6 +213,8 @@ pub async fn run_support(support: SimpleStateSupport) {
                                             log::warn!("Surface timeout")
                                         }
                                     }
+                                    // 1 フレームごとに時計を更新する(時計のモードが StepByStep の場合のみ意味がある)
+                                    increment_fixed_clock(Duration::ZERO);
                                 }
                                 _ => {}
                             }
