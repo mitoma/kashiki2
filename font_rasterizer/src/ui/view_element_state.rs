@@ -23,18 +23,60 @@ use crate::{
 use super::{caret_char, textedit::TextEditConfig};
 
 struct ViewElementState {
-    pub(crate) position: EasingPointN<3>,
     pub(crate) base_color: ThemedColor,
-    pub(crate) color: EasingPointN<3>,
-    pub(crate) scale: EasingPointN<2>,
+    // 8要素の配列の内訳は以下の通り
+    // [0,1,2]: position
+    // [3,4,5]: color
+    // [6,7]: scale
+    pub(crate) value: EasingPointN<8>,
 }
 
 impl ViewElementState {
     pub(crate) fn in_animation(&mut self) -> bool {
-        let position_animation = self.position.in_animation();
-        let color_animation = self.color.in_animation();
-        let scale_animation = self.scale.in_animation();
-        position_animation | color_animation | scale_animation
+        self.value.in_animation()
+    }
+
+    pub(crate) fn position_update(&mut self, [ax, ay, az]: [f32; 3]) {
+        let [cx, cy, cz, ..] = self.value.last();
+        let [nx, ny, nz] = [ax - cx, ay - cy, az - cz];
+        self.value.add([nx, ny, nz, 0.0, 0.0, 0.0, 0.0, 0.0])
+    }
+
+    pub(crate) fn position_add(&mut self, [ax, ay, az]: [f32; 3]) {
+        self.value.add([ax, ay, az, 0.0, 0.0, 0.0, 0.0, 0.0])
+    }
+
+    pub(crate) fn color_update(&mut self, [ar, ag, ab]: [f32; 3]) {
+        let [_x, _y, _z, cr, cg, cb, ..] = self.value.last();
+        let [nr, ng, nb] = [ar - cr, ag - cg, ab - cb];
+        self.value.add([0.0, 0.0, 0.0, nr, ng, nb, 0.0, 0.0])
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn color_add(&mut self, [ar, ag, ab]: [f32; 3]) {
+        self.value.add([0.0, 0.0, 0.0, ar, ag, ab, 0.0, 0.0])
+    }
+
+    pub(crate) fn position_current(&self) -> [f32; 3] {
+        self.value.current()[0..3].try_into().unwrap()
+    }
+    pub(crate) fn color_current(&self) -> [f32; 3] {
+        self.value.current()[3..6].try_into().unwrap()
+    }
+    pub(crate) fn scale_current(&self) -> [f32; 2] {
+        self.value.current()[6..8].try_into().unwrap()
+    }
+
+    pub(crate) fn position_last(&self) -> [f32; 3] {
+        self.value.last()[0..3].try_into().unwrap()
+    }
+    #[allow(dead_code)]
+    pub(crate) fn color_last(&self) -> [f32; 3] {
+        self.value.last()[3..6].try_into().unwrap()
+    }
+    #[allow(dead_code)]
+    pub(crate) fn scale_last(&self) -> [f32; 2] {
+        self.value.last()[6..8].try_into().unwrap()
     }
 }
 
@@ -50,24 +92,17 @@ impl CharStates {
     pub(crate) fn add_char(
         &mut self,
         c: BufferChar,
-        position: [f32; 3],
-        color: [f32; 3],
+        [x, y, z]: [f32; 3],
+        [r, g, b]: [f32; 3],
         device: &Device,
     ) {
-        let mut easing_color = EasingPointN::new(color);
-        easing_color.update_duration_and_easing_func(
-            Duration::from_millis(800),
-            nenobi::functions::sin_in_out,
-        );
         let state = ViewElementState {
-            position: EasingPointN::new(position),
             base_color: ThemedColor::Text,
-            color: easing_color,
-            scale: EasingPointN::new([1.0, 1.0]),
+            value: EasingPointN::new([x, y, z, r, g, b, 1.0, 1.0]),
         };
         self.chars.insert(c, state);
         let instance = GlyphInstance {
-            color,
+            color: [r, g, b],
             motion: self.default_motion,
             ..GlyphInstance::default()
         };
@@ -85,13 +120,13 @@ impl CharStates {
 
     pub(crate) fn update_state_position(&mut self, c: &BufferChar, position: [f32; 3]) {
         if let Some(c_pos) = self.chars.get_mut(c) {
-            c_pos.position.update(position);
+            c_pos.position_update(position);
         }
     }
 
     pub(crate) fn update_char_theme(&mut self, color_theme: &ColorTheme) {
         self.chars.iter_mut().for_each(|(_, i)| {
-            i.color.update(i.base_color.get_color(color_theme));
+            i.color_update(i.base_color.get_color(color_theme));
         });
     }
 
@@ -131,7 +166,7 @@ impl CharStates {
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
     pub(crate) fn char_to_dustbox(&mut self, c: BufferChar) {
         if let Some(mut state) = self.chars.remove(&c) {
-            state.position.add((0.0, -1.0, 0.0).into());
+            state.position_add((0.0, -1.0, 0.0).into());
             self.removed_chars.insert(c, state);
         }
         self.instances.pre_remove(&c.into());
@@ -169,8 +204,7 @@ impl CharStates {
                         7 => ThemedColor::Green,
                         _ => ThemedColor::Text,
                     };
-                    i.color
-                        .update(i.base_color.get_color(&text_edit_config.color_theme));
+                    i.color_update(i.base_color.get_color(&text_edit_config.color_theme));
                 }
             }
         } else {
@@ -181,8 +215,7 @@ impl CharStates {
                     instance.duration = Duration::ZERO;
                     instance.gain = rand::thread_rng().gen_range(0.1..1.0);
                     i.base_color = ThemedColor::Text;
-                    i.color
-                        .update(i.base_color.get_color(&text_edit_config.color_theme));
+                    i.color_update(i.base_color.get_color(&text_edit_config.color_theme));
                 }
             }
         }
@@ -204,8 +237,7 @@ impl CharStates {
                 ThemedColor::Text
             };
             i.base_color = color;
-            i.color
-                .update(i.base_color.get_color(&text_edit_config.color_theme));
+            i.color_update(i.base_color.get_color(&text_edit_config.color_theme));
         }
     }
 
@@ -221,8 +253,7 @@ impl CharStates {
     pub(crate) fn clear_selection_color(&mut self, text_edit_config: &TextEditConfig) {
         for (_, i) in self.chars.iter_mut() {
             i.base_color = ThemedColor::Text;
-            i.color
-                .update(i.base_color.get_color(&text_edit_config.color_theme));
+            i.color_update(i.base_color.get_color(&text_edit_config.color_theme));
         }
     }
 }
@@ -238,22 +269,15 @@ pub(crate) struct CaretStates {
 
 impl CaretStates {
     pub(crate) fn main_caret_position(&self) -> Option<[f32; 3]> {
-        self.main_caret.as_ref().map(|(_, s)| s.position.last())
+        self.main_caret.as_ref().map(|(_, s)| s.position_last())
     }
 
-    pub(crate) fn add_caret(&mut self, c: Caret, color: [f32; 3], device: &Device) {
-        let position = [c.row as f32, c.col as f32, 0.0];
+    pub(crate) fn add_caret(&mut self, c: Caret, [r, g, b]: [f32; 3], device: &Device) {
+        let [x, y, z] = [c.row as f32, c.col as f32, 0.0];
 
-        let mut easing_color = EasingPointN::new(color);
-        easing_color.update_duration_and_easing_func(
-            Duration::from_millis(800),
-            nenobi::functions::sin_in_out,
-        );
         let state = ViewElementState {
-            position: EasingPointN::new(position),
             base_color: ThemedColor::TextEmphasized,
-            color: easing_color,
-            scale: EasingPointN::new([1.0, 1.0]),
+            value: EasingPointN::new([x, y, z, r, g, b, 1.0, 1.0]),
         };
         if c.caret_type == CaretType::Primary {
             self.main_caret.replace((c, state));
@@ -262,7 +286,7 @@ impl CaretStates {
         }
 
         let caret_instance = GlyphInstance {
-            color,
+            color: [r, g, b],
             motion: self.default_motion,
             ..GlyphInstance::default()
         };
@@ -284,13 +308,13 @@ impl CaretStates {
         match c.caret_type {
             CaretType::Primary => {
                 if let Some((_, mut state)) = self.main_caret.take() {
-                    state.position.add((0.0, -1.0, 0.0).into());
+                    state.position_add((0.0, -1.0, 0.0).into());
                     self.removed_carets.insert(c, state);
                 }
             }
             CaretType::Mark => {
                 if let Some((_, mut state)) = self.mark.take() {
-                    state.position.add((0.0, -1.0, 0.0).into());
+                    state.position_add((0.0, -1.0, 0.0).into());
                     self.removed_carets.insert(c, state);
                 }
             }
@@ -302,12 +326,12 @@ impl CaretStates {
         match caret_type {
             CaretType::Primary => {
                 if let Some((_, c_pos)) = self.main_caret.as_mut() {
-                    c_pos.position.update(position);
+                    c_pos.position_update(position);
                 }
             }
             CaretType::Mark => {
                 if let Some((_, c_pos)) = self.mark.as_mut() {
-                    c_pos.position.update(position);
+                    c_pos.position_update(position);
                 }
             }
         }
@@ -406,12 +430,12 @@ fn update_instance(
     char_rotation: Option<Quaternion<f32>>,
 ) {
     // set color
-    instance.color = view_char_state.color.current();
+    instance.color = view_char_state.color_current();
     // set scale
-    instance.scale = view_char_state.scale.current();
+    instance.scale = view_char_state.scale_current();
 
     // set position
-    let [x, y, z] = view_char_state.position.current();
+    let [x, y, z] = view_char_state.position_current();
     let pos = cgmath::Matrix4::from(*rotation)
         * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
     let new_position = cgmath::Vector3 {
