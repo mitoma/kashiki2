@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use cgmath::{Point3, Quaternion, Rotation3};
 use log::info;
 use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
@@ -79,6 +81,21 @@ impl HorizontalWorld {
     fn get_current_mut(&mut self) -> Option<&mut Box<dyn Model>> {
         self.models.get_mut(self.focus)
     }
+
+    fn get_surrounding_model_range(&self) -> Range<usize> {
+        let around = 5;
+        let min = if self.focus > around {
+            self.focus - around
+        } else {
+            0
+        };
+        let max = if self.focus + around < self.models.len() {
+            self.focus + around
+        } else {
+            self.models.len()
+        };
+        min..max
+    }
 }
 const INTERVAL: f32 = 5.0;
 
@@ -122,22 +139,7 @@ impl World for HorizontalWorld {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        /*
-        フォーカス近くのモデルのみを表示するパフォーマンス最適化。必要な日が来るかも？
-        let around = 5;
-        let min = if self.focus > around {
-            self.focus - around
-        } else {
-            0
-        };
-        let max = if self.focus + around < self.models.len() {
-            self.focus + around
-        } else {
-            self.models.len()
-        };
-        self.models[min..max]
-         */
-        self.models
+        self.models[self.get_surrounding_model_range()]
             .iter()
             .flat_map(|m| m.glyph_instances())
             .collect()
@@ -150,7 +152,8 @@ impl World for HorizontalWorld {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) {
-        for model in self.models.iter_mut() {
+        let range = self.get_surrounding_model_range();
+        for model in self.models[range].iter_mut() {
             model.update(color_theme, glyph_vertex_buffer, device, queue);
         }
         if self.world_updated {
