@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 use instant::Duration;
+use log::debug;
 use rand::Rng;
 use text_buffer::{
     buffer::BufferChar,
@@ -23,8 +24,9 @@ use crate::{
 use super::{caret_char, textedit::TextEditConfig};
 
 struct ViewElementState {
-    pub(crate) position: EasingPointN<3>,
     pub(crate) base_color: ThemedColor,
+    pub(crate) in_selection: bool,
+    pub(crate) position: EasingPointN<3>,
     pub(crate) color: EasingPointN<3>,
     pub(crate) scale: EasingPointN<2>,
 }
@@ -61,6 +63,7 @@ impl CharStates {
         );
         let state = ViewElementState {
             position: EasingPointN::new(position),
+            in_selection: false,
             base_color: ThemedColor::Text,
             color: easing_color,
             scale: EasingPointN::new([1.0, 1.0]),
@@ -225,6 +228,22 @@ impl CharStates {
                 .update(i.base_color.get_color(&text_edit_config.color_theme));
         }
     }
+
+    pub(crate) fn select_char(&mut self, c: BufferChar) {
+        debug!("select_char: {:?}", c);
+        self.chars
+            .get_mut(&c)
+            .map(|state| state.in_selection = true)
+            .unwrap();
+    }
+
+    pub(crate) fn unselect_char(&mut self, c: BufferChar) {
+        debug!("unselect_char: {:?}", c);
+        self.chars
+            .get_mut(&c)
+            .map(|state| state.in_selection = false)
+            .unwrap();
+    }
 }
 
 #[derive(Default)]
@@ -251,6 +270,7 @@ impl CaretStates {
         );
         let state = ViewElementState {
             position: EasingPointN::new(position),
+            in_selection: false,
             base_color: ThemedColor::TextEmphasized,
             color: easing_color,
             scale: EasingPointN::new([1.0, 1.0]),

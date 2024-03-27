@@ -282,6 +282,8 @@ impl TextEdit {
                 ChangeEvent::RemoveChar(c) => {
                     self.char_states.char_to_dustbox(c);
                 }
+                ChangeEvent::SelectChar(c) => self.char_states.select_char(c),
+                ChangeEvent::UnSelectChar(c) => self.char_states.unselect_char(c),
                 ChangeEvent::AddCaret(c) => {
                     self.caret_states.add_caret(
                         c,
