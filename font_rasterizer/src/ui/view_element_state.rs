@@ -94,7 +94,12 @@ impl CharStates {
 
     pub(crate) fn update_char_theme(&mut self, color_theme: &ColorTheme) {
         self.chars.iter_mut().for_each(|(_, i)| {
-            i.color.update(i.base_color.get_color(color_theme));
+            let color = if i.in_selection {
+                i.base_color.get_selection_color(color_theme)
+            } else {
+                i.base_color.get_color(color_theme)
+            };
+            i.color.update(color);
         });
     }
 
@@ -191,58 +196,26 @@ impl CharStates {
         }
     }
 
-    #[inline]
-    fn apply_color(
-        &mut self,
-        from: Caret,
-        to: Caret,
-        color: ThemedColor,
-        text_edit_config: &TextEditConfig,
-    ) {
-        let (from, to) = if from < to { (from, to) } else { (to, from) };
-        for (c, i) in self.chars.iter_mut() {
-            let color = if c.in_caret_range(from, to) {
-                color
-            } else {
-                ThemedColor::Text
-            };
-            i.base_color = color;
-            i.color
-                .update(i.base_color.get_color(&text_edit_config.color_theme));
-        }
-    }
-
-    pub(crate) fn apply_selection_color(
-        &mut self,
-        from: Caret,
-        to: Caret,
-        text_edit_config: &TextEditConfig,
-    ) {
-        self.apply_color(from, to, ThemedColor::Blue, text_edit_config);
-    }
-
-    pub(crate) fn clear_selection_color(&mut self, text_edit_config: &TextEditConfig) {
-        for (_, i) in self.chars.iter_mut() {
-            i.base_color = ThemedColor::Text;
-            i.color
-                .update(i.base_color.get_color(&text_edit_config.color_theme));
-        }
-    }
-
-    pub(crate) fn select_char(&mut self, c: BufferChar) {
+    pub(crate) fn select_char(&mut self, c: BufferChar, text_edit_config: &TextEditConfig) {
         debug!("select_char: {:?}", c);
-        self.chars
-            .get_mut(&c)
-            .map(|state| state.in_selection = true)
-            .unwrap();
+        let _ = self.chars.get_mut(&c).map(|state| {
+            state.in_selection = true;
+            state.color.update(
+                state
+                    .base_color
+                    .get_selection_color(&text_edit_config.color_theme),
+            );
+        });
     }
 
-    pub(crate) fn unselect_char(&mut self, c: BufferChar) {
+    pub(crate) fn unselect_char(&mut self, c: BufferChar, text_edit_config: &TextEditConfig) {
         debug!("unselect_char: {:?}", c);
-        self.chars
-            .get_mut(&c)
-            .map(|state| state.in_selection = false)
-            .unwrap();
+        let _ = self.chars.get_mut(&c).map(|state| {
+            state.in_selection = false;
+            state
+                .color
+                .update(state.base_color.get_color(&text_edit_config.color_theme));
+        });
     }
 }
 
@@ -404,14 +377,6 @@ impl CaretStates {
                     ),
                 );
             }
-        }
-    }
-
-    pub(crate) fn get_selection(&self) -> Option<(Caret, Caret)> {
-        if let (Some((from, _)), Some((to, _))) = (&self.main_caret, &self.mark) {
-            Some((*from, *to))
-        } else {
-            None
         }
     }
 }
