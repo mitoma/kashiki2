@@ -23,10 +23,26 @@ pub enum Direction {
     Vertical,
 }
 
-struct BufferIndexEntry {
+// バッファに登録された文字のインデックス情報
+struct BufferIndex {
     vertex_buffer_index: usize,
     index_buffer_index: usize,
     index_buffer_range: Range<u32>,
+}
+
+// 横書きと縦書きで別のバッファに登録されることがあるので、その情報を持つ
+struct OrientationBufferIndices {
+    horizontal: BufferIndex,
+    vertical: Option<BufferIndex>,
+}
+
+impl OrientationBufferIndices {
+    fn get_entry(&self, direction: &Direction) -> &BufferIndex {
+        match direction {
+            Direction::Horizontal => &self.horizontal,
+            Direction::Vertical => self.vertical.as_ref().unwrap_or(&self.horizontal),
+        }
+    }
 }
 
 // バッファを 1M ずつ確保する
@@ -106,7 +122,7 @@ pub(crate) struct DrawInfo<'a> {
 pub struct GlyphVertexBuffer {
     font_vertex_converter: FontVertexConverter,
     char_width_calculator: CharWidthCalculator,
-    buffer_index: BTreeMap<char, (BufferIndexEntry, Option<BufferIndexEntry>)>,
+    buffer_index: BTreeMap<char, OrientationBufferIndices>,
     vertex_buffers: Vec<VertexBuffer>,
     index_buffers: Vec<IndexBuffer>,
 }
@@ -126,15 +142,11 @@ impl GlyphVertexBuffer {
     }
 
     pub(crate) fn draw_info(&self, c: &char, direction: &Direction) -> anyhow::Result<DrawInfo> {
-        let (h_index, v_index) = &self
+        let index = &self
             .buffer_index
             .get(c)
-            .with_context(|| format!("get char from buffer index. c:{}", c))?;
-
-        let index = match direction {
-            Direction::Horizontal => h_index,
-            Direction::Vertical => v_index.as_ref().unwrap_or(h_index),
-        };
+            .with_context(|| format!("get char from buffer index. c:{}", c))?
+            .get_entry(direction);
 
         let vertex_buffer = &self.vertex_buffers[index.vertex_buffer_index];
         let index_buffer = &self.index_buffers[index.index_buffer_index];
@@ -202,7 +214,13 @@ impl GlyphVertexBuffer {
             let h_entry = self.inner_append_glyph(device, queue, c, h_vertex)?;
             let v_entry = v_vertex
                 .and_then(|v_vertex| self.inner_append_glyph(device, queue, c, v_vertex).ok());
-            self.buffer_index.insert(c, (h_entry, v_entry));
+            self.buffer_index.insert(
+                c,
+                OrientationBufferIndices {
+                    horizontal: h_entry,
+                    vertical: v_entry,
+                },
+            );
         }
 
         info!(
@@ -221,7 +239,7 @@ impl GlyphVertexBuffer {
         queue: &wgpu::Queue,
         c: char,
         glyph_data: GlyphVertexData,
-    ) -> anyhow::Result<BufferIndexEntry> {
+    ) -> anyhow::Result<BufferIndex> {
         self.ensure_buffer_capacity(device, queue, &glyph_data);
 
         let vertex_buffer_index = self
@@ -278,7 +296,7 @@ impl GlyphVertexBuffer {
             range_end
         );
 
-        Ok(BufferIndexEntry {
+        Ok(BufferIndex {
             vertex_buffer_index,
             index_buffer_index,
             index_buffer_range: range_start..range_end,
