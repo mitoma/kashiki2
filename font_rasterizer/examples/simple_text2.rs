@@ -65,7 +65,7 @@ impl SingleCharCallback {
         let mut store: ActionStore = Default::default();
         let key_setting = include_str!("key-settings.txt");
         info!("{}", key_setting);
-        let keybinds = parse_setting(String::from(key_setting));
+        let keybinds = parse_setting(key_setting);
         keybinds
             .iter()
             .for_each(|k| store.register_keybind(k.clone()));

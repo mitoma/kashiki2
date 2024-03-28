@@ -18,7 +18,7 @@ fn main() {
     let mut store: ActionStore = Default::default();
     let key_setting = include_str!("key-settings.txt");
     println!("{}", key_setting);
-    let keybinds = action_store_parser::parse_setting(String::from(key_setting));
+    let keybinds = action_store_parser::parse_setting(key_setting);
     keybinds
         .iter()
         .for_each(|k| store.register_keybind(k.clone()));

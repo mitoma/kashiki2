@@ -1,6 +1,6 @@
 use crate::{keys, Action, KeyBind, KeyWithModifier, Stroke};
 
-pub fn parse_setting(setting_string: String) -> Vec<KeyBind> {
+pub fn parse_setting(setting_string: &str) -> Vec<KeyBind> {
     let mut result: Vec<KeyBind> = Vec::new();
     for line in setting_string.lines() {
         let line = line.trim();
@@ -13,12 +13,10 @@ pub fn parse_setting(setting_string: String) -> Vec<KeyBind> {
         }
 
         let mut settings: Vec<&str> = line.split(' ').collect();
-        let command = settings
-            .pop()
-            .and_then(|command| parse_action(String::from(command)));
+        let command = settings.pop().and_then(parse_action);
         let strokes: Vec<KeyWithModifier> = settings
             .iter()
-            .flat_map(|s| parse_keywithmodifier(String::from(*s)))
+            .flat_map(|s| parse_keywithmodifier(s))
             .collect();
         if let Some(command) = command {
             result.push(KeyBind::new(Stroke::new(strokes), command))
@@ -27,7 +25,7 @@ pub fn parse_setting(setting_string: String) -> Vec<KeyBind> {
     result
 }
 
-fn parse_action(line: String) -> Option<Action> {
+fn parse_action(line: &str) -> Option<Action> {
     let words: Vec<&str> = line.split(':').collect();
     if words.len() != 2 {
         return None;
@@ -35,7 +33,7 @@ fn parse_action(line: String) -> Option<Action> {
     Some(Action::new_command(words[0], words[1]))
 }
 
-fn parse_keywithmodifier(line: String) -> Option<KeyWithModifier> {
+fn parse_keywithmodifier(line: &str) -> Option<KeyWithModifier> {
     let line = line.trim();
     if line.is_empty() {
         return None;
@@ -87,7 +85,6 @@ mod tests {
                 Return system:enter
                 C-X C-S system:save
             "
-                .to_owned(),
             ),
             vec![
                 KeyBind::new(
@@ -110,27 +107,27 @@ mod tests {
 
     #[test]
     fn parse_keywithmodifier_none() {
-        assert_eq!(parse_keywithmodifier("".to_owned()), None);
-        assert_eq!(parse_keywithmodifier("     ".to_owned()), None);
-        assert_eq!(parse_keywithmodifier("# is comment line".to_owned()), None);
+        assert_eq!(parse_keywithmodifier(""), None);
+        assert_eq!(parse_keywithmodifier("     "), None);
+        assert_eq!(parse_keywithmodifier("# is comment line"), None);
     }
 
     #[test]
     fn parse_keywithmodifier_ok() {
         assert_eq!(
-            parse_keywithmodifier("C-A-S-Return".to_owned()).unwrap(),
+            parse_keywithmodifier("C-A-S-Return").unwrap(),
             KeyWithModifier::new(keys::KeyCode::Return, keys::ModifiersState::CtrlAltShift)
         );
         assert_eq!(
-            parse_keywithmodifier("Return".to_owned()).unwrap(),
+            parse_keywithmodifier("Return").unwrap(),
             KeyWithModifier::new(keys::KeyCode::Return, keys::ModifiersState::NONE)
         );
         assert_eq!(
-            parse_keywithmodifier("S-C".to_owned()).unwrap(),
+            parse_keywithmodifier("S-C").unwrap(),
             KeyWithModifier::new(keys::KeyCode::C, keys::ModifiersState::Shift)
         );
         assert_eq!(
-            parse_keywithmodifier("A-S-X".to_owned()).unwrap(),
+            parse_keywithmodifier("A-S-X").unwrap(),
             KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::AltShift)
         );
     }
