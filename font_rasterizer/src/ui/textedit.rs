@@ -282,6 +282,8 @@ impl TextEdit {
                 ChangeEvent::RemoveChar(c) => {
                     self.char_states.char_to_dustbox(c);
                 }
+                ChangeEvent::SelectChar(c) => self.char_states.select_char(c, &self.config),
+                ChangeEvent::UnSelectChar(c) => self.char_states.unselect_char(c, &self.config),
                 ChangeEvent::AddCaret(c) => {
                     self.caret_states.add_caret(
                         c,
@@ -368,15 +370,6 @@ impl TextEdit {
             );
             self.caret_states
                 .update_state_position(CaretType::Mark, position);
-        }
-
-        // update selection color
-        // FIXME: 毎回 selection を使って状態を更新するのではなく text editor からのイベントで更新するようにするのが望ましい
-        if let Some((from, to)) = self.caret_states.get_selection() {
-            self.char_states
-                .apply_selection_color(from, to, &self.config);
-        } else {
-            self.char_states.clear_selection_color(&self.config);
         }
     }
 

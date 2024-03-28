@@ -29,7 +29,8 @@ const EMOJI_FONT_DATA: &[u8] =
 
 pub fn main() {
     //std::env::set_var("RUST_LOG", "simple_text=debug");
-    std::env::set_var("RUST_LOG", "font_rasterizer::ui::textedit=info");
+    //std::env::set_var("RUST_LOG", "font_rasterizer::ui::textedit=info");
+    //std::env::set_var("RUST_LOG", "font_rasterizer::ui::view_element_state=debug");
     //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
     pollster::block_on(run());
 }

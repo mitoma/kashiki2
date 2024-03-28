@@ -167,6 +167,26 @@ impl ThemedColor {
             ThemedColor::Green => theme.green().get_color(),
         }
     }
+
+    // 選択時の反転色を取得する
+    // 反転色の選定基準はわりと適当
+    pub fn get_selection_color(&self, theme: &ColorTheme) -> [f32; 3] {
+        match self {
+            ThemedColor::Text => theme.blue().get_color(),
+            ThemedColor::TextComment => theme.text().get_color(),
+            ThemedColor::TextEmphasized => theme.text_comment().get_color(),
+            ThemedColor::Background => theme.background_highlights().get_color(),
+            ThemedColor::BackgroundHighlights => theme.background().get_color(),
+            ThemedColor::Yellow => theme.blue().get_color(),
+            ThemedColor::Orange => theme.magenta().get_color(),
+            ThemedColor::Red => theme.cyan().get_color(),
+            ThemedColor::Magenta => theme.orange().get_color(),
+            ThemedColor::Violet => theme.green().get_color(),
+            ThemedColor::Blue => theme.yellow().get_color(),
+            ThemedColor::Cyan => theme.red().get_color(),
+            ThemedColor::Green => theme.violet().get_color(),
+        }
+    }
 }
 
 #[cfg(test)]

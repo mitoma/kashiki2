@@ -23,42 +23,71 @@ impl Editor {
         }
     }
 
-    pub fn operation(&mut self, op: &EditorOperation) {
-        if EditorOperation::Undo == *op {
-            self.undo();
-            return;
-        }
-        if EditorOperation::Mark == *op {
-            self.mark();
-            return;
-        }
-        if EditorOperation::UnMark == *op {
-            self.unmark();
-            return;
-        }
-        let reverse_actions = BufferApplyer::apply_action(
-            &mut self.buffer,
-            &mut self.main_caret,
-            &mut self.mark,
-            op,
-            &self.sender,
-        );
-        self.undo_list.push(reverse_actions);
+    // action を実行する前後で selection が変わった場合に、変更を sender に通知する
+    #[inline]
+    fn action_width_selection_update(&mut self, action: impl FnOnce(&mut Self)) {
+        let pre_selection = self.selection();
+        action(self);
+        let post_selection = self.selection();
+        if pre_selection != post_selection {
+            let leave_selections = pre_selection
+                .iter()
+                .filter(|c| !post_selection.contains(c))
+                .cloned()
+                .collect::<Vec<_>>();
+            leave_selections.iter().for_each(|c| {
+                self.sender.send(ChangeEvent::UnSelectChar(*c)).unwrap();
+            });
 
-        let unmark_operation = matches!(
-            op,
-            EditorOperation::InsertString(_)
-                | EditorOperation::InsertChar(_)
-                | EditorOperation::InsertEnter
-                | EditorOperation::Backspace
-                | EditorOperation::Delete
-                | EditorOperation::Copy(_)
-                | EditorOperation::Cut(_)
-                | EditorOperation::UnMark
-        );
-        if unmark_operation {
-            self.unmark();
+            let enter_selections = post_selection
+                .iter()
+                .filter(|c| !pre_selection.contains(c))
+                .cloned()
+                .collect::<Vec<_>>();
+            enter_selections.iter().for_each(|c| {
+                self.sender.send(ChangeEvent::SelectChar(*c)).unwrap();
+            });
         }
+    }
+
+    pub fn operation(&mut self, op: &EditorOperation) {
+        self.action_width_selection_update(|itself| {
+            if EditorOperation::Undo == *op {
+                itself.undo();
+                return;
+            }
+            if EditorOperation::Mark == *op {
+                itself.mark();
+                return;
+            }
+            if EditorOperation::UnMark == *op {
+                itself.unmark();
+                return;
+            }
+            let reverse_actions = BufferApplyer::apply_action(
+                &mut itself.buffer,
+                &mut itself.main_caret,
+                &mut itself.mark,
+                op,
+                &itself.sender,
+            );
+            itself.undo_list.push(reverse_actions);
+
+            let unmark_operation = matches!(
+                op,
+                EditorOperation::InsertString(_)
+                    | EditorOperation::InsertChar(_)
+                    | EditorOperation::InsertEnter
+                    | EditorOperation::Backspace
+                    | EditorOperation::Delete
+                    | EditorOperation::Copy(_)
+                    | EditorOperation::Cut(_)
+                    | EditorOperation::UnMark
+            );
+            if unmark_operation {
+                itself.unmark();
+            }
+        });
     }
 
     fn undo(&mut self) {
@@ -97,6 +126,28 @@ impl Editor {
 
     pub fn to_buffer_string(&self) -> String {
         self.buffer.to_buffer_string()
+    }
+
+    fn selection(&self) -> Vec<BufferChar> {
+        let Some(mark) = self.mark else {
+            return Vec::new();
+        };
+        let (from, to) = if self.main_caret < mark {
+            (self.main_caret, mark)
+        } else {
+            (mark, self.main_caret)
+        };
+        if from.row == to.row {
+            self.buffer.lines[from.row].chars[from.col..to.col].to_vec()
+        } else {
+            let mut result = Vec::new();
+            result.extend(self.buffer.lines[from.row].chars[from.col..].iter());
+            for row in from.row + 1..to.row {
+                result.extend(self.buffer.lines[row].chars.iter());
+            }
+            result.extend(self.buffer.lines[to.row].chars[..to.col].iter());
+            result
+        }
     }
 
     #[inline]
@@ -309,6 +360,8 @@ pub enum ChangeEvent {
     AddChar(BufferChar),
     MoveChar { from: BufferChar, to: BufferChar },
     RemoveChar(BufferChar),
+    SelectChar(BufferChar),
+    UnSelectChar(BufferChar),
     AddCaret(Caret),
     MoveCaret { from: Caret, to: Caret },
     RemoveCaret(Caret),
