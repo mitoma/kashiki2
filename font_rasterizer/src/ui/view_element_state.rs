@@ -29,6 +29,7 @@ struct ViewElementState {
     pub(crate) position: EasingPointN<3>,
     pub(crate) color: EasingPointN<3>,
     pub(crate) scale: EasingPointN<2>,
+    pub(crate) motion_gain: EasingPointN<1>,
 }
 
 impl ViewElementState {
@@ -36,7 +37,8 @@ impl ViewElementState {
         let position_animation = self.position.in_animation();
         let color_animation = self.color.in_animation();
         let scale_animation = self.scale.in_animation();
-        position_animation | color_animation | scale_animation
+        let motion_gain_animation = self.motion_gain.in_animation();
+        position_animation | color_animation | scale_animation | motion_gain_animation
     }
 }
 
@@ -67,6 +69,7 @@ impl CharStates {
             base_color: ThemedColor::Text,
             color: easing_color,
             scale: EasingPointN::new([1.0, 1.0]),
+            motion_gain: EasingPointN::new([0.0]),
         };
         self.chars.insert(c, state);
         let instance = GlyphInstance {
@@ -165,7 +168,9 @@ impl CharStates {
                     instance.start_time = now_millis();
                     instance.duration =
                         Duration::from_millis(rand::thread_rng().gen_range(300..3000));
-                    instance.gain = rand::thread_rng().gen_range(0.1..1.0);
+                    //    instance.gain = rand::thread_rng().gen_range(0.1..1.0);
+                    i.motion_gain
+                        .update([rand::thread_rng().gen_range(0.1..1.0)]);
                     i.base_color = match rand::thread_rng().gen_range(0..8) {
                         0 => ThemedColor::Yellow,
                         1 => ThemedColor::Orange,
@@ -182,16 +187,11 @@ impl CharStates {
                 }
             }
         } else {
-            for (c, i) in self.chars.iter_mut() {
-                if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                    instance.motion = self.default_motion;
-                    instance.start_time = now_millis();
-                    instance.duration = Duration::ZERO;
-                    instance.gain = rand::thread_rng().gen_range(0.1..1.0);
-                    i.base_color = ThemedColor::Text;
-                    i.color
-                        .update(i.base_color.get_color(&text_edit_config.color_theme));
-                }
+            for (_, i) in self.chars.iter_mut() {
+                i.motion_gain.update([0.0]);
+                i.base_color = ThemedColor::Text;
+                i.color
+                    .update(i.base_color.get_color(&text_edit_config.color_theme));
             }
         }
     }
@@ -247,6 +247,7 @@ impl CaretStates {
             base_color: ThemedColor::TextEmphasized,
             color: easing_color,
             scale: EasingPointN::new([1.0, 1.0]),
+            motion_gain: EasingPointN::new([0.0]),
         };
         if c.caret_type == CaretType::Primary {
             self.main_caret.replace((c, state));
@@ -394,6 +395,8 @@ fn update_instance(
     instance.color = view_char_state.color.current();
     // set scale
     instance.scale = view_char_state.scale.current();
+    // set gain
+    instance.gain = view_char_state.motion_gain.current()[0];
 
     // set position
     let [x, y, z] = view_char_state.position.current();
