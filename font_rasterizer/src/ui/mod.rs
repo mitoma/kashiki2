@@ -287,6 +287,7 @@ pub struct SingleLineComponent {
     instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
     scale: [f32; 2],
+    width: Option<f32>,
 }
 
 impl SingleLineComponent {
@@ -297,6 +298,7 @@ impl SingleLineComponent {
             updated: true,
             motion: MotionFlags::ZERO_MOTION,
             scale: [1.0, 1.0],
+            width: None,
         }
     }
 
@@ -311,6 +313,11 @@ impl SingleLineComponent {
 
     pub fn update_motion(&mut self, motion: MotionFlags) {
         self.motion = motion;
+        self.updated = true;
+    }
+
+    pub fn update_width(&mut self, width: Option<f32>) {
+        self.width = width;
         self.updated = true;
     }
 
@@ -351,6 +358,14 @@ impl SingleLineComponent {
         let (width, _height) = self.bound(glyph_vertex_buffer);
         let initial_x = (-width / 2.0) + 0.5;
 
+        // 横幅が固定の時にはスケールを変更して画面内に収まるように心がける
+        let mut x_scale = self.scale[0];
+        if let Some(fixed_width) = self.width {
+            if x_scale > fixed_width / width {
+                x_scale = fixed_width / width;
+            }
+        }
+
         let mut x: f32 = initial_x;
         let y_pos = -0.3 / self.scale[1];
         for c in self.value.chars() {
@@ -368,7 +383,7 @@ impl SingleLineComponent {
                     z: 0.0,
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
-                self.scale,
+                [x_scale, self.scale[1]],
                 get_color(color_theme, c),
                 self.motion,
                 now_millis(),

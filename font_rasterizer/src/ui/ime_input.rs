@@ -29,6 +29,7 @@ impl ImeInput {
                 .build(),
         );
         single_line_component.update_scale([0.1, 0.1]);
+        single_line_component.update_width(Some(1.0));
         Self {
             single_line_component,
         }
