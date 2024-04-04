@@ -15,7 +15,7 @@ use font_rasterizer::{
     motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
-    ui::{split_preedit_string, PlaneTextReader, SingleLineComponent},
+    ui::{single_line::SingleLine, split_preedit_string, PlaneTextReader},
 };
 use log::info;
 use winit::event::WindowEvent;
@@ -62,7 +62,7 @@ struct SingleCharCallback {
     store: ActionStore,
     editor: Editor,
     reader: PlaneTextReader,
-    ime: SingleLineComponent,
+    ime: SingleLine,
 }
 
 impl SingleCharCallback {
@@ -74,7 +74,7 @@ impl SingleCharCallback {
         keybinds
             .iter()
             .for_each(|k| store.register_keybind(k.clone()));
-        let mut ime = SingleLineComponent::new("".to_string());
+        let mut ime = SingleLine::new("".to_string());
         ime.update_motion(
             MotionFlags::builder()
                 .camera_detail(CameraDetail::IGNORE_CAMERA)

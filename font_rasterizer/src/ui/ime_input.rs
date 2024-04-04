@@ -8,10 +8,10 @@ use crate::{
     motion::{CameraDetail, MotionFlags},
 };
 
-use super::SingleLineComponent;
+use super::single_line::SingleLine;
 
 pub struct ImeInput {
-    single_line_component: SingleLineComponent,
+    single_line: SingleLine,
 }
 
 impl Default for ImeInput {
@@ -22,17 +22,15 @@ impl Default for ImeInput {
 
 impl ImeInput {
     pub fn new() -> Self {
-        let mut single_line_component = SingleLineComponent::new("".to_string());
-        single_line_component.update_motion(
+        let mut single_line = SingleLine::new("".to_string());
+        single_line.update_motion(
             MotionFlags::builder()
                 .camera_detail(CameraDetail::IGNORE_CAMERA)
                 .build(),
         );
-        single_line_component.update_scale([0.1, 0.1]);
-        single_line_component.update_width(Some(1.0));
-        Self {
-            single_line_component,
-        }
+        single_line.update_scale([0.1, 0.1]);
+        single_line.update_width(Some(1.0));
+        Self { single_line }
     }
 
     pub fn apply_ime_event(&mut self, action: &Action) -> bool {
@@ -44,16 +42,16 @@ impl ImeInput {
                         let (first, center, last) =
                             split_preedit_string(value.clone(), *start, *end);
                         let preedit_str = format!("{}[{}]{}", first, center, last);
-                        self.single_line_component.update_value(preedit_str);
+                        self.single_line.update_value(preedit_str);
                     }
                     _ => {
-                        self.single_line_component.update_value(value.clone());
+                        self.single_line.update_value(value.clone());
                     }
                 };
                 false
             }
             Action::ImeInput(_) => {
-                self.single_line_component.update_value("".to_string());
+                self.single_line.update_value("".to_string());
                 true
             }
             _ => false,
@@ -67,16 +65,12 @@ impl ImeInput {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Vec<&GlyphInstances> {
-        self.single_line_component.generate_instances(
-            color_theme,
-            glyph_vertex_buffer,
-            device,
-            queue,
-        )
+        self.single_line
+            .generate_instances(color_theme, glyph_vertex_buffer, device, queue)
     }
 
     pub fn get_instances(&self) -> Vec<&GlyphInstances> {
-        self.single_line_component.get_instances()
+        self.single_line.get_instances()
     }
 }
 
