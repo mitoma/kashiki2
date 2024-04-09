@@ -62,10 +62,10 @@ impl Default for CharEasings {
                         false,
                     ))
                     .motion_detail(MotionDetail::TURN_BACK)
-                    .motion_target(MotionTarget::ROTATE_Z_PLUS)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
                     .build(),
                 duration: Duration::from_millis(300),
-                gain: 0.1,
+                gain: 0.5,
             },
             remove_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
@@ -317,6 +317,7 @@ impl TextEdit {
     // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。
     #[inline]
     fn sync_editor_events(&mut self, device: &wgpu::Device, color_theme: &ColorTheme) {
+        let mut char_change_counter = 0u32;
         while let Ok(event) = self.receiver.try_recv() {
             self.text_updated = true;
             match event {
@@ -324,21 +325,26 @@ impl TextEdit {
                     let caret_pos = self
                         .caret_states
                         .main_caret_position()
-                        .map(|[x, y, z]| [x, y + 1.0, z])
                         .unwrap_or_else(|| [0.0, 1.0, 0.0]);
                     self.char_states.add_char(
                         c,
                         caret_pos,
                         color_theme.text().get_color(),
+                        char_change_counter,
                         &self.config,
                         device,
                     );
+                    char_change_counter += 1;
                 }
                 ChangeEvent::MoveChar { from, to } => {
-                    self.char_states.move_char(from, to, &self.config, device);
+                    self.char_states
+                        .move_char(from, to, char_change_counter, &self.config, device);
+                    char_change_counter += 1;
                 }
                 ChangeEvent::RemoveChar(c) => {
-                    self.char_states.char_to_dustbox(c, &self.config);
+                    self.char_states
+                        .char_to_dustbox(c, char_change_counter, &self.config);
+                    char_change_counter += 1;
                 }
                 ChangeEvent::SelectChar(c) => self.char_states.select_char(c, &self.config),
                 ChangeEvent::UnSelectChar(c) => self.char_states.unselect_char(c, &self.config),

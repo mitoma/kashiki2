@@ -56,6 +56,7 @@ impl CharStates {
         c: BufferChar,
         position: [f32; 3],
         color: [f32; 3],
+        counter: u32,
         config: &TextEditConfig,
         device: &Device,
     ) {
@@ -75,7 +76,7 @@ impl CharStates {
         self.chars.insert(c, state);
         let instance = GlyphInstance {
             color,
-            start_time: now_millis(),
+            start_time: now_millis() + counter,
             motion: config.char_easings.add_char.motion,
             duration: config.char_easings.add_char.duration,
             ..GlyphInstance::default()
@@ -87,6 +88,7 @@ impl CharStates {
         &mut self,
         from: BufferChar,
         to: BufferChar,
+        counter: u32,
         config: &TextEditConfig,
         device: &Device,
     ) {
@@ -97,7 +99,7 @@ impl CharStates {
             self.chars.insert(to, position);
         }
         if let Some(mut instance) = self.instances.remove(&from.into()) {
-            instance.start_time = now_millis();
+            instance.start_time = now_millis() + counter;
             instance.motion = config.char_easings.move_char.motion;
             instance.duration = config.char_easings.move_char.duration;
             self.instances.add(to.into(), instance, device);
@@ -155,7 +157,7 @@ impl CharStates {
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar, config: &TextEditConfig) {
+    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar, counter: u32, config: &TextEditConfig) {
         if let Some(mut state) = self.chars.remove(&c) {
             // アニメーション状態に強制的に有効にするために gain を 0 にしている。
             // 本当はアニメーションが終わったらゴミ箱から消すという仕様が適切ではないのかもしれない
@@ -166,7 +168,7 @@ impl CharStates {
             self.removed_chars.insert(c, state);
         }
         if let Some(instance) = self.instances.get_mut(&c.into()) {
-            instance.start_time = now_millis();
+            instance.start_time = now_millis() + counter;
             instance.motion = config.char_easings.remove_char.motion;
             instance.duration = config.char_easings.remove_char.duration;
         };
