@@ -10,14 +10,14 @@ use rand::Rng;
 /// 28 : loop
 /// ---: 27 - 24 は motion detail を指定
 /// 27 : to_current
-/// 26 : use_distance(x)
-/// 25 : use_distance(y)
-/// 24 : use_distance(xy)
+/// 26 : turn back
+/// 25 : use_distance(x)
+/// 24 : use_distance(y)
 /// ---: 23 - 16 は reserved
-/// 23 : reserved
+/// 23 : use_distance(xy)
 /// 22 : reserved
 /// 21 : reserved
-/// 20 : reserved
+/// 20 : camera detail
 /// ---: 19 - 16 は easing function のタイプを指定
 /// 19 : function type
 /// 18 : function type
@@ -75,8 +75,8 @@ impl MotionFlags {
         camera_detail: CameraDetail,
     ) -> MotionFlags {
         let value = (motion_type.mask() << 28)
-            + ((motion_detail.bits() as u32) << 24)
-            + ((camera_detail.bits() as u32) << 20)
+            + ((motion_detail.bits() as u32) << 20) // 27 - 23 は motion detail が使う
+            + ((camera_detail.bits() as u32) << 20) // camera detail は 20 のみ。(21, 22 は reserved)
             + (motion_type.easing_func_mask() << 16)
             + (motion_target.bits() as u32);
         MotionFlags(value)
@@ -269,10 +269,11 @@ impl EasingFuncType {
 
 bitflags! {
     pub struct MotionDetail :u8{
-        const TO_CURRENT      = 0b_0000_1000;
-        const USE_X_DISTANCE  = 0b_0000_0100;
-        const USE_Y_DISTANCE  = 0b_0000_0010;
-        const USE_XY_DISTANCE = 0b_0000_0001;
+        const TO_CURRENT      = 0b_1000_0000;
+        const TURN_BACK       = 0b_0100_0000;
+        const USE_X_DISTANCE  = 0b_0010_0000;
+        const USE_Y_DISTANCE  = 0b_0001_0000;
+        const USE_XY_DISTANCE = 0b_0000_1000;
     }
 }
 

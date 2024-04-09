@@ -53,19 +53,19 @@ impl Default for CharEasings {
                     .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
                     .build(),
                 duration: Duration::from_millis(500),
-                gain: 1.0,
+                gain: 0.8,
             },
             move_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
-                    .motion_type(MotionType::EaseOut(
-                        crate::motion::EasingFuncType::Quad,
+                    .motion_type(MotionType::EaseInOut(
+                        crate::motion::EasingFuncType::Sin,
                         false,
                     ))
-                    .motion_detail(MotionDetail::TO_CURRENT | MotionDetail::USE_X_DISTANCE)
-                    .motion_target(MotionTarget::STRETCH_X_PLUS)
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .motion_target(MotionTarget::ROTATE_Z_PLUS)
                     .build(),
-                duration: Duration::from_millis(500),
-                gain: 1.0,
+                duration: Duration::from_millis(300),
+                gain: 0.1,
             },
             remove_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
@@ -76,7 +76,7 @@ impl Default for CharEasings {
                     .motion_target(MotionTarget::MOVE_Y_MINUS | MotionTarget::STRETCH_X_MINUS)
                     .build(),
                 duration: Duration::from_millis(500),
-                gain: 1.0,
+                gain: 0.8,
             },
         }
     }

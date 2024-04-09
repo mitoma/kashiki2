@@ -177,9 +177,10 @@ fn vs_main(
 
     // motion detail
     var to_current = bit_check(motion, 27u);
-    let use_x_distance = bit_check(motion, 26u);
-    let use_y_distance = bit_check(motion, 25u);
-    let use_xy_distance = bit_check(motion, 24u);
+    let turn_back = bit_check(motion, 26u);
+    let use_x_distance = bit_check(motion, 25u);
+    let use_y_distance = bit_check(motion, 24u);
+    let use_xy_distance = bit_check(motion, 23u);
 
     let ignore_camera = bit_check(motion, 20u);
 
@@ -192,7 +193,16 @@ fn vs_main(
 
     var v = 0f;
     var easing_position = u_buffer.u_time - instances.start_time;
-    if is_loop {
+    let harf_duration = duration / 2u;
+    if turn_back {
+        if easing_position > duration {
+            easing_position = 0u;
+        } else if easing_position <= harf_duration {
+            easing_position = easing_position * 2u;
+        } else {
+            easing_position = duration - ((easing_position - harf_duration) * 2u);
+        }
+    } else if is_loop {
         if (easing_position / duration) % 2u == 1u {
             to_current = !to_current;
         }
