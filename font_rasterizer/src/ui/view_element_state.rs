@@ -165,11 +165,11 @@ impl CharStates {
                 .update([config.char_easings.remove_char.gain]);
             self.removed_chars.insert(c, state);
         }
-        self.instances.get_mut(&c.into()).map(|instance| {
+        if let Some(instance) = self.instances.get_mut(&c.into()) {
             instance.start_time = now_millis();
             instance.motion = config.char_easings.remove_char.motion;
             instance.duration = config.char_easings.remove_char.duration;
-        });
+        };
         self.instances.pre_remove(&c.into());
     }
 
