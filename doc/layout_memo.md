@@ -11,3 +11,17 @@
   - 要素の中心やサイズなどを返すようにする
 - Text
   - Paper に属する文字列
+
+## コンテキストの持ち方について検討する
+
+- Preference
+  - font
+  - color_theme
+  - glyph_vertex_buffer
+- WorldContext
+- ModelContext
+  - add motion
+  - update motion
+  - remove motion
+  - 
+
