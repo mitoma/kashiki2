@@ -15,6 +15,7 @@ use crate::{
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
     layout_engine::{Model, ModelOperation, ModelOperationResult},
+    motion::{MotionDetail, MotionFlags, MotionTarget, MotionType},
 };
 
 use super::{
@@ -22,9 +23,63 @@ use super::{
     view_element_state::{CaretStates, CharStates},
 };
 
-pub struct EasingConfig {
+pub struct CpuEasingConfig {
     duration: Duration,
     easing_func: fn(f32) -> f32,
+}
+
+pub(crate) struct GpuEasingConfig {
+    pub(crate) motion: MotionFlags,
+    pub(crate) duration: Duration,
+    pub(crate) gain: f32,
+}
+
+pub(crate) struct CharEasings {
+    pub(crate) add_char: GpuEasingConfig,
+    pub(crate) move_char: GpuEasingConfig,
+    pub(crate) remove_char: GpuEasingConfig,
+}
+
+impl Default for CharEasings {
+    fn default() -> Self {
+        Self {
+            add_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(
+                        crate::motion::EasingFuncType::Back,
+                        false,
+                    ))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 1.0,
+            },
+            move_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(
+                        crate::motion::EasingFuncType::Quad,
+                        false,
+                    ))
+                    .motion_detail(MotionDetail::TO_CURRENT | MotionDetail::USE_X_DISTANCE)
+                    .motion_target(MotionTarget::STRETCH_X_PLUS)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 1.0,
+            },
+            remove_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(
+                        crate::motion::EasingFuncType::Bounce,
+                        false,
+                    ))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS | MotionTarget::STRETCH_X_MINUS)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 1.0,
+            },
+        }
+    }
 }
 
 pub struct TextEditConfig {
@@ -34,7 +89,8 @@ pub struct TextEditConfig {
     pub(crate) max_col: usize,
     pub(crate) line_prohibited_chars: LineBoundaryProhibitedChars,
     pub(crate) min_bound: Point2<f32>,
-    pub(crate) position_easing: EasingConfig,
+    pub(crate) position_easing: CpuEasingConfig,
+    pub(crate) char_easings: CharEasings,
     pub(crate) color_theme: ColorTheme,
     pub(crate) psychedelic: bool,
 }
@@ -48,10 +104,11 @@ impl Default for TextEditConfig {
             max_col: 40,
             line_prohibited_chars: LineBoundaryProhibitedChars::default(),
             min_bound: (10.0, 10.0).into(),
-            position_easing: EasingConfig {
+            position_easing: CpuEasingConfig {
                 duration: Duration::from_millis(800),
                 easing_func: nenobi::functions::sin_in_out,
             },
+            char_easings: CharEasings::default(),
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
         }
@@ -80,11 +137,7 @@ impl Default for TextEdit {
         let config = TextEditConfig::default();
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let mut position = EasingPointN::new([0.0, 0.0, 0.0]);
-        position.update_duration_and_easing_func(
-            config.position_easing.duration,
-            config.position_easing.easing_func,
-        );
+        let position = EasingPointN::new([0.0, 0.0, 0.0]);
         let bound = config.min_bound.into();
         Self {
             config,
@@ -273,14 +326,19 @@ impl TextEdit {
                         .main_caret_position()
                         .map(|[x, y, z]| [x, y + 1.0, z])
                         .unwrap_or_else(|| [0.0, 1.0, 0.0]);
-                    self.char_states
-                        .add_char(c, caret_pos, color_theme.text().get_color(), device);
+                    self.char_states.add_char(
+                        c,
+                        caret_pos,
+                        color_theme.text().get_color(),
+                        &self.config,
+                        device,
+                    );
                 }
                 ChangeEvent::MoveChar { from, to } => {
-                    self.char_states.move_char(from, to, device);
+                    self.char_states.move_char(from, to, &self.config, device);
                 }
                 ChangeEvent::RemoveChar(c) => {
-                    self.char_states.char_to_dustbox(c);
+                    self.char_states.char_to_dustbox(c, &self.config);
                 }
                 ChangeEvent::SelectChar(c) => self.char_states.select_char(c, &self.config),
                 ChangeEvent::UnSelectChar(c) => self.char_states.unselect_char(c, &self.config),

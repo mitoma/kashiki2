@@ -56,6 +56,7 @@ impl CharStates {
         c: BufferChar,
         position: [f32; 3],
         color: [f32; 3],
+        config: &TextEditConfig,
         device: &Device,
     ) {
         let mut easing_color = EasingPointN::new(color);
@@ -69,22 +70,36 @@ impl CharStates {
             base_color: ThemedColor::Text,
             color: easing_color,
             scale: EasingPointN::new([1.0, 1.0]),
-            motion_gain: EasingPointN::new([0.0]),
+            motion_gain: EasingPointN::new([config.char_easings.add_char.gain]),
         };
         self.chars.insert(c, state);
         let instance = GlyphInstance {
             color,
-            motion: self.default_motion,
+            start_time: now_millis(),
+            motion: config.char_easings.add_char.motion,
+            duration: config.char_easings.add_char.duration,
             ..GlyphInstance::default()
         };
         self.instances.add(c.into(), instance, device);
     }
 
-    pub(crate) fn move_char(&mut self, from: BufferChar, to: BufferChar, device: &Device) {
-        if let Some(position) = self.chars.remove(&from) {
+    pub(crate) fn move_char(
+        &mut self,
+        from: BufferChar,
+        to: BufferChar,
+        config: &TextEditConfig,
+        device: &Device,
+    ) {
+        if let Some(mut position) = self.chars.remove(&from) {
+            position
+                .motion_gain
+                .update([config.char_easings.move_char.gain]);
             self.chars.insert(to, position);
         }
-        if let Some(instance) = self.instances.remove(&from.into()) {
+        if let Some(mut instance) = self.instances.remove(&from.into()) {
+            instance.start_time = now_millis();
+            instance.motion = config.char_easings.move_char.motion;
+            instance.duration = config.char_easings.move_char.duration;
             self.instances.add(to.into(), instance, device);
         }
     }
@@ -140,11 +155,21 @@ impl CharStates {
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar) {
+    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar, config: &TextEditConfig) {
         if let Some(mut state) = self.chars.remove(&c) {
-            state.position.add((0.0, -1.0, 0.0).into());
+            // アニメーション状態に強制的に有効にするために gain を 0 にしている。
+            // 本当はアニメーションが終わったらゴミ箱から消すという仕様が適切ではないのかもしれない
+            state.motion_gain.update([0.0]);
+            state
+                .motion_gain
+                .update([config.char_easings.remove_char.gain]);
             self.removed_chars.insert(c, state);
         }
+        self.instances.get_mut(&c.into()).map(|instance| {
+            instance.start_time = now_millis();
+            instance.motion = config.char_easings.remove_char.motion;
+            instance.duration = config.char_easings.remove_char.duration;
+        });
         self.instances.pre_remove(&c.into());
     }
 
