@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cgmath::{Point2, Point3, Quaternion, Rotation3};
+use cgmath::{num_traits::ToPrimitive, Point2, Point3, Quaternion, Rotation3};
 use instant::Duration;
 use log::debug;
 use rand::Rng;
@@ -99,8 +99,11 @@ impl CharStates {
             self.chars.insert(to, position);
         }
         if let Some(mut instance) = self.instances.remove(&from.into()) {
-            instance.start_time = now_millis() + counter;
             instance.motion = config.char_easings.move_char.motion;
+            if instance.start_time + instance.duration.as_millis().to_u32().unwrap() < now_millis()
+            {
+                instance.start_time = now_millis() + counter * 10;
+            }
             instance.duration = config.char_easings.move_char.duration;
             self.instances.add(to.into(), instance, device);
         }
@@ -168,7 +171,10 @@ impl CharStates {
             self.removed_chars.insert(c, state);
         }
         if let Some(instance) = self.instances.get_mut(&c.into()) {
-            instance.start_time = now_millis() + counter;
+            if instance.start_time + instance.duration.as_millis().to_u32().unwrap() < now_millis()
+            {
+                instance.start_time = now_millis() + counter * 10;
+            }
             instance.motion = config.char_easings.remove_char.motion;
             instance.duration = config.char_easings.remove_char.duration;
         };
@@ -256,6 +262,10 @@ pub(crate) struct CaretStates {
 }
 
 impl CaretStates {
+    pub(crate) fn main_caret_logical_position(&self) -> Option<[usize; 2]> {
+        self.main_caret.as_ref().map(|(c, _)| [c.row, c.col])
+    }
+
     pub(crate) fn main_caret_position(&self) -> Option<[f32; 3]> {
         self.main_caret.as_ref().map(|(_, s)| s.position.last())
     }

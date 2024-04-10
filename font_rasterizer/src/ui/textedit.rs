@@ -317,7 +317,14 @@ impl TextEdit {
     // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。
     #[inline]
     fn sync_editor_events(&mut self, device: &wgpu::Device, color_theme: &ColorTheme) {
-        let mut char_change_counter = 0u32;
+        #[derive(Default)]
+        struct CharChangeCounter {
+            add_char: u32,
+            move_char: u32,
+            remove_char: u32,
+        }
+
+        let mut char_change_counter = CharChangeCounter::default();
         while let Ok(event) = self.receiver.try_recv() {
             self.text_updated = true;
             match event {
@@ -325,26 +332,43 @@ impl TextEdit {
                     let caret_pos = self
                         .caret_states
                         .main_caret_position()
-                        .unwrap_or_else(|| [0.0, 1.0, 0.0]);
+                        .unwrap_or([0.0, 1.0, 0.0]);
                     self.char_states.add_char(
                         c,
                         caret_pos,
                         color_theme.text().get_color(),
-                        char_change_counter,
+                        char_change_counter.add_char,
                         &self.config,
                         device,
                     );
-                    char_change_counter += 1;
+                    char_change_counter.add_char += 1;
                 }
                 ChangeEvent::MoveChar { from, to } => {
+                    if let Some([row, _col]) = self.caret_states.main_caret_logical_position() {
+                        if from.row == row || to.row == row {
+                            self.char_states.move_char(
+                                from,
+                                to,
+                                char_change_counter.move_char,
+                                &self.config,
+                                device,
+                            );
+                            char_change_counter.move_char += 1;
+                        } else {
+                            self.char_states
+                                .move_char(from, to, 0, &self.config, device);
+                        }
+                    }
                     self.char_states
-                        .move_char(from, to, char_change_counter, &self.config, device);
-                    char_change_counter += 1;
+                        .move_char(from, to, 0, &self.config, device);
                 }
                 ChangeEvent::RemoveChar(c) => {
-                    self.char_states
-                        .char_to_dustbox(c, char_change_counter, &self.config);
-                    char_change_counter += 1;
+                    self.char_states.char_to_dustbox(
+                        c,
+                        char_change_counter.remove_char,
+                        &self.config,
+                    );
+                    char_change_counter.remove_char += 1;
                 }
                 ChangeEvent::SelectChar(c) => self.char_states.select_char(c, &self.config),
                 ChangeEvent::UnSelectChar(c) => self.char_states.unselect_char(c, &self.config),
