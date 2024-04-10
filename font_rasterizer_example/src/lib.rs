@@ -11,7 +11,10 @@ use font_rasterizer::{
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{
+        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
+        SimpleStateSupport,
+    },
     time::now_millis,
 };
 use log::info;
@@ -96,21 +99,15 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(
-        &mut self,
-        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        _queue: &wgpu::Queue,
-    ) {
+    fn init(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
         let value = GlyphInstance {
-            color: color_theme.cyan().get_color(),
+            color: context.color_theme.cyan().get_color(),
             motion: self.motion.motion_flags(),
             gain: 2.0,
             duration: Duration::from_millis(1000),
             ..Default::default()
         };
-        let mut instance = GlyphInstances::new('あ', device);
+        let mut instance = GlyphInstances::new('あ', &context.device);
         instance.push(value);
         self.glyphs.push(instance);
     }
@@ -118,13 +115,11 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        context: &GlobalStateContext,
     ) {
         self.glyphs
             .iter_mut()
-            .for_each(|i| i.update_buffer(device, queue));
+            .for_each(|i| i.update_buffer(&context.device, &context.queue));
     }
 
     fn input(

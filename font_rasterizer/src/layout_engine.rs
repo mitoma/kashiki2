@@ -6,9 +6,9 @@ use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
-    color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
+    support::GlobalStateContext,
 };
 
 // 画面全体を表す
@@ -21,13 +21,7 @@ pub trait World {
     // 再レイアウトする update するときに呼び出すとよさそう
     fn re_layout(&mut self);
 
-    fn update(
-        &mut self,
-        color_theme: &ColorTheme,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    );
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext);
 
     // この World にいくつモデルを配置されているかを返す
     fn model_length(&self) -> usize;
@@ -147,14 +141,12 @@ impl World for HorizontalWorld {
 
     fn update(
         &mut self,
-        color_theme: &ColorTheme,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        context: &GlobalStateContext,
     ) {
         let range = self.get_surrounding_model_range();
         for model in self.models[range].iter_mut() {
-            model.update(color_theme, glyph_vertex_buffer, device, queue);
+            model.update(glyph_vertex_buffer, context);
         }
         if self.world_updated {
             self.re_layout();
@@ -260,13 +252,7 @@ pub trait Model {
     // モデルの縦横の長さを返す
     fn bound(&self) -> (f32, f32);
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
-    fn update(
-        &mut self,
-        color_theme: &ColorTheme,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    );
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext);
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult;
     fn to_string(&self) -> String;

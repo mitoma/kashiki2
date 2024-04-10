@@ -3,6 +3,7 @@ use std::sync::Arc;
 use cached::proc_macro::cached;
 use font_collector::FontData;
 use rustybuzz::Face;
+use text_buffer::editor::CharWidthResolver;
 use unicode_width::UnicodeWidthChar;
 
 pub(crate) struct CharWidthCalculator {
@@ -129,6 +130,15 @@ mod test {
         for (c, expected) in cases {
             let actual = converter.get_width(c);
             assert_eq!(actual, expected, "char:{}", c);
+        }
+    }
+}
+
+impl CharWidthResolver for CharWidthCalculator {
+    fn resolve_width(&self, c: char) -> usize {
+        match self.get_width(c) {
+            CharWidth::Regular => 1,
+            CharWidth::Wide => 2,
         }
     }
 }

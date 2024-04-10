@@ -11,7 +11,10 @@ use font_rasterizer::{
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, ModelOperation, World},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{
+        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
+        SimpleStateSupport,
+    },
     ui::{ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
@@ -89,15 +92,9 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
         self.world.look_at(0, CameraAdjustment::FitBoth);
-        self.update(glyph_vertex_buffer, color_theme, device, queue);
+        self.update(glyph_vertex_buffer, context);
     }
 
     fn resize(&mut self, width: u32, height: u32) {
@@ -107,14 +104,15 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        context: &GlobalStateContext,
     ) {
-        self.world
-            .update(color_theme, glyph_vertex_buffer, &device, &queue);
-        self.ime
-            .update(color_theme, glyph_vertex_buffer, device, queue);
+        self.world.update(glyph_vertex_buffer, context);
+        self.ime.update(
+            &context.color_theme,
+            glyph_vertex_buffer,
+            &context.device,
+            &context.queue,
+        );
     }
 
     fn input(

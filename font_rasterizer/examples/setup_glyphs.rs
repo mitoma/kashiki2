@@ -7,7 +7,10 @@ use font_rasterizer::{
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{
+        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
+        SimpleStateSupport,
+    },
 };
 use instant::Instant;
 use winit::event::WindowEvent;
@@ -53,13 +56,7 @@ struct SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
         let start = Instant::now();
         let _char_ranges = [
             'a'..='z',
@@ -76,7 +73,9 @@ impl SimpleStateCallback for SingleCharCallback {
         .for_each(|c| {
             let start = Instant::now();
             println!("c len: {}", c.len());
-            glyph_vertex_buffer.append_glyph(device, queue, c).unwrap();
+            glyph_vertex_buffer
+                .append_glyph(&context.device, &context.queue, c)
+                .unwrap();
             let end = Instant::now();
             println!("init: {:?}", end - start);
         });
@@ -87,9 +86,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _color_theme: &ColorTheme,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
+        _context: &GlobalStateContext,
     ) {
     }
 

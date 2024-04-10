@@ -121,17 +121,18 @@ pub(crate) struct DrawInfo<'a> {
 
 pub struct GlyphVertexBuffer {
     font_vertex_converter: FontVertexConverter,
-    char_width_calculator: CharWidthCalculator,
+    char_width_calculator: Arc<CharWidthCalculator>,
     buffer_index: BTreeMap<char, OrientationBufferIndices>,
     vertex_buffers: Vec<VertexBuffer>,
     index_buffers: Vec<IndexBuffer>,
 }
 
 impl GlyphVertexBuffer {
-    pub fn new(font_binaries: Vec<FontData>) -> GlyphVertexBuffer {
-        let font_binaries = Arc::new(font_binaries);
-        let font_vertex_converter = FontVertexConverter::new(font_binaries.clone());
-        let char_width_calculator = CharWidthCalculator::new(font_binaries);
+    pub(crate) fn new(
+        font_binaries: Arc<Vec<FontData>>,
+        char_width_calculator: Arc<CharWidthCalculator>,
+    ) -> GlyphVertexBuffer {
+        let font_vertex_converter = FontVertexConverter::new(font_binaries);
         GlyphVertexBuffer {
             font_vertex_converter,
             char_width_calculator,

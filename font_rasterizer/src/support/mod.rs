@@ -5,6 +5,7 @@ use std::{collections::HashSet, iter, sync::Arc};
 
 use crate::{
     camera::Camera,
+    char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
@@ -240,21 +241,9 @@ pub enum InputResult {
 }
 
 pub trait SimpleStateCallback {
-    fn init(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    );
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext);
     fn resize(&mut self, width: u32, height: u32);
-    fn update(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    );
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext);
     fn input(
         &mut self,
         glyph_vertex_buffer: &GlyphVertexBuffer,
@@ -263,13 +252,19 @@ pub trait SimpleStateCallback {
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
 }
 
+pub struct GlobalStateContext {
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub(crate) char_width_calcurator: Arc<CharWidthCalculator>,
+    pub color_theme: ColorTheme,
+}
+
 pub struct SimpleState {
+    context: GlobalStateContext,
+
     quarity: Quarity,
-    color_theme: ColorTheme,
 
     surface: wgpu::Surface<'static>,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
 
@@ -346,15 +341,25 @@ impl SimpleState {
             quarity,
             color_theme.background().into(),
         );
-        let mut glyph_vertex_buffer = GlyphVertexBuffer::new(font_binaries);
-        simple_state_callback.init(&mut glyph_vertex_buffer, &color_theme, &device, &queue);
 
-        Self {
-            color_theme,
+        let font_binaries = Arc::new(font_binaries);
+        let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
+        let mut glyph_vertex_buffer =
+            GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
 
-            surface,
+        let context = GlobalStateContext {
             device,
             queue,
+            char_width_calcurator,
+            color_theme,
+        };
+
+        simple_state_callback.init(&mut glyph_vertex_buffer, &context);
+
+        Self {
+            context,
+
+            surface,
             config,
             size,
             quarity,
@@ -371,9 +376,9 @@ impl SimpleState {
     }
 
     fn change_color_theme(&mut self, color_theme: ColorTheme) {
-        self.color_theme = color_theme;
+        self.context.color_theme = color_theme;
         // カラーテーマ変更時にはパイプラインの色も同時に変更する
-        self.rasterizer_pipeline.bg_color = self.color_theme.background().into();
+        self.rasterizer_pipeline.bg_color = self.context.color_theme.background().into();
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
@@ -381,19 +386,19 @@ impl SimpleState {
             self.size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
-            self.surface.configure(&self.device, &self.config);
+            self.surface.configure(&self.context.device, &self.config);
 
             self.simple_state_callback
                 .resize(new_size.width, new_size.height);
 
             // サイズ変更時にはパイプラインを作り直す
             self.rasterizer_pipeline = RasterizerPipeline::new(
-                &self.device,
+                &self.context.device,
                 new_size.width,
                 new_size.height,
                 self.config.format,
                 self.quarity,
-                self.color_theme.background().into(),
+                self.context.color_theme.background().into(),
             )
         }
     }
@@ -404,27 +409,24 @@ impl SimpleState {
     }
 
     pub fn update(&mut self) {
-        self.simple_state_callback.update(
-            &mut self.glyph_vertex_buffer,
-            &self.color_theme,
-            &self.device,
-            &self.queue,
-        );
+        self.simple_state_callback
+            .update(&mut self.glyph_vertex_buffer, &self.context);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         record_start_of_phase("render 1: setup encoder");
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
+        let mut encoder =
+            self.context
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                });
 
         // run all stage
         record_start_of_phase("render 2: update buffer");
         self.rasterizer_pipeline
             .overlap_bind_group
-            .update_buffer(&self.queue);
+            .update_buffer(&self.context.queue);
         record_start_of_phase("render 2-2: create texture");
         let screen_output = self.surface.get_current_texture()?;
         let screen_view = screen_output
@@ -437,8 +439,8 @@ impl SimpleState {
         record_start_of_phase("render 4: run all stage");
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
-            &self.device,
-            &self.queue,
+            &self.context.device,
+            &self.context.queue,
             &self.glyph_vertex_buffer,
             (
                 camera.build_view_projection_matrix().into(),
@@ -449,7 +451,7 @@ impl SimpleState {
         );
 
         record_start_of_phase("render 5: submit");
-        self.queue.submit(iter::once(encoder.finish()));
+        self.context.queue.submit(iter::once(encoder.finish()));
         screen_output.present();
 
         Ok(())
@@ -457,8 +459,7 @@ impl SimpleState {
 }
 
 pub struct ImageState {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
+    context: GlobalStateContext,
     size: winit::dpi::PhysicalSize<u32>,
 
     surface_texture: wgpu::Texture,
@@ -466,8 +467,6 @@ pub struct ImageState {
 
     rasterizer_pipeline: RasterizerPipeline,
     glyph_vertex_buffer: GlyphVertexBuffer,
-
-    color_theme: ColorTheme,
 
     simple_state_callback: Box<dyn SimpleStateCallback>,
 }
@@ -553,13 +552,24 @@ impl ImageState {
             quarity,
             color_theme.background().into(),
         );
-        let mut glyph_vertex_buffer = GlyphVertexBuffer::new(font_binaries);
-        simple_state_callback.init(&mut glyph_vertex_buffer, &color_theme, &device, &queue);
+
+        let font_binaries = Arc::new(font_binaries);
+        let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
+        let mut glyph_vertex_buffer =
+            GlyphVertexBuffer::new(font_binaries.clone(), char_width_calcurator.clone());
+
+        let context = GlobalStateContext {
+            device,
+            queue,
+            char_width_calcurator,
+            color_theme,
+        };
+
+        simple_state_callback.init(&mut glyph_vertex_buffer, &context);
         simple_state_callback.resize(size.width, size.height);
 
         Self {
-            device,
-            queue,
+            context,
             size,
 
             surface_texture,
@@ -569,31 +579,26 @@ impl ImageState {
 
             glyph_vertex_buffer,
             simple_state_callback,
-
-            color_theme,
         }
     }
 
     pub fn update(&mut self) {
-        self.simple_state_callback.update(
-            &mut self.glyph_vertex_buffer,
-            &self.color_theme,
-            &self.device,
-            &self.queue,
-        );
+        self.simple_state_callback
+            .update(&mut self.glyph_vertex_buffer, &self.context);
     }
 
     pub fn render(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, wgpu::SurfaceError> {
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
+        let mut encoder =
+            self.context
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                });
 
         // run all stage
         self.rasterizer_pipeline
             .overlap_bind_group
-            .update_buffer(&self.queue);
+            .update_buffer(&self.context.queue);
         let screen_view = self
             .surface_texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -602,13 +607,13 @@ impl ImageState {
 
         let chars = glyph_instances.iter().map(|i| i.c).collect::<HashSet<_>>();
         self.glyph_vertex_buffer
-            .append_glyph(&self.device, &self.queue, chars)
+            .append_glyph(&self.context.device, &self.context.queue, chars)
             .unwrap();
 
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
-            &self.device,
-            &self.queue,
+            &self.context.device,
+            &self.context.queue,
             &self.glyph_vertex_buffer,
             (
                 camera.build_view_projection_matrix().into(),
@@ -641,7 +646,7 @@ impl ImageState {
             },
         );
 
-        self.queue.submit(Some(encoder.finish()));
+        self.context.queue.submit(Some(encoder.finish()));
 
         let buffer = {
             let buffer_slice = self.output_buffer.slice(..);
@@ -653,7 +658,7 @@ impl ImageState {
             buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
                 tx.send(result).unwrap();
             });
-            self.device.poll(wgpu::Maintain::Wait);
+            self.context.device.poll(wgpu::Maintain::Wait);
             rx.recv().unwrap().unwrap();
 
             let data = buffer_slice.get_mapped_range();

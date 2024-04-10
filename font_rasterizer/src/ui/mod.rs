@@ -16,6 +16,7 @@ use crate::{
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::{Model, ModelOperation, ModelOperationResult},
     motion::MotionFlags,
+    support::GlobalStateContext,
     time::now_millis,
 };
 
@@ -65,11 +66,12 @@ impl Model for PlaneTextReader {
 
     fn update(
         &mut self,
-        color_theme: &ColorTheme,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        context: &GlobalStateContext,
     ) {
+        let device = &context.device;
+        let queue = &context.queue;
+        let color_theme = &context.color_theme;
         glyph_vertex_buffer
             .append_glyph(device, queue, self.value.chars().collect())
             .unwrap();

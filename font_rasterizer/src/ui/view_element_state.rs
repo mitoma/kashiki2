@@ -11,10 +11,10 @@ use text_buffer::{
 use wgpu::Device;
 
 use crate::{
-    char_width_calcurator::CharWidth,
+    char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
     easing_value::EasingPointN,
-    font_buffer::{Direction, GlyphVertexBuffer},
+    font_buffer::Direction,
     instances::GlyphInstance,
     motion::MotionFlags,
     text_instances::TextInstances,
@@ -131,7 +131,7 @@ impl CharStates {
         center: &Point2<f32>,
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
+        char_width_calcurator: &CharWidthCalculator,
         text_edit_config: &TextEditConfig,
     ) {
         // update chars
@@ -140,7 +140,7 @@ impl CharStates {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                let char_rotation = calc_rotation(c.c, text_edit_config, glyph_vertex_buffer);
+                let char_rotation = calc_rotation(c.c, text_edit_config, char_width_calcurator);
                 update_instance(instance, i, center, position, rotation, char_rotation);
             }
         }
@@ -152,7 +152,7 @@ impl CharStates {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
-                let char_rotation = calc_rotation(c.c, text_edit_config, glyph_vertex_buffer);
+                let char_rotation = calc_rotation(c.c, text_edit_config, char_width_calcurator);
                 update_instance(instance, i, center, position, rotation, char_rotation);
             }
         }
@@ -349,7 +349,7 @@ impl CaretStates {
         center: &Point2<f32>,
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
+        char_width_calcurator: &CharWidthCalculator,
         text_edit_config: &TextEditConfig,
     ) {
         // update caret
@@ -366,7 +366,7 @@ impl CaretStates {
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_edit_config,
-                        glyph_vertex_buffer,
+                        char_width_calcurator,
                     ),
                 );
             }
@@ -384,7 +384,7 @@ impl CaretStates {
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_edit_config,
-                        glyph_vertex_buffer,
+                        char_width_calcurator,
                     ),
                 );
             }
@@ -410,7 +410,7 @@ impl CaretStates {
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_edit_config,
-                        glyph_vertex_buffer,
+                        char_width_calcurator,
                     ),
                 );
             }
@@ -457,12 +457,12 @@ fn update_instance(
 fn calc_rotation(
     c: char,
     text_edit_config: &TextEditConfig,
-    glyph_vertex_buffer: &GlyphVertexBuffer,
+    char_width_calcurator: &CharWidthCalculator,
 ) -> Option<Quaternion<f32>> {
     match text_edit_config.direction {
         Direction::Horizontal => None,
         Direction::Vertical => {
-            let width = glyph_vertex_buffer.width(c);
+            let width = char_width_calcurator.get_width(c);
             match width {
                 CharWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
                     cgmath::Vector3::unit_z(),

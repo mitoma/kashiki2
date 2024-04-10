@@ -14,7 +14,10 @@ use font_rasterizer::{
     instances::GlyphInstances,
     motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{
+        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
+        SimpleStateSupport,
+    },
     ui::{single_line::SingleLine, split_preedit_string, PlaneTextReader},
 };
 use log::info;
@@ -104,15 +107,13 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
         glyph_vertex_buffer
-            .append_glyph(device, queue, self.reader.value.chars().collect())
+            .append_glyph(
+                &context.device,
+                &context.queue,
+                self.reader.value.chars().collect(),
+            )
             .unwrap();
         let (width, _height) = self.reader.calc_bound(glyph_vertex_buffer);
         self.camera_controller.process(
@@ -139,22 +140,32 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        context: &GlobalStateContext,
     ) {
         let texts = self.editor.to_buffer_string();
         glyph_vertex_buffer
-            .append_glyph(device, queue, texts.chars().collect())
+            .append_glyph(&context.device, &context.queue, texts.chars().collect())
             .unwrap();
         glyph_vertex_buffer
-            .append_glyph(device, queue, self.ime.value.chars().collect())
+            .append_glyph(
+                &context.device,
+                &context.queue,
+                self.ime.value.chars().collect(),
+            )
             .unwrap();
         self.reader.update_value(texts);
-        self.reader
-            .generate_instances(color_theme, glyph_vertex_buffer, device, queue);
-        self.ime
-            .generate_instances(color_theme, glyph_vertex_buffer, device, queue);
+        self.reader.generate_instances(
+            &context.color_theme,
+            glyph_vertex_buffer,
+            &context.device,
+            &context.queue,
+        );
+        self.ime.generate_instances(
+            &context.color_theme,
+            glyph_vertex_buffer,
+            &context.device,
+            &context.queue,
+        );
         let (width, height) = self.reader.calc_bound(glyph_vertex_buffer);
         self.camera_controller.process(
             &font_rasterizer::camera::CameraOperation::CangeTargetAndEye(

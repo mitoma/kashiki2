@@ -11,7 +11,10 @@ use font_rasterizer::{
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{
+        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
+        SimpleStateSupport,
+    },
     time::now_millis,
 };
 use log::info;
@@ -99,41 +102,37 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
             [1.0, 1.0],
-            color_theme.cyan().get_color(),
+            context.color_theme.cyan().get_color(),
             self.motion.motion_flags(),
             now_millis(),
             2.0,
             Duration::from_millis(1000),
         );
-        let mut instance = GlyphInstances::new('あ', device);
+        let mut instance = GlyphInstances::new('あ', &context.device);
         instance.push(value);
         self.glyphs.push(instance);
         glyph_vertex_buffer
-            .append_glyph(device, queue, ['あ'].iter().cloned().collect())
+            .append_glyph(
+                &context.device,
+                &context.queue,
+                ['あ'].iter().cloned().collect(),
+            )
             .unwrap();
     }
 
     fn update(
         &mut self,
         _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        context: &GlobalStateContext,
     ) {
         self.glyphs
             .iter_mut()
-            .for_each(|i| i.update_buffer(device, queue));
+            .for_each(|i| i.update_buffer(&context.device, &context.queue));
     }
 
     fn input(

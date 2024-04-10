@@ -9,13 +9,14 @@ use text_buffer::{
 };
 
 use crate::{
-    char_width_calcurator::CharWidth,
+    char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::ColorTheme,
     easing_value::EasingPointN,
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
     layout_engine::{Model, ModelOperation, ModelOperationResult},
     motion::{MotionDetail, MotionFlags, MotionTarget, MotionType},
+    support::GlobalStateContext,
 };
 
 use super::{
@@ -226,11 +227,12 @@ impl Model for TextEdit {
 
     fn update(
         &mut self,
-        color_theme: &crate::color_theme::ColorTheme,
-        glyph_vertex_buffer: &mut crate::font_buffer::GlyphVertexBuffer,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
+        context: &GlobalStateContext,
     ) {
+        let color_theme = &context.color_theme;
+        let device = &context.device;
+        let queue = &context.queue;
         if self.config.color_theme != *color_theme {
             self.config.color_theme = *color_theme;
             self.char_states.update_char_theme(color_theme);
@@ -240,12 +242,12 @@ impl Model for TextEdit {
         self.sync_editor_events(device, color_theme);
 
         if self.text_updated {
-            let layout = self.calc_phisical_layout(glyph_vertex_buffer);
+            let layout = self.calc_phisical_layout(&context.char_width_calcurator);
             let bound = self.calc_bound(&layout);
-            self.calc_position(glyph_vertex_buffer, &layout, bound);
+            self.calc_position(&context.char_width_calcurator, &layout, bound);
         }
 
-        self.calc_instance_positions(glyph_vertex_buffer);
+        self.calc_instance_positions(&context.char_width_calcurator);
         self.char_states.instances.update(device, queue);
         self.caret_states.instances.update(device, queue);
 
@@ -392,11 +394,14 @@ impl TextEdit {
     }
 
     #[inline]
-    fn calc_phisical_layout(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) -> PhisicalLayout {
+    fn calc_phisical_layout(
+        &mut self,
+        char_width_calcurator: &CharWidthCalculator,
+    ) -> PhisicalLayout {
         self.editor.calc_phisical_layout(
             self.max_display_width(),
             &self.config.line_prohibited_chars,
-            glyph_vertex_buffer,
+            char_width_calcurator,
         )
     }
 
@@ -426,13 +431,13 @@ impl TextEdit {
     #[inline]
     fn calc_position(
         &mut self,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
+        char_width_calcurator: &CharWidthCalculator,
         layout: &PhisicalLayout,
         bound: [f32; 2],
     ) {
         // update char position
         layout.chars.iter().for_each(|(c, pos)| {
-            let width = glyph_vertex_buffer.width(c.c);
+            let width = char_width_calcurator.get_width(c.c);
             let position =
                 Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
             self.char_states.update_state_position(c, position)
@@ -440,7 +445,7 @@ impl TextEdit {
 
         // update caret position
         {
-            let caret_width = glyph_vertex_buffer.width(caret_char(CaretType::Primary));
+            let caret_width = char_width_calcurator.get_width(caret_char(CaretType::Primary));
             let position = Self::get_adjusted_position(
                 &self.config,
                 caret_width,
@@ -451,7 +456,7 @@ impl TextEdit {
                 .update_state_position(CaretType::Primary, position);
         }
         if let Some(mark_pos) = layout.mark_pos {
-            let caret_width = glyph_vertex_buffer.width(caret_char(CaretType::Mark));
+            let caret_width = char_width_calcurator.get_width(caret_char(CaretType::Mark));
             let position = Self::get_adjusted_position(
                 &self.config,
                 caret_width,
@@ -480,7 +485,7 @@ impl TextEdit {
 
     // 文字と caret の GPU で描画すべき位置やモーションを計算する
     #[inline]
-    fn calc_instance_positions(&mut self, glyph_vertex_buffer: &GlyphVertexBuffer) {
+    fn calc_instance_positions(&mut self, char_width_calcurator: &CharWidthCalculator) {
         let bound_in_animation = self.bound.in_animation();
         let [bound_x, bound_y] = &self.bound.current();
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
@@ -494,7 +499,7 @@ impl TextEdit {
             &center,
             &current_position,
             &self.rotation,
-            glyph_vertex_buffer,
+            char_width_calcurator,
             &self.config,
         );
 
@@ -504,7 +509,7 @@ impl TextEdit {
             &center,
             &current_position,
             &self.rotation,
-            glyph_vertex_buffer,
+            char_width_calcurator,
             &self.config,
         );
     }

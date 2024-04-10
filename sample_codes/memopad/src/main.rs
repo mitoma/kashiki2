@@ -11,7 +11,10 @@ use font_rasterizer::{
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, Model, ModelOperation, World},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{
+        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
+        SimpleStateSupport,
+    },
     time::set_clock_mode,
     ui::{caret_char, ime_input::ImeInput, textedit::TextEdit},
 };
@@ -115,13 +118,7 @@ impl MemoPadCallback {
 }
 
 impl SimpleStateCallback for MemoPadCallback {
-    fn init(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
         let mut chars = self
             .world
             .strings()
@@ -131,7 +128,7 @@ impl SimpleStateCallback for MemoPadCallback {
         chars.insert(caret_char(text_buffer::caret::CaretType::Primary));
         chars.insert(caret_char(text_buffer::caret::CaretType::Mark));
         glyph_vertex_buffer
-            .append_glyph(device, queue, chars)
+            .append_glyph(&context.device, &context.queue, chars)
             .unwrap();
         self.world.look_at(0, CameraAdjustment::FitBoth);
     }
@@ -143,22 +140,23 @@ impl SimpleStateCallback for MemoPadCallback {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        color_theme: &ColorTheme,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        context: &GlobalStateContext,
     ) {
         // 入力などで新しい char が追加されたら、グリフバッファに追加する
         if !self.new_chars.is_empty() {
             let new_chars = self.new_chars.clone();
             glyph_vertex_buffer
-                .append_glyph(device, queue, new_chars)
+                .append_glyph(&context.device, &context.queue, new_chars)
                 .unwrap();
             self.new_chars.clear();
         }
-        self.world
-            .update(color_theme, glyph_vertex_buffer, device, queue);
-        self.ime
-            .update(color_theme, glyph_vertex_buffer, device, queue);
+        self.world.update(glyph_vertex_buffer, context);
+        self.ime.update(
+            &context.color_theme,
+            glyph_vertex_buffer,
+            &context.device,
+            &context.queue,
+        );
     }
 
     fn input(
