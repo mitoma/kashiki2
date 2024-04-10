@@ -44,7 +44,6 @@ impl ViewElementState {
 
 #[derive(Default)]
 pub(crate) struct CharStates {
-    default_motion: MotionFlags,
     chars: BTreeMap<BufferChar, ViewElementState>,
     removed_chars: BTreeMap<BufferChar, ViewElementState>,
     pub(crate) instances: TextInstances,

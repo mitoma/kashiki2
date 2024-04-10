@@ -23,6 +23,7 @@ use super::{
     view_element_state::{CaretStates, CharStates},
 };
 
+#[allow(dead_code)]
 pub struct CpuEasingConfig {
     duration: Duration,
     easing_func: fn(f32) -> f32,
@@ -89,6 +90,7 @@ pub struct TextEditConfig {
     pub(crate) max_col: usize,
     pub(crate) line_prohibited_chars: LineBoundaryProhibitedChars,
     pub(crate) min_bound: Point2<f32>,
+    #[allow(dead_code)]
     pub(crate) position_easing: CpuEasingConfig,
     pub(crate) char_easings: CharEasings,
     pub(crate) color_theme: ColorTheme,
