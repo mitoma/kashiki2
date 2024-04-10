@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cgmath::{Point2, Point3, Quaternion, Rotation3};
+use cgmath::{num_traits::ToPrimitive, Point2, Point3, Quaternion, Rotation3};
 use instant::Duration;
 use log::debug;
 use rand::Rng;
@@ -44,7 +44,6 @@ impl ViewElementState {
 
 #[derive(Default)]
 pub(crate) struct CharStates {
-    default_motion: MotionFlags,
     chars: BTreeMap<BufferChar, ViewElementState>,
     removed_chars: BTreeMap<BufferChar, ViewElementState>,
     pub(crate) instances: TextInstances,
@@ -56,6 +55,8 @@ impl CharStates {
         c: BufferChar,
         position: [f32; 3],
         color: [f32; 3],
+        counter: u32,
+        config: &TextEditConfig,
         device: &Device,
     ) {
         let mut easing_color = EasingPointN::new(color);
@@ -69,22 +70,40 @@ impl CharStates {
             base_color: ThemedColor::Text,
             color: easing_color,
             scale: EasingPointN::new([1.0, 1.0]),
-            motion_gain: EasingPointN::new([0.0]),
+            motion_gain: EasingPointN::new([config.char_easings.add_char.gain]),
         };
         self.chars.insert(c, state);
         let instance = GlyphInstance {
             color,
-            motion: self.default_motion,
+            start_time: now_millis() + counter,
+            motion: config.char_easings.add_char.motion,
+            duration: config.char_easings.add_char.duration,
             ..GlyphInstance::default()
         };
         self.instances.add(c.into(), instance, device);
     }
 
-    pub(crate) fn move_char(&mut self, from: BufferChar, to: BufferChar, device: &Device) {
-        if let Some(position) = self.chars.remove(&from) {
+    pub(crate) fn move_char(
+        &mut self,
+        from: BufferChar,
+        to: BufferChar,
+        counter: u32,
+        config: &TextEditConfig,
+        device: &Device,
+    ) {
+        if let Some(mut position) = self.chars.remove(&from) {
+            position
+                .motion_gain
+                .update([config.char_easings.move_char.gain]);
             self.chars.insert(to, position);
         }
-        if let Some(instance) = self.instances.remove(&from.into()) {
+        if let Some(mut instance) = self.instances.remove(&from.into()) {
+            instance.motion = config.char_easings.move_char.motion;
+            if instance.start_time + instance.duration.as_millis().to_u32().unwrap() < now_millis()
+            {
+                instance.start_time = now_millis() + counter * 10;
+            }
+            instance.duration = config.char_easings.move_char.duration;
             self.instances.add(to.into(), instance, device);
         }
     }
@@ -140,11 +159,24 @@ impl CharStates {
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar) {
+    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar, counter: u32, config: &TextEditConfig) {
         if let Some(mut state) = self.chars.remove(&c) {
-            state.position.add((0.0, -1.0, 0.0).into());
+            // アニメーション状態に強制的に有効にするために gain を 0 にしている。
+            // 本当はアニメーションが終わったらゴミ箱から消すという仕様が適切ではないのかもしれない
+            state.motion_gain.update([0.0]);
+            state
+                .motion_gain
+                .update([config.char_easings.remove_char.gain]);
             self.removed_chars.insert(c, state);
         }
+        if let Some(instance) = self.instances.get_mut(&c.into()) {
+            if instance.start_time + instance.duration.as_millis().to_u32().unwrap() < now_millis()
+            {
+                instance.start_time = now_millis() + counter * 10;
+            }
+            instance.motion = config.char_easings.remove_char.motion;
+            instance.duration = config.char_easings.remove_char.duration;
+        };
         self.instances.pre_remove(&c.into());
     }
 
@@ -229,6 +261,10 @@ pub(crate) struct CaretStates {
 }
 
 impl CaretStates {
+    pub(crate) fn main_caret_logical_position(&self) -> Option<[usize; 2]> {
+        self.main_caret.as_ref().map(|(c, _)| [c.row, c.col])
+    }
+
     pub(crate) fn main_caret_position(&self) -> Option<[f32; 3]> {
         self.main_caret.as_ref().map(|(_, s)| s.position.last())
     }

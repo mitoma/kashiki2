@@ -15,6 +15,7 @@ use crate::{
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
     layout_engine::{Model, ModelOperation, ModelOperationResult},
+    motion::{MotionDetail, MotionFlags, MotionTarget, MotionType},
 };
 
 use super::{
@@ -22,9 +23,64 @@ use super::{
     view_element_state::{CaretStates, CharStates},
 };
 
-pub struct EasingConfig {
+#[allow(dead_code)]
+pub struct CpuEasingConfig {
     duration: Duration,
     easing_func: fn(f32) -> f32,
+}
+
+pub(crate) struct GpuEasingConfig {
+    pub(crate) motion: MotionFlags,
+    pub(crate) duration: Duration,
+    pub(crate) gain: f32,
+}
+
+pub(crate) struct CharEasings {
+    pub(crate) add_char: GpuEasingConfig,
+    pub(crate) move_char: GpuEasingConfig,
+    pub(crate) remove_char: GpuEasingConfig,
+}
+
+impl Default for CharEasings {
+    fn default() -> Self {
+        Self {
+            add_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(
+                        crate::motion::EasingFuncType::Back,
+                        false,
+                    ))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 0.8,
+            },
+            move_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(
+                        crate::motion::EasingFuncType::Sin,
+                        false,
+                    ))
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 0.5,
+            },
+            remove_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(
+                        crate::motion::EasingFuncType::Bounce,
+                        false,
+                    ))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS | MotionTarget::STRETCH_X_MINUS)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 0.8,
+            },
+        }
+    }
 }
 
 pub struct TextEditConfig {
@@ -34,7 +90,9 @@ pub struct TextEditConfig {
     pub(crate) max_col: usize,
     pub(crate) line_prohibited_chars: LineBoundaryProhibitedChars,
     pub(crate) min_bound: Point2<f32>,
-    pub(crate) position_easing: EasingConfig,
+    #[allow(dead_code)]
+    pub(crate) position_easing: CpuEasingConfig,
+    pub(crate) char_easings: CharEasings,
     pub(crate) color_theme: ColorTheme,
     pub(crate) psychedelic: bool,
 }
@@ -48,10 +106,11 @@ impl Default for TextEditConfig {
             max_col: 40,
             line_prohibited_chars: LineBoundaryProhibitedChars::default(),
             min_bound: (10.0, 10.0).into(),
-            position_easing: EasingConfig {
+            position_easing: CpuEasingConfig {
                 duration: Duration::from_millis(800),
                 easing_func: nenobi::functions::sin_in_out,
             },
+            char_easings: CharEasings::default(),
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
         }
@@ -80,11 +139,7 @@ impl Default for TextEdit {
         let config = TextEditConfig::default();
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let mut position = EasingPointN::new([0.0, 0.0, 0.0]);
-        position.update_duration_and_easing_func(
-            config.position_easing.duration,
-            config.position_easing.easing_func,
-        );
+        let position = EasingPointN::new([0.0, 0.0, 0.0]);
         let bound = config.min_bound.into();
         Self {
             config,
@@ -264,6 +319,14 @@ impl TextEdit {
     // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。
     #[inline]
     fn sync_editor_events(&mut self, device: &wgpu::Device, color_theme: &ColorTheme) {
+        #[derive(Default)]
+        struct CharChangeCounter {
+            add_char: u32,
+            move_char: u32,
+            remove_char: u32,
+        }
+
+        let mut char_change_counter = CharChangeCounter::default();
         while let Ok(event) = self.receiver.try_recv() {
             self.text_updated = true;
             match event {
@@ -271,16 +334,43 @@ impl TextEdit {
                     let caret_pos = self
                         .caret_states
                         .main_caret_position()
-                        .map(|[x, y, z]| [x, y + 1.0, z])
-                        .unwrap_or_else(|| [0.0, 1.0, 0.0]);
-                    self.char_states
-                        .add_char(c, caret_pos, color_theme.text().get_color(), device);
+                        .unwrap_or([0.0, 1.0, 0.0]);
+                    self.char_states.add_char(
+                        c,
+                        caret_pos,
+                        color_theme.text().get_color(),
+                        char_change_counter.add_char,
+                        &self.config,
+                        device,
+                    );
+                    char_change_counter.add_char += 1;
                 }
                 ChangeEvent::MoveChar { from, to } => {
-                    self.char_states.move_char(from, to, device);
+                    if let Some([row, _col]) = self.caret_states.main_caret_logical_position() {
+                        if from.row == row || to.row == row {
+                            self.char_states.move_char(
+                                from,
+                                to,
+                                char_change_counter.move_char,
+                                &self.config,
+                                device,
+                            );
+                            char_change_counter.move_char += 1;
+                        } else {
+                            self.char_states
+                                .move_char(from, to, 0, &self.config, device);
+                        }
+                    }
+                    self.char_states
+                        .move_char(from, to, 0, &self.config, device);
                 }
                 ChangeEvent::RemoveChar(c) => {
-                    self.char_states.char_to_dustbox(c);
+                    self.char_states.char_to_dustbox(
+                        c,
+                        char_change_counter.remove_char,
+                        &self.config,
+                    );
+                    char_change_counter.remove_char += 1;
                 }
                 ChangeEvent::SelectChar(c) => self.char_states.select_char(c, &self.config),
                 ChangeEvent::UnSelectChar(c) => self.char_states.unselect_char(c, &self.config),
