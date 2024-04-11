@@ -13,12 +13,12 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{
         run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport,
+        SimpleStateSupport, WindowSize,
     },
     ui::{ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
-use winit::event::WindowEvent;
+use winit::{event::WindowEvent, window};
 
 const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
@@ -97,8 +97,8 @@ impl SimpleStateCallback for SingleCharCallback {
         self.update(glyph_vertex_buffer, context);
     }
 
-    fn resize(&mut self, width: u32, height: u32) {
-        self.world.change_window_size((width, height));
+    fn resize(&mut self, window_size: WindowSize) {
+        self.world.change_window_size(window_size);
     }
 
     fn update(

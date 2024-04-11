@@ -12,7 +12,7 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{
         generate_image_iter, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport,
+        SimpleStateSupport, WindowSize,
     },
     time::now_millis,
 };
@@ -148,9 +148,9 @@ impl SimpleStateCallback for SingleCharCallback {
         InputResult::Noop
     }
 
-    fn resize(&mut self, width: u32, height: u32) {
+    fn resize(&mut self, window_size: WindowSize) {
         self.camera_controller
-            .update_camera_aspect(&mut self.camera, width, height);
+            .update_camera_aspect(&mut self.camera, window_size);
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {

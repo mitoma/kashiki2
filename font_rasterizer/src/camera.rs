@@ -1,6 +1,6 @@
 use cgmath::{InnerSpace, Point3};
 
-use crate::{easing_value::EasingPointN, layout_engine::Model};
+use crate::{easing_value::EasingPointN, layout_engine::Model, support::WindowSize};
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -155,8 +155,8 @@ impl CameraController {
         self.next_target = None;
     }
 
-    pub fn update_camera_aspect(&self, camera: &mut Camera, width: u32, height: u32) {
-        camera.aspect = width as f32 / height as f32;
+    pub fn update_camera_aspect(&self, camera: &mut Camera, window_size: WindowSize) {
+        camera.aspect = window_size.width as f32 / window_size.height as f32;
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {

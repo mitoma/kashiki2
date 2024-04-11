@@ -8,7 +8,7 @@ use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
-    support::GlobalStateContext,
+    support::{GlobalStateContext, WindowSize},
 };
 
 // 画面全体を表す
@@ -43,7 +43,7 @@ pub trait World {
     // カメラを動かす
     fn camera_operation(&mut self, camera_operation: CameraOperation);
     // ウィンドウサイズ変更の通知を受け取る
-    fn change_window_size(&mut self, window_size: (u32, u32));
+    fn change_window_size(&mut self, window_size: WindowSize);
     // glyph_instances を返す
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
 
@@ -155,9 +155,9 @@ impl World for HorizontalWorld {
         }
     }
 
-    fn change_window_size(&mut self, window_size: (u32, u32)) {
+    fn change_window_size(&mut self, window_size: WindowSize) {
         self.camera_controller
-            .update_camera_aspect(&mut self.camera, window_size.0, window_size.1);
+            .update_camera_aspect(&mut self.camera, window_size);
     }
 
     fn camera_operation(&mut self, camera_operation: CameraOperation) {

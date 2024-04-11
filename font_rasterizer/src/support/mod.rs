@@ -24,6 +24,7 @@ use instant::Duration;
 
 use wgpu::InstanceDescriptor;
 use winit::{
+    dpi::PhysicalSize,
     event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::EventLoop,
     keyboard::{Key, NamedKey},
@@ -189,7 +190,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                                 }
                                 WindowEvent::Resized(physical_size) => {
                                     record_start_of_phase("state resize");
-                                    state.resize(*physical_size);
+                                    state.resize((*physical_size).into());
                                 }
                                 WindowEvent::ScaleFactorChanged { .. } => {
                                     // TODO スケールファクタ変更時に何かする？
@@ -242,7 +243,7 @@ pub enum InputResult {
 
 pub trait SimpleStateCallback {
     fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext);
-    fn resize(&mut self, width: u32, height: u32);
+    fn resize(&mut self, size: WindowSize);
     fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext);
     fn input(
         &mut self,
@@ -257,6 +258,22 @@ pub struct GlobalStateContext {
     pub queue: wgpu::Queue,
     pub(crate) char_width_calcurator: Arc<CharWidthCalculator>,
     pub color_theme: ColorTheme,
+    pub window_size: WindowSize,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct WindowSize {
+    pub width: u32,
+    pub height: u32,
+}
+
+impl From<PhysicalSize<u32>> for WindowSize {
+    fn from(size: PhysicalSize<u32>) -> Self {
+        Self {
+            width: size.width,
+            height: size.height,
+        }
+    }
 }
 
 pub struct SimpleState {
@@ -266,14 +283,12 @@ pub struct SimpleState {
 
     surface: wgpu::Surface<'static>,
     config: wgpu::SurfaceConfiguration,
-    size: winit::dpi::PhysicalSize<u32>,
 
     rasterizer_pipeline: RasterizerPipeline,
     glyph_vertex_buffer: GlyphVertexBuffer,
 
     simple_state_callback: Box<dyn SimpleStateCallback>,
 }
-
 impl SimpleState {
     pub async fn new(
         window: Arc<Window>,
@@ -282,7 +297,7 @@ impl SimpleState {
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
         font_binaries: Vec<FontData>,
     ) -> Self {
-        let size = window.inner_size();
+        let window_size = WindowSize::from(window.inner_size());
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
@@ -324,8 +339,8 @@ impl SimpleState {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
-            width: size.width,
-            height: size.height,
+            width: window_size.width,
+            height: window_size.height,
             present_mode: wgpu::PresentMode::Fifo,
             alpha_mode: wgpu::CompositeAlphaMode::Opaque,
             view_formats: vec![],
@@ -335,8 +350,8 @@ impl SimpleState {
 
         let rasterizer_pipeline = RasterizerPipeline::new(
             &device,
-            size.width,
-            size.height,
+            window_size.width,
+            window_size.height,
             config.format,
             quarity,
             color_theme.background().into(),
@@ -352,6 +367,7 @@ impl SimpleState {
             queue,
             char_width_calcurator,
             color_theme,
+            window_size,
         };
 
         simple_state_callback.init(&mut glyph_vertex_buffer, &context);
@@ -361,7 +377,6 @@ impl SimpleState {
 
             surface,
             config,
-            size,
             quarity,
 
             rasterizer_pipeline,
@@ -372,7 +387,7 @@ impl SimpleState {
     }
 
     pub fn redraw(&mut self) {
-        self.resize(self.size)
+        self.resize(self.context.window_size)
     }
 
     fn change_color_theme(&mut self, color_theme: ColorTheme) {
@@ -381,15 +396,14 @@ impl SimpleState {
         self.rasterizer_pipeline.bg_color = self.context.color_theme.background().into();
     }
 
-    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+    pub fn resize(&mut self, new_size: WindowSize) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.size = new_size;
+            self.context.window_size = new_size;
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.context.device, &self.config);
 
-            self.simple_state_callback
-                .resize(new_size.width, new_size.height);
+            self.simple_state_callback.resize(new_size);
 
             // サイズ変更時にはパイプラインを作り直す
             self.rasterizer_pipeline = RasterizerPipeline::new(
@@ -460,7 +474,6 @@ impl SimpleState {
 
 pub struct ImageState {
     context: GlobalStateContext,
-    size: winit::dpi::PhysicalSize<u32>,
 
     surface_texture: wgpu::Texture,
     output_buffer: wgpu::Buffer,
@@ -479,7 +492,7 @@ impl ImageState {
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
         font_binaries: Vec<FontData>,
     ) -> Self {
-        let size = winit::dpi::PhysicalSize {
+        let size = WindowSize {
             width: image_size.0,
             height: image_size.1,
         };
@@ -563,14 +576,14 @@ impl ImageState {
             queue,
             char_width_calcurator,
             color_theme,
+            window_size: size,
         };
 
         simple_state_callback.init(&mut glyph_vertex_buffer, &context);
-        simple_state_callback.resize(size.width, size.height);
+        simple_state_callback.resize(context.window_size);
 
         Self {
             context,
-            size,
 
             surface_texture,
             output_buffer,
@@ -588,6 +601,7 @@ impl ImageState {
     }
 
     pub fn render(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, wgpu::SurfaceError> {
+        let size = self.context.window_size;
         let mut encoder =
             self.context
                 .device
@@ -635,13 +649,13 @@ impl ImageState {
                 buffer: &self.output_buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(u32_size * self.size.width),
-                    rows_per_image: Some(self.size.height),
+                    bytes_per_row: Some(u32_size * size.width),
+                    rows_per_image: Some(size.height),
                 },
             },
             wgpu::Extent3d {
-                width: self.size.width,
-                height: self.size.height,
+                width: size.width,
+                height: size.height,
                 depth_or_array_layers: 1,
             },
         );
@@ -664,8 +678,7 @@ impl ImageState {
             let data = buffer_slice.get_mapped_range();
             let raw_data = data.to_vec();
 
-            ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(self.size.width, self.size.height, raw_data)
-                .unwrap()
+            ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(size.width, size.height, raw_data).unwrap()
         };
         self.output_buffer.unmap();
 

@@ -11,7 +11,7 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{
         run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport,
+        SimpleStateSupport, WindowSize,
     },
     ui::PlaneTextReader,
 };
@@ -84,8 +84,8 @@ impl SimpleStateCallback for SingleCharCallback {
         self.update(glyph_vertex_buffer, context);
     }
 
-    fn resize(&mut self, _width: u32, _height: u32) {
-        self.world.change_window_size((800, 600));
+    fn resize(&mut self, window_size: WindowSize) {
+        self.world.change_window_size(window_size);
     }
 
     fn update(

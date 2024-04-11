@@ -13,7 +13,7 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{
         run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport,
+        SimpleStateSupport, WindowSize,
     },
     time::set_clock_mode,
     ui::{caret_char, ime_input::ImeInput, textedit::TextEdit},
@@ -133,8 +133,8 @@ impl SimpleStateCallback for MemoPadCallback {
         self.world.look_at(0, CameraAdjustment::FitBoth);
     }
 
-    fn resize(&mut self, width: u32, height: u32) {
-        self.world.change_window_size((width, height));
+    fn resize(&mut self, window_size: WindowSize) {
+        self.world.change_window_size(window_size);
     }
 
     fn update(

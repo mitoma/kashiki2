@@ -9,7 +9,7 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{
         run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport,
+        SimpleStateSupport, WindowSize,
     },
 };
 use instant::Instant;
@@ -98,7 +98,7 @@ impl SimpleStateCallback for SingleCharCallback {
         InputResult::Noop
     }
 
-    fn resize(&mut self, _width: u32, _height: u32) {}
+    fn resize(&mut self, _window_size: WindowSize) {}
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
         (&self.camera, Vec::new())

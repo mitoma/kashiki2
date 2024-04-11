@@ -16,7 +16,7 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{
         run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport,
+        SimpleStateSupport, WindowSize,
     },
     ui::{single_line::SingleLine, split_preedit_string, PlaneTextReader},
 };
@@ -132,9 +132,9 @@ impl SimpleStateCallback for SingleCharCallback {
         );
     }
 
-    fn resize(&mut self, width: u32, height: u32) {
+    fn resize(&mut self, window_size: WindowSize) {
         self.camera_controller
-            .update_camera_aspect(&mut self.camera, width, height);
+            .update_camera_aspect(&mut self.camera, window_size);
     }
 
     fn update(
