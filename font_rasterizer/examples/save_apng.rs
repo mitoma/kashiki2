@@ -6,14 +6,12 @@ use cgmath::Rotation3;
 use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme,
+    context::{StateContext, WindowSize},
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{
-        generate_image_iter, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport, WindowSize,
-    },
+    support::{generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
 use log::{debug, info};
@@ -108,7 +106,7 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
+    fn init(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let value = GlyphInstance::new(
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
@@ -133,7 +131,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &GlobalStateContext,
+        context: &StateContext,
     ) {
         self.glyphs
             .iter_mut()

@@ -11,12 +11,12 @@ use text_buffer::{
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::ColorTheme,
+    context::StateContext,
     easing_value::EasingPointN,
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
     layout_engine::{Model, ModelOperation, ModelOperationResult},
     motion::{MotionDetail, MotionFlags, MotionTarget, MotionType},
-    support::GlobalStateContext,
 };
 
 use super::{
@@ -228,7 +228,7 @@ impl Model for TextEdit {
     fn update(
         &mut self,
         _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &GlobalStateContext,
+        context: &StateContext,
     ) {
         let color_theme = &context.color_theme;
         let device = &context.device;

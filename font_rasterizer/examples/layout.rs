@@ -4,15 +4,13 @@ use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment},
-    color_theme::ColorTheme::{self, SolarizedDark},
+    color_theme::ColorTheme::SolarizedDark,
+    context::{StateContext, WindowSize},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, World},
     rasterizer_pipeline::Quarity,
-    support::{
-        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport, WindowSize,
-    },
+    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     ui::PlaneTextReader,
 };
 use log::info;
@@ -80,7 +78,7 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         self.update(glyph_vertex_buffer, context);
     }
 
@@ -91,7 +89,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         mut glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &GlobalStateContext,
+        context: &StateContext,
     ) {
         self.world.re_layout();
         self.world.update(&mut glyph_vertex_buffer, context);

@@ -1,6 +1,7 @@
 pub mod camera;
 pub mod char_width_calcurator;
 pub mod color_theme;
+pub mod context;
 mod debug_mode;
 pub mod easing_value;
 pub mod font_buffer;

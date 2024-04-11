@@ -12,11 +12,11 @@ use text_buffer::caret::CaretType;
 
 use crate::{
     color_theme::ColorTheme,
+    context::StateContext,
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::{Model, ModelOperation, ModelOperationResult},
     motion::MotionFlags,
-    support::GlobalStateContext,
     time::now_millis,
 };
 
@@ -67,7 +67,7 @@ impl Model for PlaneTextReader {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &GlobalStateContext,
+        context: &StateContext,
     ) {
         let device = &context.device;
         let queue = &context.queue;

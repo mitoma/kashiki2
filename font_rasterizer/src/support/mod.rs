@@ -7,6 +7,7 @@ use crate::{
     camera::Camera,
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
+    context::{StateContext, WindowSize},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
@@ -24,7 +25,6 @@ use instant::Duration;
 
 use wgpu::InstanceDescriptor;
 use winit::{
-    dpi::PhysicalSize,
     event::{ElementState, Event, KeyEvent, WindowEvent},
     event_loop::EventLoop,
     keyboard::{Key, NamedKey},
@@ -242,9 +242,9 @@ pub enum InputResult {
 }
 
 pub trait SimpleStateCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext);
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext);
     fn resize(&mut self, size: WindowSize);
-    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext);
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext);
     fn input(
         &mut self,
         glyph_vertex_buffer: &GlyphVertexBuffer,
@@ -253,31 +253,8 @@ pub trait SimpleStateCallback {
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
 }
 
-pub struct GlobalStateContext {
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub(crate) char_width_calcurator: Arc<CharWidthCalculator>,
-    pub color_theme: ColorTheme,
-    pub window_size: WindowSize,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct WindowSize {
-    pub width: u32,
-    pub height: u32,
-}
-
-impl From<PhysicalSize<u32>> for WindowSize {
-    fn from(size: PhysicalSize<u32>) -> Self {
-        Self {
-            width: size.width,
-            height: size.height,
-        }
-    }
-}
-
 pub struct SimpleState {
-    context: GlobalStateContext,
+    context: StateContext,
 
     quarity: Quarity,
 
@@ -362,7 +339,7 @@ impl SimpleState {
         let mut glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
 
-        let context = GlobalStateContext {
+        let context = StateContext {
             device,
             queue,
             char_width_calcurator,
@@ -473,7 +450,7 @@ impl SimpleState {
 }
 
 pub struct ImageState {
-    context: GlobalStateContext,
+    context: StateContext,
 
     surface_texture: wgpu::Texture,
     output_buffer: wgpu::Buffer,
@@ -571,7 +548,7 @@ impl ImageState {
         let mut glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries.clone(), char_width_calcurator.clone());
 
-        let context = GlobalStateContext {
+        let context = StateContext {
             device,
             queue,
             char_width_calcurator,

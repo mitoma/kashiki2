@@ -10,14 +10,12 @@ use wasm_bindgen::prelude::*;
 use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme,
+    context::{StateContext, WindowSize},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{
-        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport, WindowSize,
-    },
+    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     ui::{single_line::SingleLine, split_preedit_string, PlaneTextReader},
 };
 use log::info;
@@ -107,7 +105,7 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         glyph_vertex_buffer
             .append_glyph(
                 &context.device,
@@ -140,7 +138,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &GlobalStateContext,
+        context: &StateContext,
     ) {
         let texts = self.editor.to_buffer_string();
         glyph_vertex_buffer

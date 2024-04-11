@@ -7,14 +7,12 @@ use text_buffer::action::EditorOperation;
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme,
+    context::{StateContext, WindowSize},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, Model, ModelOperation, World},
     rasterizer_pipeline::Quarity,
-    support::{
-        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport, WindowSize,
-    },
+    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::set_clock_mode,
     ui::{caret_char, ime_input::ImeInput, textedit::TextEdit},
 };
@@ -118,7 +116,7 @@ impl MemoPadCallback {
 }
 
 impl SimpleStateCallback for MemoPadCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let mut chars = self
             .world
             .strings()
@@ -140,7 +138,7 @@ impl SimpleStateCallback for MemoPadCallback {
     fn update(
         &mut self,
         glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &GlobalStateContext,
+        context: &StateContext,
     ) {
         // 入力などで新しい char が追加されたら、グリフバッファに追加する
         if !self.new_chars.is_empty() {

@@ -4,13 +4,11 @@ use font_collector::FontCollector;
 use font_rasterizer::{
     camera::Camera,
     color_theme::ColorTheme,
+    context::{StateContext, WindowSize},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
-    support::{
-        run_support, Flags, GlobalStateContext, InputResult, SimpleStateCallback,
-        SimpleStateSupport, WindowSize,
-    },
+    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
 };
 use instant::Instant;
 use winit::event::WindowEvent;
@@ -56,7 +54,7 @@ struct SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &GlobalStateContext) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let start = Instant::now();
         let _char_ranges = [
             'a'..='z',
@@ -86,7 +84,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn update(
         &mut self,
         _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _context: &GlobalStateContext,
+        _context: &StateContext,
     ) {
     }
 
