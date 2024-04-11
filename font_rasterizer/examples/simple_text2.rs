@@ -16,7 +16,7 @@ use font_rasterizer::{
     ui::{ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
-use winit::{event::WindowEvent, window};
+use winit::event::WindowEvent;
 
 const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
@@ -99,11 +99,7 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn update(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         self.world.update(glyph_vertex_buffer, context);
         self.ime.update(
             &context.color_theme,
