@@ -13,6 +13,7 @@ use wgpu::Device;
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
+    context::TextContext,
     easing_value::EasingPointN,
     font_buffer::Direction,
     instances::GlyphInstance,
@@ -21,7 +22,7 @@ use crate::{
     time::now_millis,
 };
 
-use super::{caret_char, textedit::TextEditConfig};
+use super::caret_char;
 
 struct ViewElementState {
     pub(crate) base_color: ThemedColor,
@@ -56,7 +57,7 @@ impl CharStates {
         position: [f32; 3],
         color: [f32; 3],
         counter: u32,
-        config: &TextEditConfig,
+        text_context: &TextContext,
         device: &Device,
     ) {
         let mut easing_color = EasingPointN::new(color);
@@ -70,14 +71,14 @@ impl CharStates {
             base_color: ThemedColor::Text,
             color: easing_color,
             scale: EasingPointN::new([1.0, 1.0]),
-            motion_gain: EasingPointN::new([config.char_easings.add_char.gain]),
+            motion_gain: EasingPointN::new([text_context.char_easings.add_char.gain]),
         };
         self.chars.insert(c, state);
         let instance = GlyphInstance {
             color,
             start_time: now_millis() + counter,
-            motion: config.char_easings.add_char.motion,
-            duration: config.char_easings.add_char.duration,
+            motion: text_context.char_easings.add_char.motion,
+            duration: text_context.char_easings.add_char.duration,
             ..GlyphInstance::default()
         };
         self.instances.add(c.into(), instance, device);
@@ -88,22 +89,22 @@ impl CharStates {
         from: BufferChar,
         to: BufferChar,
         counter: u32,
-        config: &TextEditConfig,
+        text_context: &TextContext,
         device: &Device,
     ) {
         if let Some(mut position) = self.chars.remove(&from) {
             position
                 .motion_gain
-                .update([config.char_easings.move_char.gain]);
+                .update([text_context.char_easings.move_char.gain]);
             self.chars.insert(to, position);
         }
         if let Some(mut instance) = self.instances.remove(&from.into()) {
-            instance.motion = config.char_easings.move_char.motion;
+            instance.motion = text_context.char_easings.move_char.motion;
             if instance.start_time + instance.duration.as_millis().to_u32().unwrap() < now_millis()
             {
                 instance.start_time = now_millis() + counter * 10;
             }
-            instance.duration = config.char_easings.move_char.duration;
+            instance.duration = text_context.char_easings.move_char.duration;
             self.instances.add(to.into(), instance, device);
         }
     }
@@ -132,7 +133,7 @@ impl CharStates {
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
         char_width_calcurator: &CharWidthCalculator,
-        text_edit_config: &TextEditConfig,
+        text_context: &TextContext,
     ) {
         // update chars
         for (c, i) in self.chars.iter_mut() {
@@ -140,7 +141,7 @@ impl CharStates {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
-                let char_rotation = calc_rotation(c.c, text_edit_config, char_width_calcurator);
+                let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
                 update_instance(instance, i, center, position, rotation, char_rotation);
             }
         }
@@ -152,21 +153,21 @@ impl CharStates {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
-                let char_rotation = calc_rotation(c.c, text_edit_config, char_width_calcurator);
+                let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
                 update_instance(instance, i, center, position, rotation, char_rotation);
             }
         }
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar, counter: u32, config: &TextEditConfig) {
+    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar, counter: u32, text_context: &TextContext) {
         if let Some(mut state) = self.chars.remove(&c) {
             // アニメーション状態に強制的に有効にするために gain を 0 にしている。
             // 本当はアニメーションが終わったらゴミ箱から消すという仕様が適切ではないのかもしれない
             state.motion_gain.update([0.0]);
             state
                 .motion_gain
-                .update([config.char_easings.remove_char.gain]);
+                .update([text_context.char_easings.remove_char.gain]);
             self.removed_chars.insert(c, state);
         }
         if let Some(instance) = self.instances.get_mut(&c.into()) {
@@ -174,8 +175,8 @@ impl CharStates {
             {
                 instance.start_time = now_millis() + counter * 10;
             }
-            instance.motion = config.char_easings.remove_char.motion;
-            instance.duration = config.char_easings.remove_char.duration;
+            instance.motion = text_context.char_easings.remove_char.motion;
+            instance.duration = text_context.char_easings.remove_char.duration;
         };
         self.instances.pre_remove(&c.into());
     }
@@ -192,8 +193,8 @@ impl CharStates {
         });
     }
 
-    pub(crate) fn set_motion_and_color(&mut self, text_edit_config: &TextEditConfig) {
-        if text_edit_config.psychedelic {
+    pub(crate) fn set_motion_and_color(&mut self, text_context: &TextContext) {
+        if text_context.psychedelic {
             for (c, i) in self.chars.iter_mut() {
                 if let Some(instance) = self.instances.get_mut(&(*c).into()) {
                     instance.motion = MotionFlags::random_motion();
@@ -215,7 +216,7 @@ impl CharStates {
                         _ => ThemedColor::Text,
                     };
                     i.color
-                        .update(i.base_color.get_color(&text_edit_config.color_theme));
+                        .update(i.base_color.get_color(&text_context.color_theme));
                 }
             }
         } else {
@@ -223,30 +224,30 @@ impl CharStates {
                 i.motion_gain.update([0.0]);
                 i.base_color = ThemedColor::Text;
                 i.color
-                    .update(i.base_color.get_color(&text_edit_config.color_theme));
+                    .update(i.base_color.get_color(&text_context.color_theme));
             }
         }
     }
 
-    pub(crate) fn select_char(&mut self, c: BufferChar, text_edit_config: &TextEditConfig) {
+    pub(crate) fn select_char(&mut self, c: BufferChar, text_context: &TextContext) {
         debug!("select_char: {:?}", c);
         let _ = self.chars.get_mut(&c).map(|state| {
             state.in_selection = true;
             state.color.update(
                 state
                     .base_color
-                    .get_selection_color(&text_edit_config.color_theme),
+                    .get_selection_color(&text_context.color_theme),
             );
         });
     }
 
-    pub(crate) fn unselect_char(&mut self, c: BufferChar, text_edit_config: &TextEditConfig) {
+    pub(crate) fn unselect_char(&mut self, c: BufferChar, text_context: &TextContext) {
         debug!("unselect_char: {:?}", c);
         let _ = self.chars.get_mut(&c).map(|state| {
             state.in_selection = false;
             state
                 .color
-                .update(state.base_color.get_color(&text_edit_config.color_theme));
+                .update(state.base_color.get_color(&text_context.color_theme));
         });
     }
 }
@@ -350,7 +351,7 @@ impl CaretStates {
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
         char_width_calcurator: &CharWidthCalculator,
-        text_edit_config: &TextEditConfig,
+        text_context: &TextContext,
     ) {
         // update caret
         if let Some((c, i)) = self.main_caret.as_mut() {
@@ -365,7 +366,7 @@ impl CaretStates {
                     rotation,
                     calc_rotation(
                         caret_char(c.caret_type),
-                        text_edit_config,
+                        text_context,
                         char_width_calcurator,
                     ),
                 );
@@ -383,7 +384,7 @@ impl CaretStates {
                     rotation,
                     calc_rotation(
                         caret_char(c.caret_type),
-                        text_edit_config,
+                        text_context,
                         char_width_calcurator,
                     ),
                 );
@@ -409,7 +410,7 @@ impl CaretStates {
                     rotation,
                     calc_rotation(
                         caret_char(c.caret_type),
-                        text_edit_config,
+                        text_context,
                         char_width_calcurator,
                     ),
                 );
@@ -456,10 +457,10 @@ fn update_instance(
 #[inline]
 fn calc_rotation(
     c: char,
-    text_edit_config: &TextEditConfig,
+    text_context: &TextContext,
     char_width_calcurator: &CharWidthCalculator,
 ) -> Option<Quaternion<f32>> {
-    match text_edit_config.direction {
+    match text_context.direction {
         Direction::Horizontal => None,
         Direction::Vertical => {
             let width = char_width_calcurator.get_width(c);

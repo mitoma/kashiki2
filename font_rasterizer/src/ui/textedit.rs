@@ -1,22 +1,20 @@
 use std::sync::mpsc::Receiver;
 
-use cgmath::{Point2, Point3, Quaternion, Rotation3};
+use cgmath::{Point3, Quaternion, Rotation3};
 
-use instant::Duration;
 use text_buffer::{
     caret::CaretType,
-    editor::{ChangeEvent, Editor, LineBoundaryProhibitedChars, PhisicalLayout},
+    editor::{ChangeEvent, Editor, PhisicalLayout},
 };
 
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::ColorTheme,
-    context::StateContext,
+    context::{StateContext, TextContext},
     easing_value::EasingPointN,
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
     layout_engine::{Model, ModelOperation, ModelOperationResult},
-    motion::{MotionDetail, MotionFlags, MotionTarget, MotionType},
 };
 
 use super::{
@@ -24,102 +22,8 @@ use super::{
     view_element_state::{CaretStates, CharStates},
 };
 
-#[allow(dead_code)]
-pub struct CpuEasingConfig {
-    duration: Duration,
-    easing_func: fn(f32) -> f32,
-}
-
-pub(crate) struct GpuEasingConfig {
-    pub(crate) motion: MotionFlags,
-    pub(crate) duration: Duration,
-    pub(crate) gain: f32,
-}
-
-pub(crate) struct CharEasings {
-    pub(crate) add_char: GpuEasingConfig,
-    pub(crate) move_char: GpuEasingConfig,
-    pub(crate) remove_char: GpuEasingConfig,
-}
-
-impl Default for CharEasings {
-    fn default() -> Self {
-        Self {
-            add_char: GpuEasingConfig {
-                motion: MotionFlags::builder()
-                    .motion_type(MotionType::EaseOut(
-                        crate::motion::EasingFuncType::Back,
-                        false,
-                    ))
-                    .motion_detail(MotionDetail::TO_CURRENT)
-                    .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
-                    .build(),
-                duration: Duration::from_millis(500),
-                gain: 0.8,
-            },
-            move_char: GpuEasingConfig {
-                motion: MotionFlags::builder()
-                    .motion_type(MotionType::EaseInOut(
-                        crate::motion::EasingFuncType::Sin,
-                        false,
-                    ))
-                    .motion_detail(MotionDetail::TURN_BACK)
-                    .motion_target(MotionTarget::MOVE_Y_PLUS)
-                    .build(),
-                duration: Duration::from_millis(300),
-                gain: 0.5,
-            },
-            remove_char: GpuEasingConfig {
-                motion: MotionFlags::builder()
-                    .motion_type(MotionType::EaseOut(
-                        crate::motion::EasingFuncType::Bounce,
-                        false,
-                    ))
-                    .motion_target(MotionTarget::MOVE_Y_MINUS | MotionTarget::STRETCH_X_MINUS)
-                    .build(),
-                duration: Duration::from_millis(500),
-                gain: 0.8,
-            },
-        }
-    }
-}
-
-pub struct TextEditConfig {
-    pub(crate) direction: Direction,
-    pub(crate) row_interval: f32,
-    pub(crate) col_interval: f32,
-    pub(crate) max_col: usize,
-    pub(crate) line_prohibited_chars: LineBoundaryProhibitedChars,
-    pub(crate) min_bound: Point2<f32>,
-    #[allow(dead_code)]
-    pub(crate) position_easing: CpuEasingConfig,
-    pub(crate) char_easings: CharEasings,
-    pub(crate) color_theme: ColorTheme,
-    pub(crate) psychedelic: bool,
-}
-
-impl Default for TextEditConfig {
-    fn default() -> Self {
-        Self {
-            direction: Direction::Horizontal,
-            row_interval: 1.0,
-            col_interval: 0.7,
-            max_col: 40,
-            line_prohibited_chars: LineBoundaryProhibitedChars::default(),
-            min_bound: (10.0, 10.0).into(),
-            position_easing: CpuEasingConfig {
-                duration: Duration::from_millis(800),
-                easing_func: nenobi::functions::sin_in_out,
-            },
-            char_easings: CharEasings::default(),
-            color_theme: ColorTheme::SolarizedDark,
-            psychedelic: false,
-        }
-    }
-}
-
 pub struct TextEdit {
-    config: TextEditConfig,
+    config: TextContext,
 
     editor: Editor,
     receiver: Receiver<ChangeEvent>,
@@ -137,7 +41,7 @@ pub struct TextEdit {
 
 impl Default for TextEdit {
     fn default() -> Self {
-        let config = TextEditConfig::default();
+        let config = TextContext::default();
         let (tx, rx) = std::sync::mpsc::channel();
 
         let position = EasingPointN::new([0.0, 0.0, 0.0]);
@@ -225,11 +129,7 @@ impl Model for TextEdit {
         .concat()
     }
 
-    fn update(
-        &mut self,
-        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let color_theme = &context.color_theme;
         let device = &context.device;
         let queue = &context.queue;
@@ -470,7 +370,7 @@ impl TextEdit {
 
     #[inline]
     fn get_adjusted_position(
-        config: &TextEditConfig,
+        config: &TextContext,
         char_width: CharWidth,
         [bound_x, _bound_y]: [f32; 2],
         [x, y]: [usize; 2],
