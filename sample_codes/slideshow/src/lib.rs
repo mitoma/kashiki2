@@ -114,11 +114,7 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn update(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         self.world.re_layout();
         self.world.update(glyph_vertex_buffer, context);
     }

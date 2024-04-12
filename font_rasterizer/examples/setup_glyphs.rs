@@ -81,12 +81,7 @@ impl SimpleStateCallback for SingleCharCallback {
         println!("init: {:?}", end - start);
     }
 
-    fn update(
-        &mut self,
-        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _context: &StateContext,
-    ) {
-    }
+    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, _context: &StateContext) {}
 
     fn input(
         &mut self,

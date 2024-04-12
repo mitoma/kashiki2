@@ -139,11 +139,7 @@ impl World for HorizontalWorld {
             .collect()
     }
 
-    fn update(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let range = self.get_surrounding_model_range();
         for model in self.models[range].iter_mut() {
             model.update(glyph_vertex_buffer, context);

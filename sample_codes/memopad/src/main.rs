@@ -135,11 +135,7 @@ impl SimpleStateCallback for MemoPadCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn update(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         // 入力などで新しい char が追加されたら、グリフバッファに追加する
         if !self.new_chars.is_empty() {
             let new_chars = self.new_chars.clone();

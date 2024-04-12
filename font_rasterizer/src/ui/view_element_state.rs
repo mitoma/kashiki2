@@ -160,7 +160,12 @@ impl CharStates {
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar, counter: u32, text_context: &TextContext) {
+    pub(crate) fn char_to_dustbox(
+        &mut self,
+        c: BufferChar,
+        counter: u32,
+        text_context: &TextContext,
+    ) {
         if let Some(mut state) = self.chars.remove(&c) {
             // アニメーション状態に強制的に有効にするために gain を 0 にしている。
             // 本当はアニメーションが終わったらゴミ箱から消すという仕様が適切ではないのかもしれない

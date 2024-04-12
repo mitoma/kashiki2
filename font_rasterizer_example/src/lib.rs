@@ -110,11 +110,7 @@ impl SimpleStateCallback for SingleCharCallback {
         self.glyphs.push(instance);
     }
 
-    fn update(
-        &mut self,
-        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         self.glyphs
             .iter_mut()
             .for_each(|i| i.update_buffer(&context.device, &context.queue));

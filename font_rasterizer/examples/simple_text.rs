@@ -135,11 +135,7 @@ impl SimpleStateCallback for SingleCharCallback {
             .update_camera_aspect(&mut self.camera, window_size);
     }
 
-    fn update(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let texts = self.editor.to_buffer_string();
         glyph_vertex_buffer
             .append_glyph(&context.device, &context.queue, texts.chars().collect())

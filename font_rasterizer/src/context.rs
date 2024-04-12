@@ -5,7 +5,12 @@ use instant::Duration;
 use text_buffer::editor::LineBoundaryProhibitedChars;
 use winit::dpi::PhysicalSize;
 
-use crate::{char_width_calcurator::CharWidthCalculator, color_theme::ColorTheme, font_buffer::Direction, motion::{MotionDetail, MotionFlags, MotionTarget, MotionType}};
+use crate::{
+    char_width_calcurator::CharWidthCalculator,
+    color_theme::ColorTheme,
+    font_buffer::Direction,
+    motion::{MotionDetail, MotionFlags, MotionTarget, MotionType},
+};
 
 pub struct StateContext {
     pub device: wgpu::Device,

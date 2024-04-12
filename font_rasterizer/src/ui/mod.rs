@@ -64,11 +64,7 @@ impl Model for PlaneTextReader {
         self.get_instances()
     }
 
-    fn update(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let device = &context.device;
         let queue = &context.queue;
         let color_theme = &context.color_theme;
