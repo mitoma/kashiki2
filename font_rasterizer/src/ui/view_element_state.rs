@@ -453,6 +453,7 @@ fn update_instance(
 
     // set rotation
     // 縦書きの場合は char_rotation が必要なのでここで回転する
+    // TODO: rotation を変更したときに vertex shader での motion も考慮する必要がある
     instance.rotation = match char_rotation {
         Some(r) => *rotation * r,
         None => *rotation,
