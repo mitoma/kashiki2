@@ -62,9 +62,9 @@ pub struct HorizontalWorld {
 }
 
 impl HorizontalWorld {
-    pub fn new(width: u32, height: u32) -> Self {
+    pub fn new(window_size: WindowSize) -> Self {
         Self {
-            camera: Camera::basic((width, height)),
+            camera: Camera::basic(window_size),
             camera_controller: CameraController::new(10.0),
             models: Vec::new(),
             focus: 0,

@@ -26,6 +26,16 @@ pub struct WindowSize {
     pub height: u32,
 }
 
+impl WindowSize {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self { width, height }
+    }
+
+    pub fn aspect(&self) -> f32 {
+        self.width as f32 / self.height as f32
+    }
+}
+
 impl From<PhysicalSize<u32>> for WindowSize {
     fn from(size: PhysicalSize<u32>) -> Self {
         Self {

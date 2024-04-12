@@ -60,11 +60,12 @@ pub async fn run() {
     );
 
     set_clock_mode(font_rasterizer::time::ClockMode::StepByStep);
-    let callback = MemoPadCallback::new();
+    let window_size = WindowSize::new(800, 600);
+    let callback = MemoPadCallback::new(window_size);
     let support = SimpleStateSupport {
         window_icon: icon,
         window_title: "Memopad".to_string(),
-        window_size: (800, 600),
+        window_size,
         callback: Box::new(callback),
         quarity: Quarity::CappedVeryHigh((1920.0 * 1.5) as u32, (1200.0 * 1.5) as u32),
         color_theme: COLOR_THEME,
@@ -82,7 +83,7 @@ struct MemoPadCallback {
 }
 
 impl MemoPadCallback {
-    fn new() -> Self {
+    fn new(window_size: WindowSize) -> Self {
         let mut store: ActionStore = Default::default();
         let key_setting = include_str!("key-settings.txt");
         info!("{}", key_setting);
@@ -92,7 +93,7 @@ impl MemoPadCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let ime = ImeInput::new();
 
-        let mut world = Box::new(HorizontalWorld::new(800, 600));
+        let mut world = Box::new(HorizontalWorld::new(window_size));
         let memos = load_memos();
         for memo in memos.memos {
             let mut textedit = TextEdit::default();

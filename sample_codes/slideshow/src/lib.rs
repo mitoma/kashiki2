@@ -32,11 +32,12 @@ pub async fn run() {
             .unwrap(),
     ];
 
-    let callback = SingleCharCallback::new();
+    let window_size = WindowSize::new(800, 600);
+    let callback = SingleCharCallback::new(window_size);
     let support = SimpleStateSupport {
         window_icon: None,
         window_title: "スライドデモ".to_string(),
-        window_size: (800, 600),
+        window_size,
         callback: Box::new(callback),
         quarity: Quarity::High,
         color_theme: ColorTheme::SolarizedDark,
@@ -51,8 +52,8 @@ struct SingleCharCallback {
 }
 
 impl SingleCharCallback {
-    fn new() -> Self {
-        let mut world = Box::new(HorizontalWorld::new(800, 600));
+    fn new(window_size: WindowSize) -> Self {
+        let mut world = Box::new(HorizontalWorld::new(window_size));
         let slide = include_str!("slide.md");
 
         let parser = pulldown_cmark::Parser::new(slide);

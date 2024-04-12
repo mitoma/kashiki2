@@ -46,7 +46,7 @@ bitflags! {
 pub struct SimpleStateSupport {
     pub window_icon: Option<Icon>,
     pub window_title: String,
-    pub window_size: (u16, u16),
+    pub window_size: WindowSize,
     pub callback: Box<dyn SimpleStateCallback>,
     pub quarity: Quarity,
     pub color_theme: ColorTheme,
@@ -70,8 +70,8 @@ pub async fn run_support(support: SimpleStateSupport) {
         .with_window_icon(support.window_icon)
         .with_title(support.window_title)
         .with_inner_size(winit::dpi::LogicalSize {
-            width: support.window_size.0,
-            height: support.window_size.1,
+            width: support.window_size.width,
+            height: support.window_size.height,
         })
         .with_transparent(support.flags.contains(Flags::TRANCEPARENT))
         .with_decorations(!support.flags.contains(Flags::NO_TITLEBAR))
@@ -674,7 +674,7 @@ pub async fn generate_images<F>(
 {
     set_clock_mode(ClockMode::Fixed);
     let mut state = ImageState::new(
-        (support.window_size.0 as u32, support.window_size.1 as u32),
+        (support.window_size.width, support.window_size.height),
         support.quarity,
         support.color_theme,
         support.callback,
@@ -701,7 +701,7 @@ pub async fn generate_image_iter(
 ) -> impl Iterator<Item = (ImageBuffer<Rgba<u8>, Vec<u8>>, u32)> {
     set_clock_mode(ClockMode::Fixed);
     let mut state = ImageState::new(
-        (support.window_size.0 as u32, support.window_size.1 as u32),
+        (support.window_size.width, support.window_size.height),
         support.quarity,
         support.color_theme,
         support.callback,
