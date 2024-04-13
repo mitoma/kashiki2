@@ -290,6 +290,7 @@ impl Editor {
     }
 }
 
+// 画面表示の都合の折り返しや禁則文字を考慮した文字列のレイアウトを表す構造体
 #[derive(Debug)]
 pub struct PhisicalLayout {
     pub chars: Vec<(BufferChar, PhisicalPosition)>,
