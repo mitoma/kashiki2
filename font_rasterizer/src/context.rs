@@ -61,6 +61,8 @@ pub(crate) struct CharEasings {
     pub(crate) add_char: GpuEasingConfig,
     pub(crate) move_char: GpuEasingConfig,
     pub(crate) remove_char: GpuEasingConfig,
+    pub(crate) select_char: GpuEasingConfig,
+    pub(crate) unselect_char: GpuEasingConfig,
 }
 
 impl Default for CharEasings {
@@ -100,6 +102,28 @@ impl Default for CharEasings {
                     .build(),
                 duration: Duration::from_millis(500),
                 gain: 0.8,
+            },
+            select_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(
+                        crate::motion::EasingFuncType::Sin,
+                        false,
+                    ))
+                    .motion_target(MotionTarget::ROTATE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 1.0,
+            },
+            unselect_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(
+                        crate::motion::EasingFuncType::Sin,
+                        false,
+                    ))
+                    .motion_target(MotionTarget::ROTATE_Y_MINUX)
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 1.0,
             },
         }
     }
