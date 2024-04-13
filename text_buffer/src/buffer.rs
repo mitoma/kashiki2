@@ -103,13 +103,16 @@ impl Buffer {
                 if let Some(line) = self.lines.get(caret.row) {
                     let mut chars = line.chars.iter().rev().skip(line.chars.len() - caret.col);
                     let mut next_col = caret.col;
-                    let start_char_type = CharType::from_char(chars.next().unwrap().c);
+                    let mut current_char_type = CharType::from_char(chars.next().unwrap().c);
                     for c in chars {
                         next_col -= 1;
-                        if start_char_type != CharType::from_char(c.c) {
-                            caret.move_to(caret.row, next_col, &self.sender);
-                            return;
+                        let next_char_type = CharType::from_char(c.c);
+                        if current_char_type.skip_word(&next_char_type) {
+                            current_char_type = next_char_type;
+                            continue;
                         }
+                        caret.move_to(caret.row, next_col, &self.sender);
+                        return;
                     }
                     // ループを抜けた場合は行頭にいく
                     self.head(caret);
@@ -147,13 +150,16 @@ impl Buffer {
                 if let Some(line) = self.lines.get(caret.row) {
                     let mut chars = line.chars.iter().skip(caret.col);
                     let mut next_col = caret.col;
-                    let start_char_type = CharType::from_char(chars.next().unwrap().c);
+                    let mut current_char_type = CharType::from_char(chars.next().unwrap().c);
                     for c in chars {
                         next_col += 1;
-                        if start_char_type != CharType::from_char(c.c) {
-                            caret.move_to(caret.row, next_col, &self.sender);
-                            return;
+                        let next_char_type = CharType::from_char(c.c);
+                        if current_char_type.skip_word(&next_char_type) {
+                            current_char_type = next_char_type;
+                            continue;
                         }
+                        caret.move_to(caret.row, next_col, &self.sender);
+                        return;
                     }
                     // ループを抜けた場合は行末にいく
                     self.last(caret);
@@ -301,6 +307,25 @@ impl CharType {
                 '一'..='龥' => Self::Kanji,
                 _ => Self::Other,
             }
+        }
+    }
+
+    fn skip_word(&self, next: &Self) -> bool {
+        match (self, next) {
+            // 同じ文字種の場合はスキップ
+            (left, right) if left == right => true,
+            // 空白文字からほかの文字種は区切る
+            (Self::Whitespace, _) => false,
+            // 他の文字種から空白文字はスキップ
+            (_, Self::Whitespace) => true,
+            // 平仮名からほかの文字種は区切る
+            (Self::Hiragana, _) => false,
+            // カタカナから平仮名はスキップ
+            (Self::Katakana, Self::Hiragana) => true,
+            // 漢字から平仮名、カタカナはスキップ
+            (Self::Kanji, Self::Hiragana) => true,
+            (Self::Kanji, Self::Katakana) => true,
+            _ => false,
         }
     }
 }
