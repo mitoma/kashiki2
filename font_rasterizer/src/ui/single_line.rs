@@ -4,8 +4,8 @@ use cgmath::Rotation3;
 use instant::Duration;
 
 use crate::{
-    color_theme::ColorTheme,
-    font_buffer::GlyphVertexBuffer,
+    char_width_calcurator::CharWidthCalculator,
+    context::StateContext,
     instances::{GlyphInstance, GlyphInstances},
     motion::MotionFlags,
     time::now_millis,
@@ -34,11 +34,11 @@ impl SingleLine {
         }
     }
 
-    pub fn bound(&self, glyph_vertex_buffer: &GlyphVertexBuffer) -> (f32, f32) {
+    fn bound(&self, char_width_calcurator: &CharWidthCalculator) -> (f32, f32) {
         let width = self
             .value
             .chars()
-            .map(|c| glyph_vertex_buffer.width(c).to_f32())
+            .map(|c| char_width_calcurator.get_width(c).to_f32())
             .sum();
         (width, 1.0)
     }
@@ -73,13 +73,7 @@ impl SingleLine {
         self.instances.values().collect()
     }
 
-    pub fn generate_instances(
-        &mut self,
-        color_theme: &ColorTheme,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) -> Vec<&GlyphInstances> {
+    pub fn generate_instances(&mut self, context: &StateContext) -> Vec<&GlyphInstances> {
         if !self.updated {
             return self.instances.values().collect();
         }
@@ -87,7 +81,7 @@ impl SingleLine {
         self.instances.clear();
         self.updated = false;
 
-        let (width, _height) = self.bound(glyph_vertex_buffer);
+        let (width, _height) = self.bound(&context.char_width_calcurator);
         let initial_x = (-width / 2.0) + 0.5;
 
         // 横幅が固定の時にはスケールを変更して画面内に収まるように心がける
@@ -101,12 +95,12 @@ impl SingleLine {
         let mut x: f32 = initial_x;
         let y_pos = -0.3 / self.scale[1];
         for c in self.value.chars() {
-            let char_width = glyph_vertex_buffer.width(c);
+            let char_width = context.char_width_calcurator.get_width(c);
             x += char_width.left();
 
             self.instances
                 .entry(c)
-                .or_insert_with(|| GlyphInstances::new(c, device));
+                .or_insert_with(|| GlyphInstances::new(c, &context.device));
             let instance = self.instances.get_mut(&c).unwrap();
             let i = GlyphInstance::new(
                 cgmath::Vector3 {
@@ -116,7 +110,7 @@ impl SingleLine {
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
                 [x_scale, self.scale[1]],
-                get_color(color_theme, c),
+                get_color(&context.color_theme, c),
                 self.motion,
                 now_millis(),
                 0.5,
@@ -128,7 +122,7 @@ impl SingleLine {
         }
         self.instances
             .values_mut()
-            .for_each(|i| i.update_buffer(device, queue));
+            .for_each(|i| i.update_buffer(&context.device, &context.queue));
         self.instances.values().collect()
     }
 }
