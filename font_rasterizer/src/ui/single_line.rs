@@ -87,6 +87,8 @@ impl SingleLine {
         // 横幅が固定の時にはスケールを変更して画面内に収まるように心がける
         let mut x_scale = self.scale[0];
         if let Some(fixed_width) = self.width {
+            // 画面のアスペクト比を考慮して横幅を調整
+            let fixed_width = fixed_width * context.window_size.aspect();
             if x_scale > fixed_width / width {
                 x_scale = fixed_width / width;
             }
