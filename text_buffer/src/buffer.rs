@@ -76,23 +76,89 @@ impl Buffer {
 
     pub(crate) fn back(&mut self, caret: &mut Caret) {
         match (self.is_line_head(caret), self.is_buffer_head(caret)) {
+            // 行頭かつバッファの先頭であればなにもしない
             (true, true) => {}
+            // 行頭であれば前の行の末尾に移動
             (true, false) => {
                 self.previous(caret);
                 self.last(caret);
             }
+            // 行頭でなければ前の文字に移動
             (false, true) | (false, false) => caret.move_to(caret.row, caret.col - 1, &self.sender),
+        }
+    }
+
+    pub(crate) fn back_word(&mut self, caret: &mut Caret) {
+        match (self.is_line_head(caret), self.is_buffer_head(caret)) {
+            // 行頭かつバッファの先頭であればなにもしない
+            (true, true) => {}
+            // 行頭であれば前の行の末尾に移動
+            (true, false) => {
+                self.previous(caret);
+                self.last(caret);
+            }
+            // 行頭でなければ前のワードに移動
+            (false, true) | (false, false) => {
+                // 前の word の先頭に移動する
+                if let Some(line) = self.lines.get(caret.row) {
+                    let mut chars = line.chars.iter().rev().skip(line.chars.len() - caret.col);
+                    let mut next_col = caret.col;
+                    let start_char_type = CharType::from_char(chars.next().unwrap().c);
+                    while let Some(c) = chars.next() {
+                        next_col -= 1;
+                        if start_char_type != CharType::from_char(c.c) {
+                            caret.move_to(caret.row, next_col, &self.sender);
+                            return;
+                        }
+                    }
+                    // ループを抜けた場合は行頭にいく
+                    self.head(caret);
+                }
+            },
         }
     }
 
     pub(crate) fn forward(&mut self, caret: &mut Caret) {
         match (self.is_line_last(caret), self.is_buffer_last(caret)) {
+            // 行末かつバッファの最後であればなにもしない
             (true, true) => {}
+            // 行末であれば次の行の先頭に移動
             (true, false) => {
                 self.next(caret);
                 self.head(caret);
             }
+            // 行末でなければ次の文字に移動
             (false, true) | (false, false) => caret.move_to(caret.row, caret.col + 1, &self.sender),
+        }
+    }
+
+    pub(crate) fn forward_word(&mut self, caret: &mut Caret) {
+        match (self.is_line_last(caret), self.is_buffer_last(caret)) {
+            // 行末かつバッファの最後であればなにもしない
+            (true, true) => {}
+            // 行末であれば次の行の先頭に移動
+            (true, false) => {
+                self.next(caret);
+                self.head(caret);
+            }
+            // 行末でなければ次のワードに移動
+            (false, true) | (false, false) => {
+                // 次の word の先頭に移動する
+                if let Some(line) = self.lines.get(caret.row) {
+                    let mut chars = line.chars.iter().skip(caret.col);
+                    let mut next_col = caret.col;
+                    let start_char_type = CharType::from_char(chars.next().unwrap().c);
+                    while let Some(c) = chars.next() {
+                        next_col += 1;
+                        if start_char_type != CharType::from_char(c.c) {
+                            caret.move_to(caret.row, next_col, &self.sender);
+                            return;
+                        }
+                    }
+                    // ループを抜けた場合は行末にいく
+                    self.last(caret);
+                }
+            }
         }
     }
 
@@ -206,6 +272,36 @@ impl Buffer {
             }
         }
         result
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum CharType {
+    Whitespace,
+    AsciiDigit,
+    Alphabet,
+    Hiragana,
+    Katakana,
+    Kanji,
+    Other,
+}
+
+impl CharType {
+    fn from_char(c: char) -> Self {
+        if c.is_whitespace() {
+            Self::Whitespace
+        } else if c.is_ascii_digit() {
+            Self::AsciiDigit
+        } else if c.is_ascii_alphabetic() {
+            Self::Alphabet
+        } else {
+            match c {
+                'ぁ'..='ん' => Self::Hiragana,
+                'ァ'..='ン' => Self::Katakana,
+                '一'..='龥' => Self::Kanji,
+                _ => Self::Other,
+            }
+        }
     }
 }
 
@@ -363,6 +459,17 @@ mod tests {
     use crate::{caret::CaretType, editor::ChangeEvent};
 
     use super::*;
+
+    #[test]
+    fn char_type_from_char() {
+        assert_eq!(CharType::from_char(' '), CharType::Whitespace);
+        assert_eq!(CharType::from_char('a'), CharType::Alphabet);
+        assert_eq!(CharType::from_char('1'), CharType::AsciiDigit);
+        assert_eq!(CharType::from_char('あ'), CharType::Hiragana);
+        assert_eq!(CharType::from_char('ア'), CharType::Katakana);
+        assert_eq!(CharType::from_char('一'), CharType::Kanji);
+        assert_eq!(CharType::from_char('!'), CharType::Other);
+    }
 
     #[test]
     fn buffer() {

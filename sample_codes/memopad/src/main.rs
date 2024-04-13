@@ -181,6 +181,8 @@ impl SimpleStateCallback for MemoPadCallback {
                         "next" => EditorOperation::Next,
                         "back" => EditorOperation::Back,
                         "forward" => EditorOperation::Forward,
+                        "back-word" => EditorOperation::BackWord,
+                        "forward-word" => EditorOperation::ForwardWord,
                         "head" => EditorOperation::Head,
                         "last" => EditorOperation::Last,
                         "undo" => EditorOperation::Undo,
