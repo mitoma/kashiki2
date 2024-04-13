@@ -67,7 +67,7 @@ pub async fn run() {
         window_title: "Memopad".to_string(),
         window_size,
         callback: Box::new(callback),
-        quarity: Quarity::CappedVeryHigh((1920.0 * 1.5) as u32, (1200.0 * 1.5) as u32),
+        quarity: Quarity::CappedVeryHigh(1920 * 2, 1200 * 2),
         color_theme: COLOR_THEME,
         flags: Flags::DEFAULT,
         font_binaries,
