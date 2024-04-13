@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use cgmath::{num_traits::ToPrimitive, Point2, Point3, Quaternion, Rotation3};
 use instant::Duration;
-use log::debug;
 use rand::Rng;
 use text_buffer::{
     buffer::BufferChar,
