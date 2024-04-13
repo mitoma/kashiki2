@@ -146,7 +146,7 @@ impl SimpleStateCallback for MemoPadCallback {
             self.new_chars.clear();
         }
         self.world.update(glyph_vertex_buffer, context);
-        self.ime.update(&context);
+        self.ime.update(context);
     }
 
     fn input(

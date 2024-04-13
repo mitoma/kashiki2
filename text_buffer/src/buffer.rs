@@ -104,7 +104,7 @@ impl Buffer {
                     let mut chars = line.chars.iter().rev().skip(line.chars.len() - caret.col);
                     let mut next_col = caret.col;
                     let start_char_type = CharType::from_char(chars.next().unwrap().c);
-                    while let Some(c) = chars.next() {
+                    for c in chars {
                         next_col -= 1;
                         if start_char_type != CharType::from_char(c.c) {
                             caret.move_to(caret.row, next_col, &self.sender);
@@ -114,7 +114,7 @@ impl Buffer {
                     // ループを抜けた場合は行頭にいく
                     self.head(caret);
                 }
-            },
+            }
         }
     }
 
@@ -148,7 +148,7 @@ impl Buffer {
                     let mut chars = line.chars.iter().skip(caret.col);
                     let mut next_col = caret.col;
                     let start_char_type = CharType::from_char(chars.next().unwrap().c);
-                    while let Some(c) = chars.next() {
+                    for c in chars {
                         next_col += 1;
                         if start_char_type != CharType::from_char(c.c) {
                             caret.move_to(caret.row, next_col, &self.sender);
