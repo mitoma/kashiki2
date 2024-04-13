@@ -57,6 +57,16 @@ pub(crate) struct GpuEasingConfig {
     pub(crate) gain: f32,
 }
 
+impl Default for GpuEasingConfig {
+    fn default() -> Self {
+        Self {
+            motion: MotionFlags::default(),
+            duration: Duration::ZERO,
+            gain: 0.0,
+        }
+    }
+}
+
 pub(crate) struct CharEasings {
     pub(crate) add_char: GpuEasingConfig,
     pub(crate) move_char: GpuEasingConfig,
@@ -125,6 +135,20 @@ impl Default for CharEasings {
                 duration: Duration::from_millis(300),
                 gain: 1.0,
             },
+        }
+    }
+}
+
+impl CharEasings {
+    // 動きが何もない状態の設定を返す
+    #[allow(dead_code)]
+    pub(crate) fn zero_motion() -> Self {
+        Self {
+            add_char: GpuEasingConfig::default(),
+            move_char: GpuEasingConfig::default(),
+            remove_char: GpuEasingConfig::default(),
+            select_char: GpuEasingConfig::default(),
+            unselect_char: GpuEasingConfig::default(),
         }
     }
 }
