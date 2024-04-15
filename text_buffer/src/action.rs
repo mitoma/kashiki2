@@ -17,6 +17,9 @@ pub enum EditorOperation {
     BufferHead,
     BufferLast,
 
+    ForwardWord,
+    BackWord,
+
     InsertString(String),
     InsertChar(char),
     InsertEnter,
@@ -124,9 +127,17 @@ impl BufferApplyer {
                 reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.back(current_caret);
             }
+            EditorOperation::BackWord => {
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                buffer.back_word(current_caret);
+            }
             EditorOperation::Forward => {
                 reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.forward(current_caret);
+            }
+            EditorOperation::ForwardWord => {
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                buffer.forward_word(current_caret);
             }
             EditorOperation::Previous => {
                 reverse_actions.push(ReverseAction::MoveTo(*current_caret));

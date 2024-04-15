@@ -2,8 +2,7 @@ use log::info;
 use stroke_parser::Action;
 
 use crate::{
-    color_theme::ColorTheme,
-    font_buffer::GlyphVertexBuffer,
+    context::StateContext,
     instances::GlyphInstances,
     motion::{CameraDetail, MotionFlags},
 };
@@ -58,15 +57,8 @@ impl ImeInput {
         }
     }
 
-    pub fn update(
-        &mut self,
-        color_theme: &ColorTheme,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-    ) -> Vec<&GlyphInstances> {
-        self.single_line
-            .generate_instances(color_theme, glyph_vertex_buffer, device, queue)
+    pub fn update(&mut self, context: &StateContext) -> Vec<&GlyphInstances> {
+        self.single_line.generate_instances(context)
     }
 
     pub fn get_instances(&self) -> Vec<&GlyphInstances> {

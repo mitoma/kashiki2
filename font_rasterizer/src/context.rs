@@ -5,7 +5,12 @@ use instant::Duration;
 use text_buffer::editor::LineBoundaryProhibitedChars;
 use winit::dpi::PhysicalSize;
 
-use crate::{char_width_calcurator::CharWidthCalculator, color_theme::ColorTheme, font_buffer::Direction, motion::{MotionDetail, MotionFlags, MotionTarget, MotionType}};
+use crate::{
+    char_width_calcurator::CharWidthCalculator,
+    color_theme::ColorTheme,
+    font_buffer::Direction,
+    motion::{MotionDetail, MotionFlags, MotionTarget, MotionType},
+};
 
 pub struct StateContext {
     pub device: wgpu::Device,
@@ -19,6 +24,16 @@ pub struct StateContext {
 pub struct WindowSize {
     pub width: u32,
     pub height: u32,
+}
+
+impl WindowSize {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self { width, height }
+    }
+
+    pub fn aspect(&self) -> f32 {
+        self.width as f32 / self.height as f32
+    }
 }
 
 impl From<PhysicalSize<u32>> for WindowSize {
@@ -42,10 +57,22 @@ pub(crate) struct GpuEasingConfig {
     pub(crate) gain: f32,
 }
 
+impl Default for GpuEasingConfig {
+    fn default() -> Self {
+        Self {
+            motion: MotionFlags::default(),
+            duration: Duration::ZERO,
+            gain: 0.0,
+        }
+    }
+}
+
 pub(crate) struct CharEasings {
     pub(crate) add_char: GpuEasingConfig,
     pub(crate) move_char: GpuEasingConfig,
     pub(crate) remove_char: GpuEasingConfig,
+    pub(crate) select_char: GpuEasingConfig,
+    pub(crate) unselect_char: GpuEasingConfig,
 }
 
 impl Default for CharEasings {
@@ -86,6 +113,42 @@ impl Default for CharEasings {
                 duration: Duration::from_millis(500),
                 gain: 0.8,
             },
+            select_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(
+                        crate::motion::EasingFuncType::Sin,
+                        false,
+                    ))
+                    .motion_target(MotionTarget::ROTATE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 1.0,
+            },
+            unselect_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(
+                        crate::motion::EasingFuncType::Sin,
+                        false,
+                    ))
+                    .motion_target(MotionTarget::ROTATE_Y_MINUX)
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 1.0,
+            },
+        }
+    }
+}
+
+impl CharEasings {
+    // 動きが何もない状態の設定を返す
+    #[allow(dead_code)]
+    pub(crate) fn zero_motion() -> Self {
+        Self {
+            add_char: GpuEasingConfig::default(),
+            move_char: GpuEasingConfig::default(),
+            remove_char: GpuEasingConfig::default(),
+            select_char: GpuEasingConfig::default(),
+            unselect_char: GpuEasingConfig::default(),
         }
     }
 }

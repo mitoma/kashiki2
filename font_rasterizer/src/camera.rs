@@ -21,12 +21,12 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn basic(aspect: (u32, u32)) -> Self {
+    pub fn basic(window_size: WindowSize) -> Self {
         Self::new(
             [0.0, 0.0, 1.0].into(),
             [0.0, 0.0, 0.0].into(),
             cgmath::Vector3::unit_y(),
-            aspect.0 as f32 / aspect.1 as f32,
+            window_size.aspect(),
             // fovy は視野角。ここでは45度を指定
             45.0,
             0.1,
@@ -156,7 +156,7 @@ impl CameraController {
     }
 
     pub fn update_camera_aspect(&self, camera: &mut Camera, window_size: WindowSize) {
-        camera.aspect = window_size.width as f32 / window_size.height as f32;
+        camera.aspect = window_size.aspect();
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {
@@ -176,6 +176,7 @@ impl CameraController {
         // 向きへの距離
         let forward_mag = forward.magnitude();
 
+        // TODO: 近づきすぎないようにしているが、もう少し良い制御したいよ
         if self.is_forward_pressed && forward_mag > self.speed {
             // カメラの位置に向きの単位行列 * 速度分足加える(近づく)
             current_eye += forward_norm * self.speed;

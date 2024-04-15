@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use cgmath::{num_traits::ToPrimitive, Point2, Point3, Quaternion, Rotation3};
 use instant::Duration;
-use log::debug;
 use rand::Rng;
 use text_buffer::{
     buffer::BufferChar,
@@ -51,6 +50,17 @@ pub(crate) struct CharStates {
 }
 
 impl CharStates {
+    fn get_mut_char_and_instances(
+        &mut self,
+        c: &BufferChar,
+    ) -> Option<(&mut ViewElementState, &mut GlyphInstance)> {
+        self.chars.get_mut(c).and_then(|state| {
+            self.instances
+                .get_mut(&(*c).into())
+                .map(|instance| (state, instance))
+        })
+    }
+
     pub(crate) fn add_char(
         &mut self,
         c: BufferChar,
@@ -160,7 +170,12 @@ impl CharStates {
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    pub(crate) fn char_to_dustbox(&mut self, c: BufferChar, counter: u32, text_context: &TextContext) {
+    pub(crate) fn char_to_dustbox(
+        &mut self,
+        c: BufferChar,
+        counter: u32,
+        text_context: &TextContext,
+    ) {
         if let Some(mut state) = self.chars.remove(&c) {
             // アニメーション状態に強制的に有効にするために gain を 0 にしている。
             // 本当はアニメーションが終わったらゴミ箱から消すという仕様が適切ではないのかもしれない
@@ -230,25 +245,35 @@ impl CharStates {
     }
 
     pub(crate) fn select_char(&mut self, c: BufferChar, text_context: &TextContext) {
-        debug!("select_char: {:?}", c);
-        let _ = self.chars.get_mut(&c).map(|state| {
+        if let Some((state, instance)) = self.get_mut_char_and_instances(&c) {
             state.in_selection = true;
             state.color.update(
                 state
                     .base_color
                     .get_selection_color(&text_context.color_theme),
             );
-        });
+            state
+                .motion_gain
+                .update([text_context.char_easings.select_char.gain]);
+            instance.motion = text_context.char_easings.select_char.motion;
+            instance.duration = text_context.char_easings.select_char.duration;
+            instance.start_time = now_millis();
+        }
     }
 
     pub(crate) fn unselect_char(&mut self, c: BufferChar, text_context: &TextContext) {
-        debug!("unselect_char: {:?}", c);
-        let _ = self.chars.get_mut(&c).map(|state| {
+        if let Some((state, instance)) = self.get_mut_char_and_instances(&c) {
             state.in_selection = false;
             state
                 .color
                 .update(state.base_color.get_color(&text_context.color_theme));
-        });
+            state
+                .motion_gain
+                .update([text_context.char_easings.unselect_char.gain]);
+            instance.motion = text_context.char_easings.unselect_char.motion;
+            instance.duration = text_context.char_easings.unselect_char.duration;
+            instance.start_time = now_millis();
+        }
     }
 }
 
@@ -448,6 +473,7 @@ fn update_instance(
 
     // set rotation
     // 縦書きの場合は char_rotation が必要なのでここで回転する
+    // TODO: rotation を変更したときに vertex shader での motion も考慮する必要がある
     instance.rotation = match char_rotation {
         Some(r) => *rotation * r,
         None => *rotation,

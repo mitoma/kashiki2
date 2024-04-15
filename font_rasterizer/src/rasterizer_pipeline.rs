@@ -33,7 +33,7 @@ pub enum Quarity {
 /// このブログの記事の内容を元に実装されている。
 /// https://medium.com/@evanwallace/easy-scalable-text-rendering-on-the-gpu-c3f4d782c5ac
 ///
-/// このパイプラインは 2 つのステージがある。
+/// このパイプラインは 3 つのステージがある。
 ///
 /// 1 つめはフォントを構成するポリゴンを重ねていく処理
 /// 2 つめはポリゴンの重ねた結果からフォントの輪郭を抽出する処理

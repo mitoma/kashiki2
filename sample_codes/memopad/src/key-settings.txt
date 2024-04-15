@@ -24,6 +24,9 @@ A-V      system:page-down
 PageUp   system:page-up
 C-V      system:page-up
 
+A-F system:forward-word
+A-B system:back-word
+
 C-H system:backspace
 C-D system:delete
 C-M system:return

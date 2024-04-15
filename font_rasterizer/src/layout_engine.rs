@@ -62,9 +62,9 @@ pub struct HorizontalWorld {
 }
 
 impl HorizontalWorld {
-    pub fn new(width: u32, height: u32) -> Self {
+    pub fn new(window_size: WindowSize) -> Self {
         Self {
-            camera: Camera::basic((width, height)),
+            camera: Camera::basic(window_size),
             camera_controller: CameraController::new(10.0),
             models: Vec::new(),
             focus: 0,
@@ -139,11 +139,7 @@ impl World for HorizontalWorld {
             .collect()
     }
 
-    fn update(
-        &mut self,
-        glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let range = self.get_surrounding_model_range();
         for model in self.models[range].iter_mut() {
             model.update(glyph_vertex_buffer, context);

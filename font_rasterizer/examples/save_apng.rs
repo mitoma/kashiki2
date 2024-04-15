@@ -38,11 +38,12 @@ pub async fn run() {
     let emoji_data = collector.load_font("Segoe UI Emoji");
     let font_binaries = vec![data.unwrap(), emoji_data.unwrap()];
 
-    let callback = SingleCharCallback::new();
+    let window_size = WindowSize::new(512, 512);
+    let callback = SingleCharCallback::new(window_size);
     let support = SimpleStateSupport {
         window_icon: None,
         window_title: "Hello".to_string(),
-        window_size: (256, 256),
+        window_size,
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
         color_theme: ColorTheme::SolarizedDark,
@@ -96,9 +97,9 @@ struct SingleCharCallback {
 }
 
 impl SingleCharCallback {
-    fn new() -> Self {
+    fn new(window_size: WindowSize) -> Self {
         Self {
-            camera: Camera::basic((256, 256)),
+            camera: Camera::basic(window_size),
             camera_controller: CameraController::new(10.0),
             glyphs: Vec::new(),
         }
@@ -128,11 +129,7 @@ impl SimpleStateCallback for SingleCharCallback {
         debug!("init!");
     }
 
-    fn update(
-        &mut self,
-        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        context: &StateContext,
-    ) {
+    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         self.glyphs
             .iter_mut()
             .for_each(|i| i.update_buffer(&context.device, &context.queue));

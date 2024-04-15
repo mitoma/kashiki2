@@ -33,13 +33,14 @@ pub async fn run() {
             .unwrap(),
     ];
 
+    let window_size = WindowSize::new(800, 600);
     let callback = SingleCharCallback {
-        camera: Camera::basic((800, 600)),
+        camera: Camera::basic(window_size),
     };
     let support = SimpleStateSupport {
         window_icon: None,
         window_title: "Hello".to_string(),
-        window_size: (800, 600),
+        window_size,
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
         color_theme: ColorTheme::SolarizedDark,
@@ -81,12 +82,7 @@ impl SimpleStateCallback for SingleCharCallback {
         println!("init: {:?}", end - start);
     }
 
-    fn update(
-        &mut self,
-        _glyph_vertex_buffer: &mut GlyphVertexBuffer,
-        _context: &StateContext,
-    ) {
-    }
+    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, _context: &StateContext) {}
 
     fn input(
         &mut self,
