@@ -3,6 +3,7 @@
 pub enum ColorTheme {
     SolarizedLight,
     SolarizedDark,
+    SolarizedBlackback,
 }
 
 impl From<SolarizedColor> for wgpu::Color {
@@ -23,6 +24,7 @@ impl ColorTheme {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base00,
             ColorTheme::SolarizedDark => SolarizedColor::Base0,
+            ColorTheme::SolarizedBlackback => SolarizedColor::Base0,
         }
     }
 
@@ -30,6 +32,7 @@ impl ColorTheme {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base1,
             ColorTheme::SolarizedDark => SolarizedColor::Base01,
+            ColorTheme::SolarizedBlackback => SolarizedColor::Base01,
         }
     }
 
@@ -37,6 +40,7 @@ impl ColorTheme {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base01,
             ColorTheme::SolarizedDark => SolarizedColor::Base1,
+            ColorTheme::SolarizedBlackback => SolarizedColor::Base1,
         }
     }
 
@@ -44,6 +48,7 @@ impl ColorTheme {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base3,
             ColorTheme::SolarizedDark => SolarizedColor::Base03,
+            ColorTheme::SolarizedBlackback => SolarizedColor::Black,
         }
     }
 
@@ -51,6 +56,7 @@ impl ColorTheme {
         match self {
             ColorTheme::SolarizedLight => SolarizedColor::Base2,
             ColorTheme::SolarizedDark => SolarizedColor::Base02,
+            ColorTheme::SolarizedBlackback => SolarizedColor::Base02,
         }
     }
 
@@ -105,6 +111,8 @@ pub enum SolarizedColor {
     Blue,
     Cyan,
     Green,
+    // SolarizedColor としては定義されていないが、完全な黒背景のために定義
+    Black,
 }
 
 impl SolarizedColor {
@@ -127,6 +135,7 @@ impl SolarizedColor {
             SolarizedColor::Blue => [0.0151752383, 0.2631747127, 0.6523700953],
             SolarizedColor::Cyan => [0.0189129841, 0.3636038899, 0.3203815520],
             SolarizedColor::Green => [0.2388279885, 0.3250369728, 0.0000000000],
+            SolarizedColor::Black => [0.0, 0.0, 0.0],
         }
     }
 }

@@ -168,6 +168,9 @@ impl SimpleStateCallback for MemoPadCallback {
                         "toggle-fullscreen" => {
                             return InputResult::ToggleFullScreen;
                         }
+                        "change-theme-black" => {
+                            return InputResult::ChangeColorTheme(ColorTheme::SolarizedBlackback);
+                        }
                         "change-theme-dark" => {
                             return InputResult::ChangeColorTheme(ColorTheme::SolarizedDark);
                         }
