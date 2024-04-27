@@ -25,9 +25,24 @@ impl Editor {
 
     // action を実行する前後で selection が変わった場合に、変更を sender に通知する
     #[inline]
-    fn action_width_selection_update(&mut self, action: impl FnOnce(&mut Self)) {
+    fn action_width_selection_update(
+        &mut self,
+        op: &EditorOperation,
+        action: impl FnOnce(&mut Self),
+    ) {
         let pre_selection = self.selection();
+
+        // unmark 対象の操作の場合は action 実行前に選択範囲解除のためのイベントを送信する
+        // なぜならアクション実行後にイベントを送信しても
+        // BufferChar の座標が変わっていて正しく選択範囲を解除できないため
+        if op.is_unmark_operation() {
+            pre_selection.iter().cloned().for_each(|c| {
+                self.sender.send(ChangeEvent::UnSelectChar(c)).unwrap();
+            });
+        }
+
         action(self);
+
         let post_selection = self.selection();
         if pre_selection != post_selection {
             let leave_selections = pre_selection
@@ -51,7 +66,7 @@ impl Editor {
     }
 
     pub fn operation(&mut self, op: &EditorOperation) {
-        self.action_width_selection_update(|itself| {
+        self.action_width_selection_update(op, |itself| {
             if EditorOperation::Undo == *op {
                 itself.undo();
                 return;
@@ -73,23 +88,7 @@ impl Editor {
             );
             itself.undo_list.push(reverse_actions);
 
-            // バッファに対する変更処理を処理を行った後は
-            // mark のポジションがズレていいことなしなので unmark する
-            // 将来維持したくなったら変更処理時に mark のポジションを調整する必要がある
-            let unmark_operation = matches!(
-                op,
-                EditorOperation::InsertString(_)
-                    | EditorOperation::InsertChar(_)
-                    | EditorOperation::InsertEnter
-                    | EditorOperation::Backspace
-                    | EditorOperation::BackspaceWord
-                    | EditorOperation::Delete
-                    | EditorOperation::DeleteWord
-                    | EditorOperation::Copy(_)
-                    | EditorOperation::Cut(_)
-                    | EditorOperation::UnMark
-            );
-            if unmark_operation {
+            if op.is_unmark_operation() {
                 itself.unmark();
             }
         });

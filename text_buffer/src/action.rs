@@ -38,6 +38,29 @@ pub enum EditorOperation {
     UnMark,
 }
 
+impl EditorOperation {
+    // unmark が必要なオペレーションかどうかを判定する
+    // バッファに対する変更処理を処理を行った後は
+    // mark のポジションがズレていいことなしなので unmark する
+    // 将来維持したくなったら変更処理時に mark のポジションを調整する必要がある
+    #[inline]
+    pub(crate) fn is_unmark_operation(&self) -> bool {
+        matches!(
+            self,
+            EditorOperation::InsertString(_)
+                | EditorOperation::InsertChar(_)
+                | EditorOperation::InsertEnter
+                | EditorOperation::Backspace
+                | EditorOperation::BackspaceWord
+                | EditorOperation::Delete
+                | EditorOperation::DeleteWord
+                | EditorOperation::Copy(_)
+                | EditorOperation::Cut(_)
+                | EditorOperation::UnMark
+        )
+    }
+}
+
 #[derive(Debug)]
 pub enum ReverseAction {
     MoveTo(Caret),
