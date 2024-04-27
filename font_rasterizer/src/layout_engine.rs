@@ -260,18 +260,18 @@ pub enum ModelOperation<'a> {
     IncreaseRowInterval,
     // 行間を減少させる
     DecreaseRowInterval,
+    // 行間の大きさを増加させる
+    IncreaseRowScale,
+    // 行間の大きさを減少させる
+    DecreaseRowScale,
     // 文字間を増加させる
     IncreaseColInterval,
     // 文字間を減少させる
     DecreaseColInterval,
-    // 文字の縦方向の大きさを増加させる
-    IncreaseVerticalScale,
-    // 文字の縦方向の大きさを減少させる
-    DecreaseVerticalScale,
-    // 文字の横方向の大きさを増加させる
-    IncreaseHorizontalScale,
-    // 文字の横方向の大きさを減少させる
-    DecreaseHorizontalScale,
+    // 文字間の大きさを増加させる
+    IncreaseColScale,
+    // 文字間の大きさを減少させる
+    DecreaseColScale,
     // Copy Display String
     CopyDisplayString(&'a dyn CharWidthResolver, fn(String)),
     // サイケデリックモードを切り替える(実験的なお遊び機能)

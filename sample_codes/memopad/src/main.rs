@@ -247,18 +247,18 @@ impl SimpleStateCallback for MemoPadCallback {
                         "decrease-col-interval" => self
                             .world
                             .model_operation(&ModelOperation::DecreaseColInterval),
-                        "increase-horizontal-scale" => self
+                        "increase-col-scale" => self
                             .world
-                            .model_operation(&ModelOperation::IncreaseHorizontalScale),
-                        "decrease-horizontal-scale" => self
+                            .model_operation(&ModelOperation::IncreaseColScale),
+                        "decrease-col-scale" => self
                             .world
-                            .model_operation(&ModelOperation::DecreaseHorizontalScale),
-                        "increase-vertical-scale" => self
+                            .model_operation(&ModelOperation::DecreaseColScale),
+                        "increase-row-scale" => self
                             .world
-                            .model_operation(&ModelOperation::IncreaseVerticalScale),
-                        "decrease-vertical-scale" => self
+                            .model_operation(&ModelOperation::IncreaseRowScale),
+                        "decrease-row-scale" => self
                             .world
-                            .model_operation(&ModelOperation::DecreaseVerticalScale),
+                            .model_operation(&ModelOperation::DecreaseRowScale),
                         "copy-display" => {
                             self.world
                                 .model_operation(&ModelOperation::CopyDisplayString(

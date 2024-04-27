@@ -80,7 +80,7 @@ impl CharStates {
             in_selection: false,
             base_color: ThemedColor::Text,
             color: easing_color,
-            scale: EasingPointN::new([text_context.vertical_scale, text_context.horizontal_scale]),
+            scale: EasingPointN::new([text_context.row_scale, text_context.col_scale]),
             motion_gain: EasingPointN::new([text_context.char_easings.add_char.gain]),
         };
         self.chars.insert(c, state);

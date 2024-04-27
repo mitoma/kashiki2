@@ -71,10 +71,10 @@ A-Down    world:increase-row-interval
 A-Up      world:decrease-row-interval
 A-Right   world:increase-col-interval
 A-Left    world:decrease-col-interval
-A-S-Down    world:increase-vertical-scale
-A-S-Up      world:decrease-vertical-scale
-A-S-Right   world:increase-horizontal-scale
-A-S-Left    world:decrease-horizontal-scale
+A-S-Down    world:increase-row-scale
+A-S-Up      world:decrease-row-scale
+A-S-Right   world:increase-col-scale
+A-S-Left    world:decrease-col-scale
 
 A-S-Up    world:fit-width
 A-S-Down  world:fit-height
