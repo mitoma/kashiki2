@@ -190,3 +190,12 @@ impl Default for TextContext {
         }
     }
 }
+
+impl TextContext {
+    pub fn instance_scale(&self) -> [f32; 2] {
+        match self.direction {
+            Direction::Horizontal => [self.col_scale, self.row_scale],
+            Direction::Vertical => [self.row_scale, self.col_scale],
+        }
+    }
+}

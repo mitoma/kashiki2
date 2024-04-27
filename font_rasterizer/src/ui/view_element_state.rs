@@ -80,7 +80,7 @@ impl CharStates {
             in_selection: false,
             base_color: ThemedColor::Text,
             color: easing_color,
-            scale: EasingPointN::new([text_context.row_scale, text_context.col_scale]),
+            scale: EasingPointN::new(text_context.instance_scale()),
             motion_gain: EasingPointN::new([text_context.char_easings.add_char.gain]),
         };
         self.chars.insert(c, state);
@@ -469,7 +469,13 @@ fn update_instance(
     // set color
     instance.color = view_char_state.color.current();
     // set scale
-    instance.instance_scale = view_char_state.scale.current();
+    // グリフの回転が入る場合は scale を入れ替える必要がある
+    instance.instance_scale = if char_rotation.is_some() {
+        let [l, r] = view_char_state.scale.current();
+        [r, l]
+    } else {
+        view_char_state.scale.current()
+    };
     // set gain
     instance.gain = view_char_state.motion_gain.current()[0];
 
