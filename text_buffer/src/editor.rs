@@ -73,13 +73,18 @@ impl Editor {
             );
             itself.undo_list.push(reverse_actions);
 
+            // バッファに対する変更処理を処理を行った後は
+            // mark のポジションがズレていいことなしなので unmark する
+            // 将来維持したくなったら変更処理時に mark のポジションを調整する必要がある
             let unmark_operation = matches!(
                 op,
                 EditorOperation::InsertString(_)
                     | EditorOperation::InsertChar(_)
                     | EditorOperation::InsertEnter
                     | EditorOperation::Backspace
+                    | EditorOperation::BackspaceWord
                     | EditorOperation::Delete
+                    | EditorOperation::DeleteWord
                     | EditorOperation::Copy(_)
                     | EditorOperation::Cut(_)
                     | EditorOperation::UnMark
