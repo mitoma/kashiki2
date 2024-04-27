@@ -1,7 +1,7 @@
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::time::now_millis;
+use crate::{screen_texture::ScreenTexture, time::now_millis};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -18,7 +18,6 @@ pub struct Uniforms {
 pub struct OverlapBindGroup {
     uniforms: Uniforms,
     buffer: wgpu::Buffer,
-    pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) layout: wgpu::BindGroupLayout,
 }
 
@@ -48,6 +47,22 @@ impl OverlapBindGroup {
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Uint,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
             ],
             label: Some("Overlap Bind Group Layout"),
         });
@@ -58,19 +73,10 @@ impl OverlapBindGroup {
             contents: bytemuck::cast_slice(&[uniforms]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-            label: Some("Overlap Bind Group"),
-        });
 
         Self {
             uniforms,
             buffer,
-            bind_group,
             layout,
         }
     }
@@ -83,5 +89,30 @@ impl OverlapBindGroup {
 
     pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniforms]))
+    }
+
+    pub fn to_bind_group(
+        &self,
+        device: &wgpu::Device,
+        overlap_depth_texture: &ScreenTexture,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: self.buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&overlap_depth_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&overlap_depth_texture.sampler),
+                },
+            ],
+            label: Some("Overlap Bind Group"),
+        })
     }
 }

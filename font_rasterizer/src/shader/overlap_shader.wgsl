@@ -350,6 +350,11 @@ fn vs_main_minimum(
 const UNIT :f32 = 0.00390625;
 // Fragment shader
 
+@group(0) @binding(1)
+var t_diffuse: texture_2d<u32>;
+@group(0) @binding(2)
+var s_diffuse: sampler;
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // R = ポリゴンの重なった数
@@ -365,5 +370,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if !in_bezier {
         return vec4<f32>(in.color, 0.0);
     }
+    var overlap = textureSample(t_diffuse, s_diffuse, in.clip_position.xy);
+    textureStore(t_diffuse, in.clip_position.xy, vec4<u32>(overlap.r + 1u, 0u, 0u, 0u));
     return vec4<f32>(in.color, UNIT);
 }
