@@ -192,6 +192,26 @@ impl Model for TextEdit {
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
+            ModelOperation::IncreaseVerticalScale => {
+                self.config.vertical_scale += 0.05;
+                self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::DecreaseVerticalScale => {
+                self.config.vertical_scale -= 0.05;
+                self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::IncreaseHorizontalScale => {
+                self.config.horizontal_scale += 0.05;
+                self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::DecreaseHorizontalScale => {
+                self.config.horizontal_scale -= 0.05;
+                self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
             ModelOperation::CopyDisplayString(width_resolver, result_callback) => {
                 result_callback(
                     self.editor
@@ -340,7 +360,11 @@ impl TextEdit {
             let width = char_width_calcurator.get_width(c.c);
             let position =
                 Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
-            self.char_states.update_state_position(c, position)
+            self.char_states.update_state_position_and_scale(
+                c,
+                position,
+                [self.config.horizontal_scale, self.config.vertical_scale],
+            )
         });
 
         // update caret position
@@ -352,8 +376,11 @@ impl TextEdit {
                 bound,
                 [layout.main_caret_pos.col, layout.main_caret_pos.row],
             );
-            self.caret_states
-                .update_state_position(CaretType::Primary, position);
+            self.caret_states.update_state_position_and_scale(
+                CaretType::Primary,
+                position,
+                [self.config.horizontal_scale, self.config.vertical_scale],
+            );
         }
         if let Some(mark_pos) = layout.mark_pos {
             let caret_width = char_width_calcurator.get_width(caret_char(CaretType::Mark));
@@ -363,8 +390,11 @@ impl TextEdit {
                 bound,
                 [mark_pos.col, mark_pos.row],
             );
-            self.caret_states
-                .update_state_position(CaretType::Mark, position);
+            self.caret_states.update_state_position_and_scale(
+                CaretType::Mark,
+                position,
+                [self.config.horizontal_scale, self.config.vertical_scale],
+            );
         }
     }
 

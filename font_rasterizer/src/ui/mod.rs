@@ -96,6 +96,10 @@ impl Model for PlaneTextReader {
             ModelOperation::DecreaseColInterval => ModelOperationResult::NoCare,
             ModelOperation::IncreaseRowInterval => ModelOperationResult::NoCare,
             ModelOperation::DecreaseRowInterval => ModelOperationResult::NoCare,
+            ModelOperation::IncreaseVerticalScale => ModelOperationResult::NoCare,
+            ModelOperation::DecreaseVerticalScale => ModelOperationResult::NoCare,
+            ModelOperation::IncreaseHorizontalScale => ModelOperationResult::NoCare,
+            ModelOperation::DecreaseHorizontalScale => ModelOperationResult::NoCare,
             ModelOperation::CopyDisplayString(_, _) => ModelOperationResult::NoCare,
             ModelOperation::TogglePsychedelic => ModelOperationResult::NoCare,
         }
@@ -238,6 +242,7 @@ impl PlaneTextReader {
                     //    cgmath::Vector3::unit_z(),
                     //    cgmath::Deg(0.0),
                     //),
+                    [1.0, 1.0],
                     [1.0, 1.0],
                     get_color(color_theme, c),
                     self.motion,
