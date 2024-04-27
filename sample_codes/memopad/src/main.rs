@@ -179,7 +179,9 @@ impl SimpleStateCallback for MemoPadCallback {
                         }
                         "return" => EditorOperation::InsertEnter,
                         "backspace" => EditorOperation::Backspace,
+                        "backspace-word" => EditorOperation::BackspaceWord,
                         "delete" => EditorOperation::Delete,
+                        "delete-word" => EditorOperation::DeleteWord,
                         "previous" => EditorOperation::Previous,
                         "next" => EditorOperation::Next,
                         "back" => EditorOperation::Back,

@@ -20,6 +20,9 @@ pub enum EditorOperation {
     ForwardWord,
     BackWord,
 
+    DeleteWord,
+    BackspaceWord,
+
     InsertString(String),
     InsertChar(char),
     InsertEnter,
@@ -195,6 +198,42 @@ impl BufferApplyer {
                         reverse_actions.actions.push(ReverseAction::Back);
                     }
                     RemovedChar::None => {}
+                }
+            }
+            EditorOperation::DeleteWord => {
+                let pre_caret = current_caret.clone();
+                buffer.forward_word(current_caret);
+                if pre_caret.row != current_caret.row || pre_caret.col != current_caret.col {
+                    let text = buffer.copy_string(&pre_caret, current_caret);
+                    reverse_actions
+                        .actions
+                        .push(ReverseAction::InsertString(text));
+                    reverse_actions.push(ReverseAction::MoveTo(pre_caret));
+                    loop {
+                        if pre_caret.row == current_caret.row && pre_caret.col == current_caret.col
+                        {
+                            break;
+                        }
+                        let _removed_char = buffer.backspace(current_caret);
+                    }
+                }
+            }
+            EditorOperation::BackspaceWord => {
+                let mut pre_caret = current_caret.clone();
+                buffer.back_word(current_caret);
+                if pre_caret.row != current_caret.row || pre_caret.col != current_caret.col {
+                    let text = buffer.copy_string(&pre_caret, current_caret);
+                    reverse_actions
+                        .actions
+                        .push(ReverseAction::InsertString(text));
+                    reverse_actions.push(ReverseAction::MoveTo(pre_caret));
+                    loop {
+                        if pre_caret.row == current_caret.row && pre_caret.col == current_caret.col
+                        {
+                            break;
+                        }
+                        let _removed_char = buffer.backspace(&mut pre_caret);
+                    }
                 }
             }
             EditorOperation::Copy(func) => {

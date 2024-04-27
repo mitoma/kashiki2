@@ -28,7 +28,9 @@ A-F system:forward-word
 A-B system:back-word
 
 C-H system:backspace
+C-W system:backspace-word
 C-D system:delete
+A-D system:delete-word
 C-M system:return
 C-Space system:mark
 C-G system:unmark
@@ -64,7 +66,7 @@ C-S-Right world:swap-next
 C-S-Left  world:swap-prev
 C-S-Plus  world:forward
 C-Minus   world:back
-A-D       world:change-direction
+A-S-D     world:change-direction
 A-Down    world:increase-row-interval
 A-Up      world:decrease-row-interval
 A-Right   world:increase-col-interval
