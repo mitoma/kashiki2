@@ -1,4 +1,5 @@
 pub mod ime_input;
+pub mod ime_input2;
 pub mod single_line;
 pub mod textedit;
 mod view_element_state;

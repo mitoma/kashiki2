@@ -14,7 +14,7 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::set_clock_mode,
-    ui::{caret_char, ime_input::ImeInput, textedit::TextEdit},
+    ui::{caret_char, ime_input2::ImeInput, textedit::TextEdit},
 };
 use log::info;
 use std::{collections::HashSet, path::Path};
