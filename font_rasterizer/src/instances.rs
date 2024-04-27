@@ -13,7 +13,7 @@ pub struct GlyphInstance {
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,
     pub world_scale: [f32; 2],
-    pub scale: [f32; 2],
+    pub instance_scale: [f32; 2],
     pub color: [f32; 3],
     pub motion: MotionFlags,
     pub start_time: u32,
@@ -27,7 +27,7 @@ impl GlyphInstance {
         position: cgmath::Vector3<f32>,
         rotation: cgmath::Quaternion<f32>,
         world_scale: [f32; 2],
-        scale: [f32; 2],
+        instance_scale: [f32; 2],
         color: [f32; 3],
         motion: MotionFlags,
         start_time: u32,
@@ -38,31 +38,7 @@ impl GlyphInstance {
             position,
             rotation,
             world_scale,
-            scale,
-            color,
-            motion,
-            start_time,
-            gain,
-            duration,
-        }
-    }
-
-    pub fn new_scale_world(
-        position: cgmath::Vector3<f32>,
-        rotation: cgmath::Quaternion<f32>,
-        world_scale: [f32; 2],
-        scale: [f32; 2],
-        color: [f32; 3],
-        motion: MotionFlags,
-        start_time: u32,
-        gain: f32,
-        duration: Duration,
-    ) -> Self {
-        Self {
-            position,
-            rotation,
-            world_scale,
-            scale,
+            instance_scale,
             color,
             motion,
             start_time,
@@ -81,7 +57,7 @@ impl Default for GlyphInstance {
                 cgmath::Deg(0.0),
             ),
             world_scale: [1.0, 1.0],
-            scale: [1.0, 1.0],
+            instance_scale: [1.0, 1.0],
             color: SolarizedColor::Red.get_color(),
             motion: MotionFlags::ZERO_MOTION,
             start_time: now_millis(),
@@ -104,7 +80,11 @@ impl GlyphInstance {
             (cgmath::Matrix4::from_nonuniform_scale(self.world_scale[0], self.world_scale[1], 1.0)
                 * cgmath::Matrix4::from_translation(self.position)
                 * cgmath::Matrix4::from(self.rotation)
-                * cgmath::Matrix4::from_nonuniform_scale(self.scale[0], self.scale[1], 1.0))
+                * cgmath::Matrix4::from_nonuniform_scale(
+                    self.instance_scale[0],
+                    self.instance_scale[1],
+                    1.0,
+                ))
             .into();
         InstanceRaw {
             model,

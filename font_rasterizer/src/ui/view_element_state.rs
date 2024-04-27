@@ -469,7 +469,7 @@ fn update_instance(
     // set color
     instance.color = view_char_state.color.current();
     // set scale
-    instance.scale = view_char_state.scale.current();
+    instance.instance_scale = view_char_state.scale.current();
     // set gain
     instance.gain = view_char_state.motion_gain.current()[0];
 
