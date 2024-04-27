@@ -112,6 +112,7 @@ impl SingleLine {
                 },
                 cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
                 [x_scale, self.scale[1]],
+                [1.0, 1.0],
                 get_color(&context.color_theme, c),
                 self.motion,
                 now_millis(),

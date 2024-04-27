@@ -12,7 +12,8 @@ use crate::{
 pub struct GlyphInstance {
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,
-    pub scale: [f32; 2],
+    pub world_scale: [f32; 2],
+    pub instance_scale: [f32; 2],
     pub color: [f32; 3],
     pub motion: MotionFlags,
     pub start_time: u32,
@@ -25,7 +26,8 @@ impl GlyphInstance {
     pub fn new(
         position: cgmath::Vector3<f32>,
         rotation: cgmath::Quaternion<f32>,
-        scale: [f32; 2],
+        world_scale: [f32; 2],
+        instance_scale: [f32; 2],
         color: [f32; 3],
         motion: MotionFlags,
         start_time: u32,
@@ -35,7 +37,8 @@ impl GlyphInstance {
         Self {
             position,
             rotation,
-            scale,
+            world_scale,
+            instance_scale,
             color,
             motion,
             start_time,
@@ -53,7 +56,8 @@ impl Default for GlyphInstance {
                 cgmath::Vector3::unit_z(),
                 cgmath::Deg(0.0),
             ),
-            scale: [1.0, 1.0],
+            world_scale: [1.0, 1.0],
+            instance_scale: [1.0, 1.0],
             color: SolarizedColor::Red.get_color(),
             motion: MotionFlags::ZERO_MOTION,
             start_time: now_millis(),
@@ -72,11 +76,18 @@ impl GlyphInstance {
     }
 
     fn as_raw(&self) -> InstanceRaw {
-        InstanceRaw {
-            model: (cgmath::Matrix4::from_nonuniform_scale(self.scale[0], self.scale[1], 1.0)
+        let model =
+            (cgmath::Matrix4::from_nonuniform_scale(self.world_scale[0], self.world_scale[1], 1.0)
                 * cgmath::Matrix4::from_translation(self.position)
-                * cgmath::Matrix4::from(self.rotation))
-            .into(),
+                * cgmath::Matrix4::from(self.rotation)
+                * cgmath::Matrix4::from_nonuniform_scale(
+                    self.instance_scale[0],
+                    self.instance_scale[1],
+                    1.0,
+                ))
+            .into();
+        InstanceRaw {
+            model,
             color: self.color,
             motion: self.motion.into(),
             start_time: self.start_time,

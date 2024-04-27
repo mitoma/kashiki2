@@ -80,7 +80,7 @@ impl CharStates {
             in_selection: false,
             base_color: ThemedColor::Text,
             color: easing_color,
-            scale: EasingPointN::new([1.0, 1.0]),
+            scale: EasingPointN::new(text_context.instance_scale()),
             motion_gain: EasingPointN::new([text_context.char_easings.add_char.gain]),
         };
         self.chars.insert(c, state);
@@ -119,9 +119,15 @@ impl CharStates {
         }
     }
 
-    pub(crate) fn update_state_position(&mut self, c: &BufferChar, position: [f32; 3]) {
+    pub(crate) fn update_state_position_and_scale(
+        &mut self,
+        c: &BufferChar,
+        position: [f32; 3],
+        scale: [f32; 2],
+    ) {
         if let Some(c_pos) = self.chars.get_mut(c) {
             c_pos.position.update(position);
+            c_pos.scale.update(scale);
         }
     }
 
@@ -354,16 +360,23 @@ impl CaretStates {
         self.instances.pre_remove(&c.into());
     }
 
-    pub(crate) fn update_state_position(&mut self, caret_type: CaretType, position: [f32; 3]) {
+    pub(crate) fn update_state_position_and_scale(
+        &mut self,
+        caret_type: CaretType,
+        position: [f32; 3],
+        scale: [f32; 2],
+    ) {
         match caret_type {
             CaretType::Primary => {
                 if let Some((_, c_pos)) = self.main_caret.as_mut() {
                     c_pos.position.update(position);
+                    c_pos.scale.update(scale);
                 }
             }
             CaretType::Mark => {
                 if let Some((_, c_pos)) = self.mark.as_mut() {
                     c_pos.position.update(position);
+                    c_pos.scale.update(scale);
                 }
             }
         }
@@ -456,7 +469,13 @@ fn update_instance(
     // set color
     instance.color = view_char_state.color.current();
     // set scale
-    instance.scale = view_char_state.scale.current();
+    // グリフの回転が入る場合は scale を入れ替える必要がある
+    instance.instance_scale = if char_rotation.is_some() {
+        let [l, r] = view_char_state.scale.current();
+        [r, l]
+    } else {
+        view_char_state.scale.current()
+    };
     // set gain
     instance.gain = view_char_state.motion_gain.current()[0];
 

@@ -157,6 +157,8 @@ pub struct TextContext {
     pub(crate) direction: Direction,
     pub(crate) row_interval: f32,
     pub(crate) col_interval: f32,
+    pub(crate) row_scale: f32,
+    pub(crate) col_scale: f32,
     pub(crate) max_col: usize,
     pub(crate) line_prohibited_chars: LineBoundaryProhibitedChars,
     pub(crate) min_bound: Point2<f32>,
@@ -173,6 +175,8 @@ impl Default for TextContext {
             direction: Direction::Horizontal,
             row_interval: 1.0,
             col_interval: 0.7,
+            row_scale: 1.0,
+            col_scale: 1.0,
             max_col: 40,
             line_prohibited_chars: LineBoundaryProhibitedChars::default(),
             min_bound: (10.0, 10.0).into(),
@@ -183,6 +187,15 @@ impl Default for TextContext {
             char_easings: CharEasings::default(),
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
+        }
+    }
+}
+
+impl TextContext {
+    pub fn instance_scale(&self) -> [f32; 2] {
+        match self.direction {
+            Direction::Horizontal => [self.col_scale, self.row_scale],
+            Direction::Vertical => [self.row_scale, self.col_scale],
         }
     }
 }
