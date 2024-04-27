@@ -259,7 +259,7 @@ dependencies = [
 [[package]]
 name = "bezier_converter"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#ed9720eb6cabd481e96010b3187e044671a36f40"
+source = "git+https://github.com/mitoma/sandbox?branch=main#3fcd64c1a61658ba46c8506fd8f0aefc0dc023f3"
 dependencies = [
  "cgmath",
 ]
@@ -1633,7 +1633,7 @@ dependencies = [
 [[package]]
 name = "nenobi"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#ed9720eb6cabd481e96010b3187e044671a36f40"
+source = "git+https://github.com/mitoma/sandbox?branch=main#3fcd64c1a61658ba46c8506fd8f0aefc0dc023f3"
 dependencies = [
  "instant",
  "num-traits",
@@ -2122,7 +2122,7 @@ dependencies = [
 [[package]]
 name = "rayon_ordered_bridge"
 version = "0.1.0"
-source = "git+https://github.com/mitoma/sandbox?branch=main#ed9720eb6cabd481e96010b3187e044671a36f40"
+source = "git+https://github.com/mitoma/sandbox?branch=main#3fcd64c1a61658ba46c8506fd8f0aefc0dc023f3"
 dependencies = [
  "rayon",
 ]
