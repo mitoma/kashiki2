@@ -28,7 +28,7 @@ A-F system:forward-word
 A-B system:back-word
 
 C-H system:backspace
-C-W system:backspace-word
+A-Delete system:backspace-word
 C-D system:delete
 A-D system:delete-word
 C-M system:return
