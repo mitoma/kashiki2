@@ -201,7 +201,7 @@ impl BufferApplyer {
                 }
             }
             EditorOperation::DeleteWord => {
-                let pre_caret = current_caret.clone();
+                let pre_caret = *current_caret;
                 buffer.forward_word(current_caret);
                 if pre_caret.row != current_caret.row || pre_caret.col != current_caret.col {
                     let text = buffer.copy_string(&pre_caret, current_caret);
@@ -219,7 +219,7 @@ impl BufferApplyer {
                 }
             }
             EditorOperation::BackspaceWord => {
-                let mut pre_caret = current_caret.clone();
+                let mut pre_caret = *current_caret;
                 buffer.back_word(current_caret);
                 if pre_caret.row != current_caret.row || pre_caret.col != current_caret.col {
                     let text = buffer.copy_string(&pre_caret, current_caret);
