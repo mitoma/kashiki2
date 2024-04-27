@@ -1,6 +1,6 @@
 use std::{ops::RangeBounds, sync::mpsc::Sender};
 
-use crate::{caret::Caret, editor::ChangeEvent};
+use crate::{caret::Caret, char_type::CharType, editor::ChangeEvent};
 
 pub struct Buffer {
     pub lines: Vec<BufferLine>,
@@ -281,55 +281,6 @@ impl Buffer {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum CharType {
-    Whitespace,
-    AsciiDigit,
-    Alphabet,
-    Hiragana,
-    Katakana,
-    Kanji,
-    Other,
-}
-
-impl CharType {
-    fn from_char(c: char) -> Self {
-        if c.is_whitespace() {
-            Self::Whitespace
-        } else if c.is_ascii_digit() {
-            Self::AsciiDigit
-        } else if c.is_ascii_alphabetic() {
-            Self::Alphabet
-        } else {
-            match c {
-                'ぁ'..='ん' => Self::Hiragana,
-                'ァ'..='ン' => Self::Katakana,
-                '一'..='龥' => Self::Kanji,
-                _ => Self::Other,
-            }
-        }
-    }
-
-    fn skip_word(&self, next: &Self) -> bool {
-        match (self, next) {
-            // 同じ文字種の場合はスキップ
-            (left, right) if left == right => true,
-            // 空白文字からほかの文字種は区切る
-            (Self::Whitespace, _) => false,
-            // 他の文字種から空白文字はスキップ
-            (_, Self::Whitespace) => true,
-            // 平仮名からほかの文字種は区切る
-            (Self::Hiragana, _) => false,
-            // カタカナから平仮名はスキップ
-            (Self::Katakana, Self::Hiragana) => true,
-            // 漢字から平仮名、カタカナはスキップ
-            (Self::Kanji, Self::Hiragana) => true,
-            (Self::Kanji, Self::Katakana) => true,
-            _ => false,
-        }
-    }
-}
-
 #[derive(Default)]
 pub struct BufferLine {
     // 0 origin
@@ -484,17 +435,6 @@ mod tests {
     use crate::{caret::CaretType, editor::ChangeEvent};
 
     use super::*;
-
-    #[test]
-    fn char_type_from_char() {
-        assert_eq!(CharType::from_char(' '), CharType::Whitespace);
-        assert_eq!(CharType::from_char('a'), CharType::Alphabet);
-        assert_eq!(CharType::from_char('1'), CharType::AsciiDigit);
-        assert_eq!(CharType::from_char('あ'), CharType::Hiragana);
-        assert_eq!(CharType::from_char('ア'), CharType::Katakana);
-        assert_eq!(CharType::from_char('一'), CharType::Kanji);
-        assert_eq!(CharType::from_char('!'), CharType::Other);
-    }
 
     #[test]
     fn buffer() {
