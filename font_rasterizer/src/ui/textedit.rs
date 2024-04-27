@@ -12,7 +12,7 @@ use crate::{
     color_theme::ColorTheme,
     context::{StateContext, TextContext},
     easing_value::EasingPointN,
-    font_buffer::{Direction, GlyphVertexBuffer},
+    font_buffer::Direction,
     instances::GlyphInstances,
     layout_engine::{Model, ModelOperation, ModelOperationResult},
 };
@@ -36,6 +36,8 @@ pub struct TextEdit {
 
     position: EasingPointN<3>,
     rotation: Quaternion<f32>,
+    world_scale: [f32; 2],
+
     bound: EasingPointN<2>,
 }
 
@@ -62,6 +64,7 @@ impl Default for TextEdit {
                 cgmath::Vector3::unit_y(),
                 cgmath::Deg(0.0),
             ),
+            world_scale: [1.0, 1.0],
             bound,
         }
     }
@@ -129,7 +132,7 @@ impl Model for TextEdit {
         .concat()
     }
 
-    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn update(&mut self, context: &StateContext) {
         let color_theme = &context.color_theme;
         let device = &context.device;
         let queue = &context.queue;
@@ -429,6 +432,7 @@ impl TextEdit {
             &center,
             &current_position,
             &self.rotation,
+            self.world_scale,
             char_width_calcurator,
             &self.config,
         );
@@ -439,6 +443,7 @@ impl TextEdit {
             &center,
             &current_position,
             &self.rotation,
+            self.world_scale,
             char_width_calcurator,
             &self.config,
         );
@@ -446,5 +451,14 @@ impl TextEdit {
 
     fn max_display_width(&self) -> usize {
         (self.config.max_col as f32 / self.config.col_interval).abs() as usize
+    }
+
+    pub(crate) fn set_config(&mut self, config: TextContext) {
+        self.config = config;
+        self.config_updated = true;
+    }
+
+    pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
+        self.world_scale = world_scale;
     }
 }

@@ -1,16 +1,17 @@
 use log::info;
 use stroke_parser::Action;
+use text_buffer::action::EditorOperation;
 
 use crate::{
-    context::StateContext,
+    context::{CharEasings, CpuEasingConfig, StateContext, TextContext},
     instances::GlyphInstances,
-    motion::{CameraDetail, MotionFlags},
+    layout_engine::Model,
 };
 
-use super::single_line::SingleLine;
+use super::textedit::TextEdit;
 
 pub struct ImeInput {
-    single_line: SingleLine,
+    text_edit: TextEdit,
 }
 
 impl Default for ImeInput {
@@ -21,48 +22,66 @@ impl Default for ImeInput {
 
 impl ImeInput {
     pub fn new() -> Self {
-        let mut single_line = SingleLine::new("".to_string());
-        single_line.update_motion(
-            MotionFlags::builder()
-                .camera_detail(CameraDetail::IGNORE_CAMERA)
-                .build(),
-        );
-        single_line.update_scale([0.1, 0.1]);
-        single_line.update_width(Some(1.0));
-        Self { single_line }
+        let config = TextContext {
+            char_easings: CharEasings::ignore_camera(),
+            color_easing: CpuEasingConfig::zero_motion(),
+            position_easing: CpuEasingConfig::zero_motion(),
+            max_col: 10,
+            ..Default::default()
+        };
+        let mut text_edit = TextEdit::default();
+        text_edit.set_config(config);
+        text_edit.set_world_scale([0.1, 0.1]);
+        text_edit.set_position((5.0, -5.0, 0.0).into());
+
+        Self { text_edit }
     }
 
     pub fn apply_ime_event(&mut self, action: &Action) -> bool {
         match action {
             Action::ImePreedit(value, position) => {
+                self.text_edit.editor_operation(&EditorOperation::Mark);
+                self.text_edit
+                    .editor_operation(&EditorOperation::BufferHead);
+                self.text_edit
+                    .editor_operation(&EditorOperation::Cut(|_| {}));
+
                 match position {
                     Some((start, end)) if start != end => {
                         info!("start:{start}, end:{end}");
                         let (first, center, last) =
                             split_preedit_string(value.clone(), *start, *end);
                         let preedit_str = format!("{}[{}]{}", first, center, last);
-                        self.single_line.update_value(preedit_str);
+                        self.text_edit
+                            .editor_operation(&EditorOperation::InsertString(preedit_str));
+                        true
                     }
                     _ => {
-                        self.single_line.update_value(value.clone());
+                        self.text_edit
+                            .editor_operation(&EditorOperation::InsertString(value.clone()));
+                        true
                     }
                 };
                 false
             }
             Action::ImeInput(_) => {
-                self.single_line.update_value("".to_string());
+                self.text_edit.editor_operation(&EditorOperation::Mark);
+                self.text_edit
+                    .editor_operation(&EditorOperation::BufferHead);
+                self.text_edit
+                    .editor_operation(&EditorOperation::Cut(|_| {}));
                 true
             }
             _ => false,
         }
     }
 
-    pub fn update(&mut self, context: &StateContext) -> Vec<&GlyphInstances> {
-        self.single_line.generate_instances(context)
+    pub fn update(&mut self, context: &StateContext) {
+        self.text_edit.update(context)
     }
 
     pub fn get_instances(&self) -> Vec<&GlyphInstances> {
-        self.single_line.get_instances()
+        self.text_edit.glyph_instances()
     }
 }
 

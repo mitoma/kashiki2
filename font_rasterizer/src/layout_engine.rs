@@ -142,7 +142,7 @@ impl World for HorizontalWorld {
     fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let range = self.get_surrounding_model_range();
         for model in self.models[range].iter_mut() {
-            model.update(glyph_vertex_buffer, context);
+            model.update(context);
         }
         if self.world_updated {
             self.re_layout();
@@ -248,7 +248,7 @@ pub trait Model {
     // モデルの縦横の長さを返す
     fn bound(&self) -> (f32, f32);
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
-    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext);
+    fn update(&mut self, context: &StateContext);
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult;
     fn to_string(&self) -> String;

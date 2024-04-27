@@ -9,7 +9,7 @@ use crate::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     font_buffer::Direction,
-    motion::{MotionDetail, MotionFlags, MotionTarget, MotionType},
+    motion::{CameraDetail, MotionDetail, MotionFlags, MotionTarget, MotionType},
 };
 
 pub struct StateContext {
@@ -45,8 +45,7 @@ impl From<PhysicalSize<u32>> for WindowSize {
     }
 }
 
-#[allow(dead_code)]
-pub struct CpuEasingConfig {
+pub(crate) struct CpuEasingConfig {
     pub(crate) duration: Duration,
     pub(crate) easing_func: fn(f32) -> f32,
 }
@@ -54,12 +53,22 @@ pub struct CpuEasingConfig {
 impl Default for CpuEasingConfig {
     fn default() -> Self {
         Self {
-            duration: Duration::ZERO,
-            easing_func: nenobi::functions::sin_in_out,
+            duration: Duration::from_millis(500),
+            easing_func: nenobi::functions::sin_out,
         }
     }
 }
 
+impl CpuEasingConfig {
+    pub(crate) fn zero_motion() -> Self {
+        Self {
+            duration: Duration::ZERO,
+            easing_func: nenobi::functions::liner,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
 pub(crate) struct GpuEasingConfig {
     pub(crate) motion: MotionFlags,
     pub(crate) duration: Duration,
@@ -170,6 +179,25 @@ impl CharEasings {
             unselect_char: GpuEasingConfig::default(),
             position_easing: CpuEasingConfig::default(),
             color_easing: CpuEasingConfig::default(),
+        }
+    }
+
+    pub(crate) fn ignore_camera() -> Self {
+        let ignore_camera_config = GpuEasingConfig {
+            motion: MotionFlags::builder()
+                .camera_detail(CameraDetail::IGNORE_CAMERA)
+                .build(),
+            duration: Duration::ZERO,
+            gain: 0.0,
+        };
+        Self {
+            add_char: ignore_camera_config.clone(),
+            move_char: ignore_camera_config.clone(),
+            remove_char: ignore_camera_config.clone(),
+            select_char: ignore_camera_config.clone(),
+            unselect_char: ignore_camera_config.clone(),
+            position_easing: CpuEasingConfig::zero_motion(),
+            color_easing: CpuEasingConfig::zero_motion(),
         }
     }
 }

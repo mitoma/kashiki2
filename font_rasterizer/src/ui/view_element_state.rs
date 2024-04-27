@@ -154,6 +154,7 @@ impl CharStates {
         center: &Point2<f32>,
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
+        world_scale: [f32; 2],
         char_width_calcurator: &CharWidthCalculator,
         text_context: &TextContext,
     ) {
@@ -164,7 +165,15 @@ impl CharStates {
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
                 let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
-                update_instance(instance, i, center, position, rotation, char_rotation);
+                update_instance(
+                    instance,
+                    i,
+                    center,
+                    position,
+                    rotation,
+                    world_scale,
+                    char_rotation,
+                );
             }
         }
 
@@ -176,7 +185,15 @@ impl CharStates {
             }
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
                 let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
-                update_instance(instance, i, center, position, rotation, char_rotation);
+                update_instance(
+                    instance,
+                    i,
+                    center,
+                    position,
+                    rotation,
+                    world_scale,
+                    char_rotation,
+                );
             }
         }
     }
@@ -401,6 +418,7 @@ impl CaretStates {
         center: &Point2<f32>,
         position: &Point3<f32>,
         rotation: &Quaternion<f32>,
+        world_scale: [f32; 2],
         char_width_calcurator: &CharWidthCalculator,
         text_context: &TextContext,
     ) {
@@ -415,6 +433,7 @@ impl CaretStates {
                     center,
                     position,
                     rotation,
+                    world_scale,
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_context,
@@ -433,6 +452,7 @@ impl CaretStates {
                     center,
                     position,
                     rotation,
+                    world_scale,
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_context,
@@ -459,6 +479,7 @@ impl CaretStates {
                     center,
                     position,
                     rotation,
+                    world_scale,
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_context,
@@ -477,11 +498,13 @@ fn update_instance(
     center: &Point2<f32>,
     position: &Point3<f32>,
     rotation: &Quaternion<f32>,
+    world_scale: [f32; 2],
     char_rotation: Option<Quaternion<f32>>,
 ) {
     // set color
     instance.color = view_char_state.color.current();
     // set scale
+    instance.world_scale = world_scale;
     // グリフの回転が入る場合は scale を入れ替える必要がある
     instance.instance_scale = if char_rotation.is_some() {
         let [l, r] = view_char_state.scale.current();
