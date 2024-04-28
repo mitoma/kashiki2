@@ -45,7 +45,7 @@ impl ImeInput {
                     .editor_operation(&EditorOperation::BufferHead);
                 self.text_edit
                     .editor_operation(&EditorOperation::Cut(|_| {}));
-
+                self.text_edit.clear();
                 match position {
                     Some((start, end)) if start != end => {
                         info!("start:{start}, end:{end}");
@@ -70,6 +70,7 @@ impl ImeInput {
                     .editor_operation(&EditorOperation::BufferHead);
                 self.text_edit
                     .editor_operation(&EditorOperation::Cut(|_| {}));
+                self.text_edit.clear();
                 true
             }
             _ => false,
