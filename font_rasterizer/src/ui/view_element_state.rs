@@ -72,11 +72,16 @@ impl CharStates {
     ) {
         let mut easing_color = EasingPointN::new(color);
         easing_color.update_duration_and_easing_func(
-            Duration::from_millis(800),
-            nenobi::functions::sin_in_out,
+            text_context.char_easings.color_easing.duration,
+            text_context.char_easings.color_easing.easing_func,
+        );
+        let mut easing_position = EasingPointN::new(position);
+        easing_position.update_duration_and_easing_func(
+            text_context.char_easings.position_easing.duration,
+            text_context.char_easings.position_easing.easing_func,
         );
         let state = ViewElementState {
-            position: EasingPointN::new(position),
+            position: easing_position,
             in_selection: false,
             base_color: ThemedColor::Text,
             color: easing_color,

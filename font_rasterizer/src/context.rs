@@ -47,8 +47,17 @@ impl From<PhysicalSize<u32>> for WindowSize {
 
 #[allow(dead_code)]
 pub struct CpuEasingConfig {
-    duration: Duration,
-    easing_func: fn(f32) -> f32,
+    pub(crate) duration: Duration,
+    pub(crate) easing_func: fn(f32) -> f32,
+}
+
+impl Default for CpuEasingConfig {
+    fn default() -> Self {
+        Self {
+            duration: Duration::ZERO,
+            easing_func: nenobi::functions::sin_in_out,
+        }
+    }
 }
 
 pub(crate) struct GpuEasingConfig {
@@ -73,6 +82,8 @@ pub(crate) struct CharEasings {
     pub(crate) remove_char: GpuEasingConfig,
     pub(crate) select_char: GpuEasingConfig,
     pub(crate) unselect_char: GpuEasingConfig,
+    pub(crate) position_easing: CpuEasingConfig,
+    pub(crate) color_easing: CpuEasingConfig,
 }
 
 impl Default for CharEasings {
@@ -135,6 +146,14 @@ impl Default for CharEasings {
                 duration: Duration::from_millis(300),
                 gain: 1.0,
             },
+            position_easing: CpuEasingConfig {
+                duration: Duration::from_millis(500),
+                easing_func: nenobi::functions::sin_in_out,
+            },
+            color_easing: CpuEasingConfig {
+                duration: Duration::from_millis(500),
+                easing_func: nenobi::functions::sin_in_out,
+            },
         }
     }
 }
@@ -149,6 +168,8 @@ impl CharEasings {
             remove_char: GpuEasingConfig::default(),
             select_char: GpuEasingConfig::default(),
             unselect_char: GpuEasingConfig::default(),
+            position_easing: CpuEasingConfig::default(),
+            color_easing: CpuEasingConfig::default(),
         }
     }
 }
@@ -162,8 +183,6 @@ pub struct TextContext {
     pub(crate) max_col: usize,
     pub(crate) line_prohibited_chars: LineBoundaryProhibitedChars,
     pub(crate) min_bound: Point2<f32>,
-    #[allow(dead_code)]
-    pub(crate) position_easing: CpuEasingConfig,
     pub(crate) char_easings: CharEasings,
     pub(crate) color_theme: ColorTheme,
     pub(crate) psychedelic: bool,
@@ -180,10 +199,6 @@ impl Default for TextContext {
             max_col: 40,
             line_prohibited_chars: LineBoundaryProhibitedChars::default(),
             min_bound: (10.0, 10.0).into(),
-            position_easing: CpuEasingConfig {
-                duration: Duration::from_millis(800),
-                easing_func: nenobi::functions::sin_in_out,
-            },
             char_easings: CharEasings::default(),
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
