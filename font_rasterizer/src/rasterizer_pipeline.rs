@@ -132,6 +132,7 @@ impl RasterizerPipeline {
                     module: &overlap_shader,
                     entry_point: "vs_main",
                     buffers: &[GlyphVertexBuffer::desc(), InstanceRaw::desc()],
+                    compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &overlap_shader,
@@ -148,6 +149,7 @@ impl RasterizerPipeline {
                         }),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
+                    compilation_options: Default::default(),
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -197,6 +199,7 @@ impl RasterizerPipeline {
                     module: &outline_shader,
                     entry_point: "vs_main",
                     buffers: &[ScreenVertexBuffer::desc()],
+                    compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &outline_shader,
@@ -206,6 +209,7 @@ impl RasterizerPipeline {
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
+                    compilation_options: Default::default(),
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
@@ -248,6 +252,7 @@ impl RasterizerPipeline {
                     module: &screen_shader,
                     entry_point: "vs_main",
                     buffers: &[ScreenVertexBuffer::desc()],
+                    compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &screen_shader,
@@ -260,6 +265,7 @@ impl RasterizerPipeline {
                         }),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
+                    compilation_options: Default::default(),
                 }),
                 primitive: wgpu::PrimitiveState {
                     topology: wgpu::PrimitiveTopology::TriangleList,
