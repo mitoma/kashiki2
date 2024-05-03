@@ -1,5 +1,5 @@
+use arboard::Clipboard;
 /*#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]*/
-use clipboard::{ClipboardContext, ClipboardProvider};
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
 use text_buffer::action::EditorOperation;
@@ -194,9 +194,7 @@ impl SimpleStateCallback for MemoPadCallback {
                         "buffer-head" => EditorOperation::BufferHead,
                         "buffer-last" => EditorOperation::BufferLast,
                         "paste" => {
-                            match ClipboardContext::new()
-                                .and_then(|mut context| context.get_contents())
-                            {
+                            match Clipboard::new().and_then(|mut context| context.get_text()) {
                                 Ok(text) => {
                                     self.new_chars.extend(text.chars());
                                     EditorOperation::InsertString(text)
@@ -205,12 +203,10 @@ impl SimpleStateCallback for MemoPadCallback {
                             }
                         }
                         "copy" => EditorOperation::Copy(|text| {
-                            let _ = ClipboardContext::new()
-                                .and_then(|mut context| context.set_contents(text));
+                            let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
                         }),
                         "cut" => EditorOperation::Cut(|text| {
-                            let _ = ClipboardContext::new()
-                                .and_then(|mut context| context.set_contents(text));
+                            let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
                         }),
                         "mark" => EditorOperation::Mark,
                         "unmark" => EditorOperation::UnMark,
@@ -264,8 +260,8 @@ impl SimpleStateCallback for MemoPadCallback {
                                 .model_operation(&ModelOperation::CopyDisplayString(
                                     glyph_vertex_buffer,
                                     |text| {
-                                        let _ = ClipboardContext::new()
-                                            .and_then(|mut context| context.set_contents(text));
+                                        let _ = Clipboard::new()
+                                            .and_then(|mut context| context.set_text(text));
                                     },
                                 ))
                         }
