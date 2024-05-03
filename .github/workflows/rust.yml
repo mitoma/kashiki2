@@ -32,11 +32,6 @@ jobs:
         with:
           os: ${{ matrix.job.os }}
 
-      # os が linux の場合のみ libxcb関連のライブラリを apt でインストールする
-      - name: install libxcb
-        if: ${{ matrix.job.os == 'linux' }}
-        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
-
       # ci phase
       - name: check all
         uses: mitoma/sver-actions/exec@v2
