@@ -42,6 +42,7 @@ impl ViewElementState {
     }
 }
 
+// 文字の 3 次元上の位置と画面上のインスタンスを管理する構造体
 #[derive(Default)]
 pub(crate) struct CharStates {
     chars: BTreeMap<BufferChar, ViewElementState>,
@@ -285,6 +286,13 @@ impl CharStates {
             instance.duration = text_context.char_easings.unselect_char.duration;
             instance.start_time = now_millis();
         }
+    }
+
+    // ダストボックスに入れずに即座に管理している全ての文字を削除する
+    pub(crate) fn clear(&mut self) {
+        self.chars.clear();
+        self.removed_chars.clear();
+        self.instances.clear();
     }
 }
 

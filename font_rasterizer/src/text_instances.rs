@@ -128,4 +128,14 @@ impl TextInstances {
     pub fn is_empty(&self) -> bool {
         self.glyph_instances.is_empty()
     }
+
+    pub fn clear(&mut self) {
+        // GlyphInstances は wgpu::Buffer を保持しているが
+        // self.glyph_instances.clear() だと Buffer も破棄されてしまい
+        // Buffer の作り直しになってコストが高そうなため
+        //  GlyphInstances の内部データのクリアにとどめている
+        self.glyph_instances
+            .values_mut()
+            .for_each(|instances| instances.clear());
+    }
 }
