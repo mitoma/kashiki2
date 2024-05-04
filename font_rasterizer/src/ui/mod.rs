@@ -112,7 +112,7 @@ impl Model for PlaneTextReader {
 impl PlaneTextReader {
     const MAX_WIDTH: f32 = 40.0;
 
-    pub fn calc_bound(&self, char_width_calcurator: &CharWidthCalculator) -> (f32, f32) {
+    fn calc_bound(&self, char_width_calcurator: &CharWidthCalculator) -> (f32, f32) {
         let mut max_width = 0.0;
         let mut max_height = 0.0;
         for line in self.value.lines() {
@@ -134,7 +134,8 @@ impl PlaneTextReader {
         (max_width, max_height)
     }
 
-    pub fn get_target_and_camera(
+    #[allow(unused)]
+    fn get_target_and_camera(
         &self,
         line_num: usize,
         char_width_calcurator: &CharWidthCalculator,
