@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use cgmath::{Point3, Quaternion, Rotation3};
+use cgmath::{Point2, Point3, Quaternion, Rotation3};
 use log::info;
 use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 
@@ -139,7 +139,7 @@ impl World for HorizontalWorld {
             .collect()
     }
 
-    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let range = self.get_surrounding_model_range();
         for model in self.models[range].iter_mut() {
             model.update(context);
@@ -281,4 +281,15 @@ pub enum ModelOperation<'a> {
 pub enum ModelOperationResult {
     NoCare,
     RequireReLayout,
+}
+
+// モデルが持つ属性をまとめたもの
+pub struct ModelAttributes {
+    pub center: Point2<f32>,
+    // モデルの world 空間上の位置
+    pub position: Point3<f32>,
+    // モデルの world 空間上の回転(向き)
+    pub rotation: Quaternion<f32>,
+    // モデルの world 空間上の拡大率(x, y)
+    pub world_scale: [f32; 2],
 }

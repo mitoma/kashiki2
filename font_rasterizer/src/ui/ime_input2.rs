@@ -3,7 +3,7 @@ use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
 use crate::{
-    context::{CharEasings, CpuEasingConfig, StateContext, TextContext},
+    context::{CharEasings, StateContext, TextContext},
     instances::GlyphInstances,
     layout_engine::Model,
 };
@@ -24,8 +24,6 @@ impl ImeInput {
     pub fn new() -> Self {
         let config = TextContext {
             char_easings: CharEasings::ignore_camera(),
-            color_easing: CpuEasingConfig::zero_motion(),
-            position_easing: CpuEasingConfig::zero_motion(),
             max_col: 10,
             ..Default::default()
         };
