@@ -6,7 +6,7 @@ use rustybuzz::Face;
 use text_buffer::editor::CharWidthResolver;
 use unicode_width::UnicodeWidthChar;
 
-pub(crate) struct CharWidthCalculator {
+pub struct CharWidthCalculator {
     faces: Arc<Vec<FontData>>,
 }
 

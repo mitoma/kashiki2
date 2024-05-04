@@ -14,7 +14,7 @@ use crate::{
     easing_value::EasingPointN,
     font_buffer::Direction,
     instances::GlyphInstances,
-    layout_engine::{Model, ModelOperation, ModelOperationResult},
+    layout_engine::{Model, ModelAttributes, ModelOperation, ModelOperationResult},
 };
 
 use super::{
@@ -426,13 +426,17 @@ impl TextEdit {
         let current_position: Point3<f32> = self.position.current().into();
         let update_environment = position_in_animation || bound_in_animation || self.config_updated;
 
+        let model_attributes = ModelAttributes {
+            position: current_position,
+            rotation: self.rotation,
+            center,
+            world_scale: self.world_scale,
+        };
+
         // update caret
         self.caret_states.update_instances(
             update_environment,
-            &center,
-            &current_position,
-            &self.rotation,
-            self.world_scale,
+            &model_attributes,
             char_width_calcurator,
             &self.config,
         );
@@ -440,10 +444,7 @@ impl TextEdit {
         // update chars
         self.char_states.update_instances(
             update_environment,
-            &center,
-            &current_position,
-            &self.rotation,
-            self.world_scale,
+            &model_attributes,
             char_width_calcurator,
             &self.config,
         );

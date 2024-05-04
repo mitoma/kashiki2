@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cgmath::{num_traits::ToPrimitive, Point2, Point3, Quaternion, Rotation3};
+use cgmath::{num_traits::ToPrimitive, Quaternion, Rotation3};
 use instant::Duration;
 use rand::Rng;
 use text_buffer::{
@@ -16,6 +16,7 @@ use crate::{
     easing_value::EasingPointN,
     font_buffer::Direction,
     instances::GlyphInstance,
+    layout_engine::ModelAttributes,
     motion::MotionFlags,
     text_instances::TextInstances,
     time::now_millis,
@@ -151,10 +152,7 @@ impl CharStates {
     pub(crate) fn update_instances(
         &mut self,
         update_environment: bool,
-        center: &Point2<f32>,
-        position: &Point3<f32>,
-        rotation: &Quaternion<f32>,
-        world_scale: [f32; 2],
+        model_attribuetes: &ModelAttributes,
         char_width_calcurator: &CharWidthCalculator,
         text_context: &TextContext,
     ) {
@@ -165,15 +163,7 @@ impl CharStates {
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
                 let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
-                update_instance(
-                    instance,
-                    i,
-                    center,
-                    position,
-                    rotation,
-                    world_scale,
-                    char_rotation,
-                );
+                update_instance(instance, i, model_attribuetes, char_rotation);
             }
         }
 
@@ -185,15 +175,7 @@ impl CharStates {
             }
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
                 let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
-                update_instance(
-                    instance,
-                    i,
-                    center,
-                    position,
-                    rotation,
-                    world_scale,
-                    char_rotation,
-                );
+                update_instance(instance, i, model_attribuetes, char_rotation);
             }
         }
     }
@@ -415,10 +397,7 @@ impl CaretStates {
     pub(crate) fn update_instances(
         &mut self,
         update_environment: bool,
-        center: &Point2<f32>,
-        position: &Point3<f32>,
-        rotation: &Quaternion<f32>,
-        world_scale: [f32; 2],
+        model_attribuetes: &ModelAttributes,
         char_width_calcurator: &CharWidthCalculator,
         text_context: &TextContext,
     ) {
@@ -430,10 +409,7 @@ impl CaretStates {
                 update_instance(
                     instance,
                     i,
-                    center,
-                    position,
-                    rotation,
-                    world_scale,
+                    model_attribuetes,
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_context,
@@ -449,10 +425,7 @@ impl CaretStates {
                 update_instance(
                     instance,
                     i,
-                    center,
-                    position,
-                    rotation,
-                    world_scale,
+                    model_attribuetes,
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_context,
@@ -476,10 +449,7 @@ impl CaretStates {
                 update_instance(
                     instance,
                     i,
-                    center,
-                    position,
-                    rotation,
-                    world_scale,
+                    model_attribuetes,
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_context,
@@ -495,16 +465,13 @@ impl CaretStates {
 fn update_instance(
     instance: &mut GlyphInstance,
     view_char_state: &mut ViewElementState,
-    center: &Point2<f32>,
-    position: &Point3<f32>,
-    rotation: &Quaternion<f32>,
-    world_scale: [f32; 2],
+    model_attribuetes: &ModelAttributes,
     char_rotation: Option<Quaternion<f32>>,
 ) {
     // set color
     instance.color = view_char_state.color.current();
     // set scale
-    instance.world_scale = world_scale;
+    instance.world_scale = model_attribuetes.world_scale;
     // グリフの回転が入る場合は scale を入れ替える必要がある
     instance.instance_scale = if char_rotation.is_some() {
         let [l, r] = view_char_state.scale.current();
@@ -517,12 +484,12 @@ fn update_instance(
 
     // set position
     let [x, y, z] = view_char_state.position.current();
-    let pos = cgmath::Matrix4::from(*rotation)
+    let pos = cgmath::Matrix4::from(model_attribuetes.rotation)
         * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
     let new_position = cgmath::Vector3 {
-        x: pos.x - center.x + position.x,
-        y: pos.y - center.y + position.y,
-        z: pos.z + position.z,
+        x: pos.x - model_attribuetes.center.x + model_attribuetes.position.x,
+        y: pos.y - model_attribuetes.center.y + model_attribuetes.position.y,
+        z: pos.z + model_attribuetes.position.z,
     };
     instance.position = new_position;
 
@@ -530,8 +497,8 @@ fn update_instance(
     // 縦書きの場合は char_rotation が必要なのでここで回転する
     // TODO: rotation を変更したときに vertex shader での motion も考慮する必要がある
     instance.rotation = match char_rotation {
-        Some(r) => *rotation * r,
-        None => *rotation,
+        Some(r) => model_attribuetes.rotation * r,
+        None => model_attribuetes.rotation,
     }
 }
 
