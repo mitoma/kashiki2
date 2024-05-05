@@ -85,14 +85,23 @@ impl Default for GpuEasingConfig {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RemoveCharMode {
+    Immediate,
+    Delayed,
+}
+
 pub(crate) struct CharEasings {
     pub(crate) add_char: GpuEasingConfig,
     pub(crate) move_char: GpuEasingConfig,
     pub(crate) remove_char: GpuEasingConfig,
+    pub(crate) remove_char_mode: RemoveCharMode,
     pub(crate) select_char: GpuEasingConfig,
     pub(crate) unselect_char: GpuEasingConfig,
     pub(crate) position_easing: CpuEasingConfig,
     pub(crate) color_easing: CpuEasingConfig,
+    pub(crate) scale_easing: CpuEasingConfig,
+    pub(crate) motion_gain_easing: CpuEasingConfig,
 }
 
 impl Default for CharEasings {
@@ -133,6 +142,7 @@ impl Default for CharEasings {
                 duration: Duration::from_millis(500),
                 gain: 0.8,
             },
+            remove_char_mode: RemoveCharMode::Delayed,
             select_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
                     .motion_type(MotionType::EaseInOut(
@@ -163,6 +173,14 @@ impl Default for CharEasings {
                 duration: Duration::from_millis(500),
                 easing_func: nenobi::functions::sin_in_out,
             },
+            scale_easing: CpuEasingConfig {
+                duration: Duration::from_millis(500),
+                easing_func: nenobi::functions::sin_in_out,
+            },
+            motion_gain_easing: CpuEasingConfig {
+                duration: Duration::from_millis(500),
+                easing_func: nenobi::functions::sin_in_out,
+            },
         }
     }
 }
@@ -175,10 +193,13 @@ impl CharEasings {
             add_char: GpuEasingConfig::default(),
             move_char: GpuEasingConfig::default(),
             remove_char: GpuEasingConfig::default(),
+            remove_char_mode: RemoveCharMode::Immediate,
             select_char: GpuEasingConfig::default(),
             unselect_char: GpuEasingConfig::default(),
             position_easing: CpuEasingConfig::default(),
             color_easing: CpuEasingConfig::default(),
+            scale_easing: CpuEasingConfig::default(),
+            motion_gain_easing: CpuEasingConfig::default(),
         }
     }
 
@@ -194,10 +215,13 @@ impl CharEasings {
             add_char: ignore_camera_config,
             move_char: ignore_camera_config,
             remove_char: ignore_camera_config,
+            remove_char_mode: RemoveCharMode::Immediate,
             select_char: ignore_camera_config,
             unselect_char: ignore_camera_config,
             position_easing: CpuEasingConfig::zero_motion(),
             color_easing: CpuEasingConfig::zero_motion(),
+            scale_easing: CpuEasingConfig::zero_motion(),
+            motion_gain_easing: CpuEasingConfig::zero_motion(),
         }
     }
 }

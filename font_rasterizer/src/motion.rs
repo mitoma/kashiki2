@@ -62,7 +62,7 @@ use rand::Rng;
 /// 1110: (unused)
 /// 1111: (unused)
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct MotionFlags(u32);
 
 impl MotionFlags {

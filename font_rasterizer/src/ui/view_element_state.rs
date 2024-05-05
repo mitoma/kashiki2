@@ -12,7 +12,7 @@ use wgpu::Device;
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
-    context::TextContext,
+    context::{RemoveCharMode, TextContext},
     easing_value::EasingPointN,
     font_buffer::Direction,
     instances::GlyphInstance,
@@ -82,13 +82,24 @@ impl CharStates {
             text_context.char_easings.position_easing.duration,
             text_context.char_easings.position_easing.easing_func,
         );
+        let mut easing_scale = EasingPointN::new(text_context.instance_scale());
+        easing_scale.update_duration_and_easing_func(
+            text_context.char_easings.scale_easing.duration,
+            text_context.char_easings.scale_easing.easing_func,
+        );
+        let mut easing_motion_gain = EasingPointN::new([text_context.char_easings.add_char.gain]);
+        easing_motion_gain.update_duration_and_easing_func(
+            text_context.char_easings.motion_gain_easing.duration,
+            text_context.char_easings.motion_gain_easing.easing_func,
+        );
+
         let state = ViewElementState {
             position: easing_position,
             in_selection: false,
             base_color: ThemedColor::Text,
             color: easing_color,
-            scale: EasingPointN::new(text_context.instance_scale()),
-            motion_gain: EasingPointN::new([text_context.char_easings.add_char.gain]),
+            scale: easing_scale,
+            motion_gain: easing_motion_gain,
         };
         self.chars.insert(c, state);
         let instance = GlyphInstance {
@@ -181,12 +192,19 @@ impl CharStates {
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
+    // remove_char_mode が Immediate の場合は即座に削除する
     pub(crate) fn char_to_dustbox(
         &mut self,
         c: BufferChar,
         counter: u32,
         text_context: &TextContext,
     ) {
+        if text_context.char_easings.remove_char_mode == RemoveCharMode::Immediate {
+            self.chars.remove(&c);
+            self.instances.remove(&c.into());
+            return;
+        }
+
         if let Some(mut state) = self.chars.remove(&c) {
             // アニメーション状態に強制的に有効にするために gain を 0 にしている。
             // 本当はアニメーションが終わったらゴミ箱から消すという仕様が適切ではないのかもしれない
