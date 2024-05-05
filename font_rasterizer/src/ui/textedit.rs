@@ -466,8 +466,4 @@ impl TextEdit {
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
         self.world_scale = world_scale;
     }
-
-    pub(crate) fn clear(&mut self) {
-        self.char_states.clear();
-    }
 }

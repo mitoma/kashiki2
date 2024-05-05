@@ -304,13 +304,6 @@ impl CharStates {
             instance.start_time = now_millis();
         }
     }
-
-    // ダストボックスに入れずに即座に管理している全ての文字を削除する
-    pub(crate) fn clear(&mut self) {
-        self.chars.clear();
-        self.removed_chars.clear();
-        self.instances.clear();
-    }
 }
 
 #[derive(Default)]
