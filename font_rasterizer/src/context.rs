@@ -238,6 +238,7 @@ pub struct TextContext {
     pub(crate) char_easings: CharEasings,
     pub(crate) color_theme: ColorTheme,
     pub(crate) psychedelic: bool,
+    pub(crate) hyde_caret: bool,
 }
 
 impl Default for TextContext {
@@ -254,6 +255,7 @@ impl Default for TextContext {
             char_easings: CharEasings::default(),
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
+            hyde_caret: false,
         }
     }
 }

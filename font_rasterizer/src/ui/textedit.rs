@@ -125,11 +125,15 @@ impl Model for TextEdit {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        [
-            self.caret_states.instances.to_instances(),
-            self.char_states.instances.to_instances(),
-        ]
-        .concat()
+        if self.config.hyde_caret {
+            self.char_states.instances.to_instances()
+        } else {
+            [
+                self.caret_states.instances.to_instances(),
+                self.char_states.instances.to_instances(),
+            ]
+            .concat()
+        }
     }
 
     fn update(&mut self, context: &StateContext) {

@@ -25,6 +25,7 @@ impl ImeInput {
         let config = TextContext {
             char_easings: CharEasings::ignore_camera(),
             max_col: 10,
+            hyde_caret: true,
             ..Default::default()
         };
         let mut text_edit = TextEdit::default();
