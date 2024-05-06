@@ -18,18 +18,22 @@ pub struct TextInstancesKey {
 
 impl From<BufferChar> for TextInstancesKey {
     fn from(value: BufferChar) -> Self {
-        let BufferChar { c, row, col } = value;
-        Self { c, row, col }
+        let BufferChar { c, position } = value;
+        Self {
+            c,
+            row: position.row,
+            col: position.col,
+        }
     }
 }
 
 impl From<Caret> for TextInstancesKey {
     fn from(value: Caret) -> Self {
-        let Caret { row, col, .. } = value;
+        let Caret { position, .. } = value;
         Self {
             c: caret_char(value.caret_type),
-            row,
-            col,
+            row: position.row,
+            col: position.col,
         }
     }
 }

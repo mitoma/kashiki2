@@ -338,7 +338,9 @@ pub(crate) struct CaretStates {
 
 impl CaretStates {
     pub(crate) fn main_caret_logical_position(&self) -> Option<[usize; 2]> {
-        self.main_caret.as_ref().map(|(c, _)| [c.row, c.col])
+        self.main_caret
+            .as_ref()
+            .map(|(c, _)| [c.position.row, c.position.col])
     }
 
     pub(crate) fn main_caret_position(&self) -> Option<[f32; 3]> {
@@ -346,7 +348,7 @@ impl CaretStates {
     }
 
     pub(crate) fn add_caret(&mut self, c: Caret, color: [f32; 3], device: &Device) {
-        let position = [c.row as f32, c.col as f32, 0.0];
+        let position = [c.position.row as f32, c.position.col as f32, 0.0];
 
         let mut easing_color = EasingPointN::new(color);
         easing_color.update_duration_and_easing_func(

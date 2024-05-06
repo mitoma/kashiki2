@@ -276,7 +276,7 @@ impl TextEdit {
                 }
                 ChangeEvent::MoveChar { from, to } => {
                     if let Some([row, _col]) = self.caret_states.main_caret_logical_position() {
-                        if from.row == row || to.row == row {
+                        if from.position.row == row || to.position.row == row {
                             self.char_states.move_char(
                                 from,
                                 to,
