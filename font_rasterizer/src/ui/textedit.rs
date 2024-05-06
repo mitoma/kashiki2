@@ -1,15 +1,19 @@
-use std::sync::mpsc::Receiver;
+use std::{
+    ops::Range,
+    sync::mpsc::{Receiver, Sender},
+};
 
 use cgmath::{Point3, Quaternion, Rotation3};
 
 use text_buffer::{
+    buffer::CellPosition,
     caret::CaretType,
     editor::{ChangeEvent, Editor, PhisicalLayout},
 };
 
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
-    color_theme::ColorTheme,
+    color_theme::{ColorTheme, ThemedColor},
     context::{StateContext, TextContext},
     easing_value::EasingPointN,
     font_buffer::Direction,
@@ -28,6 +32,9 @@ pub struct TextEdit {
     editor: Editor,
     receiver: Receiver<ChangeEvent>,
 
+    text_edit_operation_sender: Sender<TextEditOperation>,
+    text_edit_operation_receiver: Receiver<TextEditOperation>,
+
     char_states: CharStates,
     caret_states: CaretStates,
 
@@ -45,6 +52,7 @@ impl Default for TextEdit {
     fn default() -> Self {
         let config = TextContext::default();
         let (tx, rx) = std::sync::mpsc::channel();
+        let (text_edit_operation_sender, text_edit_operation_receiver) = std::sync::mpsc::channel();
 
         let position = EasingPointN::new([0.0, 0.0, 0.0]);
         let bound = config.min_bound.into();
@@ -52,6 +60,9 @@ impl Default for TextEdit {
             config,
             editor: Editor::new(tx),
             receiver: rx,
+
+            text_edit_operation_sender,
+            text_edit_operation_receiver,
 
             char_states: CharStates::default(),
             caret_states: CaretStates::default(),
@@ -245,6 +256,10 @@ impl Model for TextEdit {
 }
 
 impl TextEdit {
+    pub(crate) fn text_edit_operation(&mut self, op: TextEditOperation) {
+        self.text_edit_operation_sender.send(op).unwrap();
+    }
+
     // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。
     #[inline]
     fn sync_editor_events(&mut self, device: &wgpu::Device, color_theme: &ColorTheme) {
@@ -318,6 +333,22 @@ impl TextEdit {
                 }
             }
         }
+        // editor のイベントを処理した後に textedit 特有の Operation を処理する
+        // そうしなければ char_state のインスタンスが期待通りに存在しないため
+        while let Ok(event) = self.text_edit_operation_receiver.try_recv() {
+            match event {
+                TextEditOperation::SetThemedColor(range, color) => {
+                    self.char_states.update_states(
+                        &range,
+                        &ViewElementStateUpdateRequest {
+                            base_color: Some(color),
+                            ..Default::default()
+                        },
+                        &self.config,
+                    );
+                }
+            }
+        }
     }
 
     #[inline]
@@ -374,6 +405,7 @@ impl TextEdit {
                     scale: Some(self.config.instance_scale()),
                     ..Default::default()
                 },
+                &self.config,
             )
         });
 
@@ -469,4 +501,9 @@ impl TextEdit {
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
         self.world_scale = world_scale;
     }
+}
+
+pub enum TextEditOperation {
+    // テーマカラーを Range の範囲で設定する
+    SetThemedColor(Range<CellPosition>, ThemedColor),
 }

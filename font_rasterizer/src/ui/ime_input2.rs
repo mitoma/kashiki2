@@ -3,9 +3,11 @@ use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
 use crate::{
+    color_theme::ThemedColor,
     context::{CharEasings, StateContext, TextContext},
     instances::GlyphInstances,
     layout_engine::Model,
+    ui::textedit::TextEditOperation,
 };
 
 use super::textedit::TextEdit;
@@ -49,9 +51,23 @@ impl ImeInput {
                         info!("start:{start}, end:{end}");
                         let (first, center, last) =
                             split_preedit_string(value.clone(), *start, *end);
+                        let left_separator_len = first.chars().count();
+                        // 左のセパレーターの文字数を考慮して + 1 している
+                        let right_separator_len = left_separator_len + center.chars().count() + 1;
                         let preedit_str = format!("{}[{}]{}", first, center, last);
                         self.text_edit
                             .editor_operation(&EditorOperation::InsertString(preedit_str));
+                        self.text_edit
+                            .text_edit_operation(TextEditOperation::SetThemedColor(
+                                [0, left_separator_len].into()..[0, left_separator_len + 1].into(),
+                                ThemedColor::TextEmphasized,
+                            ));
+                        self.text_edit
+                            .text_edit_operation(TextEditOperation::SetThemedColor(
+                                [0, right_separator_len].into()
+                                    ..[0, right_separator_len + 1].into(),
+                                ThemedColor::TextComment,
+                            ));
                     }
                     _ => {
                         self.text_edit

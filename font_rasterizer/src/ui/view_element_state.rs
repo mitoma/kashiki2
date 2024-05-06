@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::Range};
 
 use cgmath::{num_traits::ToPrimitive, Quaternion, Rotation3};
 use instant::Duration;
 use rand::Rng;
 use text_buffer::{
-    buffer::BufferChar,
+    buffer::{BufferChar, CellPosition},
     caret::{Caret, CaretType},
 };
 use wgpu::Device;
@@ -146,14 +146,35 @@ impl CharStates {
         }
     }
 
+    pub(crate) fn update_states(
+        &mut self,
+        range: &Range<CellPosition>,
+        update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
+    ) {
+        let chars: Vec<BufferChar> = self
+            .chars
+            .keys()
+            .filter(|c| range.contains(&c.position))
+            .cloned()
+            .collect();
+        for c in chars.iter() {
+            self.update_state(c, update_request, text_context);
+        }
+    }
+
     pub(crate) fn update_state(
         &mut self,
         c: &BufferChar,
         update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
     ) {
         if let Some(c_pos) = self.chars.get_mut(c) {
             if let Some(base_color) = update_request.base_color {
                 c_pos.base_color = base_color;
+                c_pos
+                    .color
+                    .update(base_color.get_color(&text_context.color_theme));
             }
             if let Some(position) = update_request.position {
                 c_pos.position.update(position);
