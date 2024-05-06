@@ -339,6 +339,11 @@ pub fn caret_char(caret_type: CaretType) -> char {
     }
 }
 
+#[inline]
+pub fn ime_chars() -> [char; 2] {
+    ['[', ']']
+}
+
 #[cfg(test)]
 mod test {
     use super::split_preedit_string;
