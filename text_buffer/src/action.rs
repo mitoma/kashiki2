@@ -226,15 +226,14 @@ impl BufferApplyer {
             EditorOperation::DeleteWord => {
                 let pre_caret = *current_caret;
                 buffer.forward_word(current_caret);
-                if pre_caret.row != current_caret.row || pre_caret.col != current_caret.col {
+                if pre_caret.position != current_caret.position {
                     let text = buffer.copy_string(&pre_caret, current_caret);
                     reverse_actions
                         .actions
                         .push(ReverseAction::InsertString(text));
                     reverse_actions.push(ReverseAction::MoveTo(pre_caret));
                     loop {
-                        if pre_caret.row == current_caret.row && pre_caret.col == current_caret.col
-                        {
+                        if pre_caret.position == current_caret.position {
                             break;
                         }
                         let _removed_char = buffer.backspace(current_caret);
@@ -244,15 +243,14 @@ impl BufferApplyer {
             EditorOperation::BackspaceWord => {
                 let mut pre_caret = *current_caret;
                 buffer.back_word(current_caret);
-                if pre_caret.row != current_caret.row || pre_caret.col != current_caret.col {
+                if pre_caret.position != current_caret.position {
                     let text = buffer.copy_string(&pre_caret, current_caret);
                     reverse_actions
                         .actions
                         .push(ReverseAction::InsertString(text));
                     reverse_actions.push(ReverseAction::MoveTo(pre_caret));
                     loop {
-                        if pre_caret.row == current_caret.row && pre_caret.col == current_caret.col
-                        {
+                        if pre_caret.position == current_caret.position {
                             break;
                         }
                         let _removed_char = buffer.backspace(&mut pre_caret);
@@ -278,7 +276,7 @@ impl BufferApplyer {
                         (current_caret, mark_caret)
                     };
                     loop {
-                        if from.row == to.row && from.col == to.col {
+                        if from.position == to.position {
                             break;
                         }
                         let _removed_char = buffer.backspace(to);
@@ -305,7 +303,7 @@ mod tests {
     fn test_buffer_move() {
         let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::new(tx.clone());
-        let mut caret = Caret::new(0, 0, &tx);
+        let mut caret = Caret::new([0, 0].into(), &tx);
         BufferApplyer::apply_action(
             &mut sut,
             &mut caret,
@@ -313,8 +311,7 @@ mod tests {
             &EditorOperation::InsertString("ABCD\nEFGH\nIJKL\nMNO".to_string()),
             &tx,
         );
-        assert_eq!(caret.row, 3);
-        assert_eq!(caret.col, 3);
+        assert_eq!(caret.position, [3, 3].into());
         let result = BufferApplyer::apply_action(
             &mut sut,
             &mut caret,
@@ -322,18 +319,16 @@ mod tests {
             &EditorOperation::Head,
             &tx,
         );
-        assert_eq!(caret.row, 3);
-        assert_eq!(caret.col, 0);
+        assert_eq!(caret.position, [3, 0].into());
         BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &mut None, &result, &tx);
-        assert_eq!(caret.row, 3);
-        assert_eq!(caret.col, 3);
+        assert_eq!(caret.position, [3, 3].into());
     }
 
     #[test]
     fn test_apply_action() {
         let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::new(tx.clone());
-        let mut caret = Caret::new(0, 0, &tx);
+        let mut caret = Caret::new([0, 0].into(), &tx);
         let mut reverses = Vec::new();
         let result = BufferApplyer::apply_action(
             &mut sut,
@@ -360,7 +355,7 @@ mod tests {
         );
         reverses.push(result);
         assert_eq!(sut.to_buffer_string(), "花鳥\n".to_string());
-        assert_eq!(caret, Caret::new(1, 0, &tx));
+        assert_eq!(caret, Caret::new([1, 0].into(), &tx));
 
         let reverse_action = reverses.pop().unwrap();
         BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &mut None, &reverse_action, &tx);
@@ -373,7 +368,7 @@ mod tests {
         let reverse_action = reverses.pop().unwrap();
         BufferApplyer::apply_reserve_actions(&mut sut, &mut caret, &mut None, &reverse_action, &tx);
         assert_eq!(sut.to_buffer_string(), "".to_string());
-        assert_eq!(caret, Caret::new(0, 0, &tx));
+        assert_eq!(caret, Caret::new([0, 0].into(), &tx));
     }
 
     #[test]
@@ -382,7 +377,7 @@ mod tests {
         let mut sut = Buffer::new(tx.clone());
         BufferApplyer::apply_action(
             &mut sut,
-            &mut Caret::new(0, 0, &tx),
+            &mut Caret::new([0, 0].into(), &tx),
             &mut None,
             &EditorOperation::InsertString("ABCD\nEFGH\nIJKL\nMNO".to_string()),
             &tx,
@@ -390,8 +385,8 @@ mod tests {
 
         BufferApplyer::apply_action(
             &mut sut,
-            &mut Caret::new(1, 1, &tx),
-            &mut Some(Caret::new(2, 2, &tx)),
+            &mut Caret::new([1, 1].into(), &tx),
+            &mut Some(Caret::new([2, 2].into(), &tx)),
             &EditorOperation::Copy(|text| {
                 assert_eq!(text, "FGH\nIJ".to_string());
             }),
