@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     caret_char,
-    view_element_state::{CaretStates, CharStates},
+    view_element_state::{CaretStates, CharStates, ViewElementStateUpdateRequest},
 };
 
 pub struct TextEdit {
@@ -367,10 +367,13 @@ impl TextEdit {
             let width = char_width_calcurator.get_width(c.c);
             let position =
                 Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
-            self.char_states.update_state_position_and_scale(
+            self.char_states.update_state(
                 c,
-                position,
-                self.config.instance_scale(),
+                &ViewElementStateUpdateRequest {
+                    position: Some(position),
+                    scale: Some(self.config.instance_scale()),
+                    ..Default::default()
+                },
             )
         });
 

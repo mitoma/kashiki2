@@ -24,6 +24,15 @@ use crate::{
 
 use super::caret_char;
 
+#[derive(Default)]
+pub(crate) struct ViewElementStateUpdateRequest {
+    pub(crate) base_color: Option<ThemedColor>,
+    pub(crate) position: Option<[f32; 3]>,
+    pub(crate) color: Option<[f32; 3]>,
+    pub(crate) scale: Option<[f32; 2]>,
+    pub(crate) motion_gain: Option<[f32; 1]>,
+}
+
 struct ViewElementState {
     pub(crate) base_color: ThemedColor,
     pub(crate) in_selection: bool,
@@ -137,15 +146,27 @@ impl CharStates {
         }
     }
 
-    pub(crate) fn update_state_position_and_scale(
+    pub(crate) fn update_state(
         &mut self,
         c: &BufferChar,
-        position: [f32; 3],
-        scale: [f32; 2],
+        update_request: &ViewElementStateUpdateRequest,
     ) {
         if let Some(c_pos) = self.chars.get_mut(c) {
-            c_pos.position.update(position);
-            c_pos.scale.update(scale);
+            if let Some(base_color) = update_request.base_color {
+                c_pos.base_color = base_color;
+            }
+            if let Some(position) = update_request.position {
+                c_pos.position.update(position);
+            }
+            if let Some(color) = update_request.color {
+                c_pos.color.update(color);
+            }
+            if let Some(scale) = update_request.scale {
+                c_pos.scale.update(scale);
+            }
+            if let Some(motion_gain) = update_request.motion_gain {
+                c_pos.motion_gain.update(motion_gain);
+            }
         }
     }
 
