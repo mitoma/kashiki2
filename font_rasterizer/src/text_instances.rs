@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use text_buffer::{buffer::BufferChar, caret::Caret};
+use text_buffer::{
+    buffer::{BufferChar, CellPosition},
+    caret::Caret,
+};
 use wgpu::{Device, Queue};
 
 use crate::{
@@ -12,18 +15,13 @@ use crate::{
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct TextInstancesKey {
     c: char,
-    row: usize,
-    col: usize,
+    position: CellPosition,
 }
 
 impl From<BufferChar> for TextInstancesKey {
     fn from(value: BufferChar) -> Self {
         let BufferChar { c, position } = value;
-        Self {
-            c,
-            row: position.row,
-            col: position.col,
-        }
+        Self { c, position }
     }
 }
 
@@ -32,23 +30,22 @@ impl From<Caret> for TextInstancesKey {
         let Caret { position, .. } = value;
         Self {
             c: caret_char(value.caret_type),
-            row: position.row,
-            col: position.col,
+            position,
         }
     }
 }
 
 impl TextInstancesKey {
     pub fn to_instance_key(&self) -> InstanceKey {
-        InstanceKey::Position(self.row, self.col)
+        InstanceKey::Position(self.position.row, self.position.col)
     }
 
     pub fn to_pre_remove_instance_key(&self) -> InstanceKey {
-        InstanceKey::PreRemovePosition(self.row, self.col)
+        InstanceKey::PreRemovePosition(self.position.row, self.position.col)
     }
 
     pub fn same_position(&self, other: &Self) -> bool {
-        self.row == other.row && self.col == other.col
+        self.position == other.position
     }
 }
 
