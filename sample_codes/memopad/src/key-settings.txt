@@ -76,8 +76,8 @@ A-S-Up      world:decrease-row-scale
 A-S-Right   world:increase-col-scale
 A-S-Left    world:decrease-col-scale
 
-A-S-Up    world:fit-width
-A-S-Down  world:fit-height
+C-Key9    world:fit-width
+C-Key8    world:fit-height
 C-Z Space world:look-next
 C-Z P     world:look-prev
 A-S-W     world:copy-display
