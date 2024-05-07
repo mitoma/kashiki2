@@ -1,7 +1,7 @@
 mod metrics_counter;
 mod render_rate_adjuster;
 
-use std::{collections::HashSet, iter, sync::Arc};
+use std::{collections::HashSet, iter, sync::Arc, thread};
 
 use crate::{
     camera::Camera,
@@ -197,7 +197,8 @@ pub async fn run_support(support: SimpleStateSupport) {
                                 }
                                 WindowEvent::RedrawRequested => {
                                     record_start_of_phase("state update");
-                                    if render_rate_adjuster.skip() {
+                                    if let Some(idle_time) = render_rate_adjuster.idle_time() {
+                                        thread::sleep(idle_time);
                                         return;
                                     }
                                     state.update();

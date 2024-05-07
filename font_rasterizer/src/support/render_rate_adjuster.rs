@@ -25,17 +25,18 @@ impl RenderRateAdjuster {
         self.has_focus = focused;
     }
 
-    pub(super) fn skip(&mut self) -> bool {
+    pub(super) fn idle_time(&mut self) -> Option<Duration> {
         let target_frame_duration = if self.has_focus {
             self.focused_target_frame_duration
         } else {
             self.unfocused_target_frame_duration
         };
-        if self.last_render_time.elapsed() < target_frame_duration {
-            true
+        let elapsed = self.last_render_time.elapsed();
+        if elapsed < target_frame_duration {
+            Some(target_frame_duration - elapsed)
         } else {
             self.last_render_time = instant::Instant::now();
-            false
+            None
         }
     }
 }
