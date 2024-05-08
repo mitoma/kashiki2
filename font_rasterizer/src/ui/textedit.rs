@@ -495,6 +495,14 @@ impl TextEdit {
 
     pub(crate) fn set_config(&mut self, config: TextContext) {
         self.config = config;
+        self.position.update_duration_and_easing_func(
+            self.config.char_easings.position_easing.duration,
+            self.config.char_easings.position_easing.easing_func,
+        );
+        self.bound.update_duration_and_easing_func(
+            self.config.char_easings.position_easing.duration,
+            self.config.char_easings.position_easing.easing_func,
+        );
         self.config_updated = true;
     }
 
