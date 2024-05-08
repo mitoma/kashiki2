@@ -1,3 +1,4 @@
+use cgmath::Point2;
 use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
@@ -26,19 +27,20 @@ impl ImeInput {
     pub fn new() -> Self {
         let config = TextContext {
             char_easings: CharEasings::ignore_camera(),
-            max_col: 10,
+            max_col: usize::MAX, // IME は基本的に改行しないので大きな値を設定
+            min_bound: Point2::new(10.0, 10.0),
             hyde_caret: true,
             ..Default::default()
         };
         let mut text_edit = TextEdit::default();
         text_edit.set_config(config);
         text_edit.set_world_scale([0.1, 0.1]);
-        text_edit.set_position((5.0, -5.0, 0.0).into());
+        text_edit.set_position((0.0, -8.5, 0.0).into());
 
         Self { text_edit }
     }
 
-    pub fn apply_ime_event(&mut self, action: &Action) -> bool {
+    pub fn apply_ime_event(&mut self, action: &Action, context: &StateContext) -> bool {
         match action {
             Action::ImePreedit(value, position) => {
                 self.text_edit.editor_operation(&EditorOperation::Mark);
@@ -46,7 +48,7 @@ impl ImeInput {
                     .editor_operation(&EditorOperation::BufferHead);
                 self.text_edit
                     .editor_operation(&EditorOperation::Cut(|_| {}));
-                match position {
+                let char_width = match position {
                     Some((start, end)) if start != end => {
                         info!("start:{start}, end:{end}");
                         let (first, center, last) =
@@ -55,6 +57,12 @@ impl ImeInput {
                         // 左のセパレーターの文字数を考慮して + 1 している
                         let right_separator_len = left_separator_len + center.chars().count() + 1;
                         let preedit_str = format!("{}[{}]{}", first, center, last);
+
+                        let preedit_str_count = preedit_str
+                            .chars()
+                            .map(|c| context.char_width_calcurator.get_width(c).to_f32())
+                            .sum::<f32>();
+
                         self.text_edit
                             .editor_operation(&EditorOperation::InsertString(preedit_str));
                         self.text_edit
@@ -68,12 +76,19 @@ impl ImeInput {
                                     ..[0, right_separator_len + 1].into(),
                                 ThemedColor::TextComment,
                             ));
+                        preedit_str_count
                     }
                     _ => {
                         self.text_edit
                             .editor_operation(&EditorOperation::InsertString(value.clone()));
+                        value
+                            .chars()
+                            .map(|c| context.char_width_calcurator.get_width(c).to_f32())
+                            .sum::<f32>()
                     }
                 };
+                self.text_edit
+                    .set_world_scale([f32::min(0.1, 1.0 / char_width), 0.1]);
                 false
             }
             Action::ImeInput(_) => {

@@ -162,6 +162,7 @@ impl SimpleStateCallback for MemoPadCallback {
     fn input(
         &mut self,
         glyph_vertex_buffer: &GlyphVertexBuffer,
+        context: &StateContext,
         event: &WindowEvent,
     ) -> InputResult {
         match self.store.winit_window_event_to_action(event) {
@@ -317,7 +318,8 @@ impl SimpleStateCallback for MemoPadCallback {
             }
             Some(Action::ImeInput(value)) => {
                 self.new_chars.extend(value.chars());
-                self.ime.apply_ime_event(&Action::ImeInput(value.clone()));
+                self.ime
+                    .apply_ime_event(&Action::ImeInput(value.clone()), context);
                 self.world
                     .editor_operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
@@ -325,7 +327,7 @@ impl SimpleStateCallback for MemoPadCallback {
             Some(Action::ImePreedit(value, position)) => {
                 self.new_chars.extend(value.chars());
                 self.ime
-                    .apply_ime_event(&Action::ImePreedit(value, position));
+                    .apply_ime_event(&Action::ImePreedit(value, position), context);
                 InputResult::InputConsumed
             }
             Some(_) => InputResult::Noop,

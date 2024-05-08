@@ -249,6 +249,7 @@ pub trait SimpleStateCallback {
     fn input(
         &mut self,
         glyph_vertex_buffer: &GlyphVertexBuffer,
+        context: &StateContext,
         event: &WindowEvent,
     ) -> InputResult;
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
@@ -397,7 +398,7 @@ impl SimpleState {
 
     pub fn input(&mut self, event: &WindowEvent) -> InputResult {
         self.simple_state_callback
-            .input(&self.glyph_vertex_buffer, event)
+            .input(&self.glyph_vertex_buffer, &self.context, event)
     }
 
     pub fn update(&mut self) {

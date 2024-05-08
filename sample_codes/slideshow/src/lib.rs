@@ -123,6 +123,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn input(
         &mut self,
         _glyph_vertex_buffer: &GlyphVertexBuffer,
+        _context: &StateContext,
         event: &WindowEvent,
     ) -> InputResult {
         if let WindowEvent::KeyboardInput {
