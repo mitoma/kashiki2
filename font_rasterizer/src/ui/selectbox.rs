@@ -1,0 +1,112 @@
+use text_buffer::action::EditorOperation;
+
+use crate::{
+    context::{CharEasings, GpuEasingConfig, StateContext, TextContext},
+    instances::GlyphInstances,
+    layout_engine::Model,
+};
+
+use super::textedit::TextEdit;
+
+pub struct Selectbox {
+    current_selection: usize,
+    options: Vec<String>,
+    text_edit: TextEdit,
+}
+
+impl Selectbox {
+    pub fn new(options: Vec<String>) -> Self {
+        let config = TextContext {
+            max_col: usize::MAX, // SELECTBOX は基本的に改行しないので大きな値を設定
+            char_easings: CharEasings {
+                select_char: GpuEasingConfig::default(),
+                unselect_char: GpuEasingConfig::default(),
+                ..Default::default()
+            },
+            hyde_caret: true,
+            ..Default::default()
+        };
+        let mut text_edit = TextEdit::default();
+        text_edit.set_config(config);
+        text_edit.editor_operation(&EditorOperation::InsertString(options.join("\n")));
+        let mut result = Self {
+            current_selection: 0,
+            options,
+            text_edit,
+        };
+        result.update_current_selection();
+        result
+    }
+
+    fn update_current_selection(&mut self) {
+        self.text_edit.editor_operation(&EditorOperation::UnMark);
+        self.text_edit
+            .editor_operation(&EditorOperation::BufferHead);
+        for _ in 0..self.current_selection {
+            self.text_edit.editor_operation(&EditorOperation::Next);
+        }
+        self.text_edit.editor_operation(&EditorOperation::Mark);
+        self.text_edit.editor_operation(&EditorOperation::Last);
+    }
+}
+
+impl Model for Selectbox {
+    fn set_position(&mut self, position: cgmath::Point3<f32>) {
+        self.text_edit.set_position(position);
+    }
+
+    fn position(&self) -> cgmath::Point3<f32> {
+        self.text_edit.position()
+    }
+
+    fn focus_position(&self) -> cgmath::Point3<f32> {
+        self.text_edit.focus_position()
+    }
+
+    fn set_rotation(&mut self, rotation: cgmath::Quaternion<f32>) {
+        self.text_edit.set_rotation(rotation)
+    }
+
+    fn rotation(&self) -> cgmath::Quaternion<f32> {
+        self.text_edit.rotation()
+    }
+
+    fn bound(&self) -> (f32, f32) {
+        self.text_edit.bound()
+    }
+
+    fn glyph_instances(&self) -> Vec<&GlyphInstances> {
+        self.text_edit.glyph_instances()
+    }
+
+    fn update(&mut self, context: &StateContext) {
+        self.text_edit.update(context)
+    }
+
+    fn editor_operation(&mut self, op: &EditorOperation) {
+        match op {
+            EditorOperation::Previous => {
+                self.current_selection =
+                    (self.current_selection + self.options.len() - 1) % self.options.len()
+            }
+            EditorOperation::Next => {
+                self.current_selection = (self.current_selection + 1) % self.options.len()
+            }
+            EditorOperation::BufferHead => self.current_selection = 0,
+            EditorOperation::BufferLast => self.current_selection = self.options.len() - 1,
+            _ => (),
+        }
+        self.update_current_selection();
+    }
+
+    fn model_operation(
+        &mut self,
+        _op: &crate::layout_engine::ModelOperation,
+    ) -> crate::layout_engine::ModelOperationResult {
+        crate::layout_engine::ModelOperationResult::NoCare
+    }
+
+    fn to_string(&self) -> String {
+        self.options.join("")
+    }
+}
