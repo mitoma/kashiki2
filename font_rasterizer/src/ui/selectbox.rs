@@ -1,3 +1,4 @@
+use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
 use crate::{
@@ -8,14 +9,26 @@ use crate::{
 
 use super::textedit::TextEdit;
 
+pub struct SelectOption {
+    text: String,
+    action: Action,
+}
+
+impl SelectOption {
+    pub fn new(text: String, action: Action) -> Self {
+        Self { text, action }
+    }
+}
+
 pub struct Selectbox {
+    selection_offset: usize,
     current_selection: usize,
-    options: Vec<String>,
+    options: Vec<SelectOption>,
     text_edit: TextEdit,
 }
 
 impl Selectbox {
-    pub fn new(options: Vec<String>) -> Self {
+    pub fn new(message: String, options: Vec<SelectOption>) -> Self {
         let config = TextContext {
             max_col: usize::MAX, // SELECTBOX は基本的に改行しないので大きな値を設定
             char_easings: CharEasings {
@@ -28,8 +41,19 @@ impl Selectbox {
         };
         let mut text_edit = TextEdit::default();
         text_edit.set_config(config);
-        text_edit.editor_operation(&EditorOperation::InsertString(options.join("\n")));
+        let offset = message.lines().count() + 1;
+        text_edit.editor_operation(&EditorOperation::InsertString(message));
+        text_edit.editor_operation(&EditorOperation::InsertEnter);
+        text_edit.editor_operation(&EditorOperation::InsertEnter);
+        text_edit.editor_operation(&EditorOperation::InsertString(
+            options
+                .iter()
+                .map(|s| format!("- {}", s.text))
+                .collect::<Vec<String>>()
+                .join("\n"),
+        ));
         let mut result = Self {
+            selection_offset: offset,
             current_selection: 0,
             options,
             text_edit,
@@ -42,7 +66,7 @@ impl Selectbox {
         self.text_edit.editor_operation(&EditorOperation::UnMark);
         self.text_edit
             .editor_operation(&EditorOperation::BufferHead);
-        for _ in 0..self.current_selection {
+        for _ in 0..(self.selection_offset + self.current_selection) {
             self.text_edit.editor_operation(&EditorOperation::Next);
         }
         self.text_edit.editor_operation(&EditorOperation::Mark);
@@ -107,6 +131,10 @@ impl Model for Selectbox {
     }
 
     fn to_string(&self) -> String {
-        self.options.join("")
+        self.options
+            .iter()
+            .map(|s| s.text.clone())
+            .collect::<Vec<String>>()
+            .join("")
     }
 }
