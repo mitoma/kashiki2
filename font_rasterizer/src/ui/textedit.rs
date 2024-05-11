@@ -385,7 +385,7 @@ impl TextEdit {
         bound
     }
 
-    // 文字と caret の x, y の model 上の位置を計算
+    // 文字と caret の model 上の x, y の位置を計算
     #[inline]
     fn calc_position(
         &mut self,
