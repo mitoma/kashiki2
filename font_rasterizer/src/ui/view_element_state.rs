@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, ops::Range};
 
-use cgmath::{num_traits::ToPrimitive, Point2, Point3, Quaternion, Rotation3};
+use cgmath::{num_traits::ToPrimitive, Quaternion, Rotation3};
 use instant::Duration;
 use rand::Rng;
 use text_buffer::{
-    buffer::BufferChar,
+    buffer::{BufferChar, CellPosition},
     caret::{Caret, CaretType},
 };
 use wgpu::Device;
@@ -12,16 +12,26 @@ use wgpu::Device;
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
-    context::TextContext,
+    context::{RemoveCharMode, TextContext},
     easing_value::EasingPointN,
     font_buffer::Direction,
     instances::GlyphInstance,
+    layout_engine::ModelAttributes,
     motion::MotionFlags,
     text_instances::TextInstances,
     time::now_millis,
 };
 
 use super::caret_char;
+
+#[derive(Default)]
+pub(crate) struct ViewElementStateUpdateRequest {
+    pub(crate) base_color: Option<ThemedColor>,
+    pub(crate) position: Option<[f32; 3]>,
+    pub(crate) color: Option<[f32; 3]>,
+    pub(crate) scale: Option<[f32; 2]>,
+    pub(crate) motion_gain: Option<[f32; 1]>,
+}
 
 struct ViewElementState {
     pub(crate) base_color: ThemedColor,
@@ -81,13 +91,24 @@ impl CharStates {
             text_context.char_easings.position_easing.duration,
             text_context.char_easings.position_easing.easing_func,
         );
+        let mut easing_scale = EasingPointN::new(text_context.instance_scale());
+        easing_scale.update_duration_and_easing_func(
+            text_context.char_easings.scale_easing.duration,
+            text_context.char_easings.scale_easing.easing_func,
+        );
+        let mut easing_motion_gain = EasingPointN::new([text_context.char_easings.add_char.gain]);
+        easing_motion_gain.update_duration_and_easing_func(
+            text_context.char_easings.motion_gain_easing.duration,
+            text_context.char_easings.motion_gain_easing.easing_func,
+        );
+
         let state = ViewElementState {
             position: easing_position,
             in_selection: false,
             base_color: ThemedColor::Text,
             color: easing_color,
-            scale: EasingPointN::new(text_context.instance_scale()),
-            motion_gain: EasingPointN::new([text_context.char_easings.add_char.gain]),
+            scale: easing_scale,
+            motion_gain: easing_motion_gain,
         };
         self.chars.insert(c, state);
         let instance = GlyphInstance {
@@ -125,15 +146,48 @@ impl CharStates {
         }
     }
 
-    pub(crate) fn update_state_position_and_scale(
+    pub(crate) fn update_states(
+        &mut self,
+        range: &Range<CellPosition>,
+        update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
+    ) {
+        let chars: Vec<BufferChar> = self
+            .chars
+            .keys()
+            .filter(|c| range.contains(&c.position))
+            .cloned()
+            .collect();
+        for c in chars.iter() {
+            self.update_state(c, update_request, text_context);
+        }
+    }
+
+    pub(crate) fn update_state(
         &mut self,
         c: &BufferChar,
-        position: [f32; 3],
-        scale: [f32; 2],
+        update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
     ) {
         if let Some(c_pos) = self.chars.get_mut(c) {
-            c_pos.position.update(position);
-            c_pos.scale.update(scale);
+            if let Some(base_color) = update_request.base_color {
+                c_pos.base_color = base_color;
+                c_pos
+                    .color
+                    .update(base_color.get_color(&text_context.color_theme));
+            }
+            if let Some(position) = update_request.position {
+                c_pos.position.update(position);
+            }
+            if let Some(color) = update_request.color {
+                c_pos.color.update(color);
+            }
+            if let Some(scale) = update_request.scale {
+                c_pos.scale.update(scale);
+            }
+            if let Some(motion_gain) = update_request.motion_gain {
+                c_pos.motion_gain.update(motion_gain);
+            }
         }
     }
 
@@ -151,9 +205,7 @@ impl CharStates {
     pub(crate) fn update_instances(
         &mut self,
         update_environment: bool,
-        center: &Point2<f32>,
-        position: &Point3<f32>,
-        rotation: &Quaternion<f32>,
+        model_attribuetes: &ModelAttributes,
         char_width_calcurator: &CharWidthCalculator,
         text_context: &TextContext,
     ) {
@@ -164,7 +216,7 @@ impl CharStates {
             }
             if let Some(instance) = self.instances.get_mut(&(*c).into()) {
                 let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
-                update_instance(instance, i, center, position, rotation, char_rotation);
+                update_instance(instance, i, model_attribuetes, char_rotation);
             }
         }
 
@@ -176,18 +228,25 @@ impl CharStates {
             }
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
                 let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
-                update_instance(instance, i, center, position, rotation, char_rotation);
+                update_instance(instance, i, model_attribuetes, char_rotation);
             }
         }
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
+    // remove_char_mode が Immediate の場合は即座に削除する
     pub(crate) fn char_to_dustbox(
         &mut self,
         c: BufferChar,
         counter: u32,
         text_context: &TextContext,
     ) {
+        if text_context.char_easings.remove_char_mode == RemoveCharMode::Immediate {
+            self.chars.remove(&c);
+            self.instances.remove(&c.into());
+            return;
+        }
+
         if let Some(mut state) = self.chars.remove(&c) {
             // アニメーション状態に強制的に有効にするために gain を 0 にしている。
             // 本当はアニメーションが終わったらゴミ箱から消すという仕様が適切ではないのかもしれない
@@ -287,13 +346,6 @@ impl CharStates {
             instance.start_time = now_millis();
         }
     }
-
-    // ダストボックスに入れずに即座に管理している全ての文字を削除する
-    pub(crate) fn clear(&mut self) {
-        self.chars.clear();
-        self.removed_chars.clear();
-        self.instances.clear();
-    }
 }
 
 #[derive(Default)]
@@ -307,7 +359,9 @@ pub(crate) struct CaretStates {
 
 impl CaretStates {
     pub(crate) fn main_caret_logical_position(&self) -> Option<[usize; 2]> {
-        self.main_caret.as_ref().map(|(c, _)| [c.row, c.col])
+        self.main_caret
+            .as_ref()
+            .map(|(c, _)| [c.position.row, c.position.col])
     }
 
     pub(crate) fn main_caret_position(&self) -> Option<[f32; 3]> {
@@ -315,7 +369,7 @@ impl CaretStates {
     }
 
     pub(crate) fn add_caret(&mut self, c: Caret, color: [f32; 3], device: &Device) {
-        let position = [c.row as f32, c.col as f32, 0.0];
+        let position = [c.position.row as f32, c.position.col as f32, 0.0];
 
         let mut easing_color = EasingPointN::new(color);
         easing_color.update_duration_and_easing_func(
@@ -398,9 +452,7 @@ impl CaretStates {
     pub(crate) fn update_instances(
         &mut self,
         update_environment: bool,
-        center: &Point2<f32>,
-        position: &Point3<f32>,
-        rotation: &Quaternion<f32>,
+        model_attribuetes: &ModelAttributes,
         char_width_calcurator: &CharWidthCalculator,
         text_context: &TextContext,
     ) {
@@ -412,9 +464,7 @@ impl CaretStates {
                 update_instance(
                     instance,
                     i,
-                    center,
-                    position,
-                    rotation,
+                    model_attribuetes,
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_context,
@@ -430,9 +480,7 @@ impl CaretStates {
                 update_instance(
                     instance,
                     i,
-                    center,
-                    position,
-                    rotation,
+                    model_attribuetes,
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_context,
@@ -456,9 +504,7 @@ impl CaretStates {
                 update_instance(
                     instance,
                     i,
-                    center,
-                    position,
-                    rotation,
+                    model_attribuetes,
                     calc_rotation(
                         caret_char(c.caret_type),
                         text_context,
@@ -474,14 +520,13 @@ impl CaretStates {
 fn update_instance(
     instance: &mut GlyphInstance,
     view_char_state: &mut ViewElementState,
-    center: &Point2<f32>,
-    position: &Point3<f32>,
-    rotation: &Quaternion<f32>,
+    model_attribuetes: &ModelAttributes,
     char_rotation: Option<Quaternion<f32>>,
 ) {
     // set color
     instance.color = view_char_state.color.current();
     // set scale
+    instance.world_scale = model_attribuetes.world_scale;
     // グリフの回転が入る場合は scale を入れ替える必要がある
     instance.instance_scale = if char_rotation.is_some() {
         let [l, r] = view_char_state.scale.current();
@@ -494,12 +539,12 @@ fn update_instance(
 
     // set position
     let [x, y, z] = view_char_state.position.current();
-    let pos = cgmath::Matrix4::from(*rotation)
+    let pos = cgmath::Matrix4::from(model_attribuetes.rotation)
         * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
     let new_position = cgmath::Vector3 {
-        x: pos.x - center.x + position.x,
-        y: pos.y - center.y + position.y,
-        z: pos.z + position.z,
+        x: pos.x - model_attribuetes.center.x + model_attribuetes.position.x,
+        y: pos.y - model_attribuetes.center.y + model_attribuetes.position.y,
+        z: pos.z + model_attribuetes.position.z,
     };
     instance.position = new_position;
 
@@ -507,8 +552,8 @@ fn update_instance(
     // 縦書きの場合は char_rotation が必要なのでここで回転する
     // TODO: rotation を変更したときに vertex shader での motion も考慮する必要がある
     instance.rotation = match char_rotation {
-        Some(r) => *rotation * r,
-        None => *rotation,
+        Some(r) => model_attribuetes.rotation * r,
+        None => model_attribuetes.rotation,
     }
 }
 

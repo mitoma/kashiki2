@@ -15,7 +15,7 @@ pub struct Editor {
 impl Editor {
     pub fn new(sender: Sender<ChangeEvent>) -> Self {
         Self {
-            main_caret: Caret::new(0, 0, &sender),
+            main_caret: Caret::new([0, 0].into(), &sender),
             mark: Option::None,
             buffer: Buffer::new(sender.clone()),
             undo_list: Vec::new(),
@@ -112,11 +112,7 @@ impl Editor {
                 .send(ChangeEvent::RemoveCaret(current_mark))
                 .unwrap();
         }
-        self.mark = Some(Caret::new_mark(
-            self.main_caret.row,
-            self.main_caret.col,
-            &self.sender,
-        ));
+        self.mark = Some(Caret::new_mark(self.main_caret.position, &self.sender));
     }
 
     pub fn unmark(&mut self) {
@@ -137,11 +133,11 @@ impl Editor {
             return Vec::new();
         };
         let (from, to) = if self.main_caret < mark {
-            (self.main_caret, mark)
+            (self.main_caret.position, mark.position)
         } else {
-            (mark, self.main_caret)
+            (mark.position, self.main_caret.position)
         };
-        if from.row == to.row {
+        if from.is_same_row(&to) {
             self.buffer.lines[from.row].chars[from.col..to.col].to_vec()
         } else {
             let mut result = Vec::new();
@@ -195,12 +191,12 @@ impl Editor {
 
             // 空行に caret だけ存在するケース
             if line.chars.is_empty() {
-                if self.main_caret.row == line.row_num {
+                if self.main_caret.position.row == line.row_num {
                     main_caret_pos.row = phisical_row;
                     main_caret_pos.col = phisical_col;
                 }
                 if let Some(mark) = mark_pos.as_mut() {
-                    if self.mark.unwrap().row == line.row_num {
+                    if self.mark.unwrap().position.row == line.row_num {
                         mark.row = phisical_row;
                         mark.col = phisical_col;
                     }
@@ -214,7 +210,7 @@ impl Editor {
                 let char_width = width_resolver.resolve_width(buffer_char.c);
 
                 // 禁則文字の計算
-                if buffer_char.col == 0 {
+                if buffer_char.position.col == 0 {
                     // 論理行の行頭では禁則文字を考慮しない
                 } else if phisical_col + char_width >= max_line_width
                     && line_boundary_prohibited_chars.end.contains(&buffer_char.c)
@@ -282,6 +278,8 @@ impl Editor {
         phisical_col: usize,
         char_width: usize,
     ) {
+        let caret = caret.position;
+        let buffer_char = buffer_char.position;
         if caret.row == buffer_char.row {
             if caret.col == buffer_char.col {
                 caret_pos.row = phisical_row;

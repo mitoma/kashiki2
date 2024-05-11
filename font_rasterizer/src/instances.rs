@@ -8,7 +8,7 @@ use crate::{
     color_theme::SolarizedColor, font_buffer::Direction, motion::MotionFlags, time::now_millis,
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct GlyphInstance {
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,
@@ -51,7 +51,7 @@ impl GlyphInstance {
 impl Default for GlyphInstance {
     fn default() -> Self {
         Self {
-            position: (0.0, 0.0, 0.0).into(),
+            position: [10.0, 0.0, 0.0].into(),
             rotation: cgmath::Quaternion::from_axis_angle(
                 cgmath::Vector3::unit_z(),
                 cgmath::Deg(0.0),
@@ -152,6 +152,10 @@ impl GlyphInstances {
 
     pub fn len(&self) -> usize {
         self.values.len()
+    }
+
+    pub fn first(&self) -> Option<&GlyphInstance> {
+        self.values.values().next()
     }
 
     pub fn get_mut(&mut self, key: &InstanceKey) -> Option<&mut GlyphInstance> {

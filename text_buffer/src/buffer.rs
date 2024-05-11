@@ -37,23 +37,23 @@ impl Buffer {
     }
 
     pub(crate) fn insert_char(&mut self, caret: &mut Caret, c: char) {
-        if let Some(line) = self.lines.get_mut(caret.row) {
-            line.insert_char(caret.col, c, &self.sender);
-            caret.move_to(caret.row, caret.col + 1, &self.sender);
+        if let Some(line) = self.lines.get_mut(caret.position.row) {
+            line.insert_char(caret.position.col, c, &self.sender);
+            caret.move_to(caret.position.next_col(), &self.sender);
         }
     }
 
     pub(crate) fn insert_enter(&mut self, caret: &mut Caret) {
-        if let Some(line) = self.lines.get_mut(caret.row) {
-            if let Some(mut next_line) = line.insert_enter(caret.col) {
+        if let Some(line) = self.lines.get_mut(caret.position.row) {
+            if let Some(mut next_line) = line.insert_enter(caret.position.col) {
                 self.lines
                     .iter_mut()
-                    .skip(caret.row + 1)
+                    .skip(caret.position.row + 1)
                     .rev()
                     .for_each(|line| line.update_position(line.row_num + 1, &self.sender));
-                next_line.update_position(caret.row + 1, &self.sender);
-                self.lines.insert(caret.row + 1, next_line);
-                caret.move_to(caret.row + 1, 0, &self.sender);
+                next_line.update_position(caret.position.row + 1, &self.sender);
+                self.lines.insert(caret.position.row + 1, next_line);
+                caret.move_to(caret.position.next_row_first(), &self.sender);
             }
         }
     }
@@ -65,12 +65,12 @@ impl Buffer {
     }
 
     pub(crate) fn head(&self, caret: &mut Caret) {
-        caret.move_to(caret.row, 0, &self.sender);
+        caret.move_to(caret.position.with_col(0), &self.sender);
     }
 
     pub(crate) fn last(&self, caret: &mut Caret) {
-        if let Some(line) = self.lines.get(caret.row) {
-            caret.move_to(caret.row, line.chars.len(), &self.sender);
+        if let Some(line) = self.lines.get(caret.position.row) {
+            caret.move_to(caret.position.with_col(line.chars.len()), &self.sender);
         }
     }
 
@@ -84,7 +84,9 @@ impl Buffer {
                 self.last(caret);
             }
             // 行頭でなければ前の文字に移動
-            (false, true) | (false, false) => caret.move_to(caret.row, caret.col - 1, &self.sender),
+            (false, true) | (false, false) => {
+                caret.move_to(caret.position.prev_col(), &self.sender)
+            }
         }
     }
 
@@ -100,9 +102,13 @@ impl Buffer {
             // 行頭でなければ前のワードに移動
             (false, true) | (false, false) => {
                 // 前の word の先頭に移動する
-                if let Some(line) = self.lines.get(caret.row) {
-                    let mut chars = line.chars.iter().rev().skip(line.chars.len() - caret.col);
-                    let mut next_col = caret.col;
+                if let Some(line) = self.lines.get(caret.position.row) {
+                    let mut chars = line
+                        .chars
+                        .iter()
+                        .rev()
+                        .skip(line.chars.len() - caret.position.col);
+                    let mut next_col = caret.position.col;
                     let mut current_char_type = CharType::from_char(chars.next().unwrap().c);
                     for c in chars {
                         next_col -= 1;
@@ -111,7 +117,7 @@ impl Buffer {
                             current_char_type = next_char_type;
                             continue;
                         }
-                        caret.move_to(caret.row, next_col, &self.sender);
+                        caret.move_to(caret.position.with_col(next_col), &self.sender);
                         return;
                     }
                     // ループを抜けた場合は行頭にいく
@@ -131,7 +137,9 @@ impl Buffer {
                 self.head(caret);
             }
             // 行末でなければ次の文字に移動
-            (false, true) | (false, false) => caret.move_to(caret.row, caret.col + 1, &self.sender),
+            (false, true) | (false, false) => {
+                caret.move_to(caret.position.next_col(), &self.sender)
+            }
         }
     }
 
@@ -147,9 +155,9 @@ impl Buffer {
             // 行末でなければ次のワードに移動
             (false, true) | (false, false) => {
                 // 次の word の先頭に移動する
-                if let Some(line) = self.lines.get(caret.row) {
-                    let mut chars = line.chars.iter().skip(caret.col);
-                    let mut next_col = caret.col;
+                if let Some(line) = self.lines.get(caret.position.row) {
+                    let mut chars = line.chars.iter().skip(caret.position.col);
+                    let mut next_col = caret.position.col;
                     let mut current_char_type = CharType::from_char(chars.next().unwrap().c);
                     for c in chars {
                         next_col += 1;
@@ -158,7 +166,7 @@ impl Buffer {
                             current_char_type = next_char_type;
                             continue;
                         }
-                        caret.move_to(caret.row, next_col, &self.sender);
+                        caret.move_to(caret.position.with_col(next_col), &self.sender);
                         return;
                     }
                     // ループを抜けた場合は行末にいく
@@ -170,7 +178,7 @@ impl Buffer {
 
     pub(crate) fn previous(&mut self, caret: &mut Caret) {
         if !self.is_buffer_head(caret) {
-            caret.move_to(caret.row - 1, caret.col, &self.sender);
+            caret.move_to(caret.position.prev_row(), &self.sender);
             if self.is_line_last(caret) {
                 // 前行が短い場合に Caret 位置を調整
                 self.last(caret)
@@ -180,7 +188,7 @@ impl Buffer {
 
     pub(crate) fn next(&self, caret: &mut Caret) {
         if !self.is_buffer_last(caret) {
-            caret.move_to(caret.row + 1, caret.col, &self.sender);
+            caret.move_to(caret.position.next_row(), &self.sender);
             if self.is_line_last(caret) {
                 // 次行が短い場合に Caret 位置を調整
                 self.last(caret)
@@ -189,30 +197,37 @@ impl Buffer {
     }
 
     pub(crate) fn buffer_head(&self, caret: &mut Caret) {
-        caret.move_to(0, 0, &self.sender);
+        caret.move_to([0, 0].into(), &self.sender);
     }
 
     pub(crate) fn buffer_last(&self, caret: &mut Caret) {
         if let Some(last_line) = self.lines.last() {
-            caret.move_to(last_line.row_num, last_line.chars.len(), &self.sender);
+            caret.move_to(
+                [last_line.row_num, last_line.chars.len()].into(),
+                &self.sender,
+            );
         }
     }
 
     fn is_buffer_head(&self, caret: &Caret) -> bool {
-        caret.row == 0
+        caret.position.row == 0
     }
 
     fn is_buffer_last(&self, caret: &Caret) -> bool {
-        caret.row == self.lines.len() - 1
+        caret.position.row == self.lines.len() - 1
     }
 
     fn is_line_head(&self, caret: &Caret) -> bool {
-        caret.col == 0
+        caret.position.col == 0
     }
 
     fn is_line_last(&self, caret: &Caret) -> bool {
-        if let Some(line_length) = self.lines.get(caret.row).map(|line| line.chars.len()) {
-            caret.col >= line_length
+        if let Some(line_length) = self
+            .lines
+            .get(caret.position.row)
+            .map(|line| line.chars.len())
+        {
+            caret.position.col >= line_length
         } else {
             false
         }
@@ -230,23 +245,23 @@ impl Buffer {
     pub(crate) fn delete(&mut self, caret: &Caret) -> RemovedChar {
         if self.is_line_last(caret) {
             if !self.is_buffer_last(caret) {
-                let next_line = self.lines.remove(caret.row + 1);
-                let current_line = self.lines.get_mut(caret.row).unwrap();
+                let next_line = self.lines.remove(caret.position.row + 1);
+                let current_line = self.lines.get_mut(caret.position.row).unwrap();
                 current_line.join(next_line, &self.sender);
                 self.update_position();
                 RemovedChar::Enter
             } else {
                 RemovedChar::None
             }
-        } else if let Some(line) = self.lines.get_mut(caret.row) {
-            line.remove_char(caret.col, &self.sender)
+        } else if let Some(line) = self.lines.get_mut(caret.position.row) {
+            line.remove_char(caret.position.col, &self.sender)
         } else {
             RemovedChar::None
         }
     }
 
     pub(crate) fn copy_string(&self, mark_caret: &Caret, current_caret: &Caret) -> String {
-        if mark_caret.row == current_caret.row && mark_caret.col == current_caret.col {
+        if mark_caret.position == current_caret.position {
             return String::new();
         }
         let (start, end) = if mark_caret < current_caret {
@@ -255,26 +270,26 @@ impl Buffer {
             (current_caret, mark_caret)
         };
         let mut result = String::new();
-        if start.row == end.row {
-            if let Some(line) = self.lines.get(start.row) {
-                result.push_str(&line.substring(start.col..end.col));
+        if start.position.row == end.position.row {
+            if let Some(line) = self.lines.get(start.position.row) {
+                result.push_str(&line.substring(start.position.col..end.position.col));
             }
         } else {
-            if let Some(start_line) = self.lines.get(start.row) {
-                result.push_str(&start_line.substring(start.col..));
+            if let Some(start_line) = self.lines.get(start.position.row) {
+                result.push_str(&start_line.substring(start.position.col..));
                 result.push('\n');
             }
             for line in self
                 .lines
                 .iter()
-                .skip(start.row + 1)
-                .take(end.row - start.row - 1)
+                .skip(start.position.row + 1)
+                .take(end.position.row - start.position.row - 1)
             {
                 result.push_str(&line.to_line_string());
                 result.push('\n');
             }
-            if let Some(end_line) = self.lines.get(end.row) {
-                result.push_str(&end_line.substring(..end.col));
+            if let Some(end_line) = self.lines.get(end.position.row) {
+                result.push_str(&end_line.substring(..end.position.col));
             }
         }
         result
@@ -296,7 +311,7 @@ impl BufferLine {
     fn update_position(&mut self, row_num: usize, sender: &Sender<ChangeEvent>) {
         self.row_num = row_num;
         (0..).zip(self.chars.iter_mut()).for_each(|(i, c)| {
-            c.update_position(row_num, i, sender);
+            c.update_position([row_num, i].into(), sender);
         })
     }
 
@@ -309,9 +324,9 @@ impl BufferLine {
             .iter_mut()
             .skip(col)
             .rev()
-            .for_each(|c| c.update_position(self.row_num, c.col + 1, sender));
+            .for_each(|c| c.update_position([self.row_num, c.position.col + 1].into(), sender));
         self.chars
-            .insert(col, BufferChar::new(self.row_num, col, c, sender))
+            .insert(col, BufferChar::new([self.row_num, col].into(), c, sender))
     }
 
     fn insert_enter(&mut self, col: usize) -> Option<BufferLine> {
@@ -338,7 +353,7 @@ impl BufferLine {
         self.chars
             .iter_mut()
             .skip(col)
-            .for_each(|c| c.update_position(self.row_num, c.col - 1, sender));
+            .for_each(|c| c.update_position([self.row_num, c.position.col - 1].into(), sender));
         RemovedChar::Char(removed.c)
     }
 
@@ -347,7 +362,7 @@ impl BufferLine {
         line.chars
             .into_iter()
             .map(|mut c| {
-                c.update_position(self.row_num, current_len + c.col, sender);
+                c.update_position([self.row_num, current_len + c.position.col].into(), sender);
                 c
             })
             .for_each(|c| self.chars.push(c))
@@ -378,34 +393,32 @@ impl BufferLine {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub struct BufferChar {
+pub struct CellPosition {
     // 0 origin
     pub row: usize,
     // 0 origin
     pub col: usize,
-    pub c: char,
 }
 
-impl BufferChar {
-    fn new(row: usize, col: usize, c: char, sender: &Sender<ChangeEvent>) -> Self {
-        let instance = Self { row, col, c };
-        sender.send(ChangeEvent::AddChar(instance)).unwrap();
-        instance
-    }
-
-    fn update_position(&mut self, row: usize, col: usize, sender: &Sender<ChangeEvent>) {
-        if self.row == row && self.col == col {
-            return;
+impl From<[usize; 2]> for CellPosition {
+    fn from(value: [usize; 2]) -> Self {
+        Self {
+            row: value[0],
+            col: value[1],
         }
-        let from = *self;
-        self.row = row;
-        self.col = col;
-        let event = ChangeEvent::MoveChar { from, to: *self };
-        sender.send(event).unwrap();
+    }
+}
+
+impl CellPosition {
+    pub fn new(row: usize, col: usize) -> Self {
+        Self { row, col }
     }
 
-    // to は含まない
-    pub fn in_caret_range(&self, from: Caret, to: Caret) -> bool {
+    pub fn is_same_or_after_on_row(&self, other: &CellPosition) -> bool {
+        self.row == other.row && self.col >= other.col
+    }
+
+    pub fn in_range(&self, from: CellPosition, to: CellPosition) -> bool {
         let (from, to) = if from < to { (from, to) } else { (to, from) };
         if from.row > self.row || to.row < self.row {
             return false;
@@ -417,6 +430,83 @@ impl BufferChar {
             return false;
         }
         true
+    }
+
+    pub fn next_row(&self) -> Self {
+        Self {
+            row: self.row + 1,
+            col: self.col,
+        }
+    }
+
+    pub fn prev_row(&self) -> Self {
+        Self {
+            row: self.row - 1,
+            col: self.col,
+        }
+    }
+
+    // 次の行の先頭
+    pub fn next_row_first(&self) -> Self {
+        Self {
+            row: self.row + 1,
+            col: 0,
+        }
+    }
+
+    pub fn next_col(&self) -> Self {
+        Self {
+            row: self.row,
+            col: self.col + 1,
+        }
+    }
+
+    pub fn prev_col(&self) -> Self {
+        Self {
+            row: self.row,
+            col: self.col - 1,
+        }
+    }
+
+    pub fn with_row(&self, row: usize) -> Self {
+        Self { row, col: self.col }
+    }
+
+    pub fn with_col(&self, col: usize) -> Self {
+        Self { row: self.row, col }
+    }
+
+    pub fn is_same_row(&self, other: &CellPosition) -> bool {
+        self.row == other.row
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+pub struct BufferChar {
+    pub position: CellPosition,
+    pub c: char,
+}
+
+impl BufferChar {
+    fn new(position: CellPosition, c: char, sender: &Sender<ChangeEvent>) -> Self {
+        let instance = Self { position, c };
+        sender.send(ChangeEvent::AddChar(instance)).unwrap();
+        instance
+    }
+
+    fn update_position(&mut self, position: CellPosition, sender: &Sender<ChangeEvent>) {
+        if self.position == position {
+            return;
+        }
+        let from = *self;
+        self.position = position;
+        let event = ChangeEvent::MoveChar { from, to: *self };
+        sender.send(event).unwrap();
+    }
+
+    // to は含まない
+    pub fn in_caret_range(&self, from: Caret, to: Caret) -> bool {
+        self.position.in_range(from.position, to.position)
     }
 }
 
@@ -439,38 +529,33 @@ mod tests {
     #[test]
     fn buffer() {
         let (tx, _rx) = channel::<ChangeEvent>();
-        let caret = &mut Caret::new(0, 0, &tx);
+        let caret = &mut Caret::new([0, 0].into(), &tx);
         let mut sut = Buffer::new(tx.clone());
         assert_eq!(sut.to_buffer_string(), "");
         sut.insert_char(caret, '山');
         assert_eq!(sut.to_buffer_string(), "山");
-        assert_eq!(caret.row, 0);
-        assert_eq!(caret.col, 1);
+        assert_eq!(caret.position, [0, 1].into());
         sut.insert_char(caret, '本');
         assert_eq!(sut.to_buffer_string(), "山本");
-        assert_eq!(caret.row, 0);
-        assert_eq!(caret.col, 2);
+        assert_eq!(caret.position, [0, 2].into());
         sut.insert_enter(caret);
         assert_eq!(sut.to_buffer_string(), "山本\n");
-        assert_eq!(caret.row, 1);
-        assert_eq!(caret.col, 0);
+        assert_eq!(caret.position, [1, 0].into());
         sut.insert_enter(caret);
         assert_eq!(sut.to_buffer_string(), "山本\n\n");
-        assert_eq!(caret.row, 2);
-        assert_eq!(caret.col, 0);
-        sut.insert_enter(&mut Caret::new(100, 100, &tx));
+        assert_eq!(caret.position, [2, 0].into());
+        sut.insert_enter(&mut Caret::new([100, 100].into(), &tx));
         assert_eq!(sut.to_buffer_string(), "山本\n\n");
     }
 
     #[test]
     fn buffer_insert_string() {
         let (tx, _rx) = channel::<ChangeEvent>();
-        let caret = &mut Caret::new(0, 0, &tx);
+        let caret = &mut Caret::new([0, 0].into(), &tx);
         let mut sut = Buffer::new(tx);
         sut.insert_string(caret, "東京は\n今日もいい天気\nだった。".to_string());
         assert_eq!(sut.to_buffer_string(), "東京は\n今日もいい天気\nだった。");
-        assert_eq!(caret.row, 2);
-        assert_eq!(caret.col, 4);
+        assert_eq!(caret.position, [2, 4].into());
     }
 
     #[test]
@@ -478,92 +563,92 @@ mod tests {
         let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::new(tx.clone());
         sut.insert_string(
-            &mut Caret::new(0, 0, &tx),
+            &mut Caret::new([0, 0].into(), &tx),
             "あいうえお\nかきくけこ\nさしすせそそ".to_string(),
         );
         // buffer head
-        assert!(sut.is_buffer_head(&Caret::new(0, 0, &tx)));
-        assert!(sut.is_buffer_head(&Caret::new(0, 4, &tx)));
-        assert!(!sut.is_buffer_head(&Caret::new(1, 0, &tx)));
+        assert!(sut.is_buffer_head(&Caret::new([0, 0].into(), &tx)));
+        assert!(sut.is_buffer_head(&Caret::new([0, 4].into(), &tx)));
+        assert!(!sut.is_buffer_head(&Caret::new([1, 0].into(), &tx)));
 
         // buffer last
-        assert!(sut.is_buffer_last(&Caret::new(2, 0, &tx)));
-        assert!(sut.is_buffer_last(&Caret::new(2, 4, &tx)));
-        assert!(!sut.is_buffer_last(&Caret::new(0, 0, &tx)));
+        assert!(sut.is_buffer_last(&Caret::new([2, 0].into(), &tx)));
+        assert!(sut.is_buffer_last(&Caret::new([2, 4].into(), &tx)));
+        assert!(!sut.is_buffer_last(&Caret::new([0, 0].into(), &tx)));
 
         // line head
-        assert!(sut.is_line_head(&Caret::new(0, 0, &tx)));
-        assert!(sut.is_line_head(&Caret::new(2, 0, &tx)));
-        assert!(!sut.is_line_head(&Caret::new(1, 3, &tx)));
+        assert!(sut.is_line_head(&Caret::new([0, 0].into(), &tx)));
+        assert!(sut.is_line_head(&Caret::new([2, 0].into(), &tx)));
+        assert!(!sut.is_line_head(&Caret::new([1, 3].into(), &tx)));
 
         // line last
-        assert!(sut.is_line_last(&Caret::new(0, 5, &tx)));
-        assert!(sut.is_line_last(&Caret::new(2, 6, &tx)));
-        assert!(!sut.is_line_last(&Caret::new(2, 5, &tx)));
+        assert!(sut.is_line_last(&Caret::new([0, 5].into(), &tx)));
+        assert!(sut.is_line_last(&Caret::new([2, 6].into(), &tx)));
+        assert!(!sut.is_line_last(&Caret::new([2, 5].into(), &tx)));
     }
 
     #[test]
     fn buffer_move() {
         let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::new(tx.clone());
-        let caret = &mut Caret::new(0, 0, &tx);
+        let caret = &mut Caret::new([0, 0].into(), &tx);
         sut.insert_string(caret, "あいうえお\nきかくけここ\nさしすせそ".to_string());
 
         // forward
-        caret.move_to(0, 0, &tx);
+        caret.move_to([0, 0].into(), &tx);
         sut.forward(caret);
-        assert_eq!(caret, &Caret::new(0, 1, &tx));
+        assert_eq!(caret, &Caret::new([0, 1].into(), &tx));
 
-        caret.move_to(0, 4, &tx);
+        caret.move_to([0, 4].into(), &tx);
         sut.forward(caret);
-        assert_eq!(caret, &Caret::new(0, 5, &tx));
+        assert_eq!(caret, &Caret::new([0, 5].into(), &tx));
 
-        caret.move_to(0, 5, &tx);
+        caret.move_to([0, 5].into(), &tx);
         sut.forward(caret);
-        assert_eq!(caret, &Caret::new(1, 0, &tx));
+        assert_eq!(caret, &Caret::new([1, 0].into(), &tx));
 
-        caret.move_to(2, 5, &tx);
+        caret.move_to([2, 5].into(), &tx);
         sut.forward(caret);
-        assert_eq!(caret, &Caret::new(2, 5, &tx));
+        assert_eq!(caret, &Caret::new([2, 5].into(), &tx));
 
         // back
-        caret.move_to(0, 3, &tx);
+        caret.move_to([0, 3].into(), &tx);
         sut.back(caret);
-        assert_eq!(caret, &Caret::new(0, 2, &tx));
+        assert_eq!(caret, &Caret::new([0, 2].into(), &tx));
 
-        caret.move_to(0, 0, &tx);
+        caret.move_to([0, 0].into(), &tx);
         sut.back(caret);
-        assert_eq!(caret, &Caret::new(0, 0, &tx));
+        assert_eq!(caret, &Caret::new([0, 0].into(), &tx));
 
-        caret.move_to(2, 0, &tx);
+        caret.move_to([2, 0].into(), &tx);
         sut.back(caret);
-        assert_eq!(caret, &Caret::new(1, 6, &tx));
+        assert_eq!(caret, &Caret::new([1, 6].into(), &tx));
 
         // previous
-        caret.move_to(1, 3, &tx);
+        caret.move_to([1, 3].into(), &tx);
         sut.previous(caret);
-        assert_eq!(caret, &Caret::new(0, 3, &tx));
+        assert_eq!(caret, &Caret::new([0, 3].into(), &tx));
 
-        caret.move_to(1, 5, &tx);
+        caret.move_to([1, 5].into(), &tx);
         sut.previous(caret);
-        assert_eq!(caret, &Caret::new(0, 5, &tx));
+        assert_eq!(caret, &Caret::new([0, 5].into(), &tx));
 
-        caret.move_to(2, 4, &tx);
+        caret.move_to([2, 4].into(), &tx);
         sut.previous(caret);
-        assert_eq!(caret, &Caret::new(1, 4, &tx));
+        assert_eq!(caret, &Caret::new([1, 4].into(), &tx));
 
         // next
-        caret.move_to(0, 3, &tx);
+        caret.move_to([0, 3].into(), &tx);
         sut.next(caret);
-        assert_eq!(caret, &Caret::new(1, 3, &tx));
+        assert_eq!(caret, &Caret::new([1, 3].into(), &tx));
 
-        caret.move_to(1, 6, &tx);
+        caret.move_to([1, 6].into(), &tx);
         sut.next(caret);
-        assert_eq!(caret, &Caret::new(2, 5, &tx));
+        assert_eq!(caret, &Caret::new([2, 5].into(), &tx));
 
-        caret.move_to(2, 5, &tx);
+        caret.move_to([2, 5].into(), &tx);
         sut.next(caret);
-        assert_eq!(caret, &Caret::new(2, 5, &tx));
+        assert_eq!(caret, &Caret::new([2, 5].into(), &tx));
     }
 
     #[test]
@@ -571,11 +656,11 @@ mod tests {
         let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::new(tx.clone());
         sut.insert_string(
-            &mut Caret::new(0, 0, &tx),
+            &mut Caret::new([0, 0].into(), &tx),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
         assert_eq!(
-            sut.backspace(&mut Caret::new(1, 3, &tx)),
+            sut.backspace(&mut Caret::new([1, 3].into(), &tx)),
             RemovedChar::Char('く')
         );
         assert_eq!(
@@ -583,7 +668,7 @@ mod tests {
             "あいうえお\nかきけこ\nさしすせそ".to_string()
         );
         assert_eq!(
-            sut.backspace(&mut Caret::new(1, 4, &tx)),
+            sut.backspace(&mut Caret::new([1, 4].into(), &tx)),
             RemovedChar::Char('こ')
         );
         assert_eq!(
@@ -591,7 +676,7 @@ mod tests {
             "あいうえお\nかきけ\nさしすせそ".to_string()
         );
         assert_eq!(
-            sut.backspace(&mut Caret::new(2, 0, &tx)),
+            sut.backspace(&mut Caret::new([2, 0].into(), &tx)),
             RemovedChar::Enter
         );
         assert_eq!(
@@ -605,26 +690,41 @@ mod tests {
         let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::new(tx.clone());
         sut.insert_string(
-            &mut Caret::new(0, 0, &tx),
+            &mut Caret::new([0, 0].into(), &tx),
             "あいうえお\nかきくけこ\nさしすせそ".to_string(),
         );
-        assert_eq!(sut.delete(&Caret::new(1, 3, &tx)), RemovedChar::Char('け'));
+        assert_eq!(
+            sut.delete(&Caret::new([1, 3].into(), &tx)),
+            RemovedChar::Char('け')
+        );
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくこ\nさしすせそ".to_string()
         );
-        assert_eq!(sut.delete(&Caret::new(1, 3, &tx)), RemovedChar::Char('こ'));
-        assert_eq!(sut.delete(&Caret::new(1, 3, &tx)), RemovedChar::Enter);
+        assert_eq!(
+            sut.delete(&Caret::new([1, 3].into(), &tx)),
+            RemovedChar::Char('こ')
+        );
+        assert_eq!(
+            sut.delete(&Caret::new([1, 3].into(), &tx)),
+            RemovedChar::Enter
+        );
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくさしすせそ".to_string()
         );
-        assert_eq!(sut.delete(&Caret::new(1, 7, &tx)), RemovedChar::Char('そ'));
+        assert_eq!(
+            sut.delete(&Caret::new([1, 7].into(), &tx)),
+            RemovedChar::Char('そ')
+        );
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくさしすせ".to_string()
         );
-        assert_eq!(sut.delete(&Caret::new(1, 7, &tx)), RemovedChar::None);
+        assert_eq!(
+            sut.delete(&Caret::new([1, 7].into(), &tx)),
+            RemovedChar::None
+        );
         assert_eq!(
             sut.to_buffer_string(),
             "あいうえお\nかきくさしすせ".to_string()
@@ -682,7 +782,7 @@ mod tests {
     #[test]
     fn event_test() {
         let (tx, rx) = channel::<ChangeEvent>();
-        let mut caret = Caret::new(0, 0, &tx);
+        let mut caret = Caret::new([0, 0].into(), &tx);
         let mut sut = Buffer::new(tx);
 
         sut.insert_char(&mut caret, 'あ');
@@ -692,9 +792,9 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::AddCaret(Caret::new_without_event(0, 0, CaretType::Primary)),
-                    ChangeEvent::AddChar(BufferChar { row: 0, col: 0, c: 'あ' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 0, CaretType::Primary), to: Caret::new_without_event(0, 1, CaretType::Primary) }
+                    ChangeEvent::AddCaret(Caret::new_without_event([0, 0].into(), CaretType::Primary)),
+                    ChangeEvent::AddChar(BufferChar { position: [0, 0].into(), c: 'あ' }),
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event([0, 0].into(), CaretType::Primary), to: Caret::new_without_event([0, 1].into(), CaretType::Primary) }
                 ]
             );
         }
@@ -705,8 +805,8 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::AddChar(BufferChar { row: 0, col: 1, c: 'い' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 1, CaretType::Primary), to: Caret::new_without_event(0, 2, CaretType::Primary) }
+                    ChangeEvent::AddChar(BufferChar { position: [0, 1].into(), c: 'い' }),
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event([0, 1].into(), CaretType::Primary), to: Caret::new_without_event([0, 2].into(), CaretType::Primary) }
                 ]
             );
         }
@@ -717,10 +817,13 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 2, CaretType::Primary), to: Caret::new_without_event(1, 0, CaretType::Primary) }
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event([0, 2].into(), CaretType::Primary), to: Caret::new_without_event([1, 0].into(), CaretType::Primary) }
                 ]
             );
-            assert_eq!(caret, Caret::new_without_event(1, 0, CaretType::Primary));
+            assert_eq!(
+                caret,
+                Caret::new_without_event([1, 0].into(), CaretType::Primary)
+            );
         }
         sut.insert_char(&mut caret, 'え');
         {
@@ -729,8 +832,8 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::AddChar(BufferChar { row: 1, col: 0, c: 'え' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(1, 0, CaretType::Primary), to: Caret::new_without_event(1, 1, CaretType::Primary) }
+                    ChangeEvent::AddChar(BufferChar { position: [1, 0].into(), c: 'え' }),
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event([1, 0].into(), CaretType::Primary), to: Caret::new_without_event([1, 1].into(), CaretType::Primary) }
                 ]
             );
         }
@@ -741,8 +844,8 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::AddChar(BufferChar { row: 1, col: 1, c: 'お' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(1, 1, CaretType::Primary), to: Caret::new_without_event(1, 2, CaretType::Primary) }
+                    ChangeEvent::AddChar(BufferChar { position: [1, 1].into(), c: 'お' }),
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event([1, 1].into(), CaretType::Primary), to: Caret::new_without_event([1, 2].into(), CaretType::Primary) }
                 ]
             );
         }
@@ -751,7 +854,7 @@ mod tests {
     #[test]
     fn event_buffer() {
         let (tx, rx) = channel::<ChangeEvent>();
-        let mut caret = Caret::new(0, 0, &tx);
+        let mut caret = Caret::new([0, 0].into(), &tx);
         let mut sut = Buffer::new(tx);
 
         sut.insert_string(&mut caret, "あいうえお\nかき\nくけ".into());
@@ -766,15 +869,15 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::MoveChar { from: BufferChar { row: 2, col: 0, c: 'く' }, to: BufferChar { row: 3, col: 0, c: 'く' } },
-                    ChangeEvent::MoveChar { from: BufferChar { row: 2, col: 1, c: 'け' }, to: BufferChar { row: 3, col: 1, c: 'け' } },
-                    ChangeEvent::MoveChar { from: BufferChar { row: 1, col: 0, c: 'か' }, to: BufferChar { row: 2, col: 0, c: 'か' } },
-                    ChangeEvent::MoveChar { from: BufferChar { row: 1, col: 1, c: 'き' }, to: BufferChar { row: 2, col: 1, c: 'き' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [2, 0].into(), c: 'く' }, to: BufferChar { position: [3, 0].into(), c: 'く' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [2, 1].into(), c: 'け' }, to: BufferChar { position: [3, 1].into(), c: 'け' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [1, 0].into(), c: 'か' }, to: BufferChar { position: [2, 0].into(), c: 'か' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [1, 1].into(), c: 'き' }, to: BufferChar { position: [2, 1].into(), c: 'き' } },
                     // 先に以降の行を逆順で移動してから、改行対象の行を動かす
-                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 2, c: 'う' }, to: BufferChar { row: 1, col: 0, c: 'う' } },
-                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 3, c: 'え' }, to: BufferChar { row: 1, col: 1, c: 'え' } },
-                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 4, c: 'お' }, to: BufferChar { row: 1, col: 2, c: 'お' } },
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 2, CaretType::Primary), to: Caret::new_without_event(1, 0, CaretType::Primary) },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [0, 2].into(), c: 'う' }, to: BufferChar { position: [1, 0].into(), c: 'う' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [0, 3].into(), c: 'え' }, to: BufferChar { position: [1, 1].into(), c: 'え' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [0, 4].into(), c: 'お' }, to: BufferChar { position: [1, 2].into(), c: 'お' } },
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event([0, 2].into(), CaretType::Primary), to: Caret::new_without_event([1, 0].into(), CaretType::Primary) },
                 ]
             );
         }
@@ -783,7 +886,7 @@ mod tests {
     #[test]
     fn event_line_add() {
         let (tx, rx) = channel::<ChangeEvent>();
-        let mut caret = Caret::new(0, 0, &tx);
+        let mut caret = Caret::new([0, 0].into(), &tx);
         let mut sut = Buffer::new(tx);
 
         sut.insert_string(&mut caret, "あいうえお".into());
@@ -797,12 +900,12 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 4, c: 'お' }, to: BufferChar { row: 0, col: 5, c: 'お' } },
-                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 3, c: 'え' }, to: BufferChar { row: 0, col: 4, c: 'え' } },
-                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 2, c: 'う' }, to: BufferChar { row: 0, col: 3, c: 'う' } },
-                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 1, c: 'い' }, to: BufferChar { row: 0, col: 2, c: 'い' } },
-                    ChangeEvent::AddChar(BufferChar { row: 0, col: 1, c: 'A' }),
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 1, CaretType::Primary), to: Caret::new_without_event(0, 2, CaretType::Primary) },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [0, 4].into(), c: 'お' }, to: BufferChar { position: [0, 5].into(), c: 'お' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [0, 3].into(), c: 'え' }, to: BufferChar { position: [0, 4].into(), c: 'え' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [0, 2].into(), c: 'う' }, to: BufferChar { position: [0, 3].into(), c: 'う' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [0, 1].into(), c: 'い' }, to: BufferChar { position: [0, 2].into(), c: 'い' } },
+                    ChangeEvent::AddChar(BufferChar { position: [0, 1].into(), c: 'A' }),
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event([0, 1].into(), CaretType::Primary), to: Caret::new_without_event([0, 2].into(), CaretType::Primary) },
                 ]
             );
         }
@@ -811,7 +914,7 @@ mod tests {
     #[test]
     fn event_line_delete() {
         let (tx, rx) = channel::<ChangeEvent>();
-        let mut caret = Caret::new(0, 0, &tx);
+        let mut caret = Caret::new([0, 0].into(), &tx);
         let mut sut = Buffer::new(tx);
 
         sut.insert_string(&mut caret, "あいうえお".into());
@@ -826,10 +929,10 @@ mod tests {
             assert_eq!(
                 events,
                 vec![
-                    ChangeEvent::MoveCaret { from: Caret::new_without_event(0, 3, CaretType::Primary), to: Caret::new_without_event(0, 2, CaretType::Primary)},
-                    ChangeEvent::RemoveChar(BufferChar { row: 0, col: 2, c: 'う' }),
-                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 3, c: 'え' }, to: BufferChar { row: 0, col: 2, c: 'え' } },
-                    ChangeEvent::MoveChar { from: BufferChar { row: 0, col: 4, c: 'お' }, to: BufferChar { row: 0, col: 3, c: 'お' } },
+                    ChangeEvent::MoveCaret { from: Caret::new_without_event([0, 3].into(), CaretType::Primary), to: Caret::new_without_event([0, 2].into(), CaretType::Primary)},
+                    ChangeEvent::RemoveChar(BufferChar { position: [0, 2].into(), c: 'う' }),
+                    ChangeEvent::MoveChar { from: BufferChar { position: [0, 3].into(), c: 'え' }, to: BufferChar { position: [0, 2].into(), c: 'え' } },
+                    ChangeEvent::MoveChar { from: BufferChar { position: [0, 4].into(), c: 'お' }, to: BufferChar { position: [0, 3].into(), c: 'お' } },
                 ]
             );
         }
@@ -840,33 +943,48 @@ mod tests {
         let (tx, _rx) = channel::<ChangeEvent>();
         let mut sut = Buffer::new(tx.clone());
         sut.insert_string(
-            &mut Caret::new(0, 0, &tx),
+            &mut Caret::new([0, 0].into(), &tx),
             "あいうえお\nかきくけこ\nさしすせそそ".to_string(),
         );
         {
             // Caret が隣接する時には一文字だけ
             assert_eq!(
-                sut.copy_string(&Caret::new(0, 1, &tx), &Caret::new(0, 2, &tx)),
+                sut.copy_string(
+                    &Caret::new([0, 1].into(), &tx),
+                    &Caret::new([0, 2].into(), &tx)
+                ),
                 "い"
             );
             assert_eq!(
-                sut.copy_string(&Caret::new(0, 2, &tx), &Caret::new(0, 1, &tx)),
+                sut.copy_string(
+                    &Caret::new([0, 2].into(), &tx),
+                    &Caret::new([0, 1].into(), &tx)
+                ),
                 "い"
             );
         }
         {
             // 複数行
             assert_eq!(
-                sut.copy_string(&Caret::new(1, 2, &tx), &Caret::new(2, 3, &tx)),
+                sut.copy_string(
+                    &Caret::new([1, 2].into(), &tx),
+                    &Caret::new([2, 3].into(), &tx)
+                ),
                 "くけこ\nさしす"
             );
             assert_eq!(
-                sut.copy_string(&Caret::new(0, 4, &tx), &Caret::new(2, 3, &tx)),
+                sut.copy_string(
+                    &Caret::new([0, 4].into(), &tx),
+                    &Caret::new([2, 3].into(), &tx)
+                ),
                 "お\nかきくけこ\nさしす"
             );
             // Caret の位置によっては前後に改行を取ってくる動きをする
             assert_eq!(
-                sut.copy_string(&Caret::new(0, 5, &tx), &Caret::new(2, 0, &tx)),
+                sut.copy_string(
+                    &Caret::new([0, 5].into(), &tx),
+                    &Caret::new([2, 0].into(), &tx)
+                ),
                 "\nかきくけこ\n"
             );
         }
@@ -884,51 +1002,46 @@ mod tests {
         }
         let cases = vec![
             Case {
-                from: Caret::new(0, 0, &tx),
-                to: Caret::new(0, 10, &tx),
+                from: Caret::new([0, 0].into(), &tx),
+                to: Caret::new([0, 10].into(), &tx),
                 target: BufferChar {
-                    row: 0,
-                    col: 5,
+                    position: [0, 5].into(),
                     c: 'あ',
                 },
                 expected: true,
             },
             Case {
-                from: Caret::new(0, 0, &tx),
-                to: Caret::new(2, 0, &tx),
+                from: Caret::new([0, 0].into(), &tx),
+                to: Caret::new([2, 0].into(), &tx),
                 target: BufferChar {
-                    row: 1,
-                    col: 5,
+                    position: [1, 5].into(),
                     c: 'あ',
                 },
                 expected: true,
             },
             Case {
-                from: Caret::new(0, 0, &tx),
-                to: Caret::new(0, 5, &tx),
+                from: Caret::new([0, 0].into(), &tx),
+                to: Caret::new([0, 5].into(), &tx),
                 target: BufferChar {
-                    row: 1,
-                    col: 5,
+                    position: [1, 5].into(),
                     c: 'あ',
                 },
                 expected: false,
             },
             Case {
-                from: Caret::new(0, 0, &tx),
-                to: Caret::new(0, 4, &tx),
+                from: Caret::new([0, 0].into(), &tx),
+                to: Caret::new([0, 4].into(), &tx),
                 target: BufferChar {
-                    row: 0,
-                    col: 5,
+                    position: [0, 5].into(),
                     c: 'あ',
                 },
                 expected: false,
             },
             Case {
-                from: Caret::new(0, 0, &tx),
-                to: Caret::new(0, 4, &tx),
+                from: Caret::new([0, 0].into(), &tx),
+                to: Caret::new([0, 4].into(), &tx),
                 target: BufferChar {
-                    row: 0,
-                    col: 4,
+                    position: [0, 4].into(),
                     c: 'あ',
                 },
                 expected: false,

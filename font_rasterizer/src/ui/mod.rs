@@ -11,9 +11,10 @@ use log::info;
 use text_buffer::caret::CaretType;
 
 use crate::{
+    char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     context::StateContext,
-    font_buffer::{Direction, GlyphVertexBuffer},
+    font_buffer::Direction,
     instances::{GlyphInstance, GlyphInstances},
     layout_engine::{Model, ModelOperation, ModelOperationResult},
     motion::MotionFlags,
@@ -64,14 +65,11 @@ impl Model for PlaneTextReader {
         self.get_instances()
     }
 
-    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn update(&mut self, context: &StateContext) {
         let device = &context.device;
         let queue = &context.queue;
         let color_theme = &context.color_theme;
-        glyph_vertex_buffer
-            .append_glyph(device, queue, self.value.chars().collect())
-            .unwrap();
-        self.generate_instances(color_theme, glyph_vertex_buffer, device, queue);
+        self.generate_instances(color_theme, &context.char_width_calcurator, device, queue);
     }
 
     fn bound(&self) -> (f32, f32) {
@@ -113,7 +111,7 @@ impl Model for PlaneTextReader {
 impl PlaneTextReader {
     const MAX_WIDTH: f32 = 40.0;
 
-    pub fn calc_bound(&self, glyph_vertex_buffer: &GlyphVertexBuffer) -> (f32, f32) {
+    fn calc_bound(&self, char_width_calcurator: &CharWidthCalculator) -> (f32, f32) {
         let mut max_width = 0.0;
         let mut max_height = 0.0;
         for line in self.value.lines() {
@@ -124,7 +122,7 @@ impl PlaneTextReader {
                     max_width = Self::MAX_WIDTH;
                     max_height += 1.0;
                 }
-                let char_width = glyph_vertex_buffer.width(c);
+                let char_width = char_width_calcurator.get_width(c);
                 width += char_width.to_f32();
             }
             max_height += 1.0;
@@ -135,12 +133,13 @@ impl PlaneTextReader {
         (max_width, max_height)
     }
 
-    pub fn get_target_and_camera(
+    #[allow(unused)]
+    fn get_target_and_camera(
         &self,
         line_num: usize,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
+        char_width_calcurator: &CharWidthCalculator,
     ) -> anyhow::Result<(cgmath::Point3<f32>, cgmath::Point3<f32>, usize)> {
-        let line_num = (line_num as f32).min(self.calc_bound(glyph_vertex_buffer).1);
+        let line_num = (line_num as f32).min(self.calc_bound(char_width_calcurator).1);
         Ok((
             (0.0, -line_num, 0.0).into(),
             (0.0, -line_num, 50.0).into(),
@@ -184,7 +183,7 @@ impl PlaneTextReader {
     pub fn generate_instances(
         &mut self,
         color_theme: &ColorTheme,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
+        char_width_calcurator: &CharWidthCalculator,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
     ) -> Vec<&GlyphInstances> {
@@ -197,7 +196,7 @@ impl PlaneTextReader {
 
         let lines: Vec<_> = self.value.split('\n').collect();
 
-        let (width, height) = self.calc_bound(glyph_vertex_buffer);
+        let (width, height) = self.calc_bound(char_width_calcurator);
         self.bound = (width, height);
         let initial_x = (-width / 2.0) + 0.5;
         let initial_y = (height / 2.0) - 0.5;
@@ -211,7 +210,7 @@ impl PlaneTextReader {
                     x = initial_x;
                     y -= 1.0;
                 }
-                let char_width = glyph_vertex_buffer.width(c);
+                let char_width = char_width_calcurator.get_width(c);
                 x += char_width.left();
 
                 self.instances
@@ -337,6 +336,11 @@ pub fn caret_char(caret_type: CaretType) -> char {
         CaretType::Primary => '_',
         CaretType::Mark => '^',
     }
+}
+
+#[inline]
+pub fn ime_chars() -> [char; 2] {
+    ['[', ']']
 }
 
 #[cfg(test)]

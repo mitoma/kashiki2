@@ -1,16 +1,20 @@
+use cgmath::Point2;
 use log::info;
 use stroke_parser::Action;
+use text_buffer::action::EditorOperation;
 
 use crate::{
-    context::StateContext,
+    color_theme::ThemedColor,
+    context::{CharEasings, StateContext, TextContext},
     instances::GlyphInstances,
-    motion::{CameraDetail, MotionFlags},
+    layout_engine::Model,
+    ui::textedit::TextEditOperation,
 };
 
-use super::single_line::SingleLine;
+use super::textedit::TextEdit;
 
 pub struct ImeInput {
-    single_line: SingleLine,
+    text_edit: TextEdit,
 }
 
 impl Default for ImeInput {
@@ -19,50 +23,100 @@ impl Default for ImeInput {
     }
 }
 
+// IME の入力中文字を表示する時のスケール
+const IME_DEFAULT_SCALE: [f32; 2] = [0.1, 0.1];
+
 impl ImeInput {
     pub fn new() -> Self {
-        let mut single_line = SingleLine::new("".to_string());
-        single_line.update_motion(
-            MotionFlags::builder()
-                .camera_detail(CameraDetail::IGNORE_CAMERA)
-                .build(),
-        );
-        single_line.update_scale([0.1, 0.1]);
-        single_line.update_width(Some(1.0));
-        Self { single_line }
+        let config = TextContext {
+            char_easings: CharEasings::ignore_camera(),
+            max_col: usize::MAX, // IME は基本的に改行しないので大きな値を設定
+            min_bound: Point2::new(1.0, 10.0),
+            hyde_caret: true,
+            ..Default::default()
+        };
+        let mut text_edit = TextEdit::default();
+        text_edit.set_config(config);
+        text_edit.set_world_scale(IME_DEFAULT_SCALE);
+        text_edit.set_position((0.0, -8.5, 0.0).into());
+
+        Self { text_edit }
     }
 
-    pub fn apply_ime_event(&mut self, action: &Action) -> bool {
+    pub fn apply_ime_event(&mut self, action: &Action, context: &StateContext) -> bool {
         match action {
             Action::ImePreedit(value, position) => {
-                match position {
+                self.text_edit.editor_operation(&EditorOperation::Mark);
+                self.text_edit
+                    .editor_operation(&EditorOperation::BufferHead);
+                self.text_edit
+                    .editor_operation(&EditorOperation::Cut(|_| {}));
+                let char_width = match position {
                     Some((start, end)) if start != end => {
                         info!("start:{start}, end:{end}");
                         let (first, center, last) =
                             split_preedit_string(value.clone(), *start, *end);
+                        let left_separator_len = first.chars().count();
+                        // 左のセパレーターの文字数を考慮して + 1 している
+                        let right_separator_len = left_separator_len + center.chars().count() + 1;
                         let preedit_str = format!("{}[{}]{}", first, center, last);
-                        self.single_line.update_value(preedit_str);
+
+                        let preedit_str_count = preedit_str
+                            .chars()
+                            .map(|c| context.char_width_calcurator.get_width(c).to_f32())
+                            .sum::<f32>();
+
+                        self.text_edit
+                            .editor_operation(&EditorOperation::InsertString(preedit_str));
+                        self.text_edit
+                            .text_edit_operation(TextEditOperation::SetThemedColor(
+                                [0, left_separator_len].into()..[0, left_separator_len + 1].into(),
+                                ThemedColor::TextComment,
+                            ));
+                        self.text_edit
+                            .text_edit_operation(TextEditOperation::SetThemedColor(
+                                [0, right_separator_len].into()
+                                    ..[0, right_separator_len + 1].into(),
+                                ThemedColor::TextComment,
+                            ));
+                        preedit_str_count
                     }
                     _ => {
-                        self.single_line.update_value(value.clone());
+                        self.text_edit
+                            .editor_operation(&EditorOperation::InsertString(value.clone()));
+                        value
+                            .chars()
+                            .map(|c| context.char_width_calcurator.get_width(c).to_f32())
+                            .sum::<f32>()
                     }
                 };
+                self.text_edit.set_world_scale([
+                    f32::min(
+                        IME_DEFAULT_SCALE[0],
+                        1.0 / char_width * context.window_size.aspect(),
+                    ),
+                    IME_DEFAULT_SCALE[1],
+                ]);
                 false
             }
             Action::ImeInput(_) => {
-                self.single_line.update_value("".to_string());
+                self.text_edit.editor_operation(&EditorOperation::Mark);
+                self.text_edit
+                    .editor_operation(&EditorOperation::BufferHead);
+                self.text_edit
+                    .editor_operation(&EditorOperation::Cut(|_| {}));
                 true
             }
             _ => false,
         }
     }
 
-    pub fn update(&mut self, context: &StateContext) -> Vec<&GlyphInstances> {
-        self.single_line.generate_instances(context)
+    pub fn update(&mut self, context: &StateContext) {
+        self.text_edit.update(context)
     }
 
     pub fn get_instances(&self) -> Vec<&GlyphInstances> {
-        self.single_line.get_instances()
+        self.text_edit.glyph_instances()
     }
 }
 

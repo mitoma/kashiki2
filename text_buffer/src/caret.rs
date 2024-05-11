@@ -1,11 +1,13 @@
 use std::sync::mpsc::Sender;
 
-use crate::{buffer::BufferChar, editor::ChangeEvent};
+use crate::{
+    buffer::{BufferChar, CellPosition},
+    editor::ChangeEvent,
+};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Caret {
-    pub row: usize,
-    pub col: usize,
+    pub position: CellPosition,
     pub caret_type: CaretType,
 }
 
@@ -16,51 +18,47 @@ pub enum CaretType {
 }
 
 impl Caret {
-    pub fn new(row: usize, col: usize, sender: &Sender<ChangeEvent>) -> Self {
+    pub fn new(position: CellPosition, sender: &Sender<ChangeEvent>) -> Self {
         let instance = Self {
-            row,
-            col,
+            position,
             caret_type: CaretType::Primary,
         };
         sender.send(ChangeEvent::AddCaret(instance)).unwrap();
         instance
     }
 
-    pub fn new_mark(row: usize, col: usize, sender: &Sender<ChangeEvent>) -> Self {
+    pub fn new_mark(position: CellPosition, sender: &Sender<ChangeEvent>) -> Self {
         let instance = Self {
-            row,
-            col,
+            position,
             caret_type: CaretType::Mark,
         };
         sender.send(ChangeEvent::AddCaret(instance)).unwrap();
         instance
     }
 
-    pub fn new_without_event(row: usize, col: usize, caret_type: CaretType) -> Self {
+    pub fn new_without_event(position: CellPosition, caret_type: CaretType) -> Self {
         Self {
-            row,
-            col,
+            position,
             caret_type,
         }
     }
 
     #[inline]
-    pub fn move_to(&mut self, row: usize, col: usize, sender: &Sender<ChangeEvent>) {
-        if self.row == row && self.col == col {
+    pub fn move_to(&mut self, position: CellPosition, sender: &Sender<ChangeEvent>) {
+        if self.position == position {
             return;
         }
         let from = *self;
-        self.row = row;
-        self.col = col;
+        self.position = position;
         let event = ChangeEvent::MoveCaret { from, to: *self };
         sender.send(event).unwrap();
     }
 
     pub fn to(&mut self, to: &Caret, sender: &Sender<ChangeEvent>) {
-        self.move_to(to.row, to.col, sender);
+        self.move_to(to.position, sender);
     }
 
     pub fn is_same_or_after_on_row(&self, c: &BufferChar) -> bool {
-        self.row == c.row && self.col >= c.col
+        self.position.is_same_or_after_on_row(&c.position)
     }
 }

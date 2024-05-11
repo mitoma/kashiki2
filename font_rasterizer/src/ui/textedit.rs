@@ -1,25 +1,29 @@
-use std::sync::mpsc::Receiver;
+use std::{
+    ops::Range,
+    sync::mpsc::{Receiver, Sender},
+};
 
 use cgmath::{Point3, Quaternion, Rotation3};
 
 use text_buffer::{
+    buffer::CellPosition,
     caret::CaretType,
     editor::{ChangeEvent, Editor, PhisicalLayout},
 };
 
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
-    color_theme::ColorTheme,
+    color_theme::{ColorTheme, ThemedColor},
     context::{StateContext, TextContext},
     easing_value::EasingPointN,
-    font_buffer::{Direction, GlyphVertexBuffer},
+    font_buffer::Direction,
     instances::GlyphInstances,
-    layout_engine::{Model, ModelOperation, ModelOperationResult},
+    layout_engine::{Model, ModelAttributes, ModelOperation, ModelOperationResult},
 };
 
 use super::{
     caret_char,
-    view_element_state::{CaretStates, CharStates},
+    view_element_state::{CaretStates, CharStates, ViewElementStateUpdateRequest},
 };
 
 pub struct TextEdit {
@@ -27,6 +31,9 @@ pub struct TextEdit {
 
     editor: Editor,
     receiver: Receiver<ChangeEvent>,
+
+    text_edit_operation_sender: Sender<TextEditOperation>,
+    text_edit_operation_receiver: Receiver<TextEditOperation>,
 
     char_states: CharStates,
     caret_states: CaretStates,
@@ -36,6 +43,8 @@ pub struct TextEdit {
 
     position: EasingPointN<3>,
     rotation: Quaternion<f32>,
+    world_scale: [f32; 2],
+
     bound: EasingPointN<2>,
 }
 
@@ -43,6 +52,7 @@ impl Default for TextEdit {
     fn default() -> Self {
         let config = TextContext::default();
         let (tx, rx) = std::sync::mpsc::channel();
+        let (text_edit_operation_sender, text_edit_operation_receiver) = std::sync::mpsc::channel();
 
         let position = EasingPointN::new([0.0, 0.0, 0.0]);
         let bound = config.min_bound.into();
@@ -50,6 +60,9 @@ impl Default for TextEdit {
             config,
             editor: Editor::new(tx),
             receiver: rx,
+
+            text_edit_operation_sender,
+            text_edit_operation_receiver,
 
             char_states: CharStates::default(),
             caret_states: CaretStates::default(),
@@ -62,6 +75,7 @@ impl Default for TextEdit {
                 cgmath::Vector3::unit_y(),
                 cgmath::Deg(0.0),
             ),
+            world_scale: [1.0, 1.0],
             bound,
         }
     }
@@ -122,14 +136,18 @@ impl Model for TextEdit {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        [
-            self.caret_states.instances.to_instances(),
-            self.char_states.instances.to_instances(),
-        ]
-        .concat()
+        if self.config.hyde_caret {
+            self.char_states.instances.to_instances()
+        } else {
+            [
+                self.caret_states.instances.to_instances(),
+                self.char_states.instances.to_instances(),
+            ]
+            .concat()
+        }
     }
 
-    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn update(&mut self, context: &StateContext) {
         let color_theme = &context.color_theme;
         let device = &context.device;
         let queue = &context.queue;
@@ -238,6 +256,10 @@ impl Model for TextEdit {
 }
 
 impl TextEdit {
+    pub(crate) fn text_edit_operation(&mut self, op: TextEditOperation) {
+        self.text_edit_operation_sender.send(op).unwrap();
+    }
+
     // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。
     #[inline]
     fn sync_editor_events(&mut self, device: &wgpu::Device, color_theme: &ColorTheme) {
@@ -269,7 +291,7 @@ impl TextEdit {
                 }
                 ChangeEvent::MoveChar { from, to } => {
                     if let Some([row, _col]) = self.caret_states.main_caret_logical_position() {
-                        if from.row == row || to.row == row {
+                        if from.position.row == row || to.position.row == row {
                             self.char_states.move_char(
                                 from,
                                 to,
@@ -311,6 +333,22 @@ impl TextEdit {
                 }
             }
         }
+        // editor のイベントを処理した後に textedit 特有の Operation を処理する
+        // そうしなければ char_state のインスタンスが期待通りに存在しないため
+        while let Ok(event) = self.text_edit_operation_receiver.try_recv() {
+            match event {
+                TextEditOperation::SetThemedColor(range, color) => {
+                    self.char_states.update_states(
+                        &range,
+                        &ViewElementStateUpdateRequest {
+                            base_color: Some(color),
+                            ..Default::default()
+                        },
+                        &self.config,
+                    );
+                }
+            }
+        }
     }
 
     #[inline]
@@ -347,7 +385,7 @@ impl TextEdit {
         bound
     }
 
-    // 文字と caret の x, y の model 上の位置を計算
+    // 文字と caret の model 上の x, y の位置を計算
     #[inline]
     fn calc_position(
         &mut self,
@@ -360,10 +398,14 @@ impl TextEdit {
             let width = char_width_calcurator.get_width(c.c);
             let position =
                 Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
-            self.char_states.update_state_position_and_scale(
+            self.char_states.update_state(
                 c,
-                position,
-                self.config.instance_scale(),
+                &ViewElementStateUpdateRequest {
+                    position: Some(position),
+                    scale: Some(self.config.instance_scale()),
+                    ..Default::default()
+                },
+                &self.config,
             )
         });
 
@@ -423,12 +465,17 @@ impl TextEdit {
         let current_position: Point3<f32> = self.position.current().into();
         let update_environment = position_in_animation || bound_in_animation || self.config_updated;
 
+        let model_attributes = ModelAttributes {
+            position: current_position,
+            rotation: self.rotation,
+            center,
+            world_scale: self.world_scale,
+        };
+
         // update caret
         self.caret_states.update_instances(
             update_environment,
-            &center,
-            &current_position,
-            &self.rotation,
+            &model_attributes,
             char_width_calcurator,
             &self.config,
         );
@@ -436,9 +483,7 @@ impl TextEdit {
         // update chars
         self.char_states.update_instances(
             update_environment,
-            &center,
-            &current_position,
-            &self.rotation,
+            &model_attributes,
             char_width_calcurator,
             &self.config,
         );
@@ -447,4 +492,26 @@ impl TextEdit {
     fn max_display_width(&self) -> usize {
         (self.config.max_col as f32 / self.config.col_interval).abs() as usize
     }
+
+    pub(crate) fn set_config(&mut self, config: TextContext) {
+        self.config = config;
+        self.position.update_duration_and_easing_func(
+            self.config.char_easings.position_easing.duration,
+            self.config.char_easings.position_easing.easing_func,
+        );
+        self.bound.update_duration_and_easing_func(
+            self.config.char_easings.position_easing.duration,
+            self.config.char_easings.position_easing.easing_func,
+        );
+        self.config_updated = true;
+    }
+
+    pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
+        self.world_scale = world_scale;
+    }
+}
+
+pub enum TextEditOperation {
+    // テーマカラーを Range の範囲で設定する
+    SetThemedColor(Range<CellPosition>, ThemedColor),
 }

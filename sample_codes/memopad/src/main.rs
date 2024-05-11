@@ -14,7 +14,7 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::set_clock_mode,
-    ui::{caret_char, ime_input::ImeInput, textedit::TextEdit},
+    ui::{caret_char, ime_chars, ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
 use std::{collections::HashSet, path::Path};
@@ -118,17 +118,27 @@ impl MemoPadCallback {
 
 impl SimpleStateCallback for MemoPadCallback {
     fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+        // world にすでに表示されるグリフを追加する
         let mut chars = self
             .world
             .strings()
             .join("")
             .chars()
             .collect::<HashSet<char>>();
+
+        // キャレットのグリフを追加する
         chars.insert(caret_char(text_buffer::caret::CaretType::Primary));
         chars.insert(caret_char(text_buffer::caret::CaretType::Mark));
+
+        // IME のグリフを追加する
+        chars.extend(ime_chars().iter().cloned());
+
+        // グリフバッファに追加する
         glyph_vertex_buffer
             .append_glyph(&context.device, &context.queue, chars)
             .unwrap();
+
+        // カメラを初期化する
         self.world.look_at(0, CameraAdjustment::FitBoth);
     }
 
@@ -152,6 +162,7 @@ impl SimpleStateCallback for MemoPadCallback {
     fn input(
         &mut self,
         glyph_vertex_buffer: &GlyphVertexBuffer,
+        context: &StateContext,
         event: &WindowEvent,
     ) -> InputResult {
         match self.store.winit_window_event_to_action(event) {
@@ -307,7 +318,8 @@ impl SimpleStateCallback for MemoPadCallback {
             }
             Some(Action::ImeInput(value)) => {
                 self.new_chars.extend(value.chars());
-                self.ime.apply_ime_event(&Action::ImeInput(value.clone()));
+                self.ime
+                    .apply_ime_event(&Action::ImeInput(value.clone()), context);
                 self.world
                     .editor_operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
@@ -315,7 +327,7 @@ impl SimpleStateCallback for MemoPadCallback {
             Some(Action::ImePreedit(value, position)) => {
                 self.new_chars.extend(value.chars());
                 self.ime
-                    .apply_ime_event(&Action::ImePreedit(value, position));
+                    .apply_ime_event(&Action::ImePreedit(value, position), context);
                 InputResult::InputConsumed
             }
             Some(_) => InputResult::Noop,
