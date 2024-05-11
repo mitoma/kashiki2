@@ -9,6 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 font_rasterizer = { version = "0.1.0", path = "../font_rasterizer" }
+stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
 env_logger = { workspace = true }
 log = { workspace = true }
 pollster = { workspace = true }

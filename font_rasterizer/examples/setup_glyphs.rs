@@ -93,6 +93,15 @@ impl SimpleStateCallback for SingleCharCallback {
         InputResult::Noop
     }
 
+    fn action(
+        &mut self,
+        _glyph_vertex_buffer: &GlyphVertexBuffer,
+        _context: &StateContext,
+        _action: stroke_parser::Action,
+    ) -> InputResult {
+        InputResult::Noop
+    }
+
     fn resize(&mut self, _window_size: WindowSize) {}
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {

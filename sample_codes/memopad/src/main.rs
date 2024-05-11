@@ -1,7 +1,9 @@
 use arboard::Clipboard;
 /*#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]*/
 use font_collector::FontCollector;
-use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
+use stroke_parser::{
+    action_store_parser::parse_setting, Action, ActionStore, CommandName, CommandNamespace,
+};
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
@@ -14,7 +16,12 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::set_clock_mode,
-    ui::{caret_char, ime_chars, ime_input::ImeInput, textedit::TextEdit},
+    ui::{
+        caret_char, ime_chars,
+        ime_input::ImeInput,
+        selectbox::{SelectOption, Selectbox},
+        textedit::TextEdit,
+    },
 };
 use log::info;
 use std::{collections::HashSet, path::Path};
@@ -165,8 +172,21 @@ impl SimpleStateCallback for MemoPadCallback {
         context: &StateContext,
         event: &WindowEvent,
     ) -> InputResult {
-        match self.store.winit_window_event_to_action(event) {
-            Some(Action::Command(category, name)) => match &*category.to_string() {
+        if let Some(action) = self.store.winit_window_event_to_action(event) {
+            self.action(glyph_vertex_buffer, context, action)
+        } else {
+            InputResult::Noop
+        }
+    }
+
+    fn action(
+        &mut self,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+        context: &StateContext,
+        action: Action,
+    ) -> InputResult {
+        match action {
+            Action::Command(category, name) => match &*category.to_string() {
                 "system" => {
                     let action = match &*name.to_string() {
                         "exit" => {
@@ -178,6 +198,39 @@ impl SimpleStateCallback for MemoPadCallback {
                         }
                         "toggle-fullscreen" => {
                             return InputResult::ToggleFullScreen;
+                        }
+                        "select-theme" => {
+                            let selectbox = Selectbox::new(
+                                context.action_queue_sender.clone(),
+                                "Select Color Theme".to_string(),
+                                vec![
+                                    SelectOption::new(
+                                        "Solarized Blackback".to_string(),
+                                        Action::Command(
+                                            CommandNamespace::new("system".to_string()),
+                                            CommandName::new("change-theme-black".to_string()),
+                                        ),
+                                    ),
+                                    SelectOption::new(
+                                        "Solarized Dark".to_string(),
+                                        Action::Command(
+                                            CommandNamespace::new("system".to_string()),
+                                            CommandName::new("change-theme-dark".to_string()),
+                                        ),
+                                    ),
+                                    SelectOption::new(
+                                        "Solarized Light".to_string(),
+                                        Action::Command(
+                                            CommandNamespace::new("system".to_string()),
+                                            CommandName::new("change-theme-light".to_string()),
+                                        ),
+                                    ),
+                                ],
+                            );
+                            self.world.add_next(Box::new(selectbox));
+                            self.world.re_layout();
+                            self.world.look_next(CameraAdjustment::NoCare);
+                            return InputResult::InputConsumed;
                         }
                         "change-theme-black" => {
                             return InputResult::ChangeColorTheme(ColorTheme::SolarizedBlackback);
@@ -229,6 +282,11 @@ impl SimpleStateCallback for MemoPadCallback {
                 }
                 "world" => {
                     match &*name.to_string() {
+                        "remove-current" => {
+                            self.world.remove_current();
+                            self.world.re_layout();
+                            self.world.look_prev(CameraAdjustment::NoCare);
+                        }
                         "reset-zoom" => self.world.look_current(CameraAdjustment::FitBoth),
                         "look-current" => self.world.look_current(CameraAdjustment::NoCare),
                         "look-next" => self.world.look_next(CameraAdjustment::NoCare),
@@ -310,13 +368,13 @@ impl SimpleStateCallback for MemoPadCallback {
                 }
                 _ => InputResult::Noop,
             },
-            Some(Action::Keytype(c)) => {
+            Action::Keytype(c) => {
                 self.new_chars.insert(c);
                 let action = EditorOperation::InsertChar(c);
                 self.world.editor_operation(&action);
                 InputResult::InputConsumed
             }
-            Some(Action::ImeInput(value)) => {
+            Action::ImeInput(value) => {
                 self.new_chars.extend(value.chars());
                 self.ime
                     .apply_ime_event(&Action::ImeInput(value.clone()), context);
@@ -324,14 +382,13 @@ impl SimpleStateCallback for MemoPadCallback {
                     .editor_operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
-            Some(Action::ImePreedit(value, position)) => {
+            Action::ImePreedit(value, position) => {
                 self.new_chars.extend(value.chars());
                 self.ime
                     .apply_ime_event(&Action::ImePreedit(value, position), context);
                 InputResult::InputConsumed
             }
-            Some(_) => InputResult::Noop,
-            None => InputResult::Noop,
+            _ => InputResult::Noop,
         }
     }
 

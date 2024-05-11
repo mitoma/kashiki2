@@ -1,4 +1,6 @@
-use stroke_parser::Action;
+use std::sync::mpsc::Sender;
+
+use stroke_parser::{Action, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
 use crate::{
@@ -25,10 +27,15 @@ pub struct Selectbox {
     current_selection: usize,
     options: Vec<SelectOption>,
     text_edit: TextEdit,
+    action_queue_sender: Sender<Action>,
 }
 
 impl Selectbox {
-    pub fn new(message: String, options: Vec<SelectOption>) -> Self {
+    pub fn new(
+        action_queue_sender: Sender<Action>,
+        message: String,
+        options: Vec<SelectOption>,
+    ) -> Self {
         let config = TextContext {
             max_col: usize::MAX, // SELECTBOX は基本的に改行しないので大きな値を設定
             char_easings: CharEasings {
@@ -57,6 +64,7 @@ impl Selectbox {
             current_selection: 0,
             options,
             text_edit,
+            action_queue_sender,
         };
         result.update_current_selection();
         result
@@ -118,6 +126,17 @@ impl Model for Selectbox {
             }
             EditorOperation::BufferHead => self.current_selection = 0,
             EditorOperation::BufferLast => self.current_selection = self.options.len() - 1,
+            EditorOperation::InsertEnter => {
+                self.action_queue_sender
+                    .send(self.options[self.current_selection].action.clone())
+                    .unwrap();
+                self.action_queue_sender
+                    .send(Action::Command(
+                        CommandNamespace::new("world".to_string()),
+                        CommandName::new("remove-current".to_string()),
+                    ))
+                    .unwrap();
+            }
             _ => (),
         }
         self.update_current_selection();
