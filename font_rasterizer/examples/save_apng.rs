@@ -139,6 +139,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn input(
         &mut self,
         _glyph_vertex_buffer: &GlyphVertexBuffer,
+        _context: &StateContext,
         _event: &WindowEvent,
     ) -> InputResult {
         InputResult::Noop
