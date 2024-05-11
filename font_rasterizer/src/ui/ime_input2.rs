@@ -23,18 +23,21 @@ impl Default for ImeInput {
     }
 }
 
+// IME の入力中文字を表示する時のスケール
+const IME_DEFAULT_SCALE: [f32; 2] = [0.1, 0.1];
+
 impl ImeInput {
     pub fn new() -> Self {
         let config = TextContext {
             char_easings: CharEasings::ignore_camera(),
             max_col: usize::MAX, // IME は基本的に改行しないので大きな値を設定
-            min_bound: Point2::new(10.0, 10.0),
+            min_bound: Point2::new(1.0, 10.0),
             hyde_caret: true,
             ..Default::default()
         };
         let mut text_edit = TextEdit::default();
         text_edit.set_config(config);
-        text_edit.set_world_scale([0.1, 0.1]);
+        text_edit.set_world_scale(IME_DEFAULT_SCALE);
         text_edit.set_position((0.0, -8.5, 0.0).into());
 
         Self { text_edit }
@@ -68,7 +71,7 @@ impl ImeInput {
                         self.text_edit
                             .text_edit_operation(TextEditOperation::SetThemedColor(
                                 [0, left_separator_len].into()..[0, left_separator_len + 1].into(),
-                                ThemedColor::TextEmphasized,
+                                ThemedColor::TextComment,
                             ));
                         self.text_edit
                             .text_edit_operation(TextEditOperation::SetThemedColor(
@@ -87,8 +90,13 @@ impl ImeInput {
                             .sum::<f32>()
                     }
                 };
-                self.text_edit
-                    .set_world_scale([f32::min(0.1, 1.0 / char_width), 0.1]);
+                self.text_edit.set_world_scale([
+                    f32::min(
+                        IME_DEFAULT_SCALE[0],
+                        1.0 / char_width * context.window_size.aspect(),
+                    ),
+                    IME_DEFAULT_SCALE[1],
+                ]);
                 false
             }
             Action::ImeInput(_) => {
