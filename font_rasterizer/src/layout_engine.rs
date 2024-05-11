@@ -15,6 +15,8 @@ use crate::{
 pub trait World {
     // model を追加する
     fn add(&mut self, model: Box<dyn Model>);
+    // model を現在のモデルの次に追加する
+    fn add_next(&mut self, model: Box<dyn Model>);
     // 現在参照している model を削除する
     fn remove_current(&mut self);
 
@@ -96,6 +98,10 @@ const INTERVAL: f32 = 5.0;
 impl World for HorizontalWorld {
     fn add(&mut self, model: Box<dyn Model>) {
         self.models.push(model);
+    }
+
+    fn add_next(&mut self, model: Box<dyn Model>) {
+        self.models.insert(self.focus + 1, model);
     }
 
     fn re_layout(&mut self) {
