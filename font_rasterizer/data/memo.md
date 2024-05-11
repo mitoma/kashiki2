@@ -22,3 +22,7 @@ kashiki とは GPU ベースのテキストエディタを作るプロジェク�
 - ⌨ Emacs Keybind
   - テキストエディタを快適に操作するにはキーバインドが欠かせません。
     また、キーバインドは Emacs を使うのが最良です。
+
+## ドロイド君絵文字
+
+https://github.com/aosp-mirror/platform_frameworks_base/tree/android-cts-4.4_r4/data/fonts

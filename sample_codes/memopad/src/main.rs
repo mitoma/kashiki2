@@ -25,6 +25,8 @@ const ICON_IMAGE: &[u8] = include_bytes!("memopad-logo.png");
 
 const FONT_DATA: &[u8] =
     include_bytes!("../../../font_rasterizer/examples/font/HackGenConsole-Regular.ttf");
+const ANDROID_EMOJI_FONT_DATA: &[u8] =
+    include_bytes!("../../../font_rasterizer/examples/font/AndroidEmoji.ttf");
 const EMOJI_FONT_DATA: &[u8] =
     include_bytes!("../../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
 
@@ -53,6 +55,11 @@ pub async fn run() {
         font_binaries.push(kyokasho_font);
     }
     font_binaries.push(collector.convert_font(FONT_DATA.to_vec(), None).unwrap());
+    font_binaries.push(
+        collector
+            .convert_font(ANDROID_EMOJI_FONT_DATA.to_vec(), None)
+            .unwrap(),
+    );
     font_binaries.push(
         collector
             .convert_font(EMOJI_FONT_DATA.to_vec(), None)
