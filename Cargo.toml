@@ -20,7 +20,7 @@ env_logger = "0.11"
 log = "0.4"
 pollster = "0.3"
 image = "0.25.1"
-rustybuzz = "0.13.0"
+rustybuzz = "0.14.0"
 instant = { version = "0.1.12", features = ["wasm-bindgen"] }
 
 [profile.release-optimized]
