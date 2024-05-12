@@ -222,7 +222,12 @@ impl World for HorizontalWorld {
     }
 
     fn strings(&self) -> Vec<String> {
-        self.models.iter().map(|m| m.to_string()).collect()
+        self.models
+            .iter()
+            // modal は保存対象の文字列ではない
+            .filter(|m| m.model_mode() != ModelMode::Modal)
+            .map(|m| m.to_string())
+            .collect()
     }
 
     fn remove_current(&mut self) {
