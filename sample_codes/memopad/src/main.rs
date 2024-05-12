@@ -212,15 +212,6 @@ impl SimpleStateCallback for MemoPadCallback {
                                 Box::new(change_theme_select(context.action_queue_sender.clone())),
                             )
                         }
-                        "change-theme-black" => {
-                            return InputResult::ChangeColorTheme(ColorTheme::SolarizedBlackback);
-                        }
-                        "change-theme-dark" => {
-                            return InputResult::ChangeColorTheme(ColorTheme::SolarizedDark);
-                        }
-                        "change-theme-light" => {
-                            return InputResult::ChangeColorTheme(ColorTheme::SolarizedLight);
-                        }
                         "return" => EditorOperation::InsertEnter,
                         "backspace" => EditorOperation::Backspace,
                         "backspace-word" => EditorOperation::BackspaceWord,
@@ -350,6 +341,30 @@ impl SimpleStateCallback for MemoPadCallback {
                         }
                         _ => {}
                     };
+                    InputResult::InputConsumed
+                }
+                _ => InputResult::Noop,
+            },
+            Action::CommandWithArgument(category, name, argument) => match &*category.to_string() {
+                "system" => {
+                    let action = match &*name.to_string() {
+                        "change-theme" => match argument.as_str() {
+                            "black" => {
+                                return InputResult::ChangeColorTheme(
+                                    ColorTheme::SolarizedBlackback,
+                                )
+                            }
+                            "dark" => {
+                                return InputResult::ChangeColorTheme(ColorTheme::SolarizedDark)
+                            }
+                            "light" => {
+                                return InputResult::ChangeColorTheme(ColorTheme::SolarizedLight)
+                            }
+                            _ => EditorOperation::Noop,
+                        },
+                        _ => EditorOperation::Noop,
+                    };
+                    self.world.editor_operation(&action);
                     InputResult::InputConsumed
                 }
                 _ => InputResult::Noop,

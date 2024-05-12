@@ -2,7 +2,7 @@ use std::sync::mpsc::Sender;
 
 use chrono::Days;
 use font_rasterizer::ui::selectbox::{SelectBox, SelectOption};
-use stroke_parser::{Action, CommandName, CommandNamespace};
+use stroke_parser::Action;
 
 pub(crate) fn insert_date_select(action_queue_sender: Sender<Action>) -> SelectBox {
     let now = chrono::Local::now();
@@ -48,24 +48,15 @@ pub(crate) fn change_theme_select(action_queue_sender: Sender<Action>) -> Select
     let options = vec![
         SelectOption::new(
             "Solarized Blackback".to_string(),
-            Action::Command(
-                CommandNamespace::new("system".to_string()),
-                CommandName::new("change-theme-black".to_string()),
-            ),
+            Action::new_command_with_argument("system", "change-theme", "black"),
         ),
         SelectOption::new(
             "Solarized Dark".to_string(),
-            Action::Command(
-                CommandNamespace::new("system".to_string()),
-                CommandName::new("change-theme-dark".to_string()),
-            ),
+            Action::new_command_with_argument("system", "change-theme", "dark"),
         ),
         SelectOption::new(
             "Solarized Light".to_string(),
-            Action::Command(
-                CommandNamespace::new("system".to_string()),
-                CommandName::new("change-theme-light".to_string()),
-            ),
+            Action::new_command_with_argument("system", "change-theme", "light"),
         ),
     ];
     SelectBox::new(
