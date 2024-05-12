@@ -55,7 +55,7 @@ pub trait World {
     fn strings(&self) -> Vec<String>;
 
     // 今フォーカスが当たっているモデルのモードを返す
-    fn current_model_mode(&self) -> ModelMode;
+    fn current_model_mode(&self) -> Option<ModelMode>;
 }
 
 pub struct HorizontalWorld {
@@ -177,7 +177,7 @@ impl World for HorizontalWorld {
 
     fn look_next(&mut self, adjustment: CameraAdjustment) {
         // modal の場合はフォーカスを移動させない
-        if self.current_model_mode() == ModelMode::Modal {
+        if let Some(ModelMode::Modal) = self.current_model_mode() {
             self.look_current(adjustment);
             return;
         }
@@ -187,11 +187,10 @@ impl World for HorizontalWorld {
 
     fn look_prev(&mut self, adjustment: CameraAdjustment) {
         // modal の場合はフォーカスを移動させない
-        if self.current_model_mode() == ModelMode::Modal {
+        if let Some(ModelMode::Modal) = self.current_model_mode() {
             self.look_current(adjustment);
             return;
         }
-
         let prev = if self.focus == 0 {
             self.model_length() - 1
         } else {
@@ -252,8 +251,8 @@ impl World for HorizontalWorld {
         self.look_at(self.focus - 1, CameraAdjustment::NoCare);
     }
 
-    fn current_model_mode(&self) -> ModelMode {
-        self.models[self.focus].model_mode()
+    fn current_model_mode(&self) -> Option<ModelMode> {
+        self.models.get(self.focus).map(|m| m.model_mode())
     }
 }
 
