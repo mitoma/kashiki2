@@ -1,9 +1,11 @@
-use arboard::Clipboard;
 /*#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]*/
+/* ↑は Windows で実行する時にコマンドプロンプトが開かないようにするためのもの。 */
+
+mod memopad_actions;
+
+use arboard::Clipboard;
 use font_collector::FontCollector;
-use stroke_parser::{
-    action_store_parser::parse_setting, Action, ActionStore, CommandName, CommandNamespace,
-};
+use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
@@ -16,17 +18,15 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::set_clock_mode,
-    ui::{
-        caret_char, ime_chars,
-        ime_input::ImeInput,
-        selectbox::{SelectOption, Selectbox},
-        textedit::TextEdit,
-    },
+    ui::{caret_char, ime_chars, ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
+use memopad_actions::change_theme_select;
 use std::{collections::HashSet, path::Path};
 use std::{fs, path::PathBuf};
 use winit::{event::WindowEvent, window::Icon};
+
+use crate::memopad_actions::insert_date_select;
 
 const ICON_IMAGE: &[u8] = include_bytes!("memopad-logo.png");
 
@@ -185,6 +185,13 @@ impl SimpleStateCallback for MemoPadCallback {
         context: &StateContext,
         action: Action,
     ) -> InputResult {
+        fn add_modal(world: &mut Box<dyn World>, model: Box<dyn Model>) -> InputResult {
+            world.add_next(model);
+            world.re_layout();
+            world.look_next(CameraAdjustment::NoCare);
+            InputResult::InputConsumed
+        }
+
         match action {
             Action::Command(category, name) => match &*category.to_string() {
                 "system" => {
@@ -200,37 +207,10 @@ impl SimpleStateCallback for MemoPadCallback {
                             return InputResult::ToggleFullScreen;
                         }
                         "select-theme" => {
-                            let selectbox = Selectbox::new(
-                                context.action_queue_sender.clone(),
-                                "Select Color Theme".to_string(),
-                                vec![
-                                    SelectOption::new(
-                                        "Solarized Blackback".to_string(),
-                                        Action::Command(
-                                            CommandNamespace::new("system".to_string()),
-                                            CommandName::new("change-theme-black".to_string()),
-                                        ),
-                                    ),
-                                    SelectOption::new(
-                                        "Solarized Dark".to_string(),
-                                        Action::Command(
-                                            CommandNamespace::new("system".to_string()),
-                                            CommandName::new("change-theme-dark".to_string()),
-                                        ),
-                                    ),
-                                    SelectOption::new(
-                                        "Solarized Light".to_string(),
-                                        Action::Command(
-                                            CommandNamespace::new("system".to_string()),
-                                            CommandName::new("change-theme-light".to_string()),
-                                        ),
-                                    ),
-                                ],
-                            );
-                            self.world.add_next(Box::new(selectbox));
-                            self.world.re_layout();
-                            self.world.look_next(CameraAdjustment::NoCare);
-                            return InputResult::InputConsumed;
+                            return add_modal(
+                                &mut self.world,
+                                Box::new(change_theme_select(context.action_queue_sender.clone())),
+                            )
                         }
                         "change-theme-black" => {
                             return InputResult::ChangeColorTheme(ColorTheme::SolarizedBlackback);
@@ -361,6 +341,12 @@ impl SimpleStateCallback for MemoPadCallback {
                             self.world.remove_current();
                             self.world.re_layout();
                             self.world.look_prev(CameraAdjustment::NoCare);
+                        }
+                        "insert-date" => {
+                            return add_modal(
+                                &mut self.world,
+                                Box::new(insert_date_select(context.action_queue_sender.clone())),
+                            )
                         }
                         _ => {}
                     };

@@ -59,6 +59,8 @@ C-X C-S memopad:save
 C-Z C   memopad:add-memo
 C-Z K   memopad:remove-memo
 
+C-X C-I C-D memopad:insert-date
+
 C-Key0    world:reset-zoom
 C-L       world:look-current
 C-Right   world:look-next
