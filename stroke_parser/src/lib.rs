@@ -21,6 +21,7 @@ impl KeyWithModifier {
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum Action {
     Command(CommandNamespace, CommandName),
+    CommandWithArgument(CommandNamespace, CommandName, String),
     Keytype(char),
     ImeEnable,
     ImeDisable,
@@ -33,6 +34,14 @@ impl Action {
         Action::Command(
             CommandNamespace::new(String::from(namespace)),
             CommandName::new(String::from(name)),
+        )
+    }
+
+    pub fn new_command_with_argument(namespace: &str, name: &str, argument: &str) -> Action {
+        Action::CommandWithArgument(
+            CommandNamespace::new(String::from(namespace)),
+            CommandName::new(String::from(name)),
+            String::from(argument),
         )
     }
 }

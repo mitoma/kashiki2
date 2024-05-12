@@ -30,7 +30,17 @@ fn parse_action(line: &str) -> Option<Action> {
     if words.len() != 2 {
         return None;
     }
-    Some(Action::new_command(words[0], words[1]))
+
+    let namespace = words[0];
+    if words[1].contains('(') && words[1].ends_with(')') {
+        let words: Vec<&str> = words[1].split('(').collect();
+        let name = words[0];
+        let argument = words[1].trim_end_matches(')');
+        Some(Action::new_command_with_argument(namespace, name, argument))
+    } else {
+        let name = words[1];
+        Some(Action::new_command(namespace, name))
+    }
 }
 
 fn parse_keywithmodifier(line: &str) -> Option<KeyWithModifier> {
@@ -84,6 +94,9 @@ mod tests {
                 #hello
                 Return system:enter
                 C-X C-S system:save
+                C-X C-T C-D system:change-theme(dark)
+                # Argument が空文字のケース
+                C-X C-T C-E system:change-theme()
             "
             ),
             vec![
@@ -100,6 +113,22 @@ mod tests {
                         KeyWithModifier::new(keys::KeyCode::S, keys::ModifiersState::Ctrl)
                     ]),
                     Action::new_command("system", "save")
+                ),
+                KeyBind::new(
+                    Stroke::new(vec![
+                        KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::Ctrl),
+                        KeyWithModifier::new(keys::KeyCode::T, keys::ModifiersState::Ctrl),
+                        KeyWithModifier::new(keys::KeyCode::D, keys::ModifiersState::Ctrl)
+                    ]),
+                    Action::new_command_with_argument("system", "change-theme", "dark")
+                ),
+                KeyBind::new(
+                    Stroke::new(vec![
+                        KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::Ctrl),
+                        KeyWithModifier::new(keys::KeyCode::T, keys::ModifiersState::Ctrl),
+                        KeyWithModifier::new(keys::KeyCode::E, keys::ModifiersState::Ctrl)
+                    ]),
+                    Action::new_command_with_argument("system", "change-theme", "")
                 )
             ]
         );

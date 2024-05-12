@@ -49,6 +49,7 @@ fn main() {
                     editor.operation(&action);
                 }
                 Some(Action::Command(_, _)) => {}
+                Some(Action::CommandWithArgument(_, _, _)) => {}
                 Some(Action::Keytype(c)) => {
                     let action = EditorOperation::InsertChar(c);
                     editor.operation(&action);
