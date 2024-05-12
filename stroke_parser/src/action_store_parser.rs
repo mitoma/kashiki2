@@ -97,6 +97,8 @@ mod tests {
                 C-X C-T C-D system:change-theme(dark)
                 # Argument が空文字のケース
                 C-X C-T C-E system:change-theme()
+                # 日本語のargumentも特に禁止しない
+                C-A system:author(山田太郎的な存在)
             "
             ),
             vec![
@@ -129,6 +131,13 @@ mod tests {
                         KeyWithModifier::new(keys::KeyCode::E, keys::ModifiersState::Ctrl)
                     ]),
                     Action::new_command_with_argument("system", "change-theme", "")
+                ),
+                KeyBind::new(
+                    Stroke::new(vec![KeyWithModifier::new(
+                        keys::KeyCode::A,
+                        keys::ModifiersState::Ctrl
+                    ),]),
+                    Action::new_command_with_argument("system", "author", "山田太郎的な存在")
                 )
             ]
         );
