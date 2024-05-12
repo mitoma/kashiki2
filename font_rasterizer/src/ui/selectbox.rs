@@ -22,7 +22,7 @@ impl SelectOption {
     }
 }
 
-pub struct Selectbox {
+pub struct SelectBox {
     selection_offset: usize,
     current_selection: usize,
     options: Vec<SelectOption>,
@@ -30,7 +30,7 @@ pub struct Selectbox {
     action_queue_sender: Sender<Action>,
 }
 
-impl Selectbox {
+impl SelectBox {
     pub fn new(
         action_queue_sender: Sender<Action>,
         message: String,
@@ -82,7 +82,7 @@ impl Selectbox {
     }
 }
 
-impl Model for Selectbox {
+impl Model for SelectBox {
     fn set_position(&mut self, position: cgmath::Point3<f32>) {
         self.text_edit.set_position(position);
     }

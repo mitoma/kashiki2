@@ -1,10 +1,10 @@
 use std::sync::mpsc::Sender;
 
 use chrono::Days;
-use font_rasterizer::ui::selectbox::{SelectOption, Selectbox};
+use font_rasterizer::ui::selectbox::{SelectBox, SelectOption};
 use stroke_parser::{Action, CommandName, CommandNamespace};
 
-pub(crate) fn insert_date_select(action_queue_sender: Sender<Action>) -> Selectbox {
+pub(crate) fn insert_date_select(action_queue_sender: Sender<Action>) -> SelectBox {
     let now = chrono::Local::now();
     let today_date = now.format("%Y/%m/%d").to_string();
     let today_datetime = now.format("%Y/%m/%d %H:%M:%S").to_string();
@@ -37,14 +37,14 @@ pub(crate) fn insert_date_select(action_queue_sender: Sender<Action>) -> Selectb
             Action::ImeInput(tomorrow_date),
         ),
     ];
-    Selectbox::new(
+    SelectBox::new(
         action_queue_sender,
         "挿入したい日付を選択".to_string(),
         options,
     )
 }
 
-pub(crate) fn change_theme_select(action_queue_sender: Sender<Action>) -> Selectbox {
+pub(crate) fn change_theme_select(action_queue_sender: Sender<Action>) -> SelectBox {
     let options = vec![
         SelectOption::new(
             "Solarized Blackback".to_string(),
@@ -68,7 +68,7 @@ pub(crate) fn change_theme_select(action_queue_sender: Sender<Action>) -> Select
             ),
         ),
     ];
-    Selectbox::new(
+    SelectBox::new(
         action_queue_sender,
         "カラーテーマを選択して下さい".to_string(),
         options,
