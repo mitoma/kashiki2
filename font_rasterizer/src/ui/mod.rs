@@ -17,7 +17,7 @@ use crate::{
     context::StateContext,
     font_buffer::Direction,
     instances::{GlyphInstance, GlyphInstances},
-    layout_engine::{Model, ModelOperation, ModelOperationResult},
+    layout_engine::{Model, ModelMode, ModelOperation, ModelOperationResult},
     motion::MotionFlags,
     time::now_millis,
 };
@@ -106,6 +106,10 @@ impl Model for PlaneTextReader {
 
     fn to_string(&self) -> String {
         self.value.clone()
+    }
+
+    fn model_mode(&self) -> ModelMode {
+        ModelMode::Nomal
     }
 }
 

@@ -53,6 +53,9 @@ pub trait World {
     fn model_operation(&mut self, op: &ModelOperation);
     fn current_string(&self) -> String;
     fn strings(&self) -> Vec<String>;
+
+    // 今フォーカスが当たっているモデルのモードを返す
+    fn current_model_mode(&self) -> ModelMode;
 }
 
 pub struct HorizontalWorld {
@@ -173,11 +176,22 @@ impl World for HorizontalWorld {
     }
 
     fn look_next(&mut self, adjustment: CameraAdjustment) {
+        // modal の場合はフォーカスを移動させない
+        if self.current_model_mode() == ModelMode::Modal {
+            self.look_current(adjustment);
+            return;
+        }
         let next = (self.focus + 1) % self.model_length();
         self.look_at(next, adjustment)
     }
 
     fn look_prev(&mut self, adjustment: CameraAdjustment) {
+        // modal の場合はフォーカスを移動させない
+        if self.current_model_mode() == ModelMode::Modal {
+            self.look_current(adjustment);
+            return;
+        }
+
         let prev = if self.focus == 0 {
             self.model_length() - 1
         } else {
@@ -237,6 +251,16 @@ impl World for HorizontalWorld {
         self.re_layout();
         self.look_at(self.focus - 1, CameraAdjustment::NoCare);
     }
+
+    fn current_model_mode(&self) -> ModelMode {
+        self.models[self.focus].model_mode()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ModelMode {
+    Nomal,
+    Modal,
 }
 
 pub trait Model {
@@ -258,6 +282,7 @@ pub trait Model {
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult;
     fn to_string(&self) -> String;
+    fn model_mode(&self) -> ModelMode;
 }
 
 pub enum ModelOperation<'a> {

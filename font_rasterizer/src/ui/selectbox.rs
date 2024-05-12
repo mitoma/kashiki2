@@ -6,7 +6,7 @@ use text_buffer::action::EditorOperation;
 use crate::{
     context::{CharEasings, GpuEasingConfig, StateContext, TextContext},
     instances::GlyphInstances,
-    layout_engine::Model,
+    layout_engine::{Model, ModelMode},
 };
 
 use super::textedit::TextEdit;
@@ -144,9 +144,10 @@ impl Model for Selectbox {
 
     fn model_operation(
         &mut self,
-        _op: &crate::layout_engine::ModelOperation,
+        op: &crate::layout_engine::ModelOperation,
     ) -> crate::layout_engine::ModelOperationResult {
-        crate::layout_engine::ModelOperationResult::NoCare
+        // model operation も移譲して問題なさそう
+        self.text_edit.model_operation(op)
     }
 
     fn to_string(&self) -> String {
@@ -155,5 +156,9 @@ impl Model for Selectbox {
             .map(|s| s.text.clone())
             .collect::<Vec<String>>()
             .join("")
+    }
+
+    fn model_mode(&self) -> ModelMode {
+        ModelMode::Modal
     }
 }

@@ -18,7 +18,7 @@ use crate::{
     easing_value::EasingPointN,
     font_buffer::Direction,
     instances::GlyphInstances,
-    layout_engine::{Model, ModelAttributes, ModelOperation, ModelOperationResult},
+    layout_engine::{Model, ModelAttributes, ModelMode, ModelOperation, ModelOperationResult},
 };
 
 use super::{
@@ -252,6 +252,10 @@ impl Model for TextEdit {
 
     fn to_string(&self) -> String {
         self.editor.to_buffer_string()
+    }
+
+    fn model_mode(&self) -> ModelMode {
+        ModelMode::Nomal
     }
 }
 
