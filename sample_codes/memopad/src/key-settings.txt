@@ -43,11 +43,8 @@ C-Slash system:undo
 
 C-X C-C system:exit
 
-# 実験的(テーマの選択UIが実装されたら消す)
-C-X C-T C-S system:select-theme
-C-X C-T C-B system:change-theme(black)
-C-X C-T C-D system:change-theme(dark)
-C-X C-T C-L system:change-theme(light)
+C-X C-T system:select-theme
+
 # 実験的(遊び)
 C-X C-P     world:toggle-psychedelic
 
