@@ -1,0 +1,83 @@
+# key setting
+Backspace system:backspace
+Back system:backspace
+Delete system:delete
+Return system:return
+
+# allow setting.
+Right system:forward
+Left system:back
+Down system:next
+Up system:previous
+
+# emacs style keybinds
+C-A system:head
+C-E system:last
+C-F system:forward
+C-B system:back
+C-N system:next
+C-P system:previous
+A-S-Comma  system:buffer-head
+A-S-Period system:buffer-last
+PageDown system:page-down
+A-V      system:page-down
+PageUp   system:page-up
+C-V      system:page-up
+
+A-F system:forward-word
+A-B system:back-word
+
+C-H system:backspace
+A-Delete system:backspace-word
+C-D system:delete
+A-D system:delete-word
+C-M system:return
+C-Space system:mark
+C-G system:unmark
+S-Insert system:paste
+A-W system:copy
+C-K system:kill-ring
+C-W system:cut
+C-Y system:paste
+C-Slash system:undo
+
+C-X C-C system:exit
+
+C-X C-T system:select-theme
+
+# 実験的(遊び)
+C-X C-P     world:toggle-psychedelic
+
+F11   system:toggle-fullscreen
+# 
+C-S-P system:command-pallet
+
+C-X C-S kashikishi:save
+C-Z C   kashikishi:add-memo
+C-Z K   kashikishi:remove-memo
+
+C-X C-I C-D kashikishi:insert-date
+
+C-Key0    world:reset-zoom
+C-L       world:look-current
+C-Right   world:look-next
+C-Left    world:look-prev
+C-S-Right world:swap-next
+C-S-Left  world:swap-prev
+C-S-Plus  world:forward
+C-Minus   world:back
+A-S-D     world:change-direction
+A-Down    world:increase-row-interval
+A-Up      world:decrease-row-interval
+A-Right   world:increase-col-interval
+A-Left    world:decrease-col-interval
+A-S-Down    world:increase-row-scale
+A-S-Up      world:decrease-row-scale
+A-S-Right   world:increase-col-scale
+A-S-Left    world:decrease-col-scale
+
+C-Key9    world:fit-width
+C-Key8    world:fit-height
+C-Z Space world:look-next
+C-Z P     world:look-prev
+A-S-W     world:copy-display

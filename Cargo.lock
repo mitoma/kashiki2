@@ -1420,6 +1420,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "kashikishi"
+version = "0.1.0"
+dependencies = [
+ "arboard",
+ "chrono",
+ "dirs",
+ "env_logger",
+ "font_collector",
+ "font_rasterizer",
+ "image",
+ "log",
+ "pollster",
+ "serde",
+ "serde_json",
+ "stroke_parser",
+ "text_buffer",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "khronos-egl"
 version = "6.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
