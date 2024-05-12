@@ -1,7 +1,12 @@
 mod metrics_counter;
 mod render_rate_adjuster;
 
-use std::{collections::HashSet, iter, sync::Arc, thread};
+use std::{
+    collections::HashSet,
+    iter,
+    sync::{mpsc::Receiver, Arc},
+    thread,
+};
 
 use crate::{
     camera::Camera,
@@ -23,6 +28,7 @@ use font_collector::FontData;
 use image::{ImageBuffer, Rgba};
 use instant::Duration;
 
+use stroke_parser::Action;
 use wgpu::InstanceDescriptor;
 use winit::{
     event::{ElementState, Event, KeyEvent, WindowEvent},
@@ -127,7 +133,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                     window_id,
                 } if window_id == window.id() => {
                     record_start_of_phase("state input");
-                    match state.input(event) {
+                    let input_result = state.input(event);
+
+                    match input_result {
                         InputResult::InputConsumed => {
                             // state 内で処理が行われたので何もしない
                         }
@@ -229,6 +237,30 @@ pub async fn run_support(support: SimpleStateSupport) {
                 }
                 _ => {}
             }
+            while let Ok(action) = state.action_queue_receiver.try_recv() {
+                let input_result = state.action(action);
+                match input_result {
+                    InputResult::InputConsumed => {
+                        // state 内で処理が行われたので何もしない
+                    }
+                    InputResult::SendExit => {
+                        print_metrics_to_stdout();
+                        control_flow.exit()
+                    }
+                    InputResult::ToggleFullScreen => {
+                        if support.flags.contains(Flags::FULL_SCREEN) {
+                            match window.fullscreen() {
+                                Some(_) => window.set_fullscreen(None),
+                                None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                            }
+                        }
+                    }
+                    InputResult::ChangeColorTheme(color_theme) => {
+                        state.change_color_theme(color_theme);
+                    }
+                    _ => {}
+                }
+            }
             record_start_of_phase("wait for next event");
         })
         .unwrap();
@@ -252,6 +284,12 @@ pub trait SimpleStateCallback {
         context: &StateContext,
         event: &WindowEvent,
     ) -> InputResult;
+    fn action(
+        &mut self,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+        context: &StateContext,
+        action: Action,
+    ) -> InputResult;
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
 }
 
@@ -267,6 +305,8 @@ pub struct SimpleState {
     glyph_vertex_buffer: GlyphVertexBuffer,
 
     simple_state_callback: Box<dyn SimpleStateCallback>,
+
+    action_queue_receiver: Receiver<Action>,
 }
 impl SimpleState {
     pub async fn new(
@@ -341,12 +381,15 @@ impl SimpleState {
         let mut glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
 
+        let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
+
         let context = StateContext {
             device,
             queue,
             char_width_calcurator,
             color_theme,
             window_size,
+            action_queue_sender,
         };
 
         simple_state_callback.init(&mut glyph_vertex_buffer, &context);
@@ -362,6 +405,8 @@ impl SimpleState {
 
             glyph_vertex_buffer,
             simple_state_callback,
+
+            action_queue_receiver,
         }
     }
 
@@ -399,6 +444,11 @@ impl SimpleState {
     pub fn input(&mut self, event: &WindowEvent) -> InputResult {
         self.simple_state_callback
             .input(&self.glyph_vertex_buffer, &self.context, event)
+    }
+
+    pub fn action(&mut self, action: Action) -> InputResult {
+        self.simple_state_callback
+            .action(&self.glyph_vertex_buffer, &self.context, action)
     }
 
     pub fn update(&mut self) {
@@ -550,12 +600,16 @@ impl ImageState {
         let mut glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries.clone(), char_width_calcurator.clone());
 
+        // 実際には使われない sender
+        let (action_queue_sender, _action_queue_receiver) = std::sync::mpsc::channel();
+
         let context = StateContext {
             device,
             queue,
             char_width_calcurator,
             color_theme,
             window_size: size,
+            action_queue_sender,
         };
 
         simple_state_callback.init(&mut glyph_vertex_buffer, &context);

@@ -170,6 +170,15 @@ impl SimpleStateCallback for SingleCharCallback {
         }
     }
 
+    fn action(
+        &mut self,
+        _glyph_vertex_buffer: &GlyphVertexBuffer,
+        _context: &StateContext,
+        _action: stroke_parser::Action,
+    ) -> InputResult {
+        InputResult::Noop
+    }
+
     fn resize(&mut self, window_size: WindowSize) {
         self.camera_controller
             .update_camera_aspect(&mut self.camera, window_size);

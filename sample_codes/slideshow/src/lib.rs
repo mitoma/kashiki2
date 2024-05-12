@@ -1,4 +1,5 @@
 use font_collector::FontCollector;
+use stroke_parser::Action;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -171,6 +172,15 @@ impl SimpleStateCallback for SingleCharCallback {
                 _ => {}
             }
         }
+        InputResult::Noop
+    }
+
+    fn action(
+        &mut self,
+        _glyph_vertex_buffer: &GlyphVertexBuffer,
+        _context: &StateContext,
+        _action: Action,
+    ) -> InputResult {
         InputResult::Noop
     }
 

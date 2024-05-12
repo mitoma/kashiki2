@@ -1,5 +1,9 @@
-use arboard::Clipboard;
 /*#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]*/
+/* ↑は Windows で実行する時にコマンドプロンプトが開かないようにするためのもの。 */
+
+mod memopad_actions;
+
+use arboard::Clipboard;
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
 use text_buffer::action::EditorOperation;
@@ -17,9 +21,12 @@ use font_rasterizer::{
     ui::{caret_char, ime_chars, ime_input::ImeInput, textedit::TextEdit},
 };
 use log::info;
+use memopad_actions::change_theme_select;
 use std::{collections::HashSet, path::Path};
 use std::{fs, path::PathBuf};
 use winit::{event::WindowEvent, window::Icon};
+
+use crate::memopad_actions::insert_date_select;
 
 const ICON_IMAGE: &[u8] = include_bytes!("memopad-logo.png");
 
@@ -165,8 +172,28 @@ impl SimpleStateCallback for MemoPadCallback {
         context: &StateContext,
         event: &WindowEvent,
     ) -> InputResult {
-        match self.store.winit_window_event_to_action(event) {
-            Some(Action::Command(category, name)) => match &*category.to_string() {
+        if let Some(action) = self.store.winit_window_event_to_action(event) {
+            self.action(glyph_vertex_buffer, context, action)
+        } else {
+            InputResult::Noop
+        }
+    }
+
+    fn action(
+        &mut self,
+        glyph_vertex_buffer: &GlyphVertexBuffer,
+        context: &StateContext,
+        action: Action,
+    ) -> InputResult {
+        fn add_modal(world: &mut Box<dyn World>, model: Box<dyn Model>) -> InputResult {
+            world.add_next(model);
+            world.re_layout();
+            world.look_next(CameraAdjustment::NoCare);
+            InputResult::InputConsumed
+        }
+
+        match action {
+            Action::Command(category, name) => match &*category.to_string() {
                 "system" => {
                     let action = match &*name.to_string() {
                         "exit" => {
@@ -178,6 +205,12 @@ impl SimpleStateCallback for MemoPadCallback {
                         }
                         "toggle-fullscreen" => {
                             return InputResult::ToggleFullScreen;
+                        }
+                        "select-theme" => {
+                            return add_modal(
+                                &mut self.world,
+                                Box::new(change_theme_select(context.action_queue_sender.clone())),
+                            )
                         }
                         "change-theme-black" => {
                             return InputResult::ChangeColorTheme(ColorTheme::SolarizedBlackback);
@@ -229,6 +262,11 @@ impl SimpleStateCallback for MemoPadCallback {
                 }
                 "world" => {
                     match &*name.to_string() {
+                        "remove-current" => {
+                            self.world.remove_current();
+                            self.world.re_layout();
+                            self.world.look_prev(CameraAdjustment::NoCare);
+                        }
                         "reset-zoom" => self.world.look_current(CameraAdjustment::FitBoth),
                         "look-current" => self.world.look_current(CameraAdjustment::NoCare),
                         "look-next" => self.world.look_next(CameraAdjustment::NoCare),
@@ -304,19 +342,25 @@ impl SimpleStateCallback for MemoPadCallback {
                             self.world.re_layout();
                             self.world.look_prev(CameraAdjustment::NoCare);
                         }
+                        "insert-date" => {
+                            return add_modal(
+                                &mut self.world,
+                                Box::new(insert_date_select(context.action_queue_sender.clone())),
+                            )
+                        }
                         _ => {}
                     };
                     InputResult::InputConsumed
                 }
                 _ => InputResult::Noop,
             },
-            Some(Action::Keytype(c)) => {
+            Action::Keytype(c) => {
                 self.new_chars.insert(c);
                 let action = EditorOperation::InsertChar(c);
                 self.world.editor_operation(&action);
                 InputResult::InputConsumed
             }
-            Some(Action::ImeInput(value)) => {
+            Action::ImeInput(value) => {
                 self.new_chars.extend(value.chars());
                 self.ime
                     .apply_ime_event(&Action::ImeInput(value.clone()), context);
@@ -324,14 +368,13 @@ impl SimpleStateCallback for MemoPadCallback {
                     .editor_operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
-            Some(Action::ImePreedit(value, position)) => {
+            Action::ImePreedit(value, position) => {
                 self.new_chars.extend(value.chars());
                 self.ime
                     .apply_ime_event(&Action::ImePreedit(value, position), context);
                 InputResult::InputConsumed
             }
-            Some(_) => InputResult::Noop,
-            None => InputResult::Noop,
+            _ => InputResult::Noop,
         }
     }
 

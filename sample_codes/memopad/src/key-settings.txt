@@ -44,6 +44,7 @@ C-Slash system:undo
 C-X C-C system:exit
 
 # 実験的(テーマの選択UIが実装されたら消す)
+C-X C-T C-S system:select-theme
 C-X C-T C-B system:change-theme-black
 C-X C-T C-D system:change-theme-dark
 C-X C-T C-L system:change-theme-light
@@ -57,6 +58,8 @@ C-S-P system:command-pallet
 C-X C-S memopad:save
 C-Z C   memopad:add-memo
 C-Z K   memopad:remove-memo
+
+C-X C-I C-D memopad:insert-date
 
 C-Key0    world:reset-zoom
 C-L       world:look-current

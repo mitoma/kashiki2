@@ -1,7 +1,8 @@
-use std::sync::Arc;
+use std::sync::{mpsc::Sender, Arc};
 
 use cgmath::Point2;
 use instant::Duration;
+use stroke_parser::Action;
 use text_buffer::editor::LineBoundaryProhibitedChars;
 use winit::dpi::PhysicalSize;
 
@@ -18,6 +19,7 @@ pub struct StateContext {
     pub(crate) char_width_calcurator: Arc<CharWidthCalculator>,
     pub color_theme: ColorTheme,
     pub window_size: WindowSize,
+    pub action_queue_sender: Sender<Action>,
 }
 
 #[derive(Debug, Clone, Copy)]
