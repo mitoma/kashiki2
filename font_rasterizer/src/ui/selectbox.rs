@@ -128,8 +128,17 @@ impl Model for Selectbox {
             EditorOperation::BufferLast => self.current_selection = self.options.len() - 1,
             EditorOperation::InsertEnter => {
                 self.action_queue_sender
+                    .send(Action::Command(
+                        CommandNamespace::new("world".to_string()),
+                        CommandName::new("remove-current".to_string()),
+                    ))
+                    .unwrap();
+                self.action_queue_sender
                     .send(self.options[self.current_selection].action.clone())
                     .unwrap();
+            }
+            // unmark を使っているのがなんか変な気はするなぁ
+            EditorOperation::UnMark => {
                 self.action_queue_sender
                     .send(Action::Command(
                         CommandNamespace::new("world".to_string()),
