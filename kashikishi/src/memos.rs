@@ -3,8 +3,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use font_rasterizer::layout_engine::World;
+
 pub(crate) struct Memos {
     pub(crate) memos: Vec<String>,
+}
+
+impl From<&dyn World> for Memos {
+    fn from(world: &dyn World) -> Self {
+        Memos {
+            memos: world.strings(),
+        }
+    }
 }
 
 fn memos_file() -> PathBuf {

@@ -201,10 +201,7 @@ impl SimpleStateCallback for KashikishiCallback {
                 "system" => {
                     let action = match &*name.to_string() {
                         "exit" => {
-                            let memos = Memos {
-                                memos: self.world.strings(),
-                            };
-                            save_memos(memos).unwrap();
+                            save_memos(Memos::from(&*self.world)).unwrap();
                             return InputResult::SendExit;
                         }
                         "toggle-fullscreen" => {
@@ -319,10 +316,7 @@ impl SimpleStateCallback for KashikishiCallback {
                 "kashikishi" => {
                     match &*name.to_string() {
                         "save" => {
-                            let memos = Memos {
-                                memos: self.world.strings(),
-                            };
-                            save_memos(memos).unwrap();
+                            save_memos(Memos::from(&*self.world)).unwrap();
                         }
                         "add-memo" => {
                             let textedit = TextEdit::default();
