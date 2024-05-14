@@ -50,7 +50,7 @@ C-X C-P     world:toggle-psychedelic
 
 F11   system:toggle-fullscreen
 # 
-C-S-P system:command-pallet
+C-S-P system:command-palette
 
 C-X C-S kashikishi:save
 C-Z C   kashikishi:add-memo

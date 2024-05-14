@@ -26,7 +26,7 @@ use std::collections::HashSet;
 use winit::event::WindowEvent;
 
 use crate::{
-    kashikishi_actions::insert_date_select,
+    kashikishi_actions::{command_palette_select, insert_date_select},
     memos::{load_memos, save_memos, Memos},
 };
 
@@ -189,7 +189,12 @@ impl SimpleStateCallback for KashikishiCallback {
         context: &StateContext,
         action: Action,
     ) -> InputResult {
-        fn add_modal(world: &mut Box<dyn World>, model: Box<dyn Model>) -> InputResult {
+        fn add_modal(
+            chars: &mut HashSet<char>,
+            world: &mut Box<dyn World>,
+            model: Box<dyn Model>,
+        ) -> InputResult {
+            chars.extend(model.to_string().chars());
             world.add_next(model);
             world.re_layout();
             world.look_next(CameraAdjustment::NoCare);
@@ -204,11 +209,21 @@ impl SimpleStateCallback for KashikishiCallback {
                             save_memos(Memos::from(&*self.world)).unwrap();
                             return InputResult::SendExit;
                         }
+                        "command-palette" => {
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(command_palette_select(
+                                    context.action_queue_sender.clone(),
+                                )),
+                            );
+                        }
                         "toggle-fullscreen" => {
                             return InputResult::ToggleFullScreen;
                         }
                         "select-theme" => {
                             return add_modal(
+                                &mut self.new_chars,
                                 &mut self.world,
                                 Box::new(change_theme_select(context.action_queue_sender.clone())),
                             )
@@ -333,6 +348,7 @@ impl SimpleStateCallback for KashikishiCallback {
                         }
                         "insert-date" => {
                             return add_modal(
+                                &mut self.new_chars,
                                 &mut self.world,
                                 Box::new(insert_date_select(context.action_queue_sender.clone())),
                             )

@@ -4,6 +4,28 @@ use chrono::Days;
 use font_rasterizer::ui::selectbox::{SelectBox, SelectOption};
 use stroke_parser::Action;
 
+pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> SelectBox {
+    let options = vec![
+        SelectOption::new(
+            "炊紙を終了する".to_string(),
+            Action::new_command("system", "exit"),
+        ),
+        SelectOption::new(
+            "フルスクリーンの切り替え".to_string(),
+            Action::new_command("system", "toggle-fullscreen"),
+        ),
+        SelectOption::new(
+            "カラーテーマの変更".to_string(),
+            Action::new_command("system", "select-theme"),
+        ),
+        SelectOption::new(
+            "日付の挿入".to_string(),
+            Action::new_command("kashikishi", "insert-date"),
+        ),
+    ];
+    SelectBox::new(action_queue_sender, "アクションの選択".to_string(), options)
+}
+
 pub(crate) fn insert_date_select(action_queue_sender: Sender<Action>) -> SelectBox {
     let now = chrono::Local::now();
     let today_date = now.format("%Y/%m/%d").to_string();
