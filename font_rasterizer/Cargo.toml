@@ -26,7 +26,10 @@ cgmath = "0.18"
 instant = { workspace = true }
 unicode-width = "0.1.12"
 once_cell = "1.19.0"
-cached = "0.50.0"
+cached = "0.51.3"
+
+# レーベンシュタイン距離を求めるためのライブラリ
+strsim = "0.11.1"
 
 nenobi = { git = "https://github.com/mitoma/sandbox", branch = "main" }
 bezier_converter = { git = "https://github.com/mitoma/sandbox", branch = "main" }
