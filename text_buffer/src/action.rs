@@ -59,6 +59,37 @@ impl EditorOperation {
                 | EditorOperation::UnMark
         )
     }
+
+    #[inline]
+    pub fn is_single_line_operation(&self) -> bool {
+        matches!(
+            self,
+            EditorOperation::MoveTo(_)
+                | EditorOperation::Head
+                | EditorOperation::Last
+                | EditorOperation::Back
+                | EditorOperation::Forward
+                //| EditorOperation::Previous
+                //| EditorOperation::Next
+                | EditorOperation::BufferHead
+                | EditorOperation::BufferLast
+                | EditorOperation::ForwardWord
+                | EditorOperation::BackWord
+                | EditorOperation::DeleteWord
+                | EditorOperation::BackspaceWord
+                | EditorOperation::InsertString(_) // こいつだけ改行文字列がわたるケースがありややこしい
+                | EditorOperation::InsertChar(_)
+                //| EditorOperation::InsertEnter
+                | EditorOperation::Backspace
+                | EditorOperation::Delete
+                | EditorOperation::Undo
+                | EditorOperation::Noop
+                | EditorOperation::Copy(_)
+                | EditorOperation::Cut(_)
+                | EditorOperation::Mark
+                | EditorOperation::UnMark
+        )
+    }
 }
 
 #[derive(Debug)]
