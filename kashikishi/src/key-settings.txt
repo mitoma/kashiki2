@@ -62,6 +62,9 @@ C-Key0    world:reset-zoom
 C-L       world:look-current
 C-Right   world:look-next
 C-Left    world:look-prev
+C-ClickMiddle  world:look-next
+C-MoveRight    world:look-next
+C-MoveLeft     world:look-prev
 C-S-Right world:swap-next
 C-S-Left  world:swap-prev
 C-S-Plus  world:forward
