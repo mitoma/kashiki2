@@ -1,20 +1,43 @@
 pub mod action_store_parser;
 pub mod keys;
+pub mod pointing_device;
 
+use crate::pointing_device::MousePoint;
+use keys::KeyCode;
 use log::warn;
+use pointing_device::MouseAction;
 use serde_derive::{Deserialize, Serialize};
 use std::ops::Deref;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub struct KeyWithModifier {
-    key: keys::KeyCode,
+    input: Input,
     modifires: keys::ModifiersState,
+}
+
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
+pub enum Input {
+    Keyboard(KeyCode),
+    Mouse(MouseAction),
 }
 
 impl KeyWithModifier {
     pub fn new(key: keys::KeyCode, modifires: keys::ModifiersState) -> KeyWithModifier {
-        KeyWithModifier { key, modifires }
+        KeyWithModifier {
+            input: Input::Keyboard(key),
+            modifires,
+        }
+    }
+
+    pub fn new_mouse(
+        mouse: pointing_device::MouseAction,
+        modifires: keys::ModifiersState,
+    ) -> KeyWithModifier {
+        KeyWithModifier {
+            input: Input::Mouse(mouse),
+            modifires,
+        }
     }
 }
 
@@ -119,6 +142,7 @@ pub struct ActionStore {
     keybinds: Vec<KeyBind>,
     current_modifier: keys::ModifiersState,
     current_stroke: Stroke,
+    current_mouse: Option<MousePoint>,
 }
 
 impl Default for ActionStore {
@@ -127,6 +151,7 @@ impl Default for ActionStore {
             keybinds: Vec::new(),
             current_modifier: keys::ModifiersState::NONE,
             current_stroke: Default::default(),
+            current_mouse: None,
         }
     }
 }
@@ -149,7 +174,7 @@ impl ActionStore {
                 ..
             } => {
                 self.current_stroke.append_key(KeyWithModifier {
-                    key: keys::KeyCode::from(logical_key),
+                    input: Input::Keyboard(keys::KeyCode::from(logical_key)),
                     modifires: self.current_modifier,
                 });
 
@@ -186,6 +211,30 @@ impl ActionStore {
                 winit::event::Ime::Commit(value) => Some(Action::ImeInput(value.to_string())),
                 winit::event::Ime::Disabled => Some(Action::ImeDisable),
             },
+            WindowEvent::CursorLeft { .. } => {
+                self.current_mouse = None;
+                None
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                // 今のままだとマウスの移動に対するアクションが多量でセンシティブすぎる
+                let from = self.current_mouse.take();
+                self.current_mouse = Some(MousePoint {
+                    x: position.x,
+                    y: position.y,
+                });
+                if let (Some(mouse), Some(current)) = (from, self.current_mouse.as_ref()) {
+                    self.get_action_by_mouse(current.mouse_move(&mouse))
+                } else {
+                    None
+                }
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                if *state == ElementState::Pressed {
+                    self.get_action_by_mouse(MouseAction::from(button))
+                } else {
+                    None
+                }
+            }
             _ => None,
         }
     }
@@ -205,6 +254,18 @@ impl ActionStore {
         self.keybinds
             .iter()
             .find(|keybind| keybind.stroke == self.current_stroke)
+            .map(|keybind| keybind.action.clone())
+    }
+
+    fn get_action_by_mouse(&self, mouse_action: MouseAction) -> Option<Action> {
+        let stroke = Stroke::new(vec![KeyWithModifier {
+            input: Input::Mouse(mouse_action),
+            modifires: self.current_modifier,
+        }]);
+
+        self.keybinds
+            .iter()
+            .find(|keybind| keybind.stroke == stroke)
             .map(|keybind| keybind.action.clone())
     }
 

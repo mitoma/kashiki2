@@ -1,4 +1,4 @@
-use crate::{keys, Action, KeyBind, KeyWithModifier, Stroke};
+use crate::{keys, pointing_device, Action, KeyBind, KeyWithModifier, Stroke};
 
 pub fn parse_setting(setting_string: &str) -> Vec<KeyBind> {
     let mut result: Vec<KeyBind> = Vec::new();
@@ -52,14 +52,6 @@ fn parse_keywithmodifier(line: &str) -> Option<KeyWithModifier> {
         return None;
     }
 
-    let key = line.rsplit('-').next().ok_or(()).and_then(|command| {
-        serde_json::from_str::<keys::KeyCode>(&format!("\"{}\"", command)).map_err(|_| ())
-    });
-    let key = match key {
-        Ok(key) => key,
-        _ => return None,
-    };
-
     let modifires = if line.starts_with("C-A-S-") {
         keys::ModifiersState::CtrlAltShift
     } else if line.starts_with("C-A-") {
@@ -78,11 +70,27 @@ fn parse_keywithmodifier(line: &str) -> Option<KeyWithModifier> {
         keys::ModifiersState::NONE
     };
 
-    Some(KeyWithModifier::new(key, modifires))
+    let command_token = line.rsplit('-').next();
+
+    let key = command_token.ok_or(()).and_then(|command| {
+        serde_json::from_str::<keys::KeyCode>(&format!("\"{}\"", command)).map_err(|_| ())
+    });
+    let mouse = command_token.ok_or(()).and_then(|command| {
+        serde_json::from_str::<pointing_device::MouseAction>(&format!("\"{}\"", command))
+            .map_err(|_| ())
+    });
+
+    match (key, mouse) {
+        (Ok(key), _) => Some(KeyWithModifier::new(key, modifires)),
+        (_, Ok(mouse)) => Some(KeyWithModifier::new_mouse(mouse, modifires)),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
 mod tests {
+
+    use crate::pointing_device;
 
     use super::*;
 
@@ -167,6 +175,24 @@ mod tests {
         assert_eq!(
             parse_keywithmodifier("A-S-X").unwrap(),
             KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::AltShift)
+        );
+    }
+
+    #[test]
+    fn parse_keywithmodifier_mouse() {
+        assert_eq!(
+            parse_keywithmodifier("C-A-S-MoveLeft").unwrap(),
+            KeyWithModifier::new_mouse(
+                pointing_device::MouseAction::MoveLeft,
+                keys::ModifiersState::CtrlAltShift
+            )
+        );
+        assert_eq!(
+            parse_keywithmodifier("ClickMiddle").unwrap(),
+            KeyWithModifier::new_mouse(
+                pointing_device::MouseAction::ClickMiddle,
+                keys::ModifiersState::NONE
+            )
         );
     }
 }
