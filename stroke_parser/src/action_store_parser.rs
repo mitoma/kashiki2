@@ -81,7 +81,7 @@ fn parse_keywithmodifier(line: &str) -> Option<KeyWithModifier> {
     });
 
     match (key, mouse) {
-        (Ok(key), _) => Some(KeyWithModifier::new(key, modifires)),
+        (Ok(key), _) => Some(KeyWithModifier::new_key(key, modifires)),
         (_, Ok(mouse)) => Some(KeyWithModifier::new_mouse(mouse, modifires)),
         _ => None,
     }
@@ -111,7 +111,7 @@ mod tests {
             ),
             vec![
                 KeyBind::new(
-                    Stroke::new(vec![KeyWithModifier::new(
+                    Stroke::new(vec![KeyWithModifier::new_key(
                         keys::KeyCode::Return,
                         keys::ModifiersState::NONE
                     )]),
@@ -119,29 +119,29 @@ mod tests {
                 ),
                 KeyBind::new(
                     Stroke::new(vec![
-                        KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::S, keys::ModifiersState::Ctrl)
+                        KeyWithModifier::new_key(keys::KeyCode::X, keys::ModifiersState::Ctrl),
+                        KeyWithModifier::new_key(keys::KeyCode::S, keys::ModifiersState::Ctrl)
                     ]),
                     Action::new_command("system", "save")
                 ),
                 KeyBind::new(
                     Stroke::new(vec![
-                        KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::T, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::D, keys::ModifiersState::Ctrl)
+                        KeyWithModifier::new_key(keys::KeyCode::X, keys::ModifiersState::Ctrl),
+                        KeyWithModifier::new_key(keys::KeyCode::T, keys::ModifiersState::Ctrl),
+                        KeyWithModifier::new_key(keys::KeyCode::D, keys::ModifiersState::Ctrl)
                     ]),
                     Action::new_command_with_argument("system", "change-theme", "dark")
                 ),
                 KeyBind::new(
                     Stroke::new(vec![
-                        KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::T, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::E, keys::ModifiersState::Ctrl)
+                        KeyWithModifier::new_key(keys::KeyCode::X, keys::ModifiersState::Ctrl),
+                        KeyWithModifier::new_key(keys::KeyCode::T, keys::ModifiersState::Ctrl),
+                        KeyWithModifier::new_key(keys::KeyCode::E, keys::ModifiersState::Ctrl)
                     ]),
                     Action::new_command_with_argument("system", "change-theme", "")
                 ),
                 KeyBind::new(
-                    Stroke::new(vec![KeyWithModifier::new(
+                    Stroke::new(vec![KeyWithModifier::new_key(
                         keys::KeyCode::A,
                         keys::ModifiersState::Ctrl
                     ),]),
@@ -162,19 +162,19 @@ mod tests {
     fn parse_keywithmodifier_ok() {
         assert_eq!(
             parse_keywithmodifier("C-A-S-Return").unwrap(),
-            KeyWithModifier::new(keys::KeyCode::Return, keys::ModifiersState::CtrlAltShift)
+            KeyWithModifier::new_key(keys::KeyCode::Return, keys::ModifiersState::CtrlAltShift)
         );
         assert_eq!(
             parse_keywithmodifier("Return").unwrap(),
-            KeyWithModifier::new(keys::KeyCode::Return, keys::ModifiersState::NONE)
+            KeyWithModifier::new_key(keys::KeyCode::Return, keys::ModifiersState::NONE)
         );
         assert_eq!(
             parse_keywithmodifier("S-C").unwrap(),
-            KeyWithModifier::new(keys::KeyCode::C, keys::ModifiersState::Shift)
+            KeyWithModifier::new_key(keys::KeyCode::C, keys::ModifiersState::Shift)
         );
         assert_eq!(
             parse_keywithmodifier("A-S-X").unwrap(),
-            KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::AltShift)
+            KeyWithModifier::new_key(keys::KeyCode::X, keys::ModifiersState::AltShift)
         );
     }
 

@@ -23,14 +23,14 @@ pub enum Input {
 }
 
 impl KeyWithModifier {
-    pub fn new(key: keys::KeyCode, modifires: keys::ModifiersState) -> KeyWithModifier {
+    pub(crate) fn new_key(key: keys::KeyCode, modifires: keys::ModifiersState) -> KeyWithModifier {
         KeyWithModifier {
             input: Input::Keyboard(key),
             modifires,
         }
     }
 
-    pub fn new_mouse(
+    pub(crate) fn new_mouse(
         mouse: pointing_device::MouseAction,
         modifires: keys::ModifiersState,
     ) -> KeyWithModifier {
