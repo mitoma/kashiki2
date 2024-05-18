@@ -11,13 +11,13 @@ use std::ops::Deref;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct KeyWithModifier {
+pub(crate) struct KeyWithModifier {
     input: Input,
     modifires: keys::ModifiersState,
 }
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub enum Input {
+pub(crate) enum Input {
     Keyboard(KeyCode),
     Mouse(MouseAction),
 }
@@ -104,12 +104,12 @@ impl CommandName {
 }
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
-pub struct Stroke {
+pub(crate) struct Stroke {
     keys: Vec<KeyWithModifier>,
 }
 
 impl Stroke {
-    pub fn new(keys: Vec<KeyWithModifier>) -> Stroke {
+    pub(crate) fn new(keys: Vec<KeyWithModifier>) -> Stroke {
         Stroke { keys }
     }
 
@@ -133,7 +133,7 @@ pub struct KeyBind {
 }
 
 impl KeyBind {
-    pub fn new(stroke: Stroke, action: Action) -> KeyBind {
+    pub(crate) fn new(stroke: Stroke, action: Action) -> KeyBind {
         KeyBind { stroke, action }
     }
 }
