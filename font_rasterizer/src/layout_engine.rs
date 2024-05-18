@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{collections::BTreeMap, ops::Range};
 
 use cgmath::{Point2, Point3, Quaternion, Rotation3};
 use log::info;
@@ -56,6 +56,10 @@ pub trait World {
 
     // 今フォーカスが当たっているモデルのモードを返す
     fn current_model_mode(&self) -> Option<ModelMode>;
+
+    // カメラの位置を変更する。x_ratio, y_ratio はそれぞれ -1.0 から 1.0 までの値をとり、
+    // アプリケーションのウインドウ上の位置を表す。(0.0, 0.0) はウインドウの中心を表す。
+    fn move_to_position(&mut self, x_ratio: f32, y_ratio: f32);
 }
 
 pub struct HorizontalWorld {
@@ -258,6 +262,40 @@ impl World for HorizontalWorld {
 
     fn current_model_mode(&self) -> Option<ModelMode> {
         self.models.get(self.focus).map(|m| m.model_mode())
+    }
+
+    fn move_to_position(&mut self, x_ratio: f32, y_ratio: f32) {
+        let mut distance_map: BTreeMap<usize, f32> = BTreeMap::new();
+
+        for (idx, model) in self.models.iter().enumerate() {
+            let Point3 { x, y, z } = model.position();
+            let position_vec = cgmath::Vector3 { x, y, z };
+
+            let p = cgmath::Matrix4::from_translation(position_vec)
+                * cgmath::Matrix4::from(model.rotation());
+            let view_projection_matrix = self.camera.build_view_projection_matrix();
+            let calced_model_position = view_projection_matrix * p;
+            let nw = calced_model_position.w;
+            let nw_x = nw.x / nw.w;
+            let nw_y = nw.y / nw.w;
+
+            info!("model: {}, nw_x: {:?}, nw_y: {:?}", idx, nw_x, nw_y);
+
+            let distance = (x_ratio - nw_x).abs().powf(2.0) + (y_ratio - nw_y).abs().powf(2.0);
+            distance_map.insert(idx, distance);
+        }
+
+        let min_distance = distance_map
+            .iter()
+            .min_by(|a, b| a.1.partial_cmp(b.1).unwrap());
+
+        if let Some((idx, _)) = min_distance {
+            if idx != &self.focus {
+                self.look_at(*idx, CameraAdjustment::NoCare);
+            } else {
+                // TODO モデル中の最も近いモデルにカーソルを移動するという制御を行いたい
+            }
+        }
     }
 }
 

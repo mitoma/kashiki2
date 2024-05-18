@@ -72,6 +72,7 @@ pub enum ActionArgument {
     String(String),
     Integer(i32),
     Float(f32),
+    Point((f32, f32)),
 }
 
 impl Action {
@@ -254,7 +255,12 @@ impl ActionStore {
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 if *state == ElementState::Pressed {
-                    self.get_action_by_mouse(MouseAction::from(button), None)
+                    self.get_action_by_mouse(
+                        MouseAction::from(button),
+                        self.current_mouse
+                            .as_ref()
+                            .map(|m| ActionArgument::Point((m.x as f32, m.y as f32))),
+                    )
                 } else {
                     None
                 }

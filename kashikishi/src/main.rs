@@ -42,6 +42,7 @@ pub fn main() {
     //std::env::set_var("RUST_LOG", "font_rasterizer::ui::textedit=info");
     //std::env::set_var("RUST_LOG", "font_rasterizer::ui::view_element_state=debug");
     //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
+    std::env::set_var("RUST_LOG", "font_rasterizer::layout_engine=info");
     pollster::block_on(run());
 }
 
@@ -343,6 +344,20 @@ impl SimpleStateCallback for KashikishiCallback {
                         "toggle-psychedelic" => self
                             .world
                             .model_operation(&ModelOperation::TogglePsychedelic),
+                        "move-to-click" =>
+                        {
+                            #[allow(clippy::single_match)]
+                            match argument {
+                                ActionArgument::Point((x, y)) => {
+                                    let (x_ratio, y_ratio) = (
+                                        (x / context.window_size.width as f32 * 2.0) - 1.0,
+                                        (y / context.window_size.height as f32 * 2.0) - 1.0,
+                                    );
+                                    self.world.move_to_position(x_ratio, y_ratio);
+                                }
+                                _ => {}
+                            }
+                        }
                         _ => {}
                     };
                     InputResult::InputConsumed
