@@ -11,7 +11,7 @@ use std::ops::Deref;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub(crate) struct KeyWithModifier {
+pub(crate) struct InputWithModifier {
     input: Input,
     modifires: keys::ModifiersState,
 }
@@ -22,9 +22,12 @@ pub(crate) enum Input {
     Mouse(MouseAction),
 }
 
-impl KeyWithModifier {
-    pub(crate) fn new_key(key: keys::KeyCode, modifires: keys::ModifiersState) -> KeyWithModifier {
-        KeyWithModifier {
+impl InputWithModifier {
+    pub(crate) fn new_key(
+        key: keys::KeyCode,
+        modifires: keys::ModifiersState,
+    ) -> InputWithModifier {
+        InputWithModifier {
             input: Input::Keyboard(key),
             modifires,
         }
@@ -33,8 +36,8 @@ impl KeyWithModifier {
     pub(crate) fn new_mouse(
         mouse: pointing_device::MouseAction,
         modifires: keys::ModifiersState,
-    ) -> KeyWithModifier {
-        KeyWithModifier {
+    ) -> InputWithModifier {
+        InputWithModifier {
             input: Input::Mouse(mouse),
             modifires,
         }
@@ -105,15 +108,15 @@ impl CommandName {
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct Stroke {
-    keys: Vec<KeyWithModifier>,
+    keys: Vec<InputWithModifier>,
 }
 
 impl Stroke {
-    pub(crate) fn new(keys: Vec<KeyWithModifier>) -> Stroke {
+    pub(crate) fn new(keys: Vec<InputWithModifier>) -> Stroke {
         Stroke { keys }
     }
 
-    fn append_key(&mut self, key: KeyWithModifier) {
+    fn append_key(&mut self, key: InputWithModifier) {
         self.keys.push(key);
     }
 
@@ -173,7 +176,7 @@ impl ActionStore {
                     },
                 ..
             } => {
-                self.current_stroke.append_key(KeyWithModifier {
+                self.current_stroke.append_key(InputWithModifier {
                     input: Input::Keyboard(keys::KeyCode::from(logical_key)),
                     modifires: self.current_modifier,
                 });
@@ -258,7 +261,7 @@ impl ActionStore {
     }
 
     fn get_action_by_mouse(&self, mouse_action: MouseAction) -> Option<Action> {
-        let stroke = Stroke::new(vec![KeyWithModifier {
+        let stroke = Stroke::new(vec![InputWithModifier {
             input: Input::Mouse(mouse_action),
             modifires: self.current_modifier,
         }]);
