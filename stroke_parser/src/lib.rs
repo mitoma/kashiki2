@@ -44,10 +44,9 @@ impl InputWithModifier {
     }
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialOrd, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Action {
-    Command(CommandNamespace, CommandName),
-    CommandWithArgument(CommandNamespace, CommandName, String),
+    Command(CommandNamespace, CommandName, ActionArgument),
     Keytype(char),
     ImeEnable,
     ImeDisable,
@@ -55,19 +54,28 @@ pub enum Action {
     ImeInput(String),
 }
 
+#[derive(Debug, PartialOrd, PartialEq, Clone, Serialize, Deserialize)]
+pub enum ActionArgument {
+    None,
+    String(String),
+    Integer(i32),
+    Float(f32),
+}
+
 impl Action {
     pub fn new_command(namespace: &str, name: &str) -> Action {
         Action::Command(
             CommandNamespace::new(String::from(namespace)),
             CommandName::new(String::from(name)),
+            ActionArgument::None,
         )
     }
 
     pub fn new_command_with_argument(namespace: &str, name: &str, argument: &str) -> Action {
-        Action::CommandWithArgument(
+        Action::Command(
             CommandNamespace::new(String::from(namespace)),
             CommandName::new(String::from(name)),
-            String::from(argument),
+            ActionArgument::String(String::from(argument)),
         )
     }
 }
@@ -129,7 +137,7 @@ impl Stroke {
     }
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialOrd, PartialEq, Clone, Serialize, Deserialize)]
 pub struct KeyBind {
     stroke: Stroke,
     action: Action,

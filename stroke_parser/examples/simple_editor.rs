@@ -28,7 +28,7 @@ fn main() {
     event_loop
         .run(move |event, control_flow| {
             match store.winit_event_to_action(&event) {
-                Some(Action::Command(category, name)) if *category == "system" => {
+                Some(Action::Command(category, name, _)) if *category == "system" => {
                     let action = match &*name.to_string() {
                         "exit" => {
                             control_flow.exit();
@@ -48,8 +48,7 @@ fn main() {
                     };
                     editor.operation(&action);
                 }
-                Some(Action::Command(_, _)) => {}
-                Some(Action::CommandWithArgument(_, _, _)) => {}
+                Some(Action::Command(_, _, _)) => {}
                 Some(Action::Keytype(c)) => {
                     let action = EditorOperation::InsertChar(c);
                     editor.operation(&action);

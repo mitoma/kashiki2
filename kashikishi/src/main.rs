@@ -5,7 +5,7 @@ mod memos;
 
 use arboard::Clipboard;
 use font_collector::FontCollector;
-use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
+use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
@@ -202,7 +202,7 @@ impl SimpleStateCallback for KashikishiCallback {
         }
 
         match action {
-            Action::Command(category, name) => match &*category.to_string() {
+            Action::Command(category, name, argument) => match &*category.to_string() {
                 "system" => {
                     let action = match &*name.to_string() {
                         "exit" => {
@@ -228,6 +228,25 @@ impl SimpleStateCallback for KashikishiCallback {
                                 Box::new(change_theme_select(context.action_queue_sender.clone())),
                             )
                         }
+                        "change-theme" => match argument {
+                            ActionArgument::String(value) => match &*value.to_string() {
+                                "black" => {
+                                    return InputResult::ChangeColorTheme(
+                                        ColorTheme::SolarizedBlackback,
+                                    )
+                                }
+                                "dark" => {
+                                    return InputResult::ChangeColorTheme(ColorTheme::SolarizedDark)
+                                }
+                                "light" => {
+                                    return InputResult::ChangeColorTheme(
+                                        ColorTheme::SolarizedLight,
+                                    )
+                                }
+                                _ => EditorOperation::Noop,
+                            },
+                            _ => EditorOperation::Noop,
+                        },
                         "return" => EditorOperation::InsertEnter,
                         "backspace" => EditorOperation::Backspace,
                         "backspace-word" => EditorOperation::BackspaceWord,
@@ -355,30 +374,6 @@ impl SimpleStateCallback for KashikishiCallback {
                         }
                         _ => {}
                     };
-                    InputResult::InputConsumed
-                }
-                _ => InputResult::Noop,
-            },
-            Action::CommandWithArgument(category, name, argument) => match &*category.to_string() {
-                "system" => {
-                    let action = match &*name.to_string() {
-                        "change-theme" => match argument.as_str() {
-                            "black" => {
-                                return InputResult::ChangeColorTheme(
-                                    ColorTheme::SolarizedBlackback,
-                                )
-                            }
-                            "dark" => {
-                                return InputResult::ChangeColorTheme(ColorTheme::SolarizedDark)
-                            }
-                            "light" => {
-                                return InputResult::ChangeColorTheme(ColorTheme::SolarizedLight)
-                            }
-                            _ => EditorOperation::Noop,
-                        },
-                        _ => EditorOperation::Noop,
-                    };
-                    self.world.editor_operation(&action);
                     InputResult::InputConsumed
                 }
                 _ => InputResult::Noop,
