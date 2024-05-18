@@ -54,6 +54,18 @@ pub enum Action {
     ImeInput(String),
 }
 
+impl Action {
+    pub fn with_argument(self, argument: Option<ActionArgument>) -> Action {
+        match argument {
+            Some(argument) => match self {
+                Action::Command(namespace, name, _) => Action::Command(namespace, name, argument),
+                _ => self,
+            },
+            None => self,
+        }
+    }
+}
+
 #[derive(Debug, PartialOrd, PartialEq, Clone, Serialize, Deserialize)]
 pub enum ActionArgument {
     None,
@@ -234,14 +246,15 @@ impl ActionStore {
                     y: position.y,
                 });
                 if let (Some(mouse), Some(current)) = (from, self.current_mouse.as_ref()) {
-                    self.get_action_by_mouse(current.mouse_move(&mouse))
+                    let (action, gain) = current.calc_action_and_gain(&mouse);
+                    self.get_action_by_mouse(action, Some(gain))
                 } else {
                     None
                 }
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 if *state == ElementState::Pressed {
-                    self.get_action_by_mouse(MouseAction::from(button))
+                    self.get_action_by_mouse(MouseAction::from(button), None)
                 } else {
                     None
                 }
@@ -268,7 +281,11 @@ impl ActionStore {
             .map(|keybind| keybind.action.clone())
     }
 
-    fn get_action_by_mouse(&self, mouse_action: MouseAction) -> Option<Action> {
+    fn get_action_by_mouse(
+        &self,
+        mouse_action: MouseAction,
+        action_argument: Option<ActionArgument>,
+    ) -> Option<Action> {
         let stroke = Stroke::new(vec![InputWithModifier {
             input: Input::Mouse(mouse_action),
             modifires: self.current_modifier,
@@ -277,7 +294,10 @@ impl ActionStore {
         self.keybinds
             .iter()
             .find(|keybind| keybind.stroke == stroke)
-            .map(|keybind| keybind.action.clone())
+            .map(|keybind| {
+                let result = keybind.action.clone();
+                result.with_argument(action_argument)
+            })
     }
 
     fn in_stroke(&self) -> bool {

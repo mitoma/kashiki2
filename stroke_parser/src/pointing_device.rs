@@ -1,5 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 
+use crate::ActionArgument;
+
 // ほんとうは MouseXxx みたいな名前にしているが本来は PointingDeviceXxx とかが適切かもしれない。
 // しかし話がややこしくなるのでここでは MouseXxx としている。
 
@@ -10,19 +12,23 @@ pub(crate) struct MousePoint {
 }
 
 impl MousePoint {
-    pub(crate) fn mouse_move(&self, from: &MousePoint) -> MouseAction {
+    pub(crate) fn calc_action_and_gain(&self, from: &MousePoint) -> (MouseAction, ActionArgument) {
         let dx = from.x - self.x;
         let dy = from.y - self.y;
         if dx.abs() > dy.abs() {
+            let gain = ActionArgument::Float(dx.abs() as f32);
             if dx > 0.0 {
-                MouseAction::MoveRight
+                (MouseAction::MoveRight, gain)
             } else {
-                MouseAction::MoveLeft
+                (MouseAction::MoveLeft, gain)
             }
-        } else if dy > 0.0 {
-            MouseAction::MoveDown
         } else {
-            MouseAction::MoveUp
+            let gain = ActionArgument::Float(dy.abs() as f32);
+            if dy > 0.0 {
+                (MouseAction::MoveDown, gain)
+            } else {
+                (MouseAction::MoveUp, gain)
+            }
         }
     }
 }
