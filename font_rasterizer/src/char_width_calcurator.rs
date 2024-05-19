@@ -22,6 +22,9 @@ impl CharWidthCalculator {
 
 #[cached(key = "char", convert = "{ c }")]
 fn inner_get_width(faces: &[FontData], c: char) -> CharWidth {
+    if c.is_ascii() {
+        return CharWidth::Regular;
+    }
     for face in faces
         .iter()
         .flat_map(|f| Face::from_slice(&f.binary, f.index))
@@ -97,8 +100,12 @@ mod test {
         std::env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
 
-        let collector = FontCollector::default();
+        let mut collector = FontCollector::default();
+        collector.add_system_fonts();
+        let kyokasho_font = collector.load_font("UD デジタル 教科書体 N-R");
+
         let font_binaries = vec![
+            kyokasho_font.unwrap(),
             collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
             collector
                 .convert_font(EMOJI_FONT_DATA.to_vec(), None)
