@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, ops::Range};
 
-use cgmath::{num_traits::ToPrimitive, Quaternion, Rotation3};
+use cgmath::{num_traits::ToPrimitive, Matrix4, Quaternion, Rotation3};
 use instant::Duration;
 use rand::Rng;
 use text_buffer::{
@@ -345,6 +345,40 @@ impl CharStates {
             instance.duration = text_context.char_easings.unselect_char.duration;
             instance.start_time = now_millis();
         }
+    }
+
+    pub(crate) fn get_nearest_char(
+        &self,
+        x_ratio: f32,
+        y_ratio: f32,
+        view_projection_matrix: &Matrix4<f32>,
+        model_attribuetes: &ModelAttributes,
+    ) -> Option<BufferChar> {
+        let mut distance_map: BTreeMap<BufferChar, f32> = BTreeMap::new();
+
+        for (idx, state) in self.chars.iter() {
+            let [x, y, z] = state.position.current();
+            let pos = cgmath::Matrix4::from(model_attribuetes.rotation)
+                * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+            let new_position = cgmath::Vector3 {
+                x: pos.x - model_attribuetes.center.x + model_attribuetes.position.x,
+                y: pos.y - model_attribuetes.center.y + model_attribuetes.position.y,
+                z: pos.z + model_attribuetes.position.z,
+            };
+            let new_position = cgmath::Matrix4::from_translation(new_position);
+            let calced_model_position = view_projection_matrix * new_position;
+            let nw = calced_model_position.w;
+            let nw_x = nw.x / nw.w;
+            let nw_y = nw.y / nw.w;
+
+            let distance = (x_ratio - nw_x).abs().powf(2.0) + (y_ratio - nw_y).abs().powf(2.0);
+            distance_map.insert(*idx, distance);
+        }
+
+        let min_distance = distance_map
+            .iter()
+            .min_by(|a, b| a.1.partial_cmp(b.1).unwrap());
+        min_distance.map(|(c, _)| *c)
     }
 }
 

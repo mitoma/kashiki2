@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, ops::Range};
 
-use cgmath::{Point2, Point3, Quaternion, Rotation3};
+use cgmath::{Matrix4, Point2, Point3, Quaternion, Rotation3};
 use log::info;
 use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 
@@ -278,9 +278,6 @@ impl World for HorizontalWorld {
             let nw = calced_model_position.w;
             let nw_x = nw.x / nw.w;
             let nw_y = nw.y / nw.w;
-
-            info!("model: {}, nw_x: {:?}, nw_y: {:?}", idx, nw_x, nw_y);
-
             let distance = (x_ratio - nw_x).abs().powf(2.0) + (y_ratio - nw_y).abs().powf(2.0);
             distance_map.insert(idx, distance);
         }
@@ -293,7 +290,11 @@ impl World for HorizontalWorld {
             if idx != &self.focus {
                 self.look_at(*idx, CameraAdjustment::NoCare);
             } else {
-                // TODO モデル中の最も近いモデルにカーソルを移動するという制御を行いたい
+                self.model_operation(&ModelOperation::MoveToClick(
+                    x_ratio,
+                    y_ratio,
+                    self.camera.build_view_projection_matrix(),
+                ));
             }
         }
     }
@@ -349,6 +350,9 @@ pub enum ModelOperation<'a> {
     CopyDisplayString(&'a dyn CharWidthResolver, fn(String)),
     // サイケデリックモードを切り替える(実験的なお遊び機能)
     TogglePsychedelic,
+    // Click
+    MoveToClick(f32, f32, Matrix4<f32>),
+    MarkAndClick(f32, f32, Matrix4<f32>),
 }
 
 pub enum ModelOperationResult {

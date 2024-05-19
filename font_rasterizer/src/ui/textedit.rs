@@ -6,8 +6,9 @@ use std::{
 use cgmath::{Point3, Quaternion, Rotation3};
 
 use text_buffer::{
+    action::EditorOperation,
     buffer::CellPosition,
-    caret::CaretType,
+    caret::{Caret, CaretType},
     editor::{ChangeEvent, Editor, PhisicalLayout},
 };
 
@@ -247,6 +248,21 @@ impl Model for TextEdit {
                 self.char_states.set_motion_and_color(&self.config);
                 ModelOperationResult::RequireReLayout
             }
+            ModelOperation::MoveToClick(x, y, view_projection_matrix) => {
+                if let Some(buffer_char) = self.char_states.get_nearest_char(
+                    *x,
+                    *y,
+                    view_projection_matrix,
+                    &self.model_attributes(),
+                ) {
+                    self.editor_operation(&EditorOperation::MoveTo(Caret::new_without_event(
+                        buffer_char.position,
+                        CaretType::Primary,
+                    )));
+                }
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::MarkAndClick(_, _, _) => todo!(),
         }
     }
 
@@ -459,22 +475,27 @@ impl TextEdit {
         }
     }
 
-    // 文字と caret の GPU で描画すべき位置やモーションを計算する
     #[inline]
-    fn calc_instance_positions(&mut self, char_width_calcurator: &CharWidthCalculator) {
-        let bound_in_animation = self.bound.in_animation();
+    fn model_attributes(&self) -> ModelAttributes {
         let [bound_x, bound_y] = &self.bound.current();
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
-        let position_in_animation = self.position.in_animation();
         let current_position: Point3<f32> = self.position.current().into();
-        let update_environment = position_in_animation || bound_in_animation || self.config_updated;
-
-        let model_attributes = ModelAttributes {
+        ModelAttributes {
             position: current_position,
             rotation: self.rotation,
             center,
             world_scale: self.world_scale,
-        };
+        }
+    }
+
+    // 文字と caret の GPU で描画すべき位置やモーションを計算する
+    #[inline]
+    fn calc_instance_positions(&mut self, char_width_calcurator: &CharWidthCalculator) {
+        let bound_in_animation = self.bound.in_animation();
+        let position_in_animation = self.position.in_animation();
+        let update_environment = position_in_animation || bound_in_animation || self.config_updated;
+
+        let model_attributes = self.model_attributes();
 
         // update caret
         self.caret_states.update_instances(
