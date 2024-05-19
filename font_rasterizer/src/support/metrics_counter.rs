@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Mutex};
+use std::{collections::BTreeMap, fmt::Display, sync::Mutex};
 
 use instant::{Duration, Instant};
 use once_cell::sync::Lazy;
@@ -12,7 +12,7 @@ pub(super) fn record_start_of_phase(phase_name: &str) {
 
 #[inline]
 pub(super) fn print_metrics_to_stdout() {
-    println!("{}", METRICS_COUNTER.lock().unwrap().to_string());
+    println!("{}", METRICS_COUNTER.lock().unwrap());
 }
 
 #[derive(Default)]
@@ -60,8 +60,8 @@ impl MetricsCounter {
     }
 }
 
-impl ToString for MetricsCounter {
-    fn to_string(&self) -> String {
+impl Display for MetricsCounter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut result = String::new();
         for (phase_name, stats) in &self.phase_times {
             result.push_str(&format!(
@@ -74,6 +74,6 @@ impl ToString for MetricsCounter {
                 stats.min_time.as_millis(),
             ));
         }
-        result
+        write!(f, "{}", result)
     }
 }
