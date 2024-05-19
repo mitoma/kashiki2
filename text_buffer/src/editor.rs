@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::sync::mpsc::Sender;
 
 use super::action::*;
@@ -300,8 +301,8 @@ pub struct PhisicalLayout {
     pub mark_pos: Option<PhisicalPosition>,
 }
 
-impl ToString for PhisicalLayout {
-    fn to_string(&self) -> String {
+impl Display for PhisicalLayout {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut current_row = 0;
         let mut result = String::new();
         for (c, position) in self.chars.iter() {
@@ -312,7 +313,7 @@ impl ToString for PhisicalLayout {
             }
             result.push(c.c);
         }
-        result
+        write!(f, "{}", result)
     }
 }
 
