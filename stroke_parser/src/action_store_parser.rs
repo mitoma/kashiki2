@@ -194,5 +194,12 @@ mod tests {
                 keys::ModifiersState::NONE
             )
         );
+        assert_eq!(
+            parse_input_with_modifier("WheelUp").unwrap(),
+            InputWithModifier::new_mouse(
+                pointing_device::MouseAction::WheelUp,
+                keys::ModifiersState::NONE
+            )
+        );
     }
 }

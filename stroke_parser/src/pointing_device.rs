@@ -42,6 +42,10 @@ pub enum MouseAction {
     ClickLeft,
     ClickRight,
     ClickMiddle,
+    WheelUp,
+    WheelDown,
+    WheelLeft,
+    WheelRight,
     Unknown,
 }
 

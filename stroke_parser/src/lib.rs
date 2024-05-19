@@ -265,6 +265,28 @@ impl ActionStore {
                     None
                 }
             }
+            WindowEvent::MouseWheel { delta, .. } => match delta {
+                winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                    println!("LineDelta x: {}, y: {}", x, y);
+                    let (action, gain) = if *x > 0.0 {
+                        (MouseAction::WheelRight, x.abs())
+                    } else if *x < 0.0 {
+                        (MouseAction::WheelLeft, x.abs())
+                    } else if *y > 0.0 {
+                        (MouseAction::WheelUp, y.abs())
+                    } else if *y < 0.0 {
+                        (MouseAction::WheelDown, y.abs())
+                    } else {
+                        return None;
+                    };
+                    self.get_action_by_mouse(action, Some(ActionArgument::Float(gain)))
+                }
+                winit::event::MouseScrollDelta::PixelDelta(d) => {
+                    println!("LineDelta d: {:?}", d);
+                    // TODO PixelDelta が必要になるシーンは当分先になりそうなので特にまだ対応はしない
+                    None
+                }
+            },
             _ => None,
         }
     }
