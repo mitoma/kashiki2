@@ -1,4 +1,4 @@
-use crate::{keys, Action, KeyBind, KeyWithModifier, Stroke};
+use crate::{keys, pointing_device, Action, InputWithModifier, KeyBind, Stroke};
 
 pub fn parse_setting(setting_string: &str) -> Vec<KeyBind> {
     let mut result: Vec<KeyBind> = Vec::new();
@@ -14,9 +14,9 @@ pub fn parse_setting(setting_string: &str) -> Vec<KeyBind> {
 
         let mut settings: Vec<&str> = line.split(' ').collect();
         let command = settings.pop().and_then(parse_action);
-        let strokes: Vec<KeyWithModifier> = settings
+        let strokes: Vec<InputWithModifier> = settings
             .iter()
-            .flat_map(|s| parse_keywithmodifier(s))
+            .flat_map(|s| parse_input_with_modifier(s))
             .collect();
         if let Some(command) = command {
             result.push(KeyBind::new(Stroke::new(strokes), command))
@@ -43,7 +43,7 @@ fn parse_action(line: &str) -> Option<Action> {
     }
 }
 
-fn parse_keywithmodifier(line: &str) -> Option<KeyWithModifier> {
+fn parse_input_with_modifier(line: &str) -> Option<InputWithModifier> {
     let line = line.trim();
     if line.is_empty() {
         return None;
@@ -51,14 +51,6 @@ fn parse_keywithmodifier(line: &str) -> Option<KeyWithModifier> {
     if line.starts_with('#') {
         return None;
     }
-
-    let key = line.rsplit('-').next().ok_or(()).and_then(|command| {
-        serde_json::from_str::<keys::KeyCode>(&format!("\"{}\"", command)).map_err(|_| ())
-    });
-    let key = match key {
-        Ok(key) => key,
-        _ => return None,
-    };
 
     let modifires = if line.starts_with("C-A-S-") {
         keys::ModifiersState::CtrlAltShift
@@ -78,11 +70,27 @@ fn parse_keywithmodifier(line: &str) -> Option<KeyWithModifier> {
         keys::ModifiersState::NONE
     };
 
-    Some(KeyWithModifier::new(key, modifires))
+    let command_token = line.rsplit('-').next();
+
+    let key = command_token.ok_or(()).and_then(|command| {
+        serde_json::from_str::<keys::KeyCode>(&format!("\"{}\"", command)).map_err(|_| ())
+    });
+    let mouse = command_token.ok_or(()).and_then(|command| {
+        serde_json::from_str::<pointing_device::MouseAction>(&format!("\"{}\"", command))
+            .map_err(|_| ())
+    });
+
+    match (key, mouse) {
+        (Ok(key), _) => Some(InputWithModifier::new_key(key, modifires)),
+        (_, Ok(mouse)) => Some(InputWithModifier::new_mouse(mouse, modifires)),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
 mod tests {
+
+    use crate::pointing_device;
 
     use super::*;
 
@@ -103,7 +111,7 @@ mod tests {
             ),
             vec![
                 KeyBind::new(
-                    Stroke::new(vec![KeyWithModifier::new(
+                    Stroke::new(vec![InputWithModifier::new_key(
                         keys::KeyCode::Return,
                         keys::ModifiersState::NONE
                     )]),
@@ -111,29 +119,29 @@ mod tests {
                 ),
                 KeyBind::new(
                     Stroke::new(vec![
-                        KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::S, keys::ModifiersState::Ctrl)
+                        InputWithModifier::new_key(keys::KeyCode::X, keys::ModifiersState::Ctrl),
+                        InputWithModifier::new_key(keys::KeyCode::S, keys::ModifiersState::Ctrl)
                     ]),
                     Action::new_command("system", "save")
                 ),
                 KeyBind::new(
                     Stroke::new(vec![
-                        KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::T, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::D, keys::ModifiersState::Ctrl)
+                        InputWithModifier::new_key(keys::KeyCode::X, keys::ModifiersState::Ctrl),
+                        InputWithModifier::new_key(keys::KeyCode::T, keys::ModifiersState::Ctrl),
+                        InputWithModifier::new_key(keys::KeyCode::D, keys::ModifiersState::Ctrl)
                     ]),
                     Action::new_command_with_argument("system", "change-theme", "dark")
                 ),
                 KeyBind::new(
                     Stroke::new(vec![
-                        KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::T, keys::ModifiersState::Ctrl),
-                        KeyWithModifier::new(keys::KeyCode::E, keys::ModifiersState::Ctrl)
+                        InputWithModifier::new_key(keys::KeyCode::X, keys::ModifiersState::Ctrl),
+                        InputWithModifier::new_key(keys::KeyCode::T, keys::ModifiersState::Ctrl),
+                        InputWithModifier::new_key(keys::KeyCode::E, keys::ModifiersState::Ctrl)
                     ]),
                     Action::new_command_with_argument("system", "change-theme", "")
                 ),
                 KeyBind::new(
-                    Stroke::new(vec![KeyWithModifier::new(
+                    Stroke::new(vec![InputWithModifier::new_key(
                         keys::KeyCode::A,
                         keys::ModifiersState::Ctrl
                     ),]),
@@ -144,29 +152,54 @@ mod tests {
     }
 
     #[test]
-    fn parse_keywithmodifier_none() {
-        assert_eq!(parse_keywithmodifier(""), None);
-        assert_eq!(parse_keywithmodifier("     "), None);
-        assert_eq!(parse_keywithmodifier("# is comment line"), None);
+    fn parse_input_with_modifier_none() {
+        assert_eq!(parse_input_with_modifier(""), None);
+        assert_eq!(parse_input_with_modifier("     "), None);
+        assert_eq!(parse_input_with_modifier("# is comment line"), None);
     }
 
     #[test]
-    fn parse_keywithmodifier_ok() {
+    fn parse_input_with_modifier_ok() {
         assert_eq!(
-            parse_keywithmodifier("C-A-S-Return").unwrap(),
-            KeyWithModifier::new(keys::KeyCode::Return, keys::ModifiersState::CtrlAltShift)
+            parse_input_with_modifier("C-A-S-Return").unwrap(),
+            InputWithModifier::new_key(keys::KeyCode::Return, keys::ModifiersState::CtrlAltShift)
         );
         assert_eq!(
-            parse_keywithmodifier("Return").unwrap(),
-            KeyWithModifier::new(keys::KeyCode::Return, keys::ModifiersState::NONE)
+            parse_input_with_modifier("Return").unwrap(),
+            InputWithModifier::new_key(keys::KeyCode::Return, keys::ModifiersState::NONE)
         );
         assert_eq!(
-            parse_keywithmodifier("S-C").unwrap(),
-            KeyWithModifier::new(keys::KeyCode::C, keys::ModifiersState::Shift)
+            parse_input_with_modifier("S-C").unwrap(),
+            InputWithModifier::new_key(keys::KeyCode::C, keys::ModifiersState::Shift)
         );
         assert_eq!(
-            parse_keywithmodifier("A-S-X").unwrap(),
-            KeyWithModifier::new(keys::KeyCode::X, keys::ModifiersState::AltShift)
+            parse_input_with_modifier("A-S-X").unwrap(),
+            InputWithModifier::new_key(keys::KeyCode::X, keys::ModifiersState::AltShift)
+        );
+    }
+
+    #[test]
+    fn parse_input_with_modifier_mouse() {
+        assert_eq!(
+            parse_input_with_modifier("C-A-S-MoveLeft").unwrap(),
+            InputWithModifier::new_mouse(
+                pointing_device::MouseAction::MoveLeft,
+                keys::ModifiersState::CtrlAltShift
+            )
+        );
+        assert_eq!(
+            parse_input_with_modifier("ClickMiddle").unwrap(),
+            InputWithModifier::new_mouse(
+                pointing_device::MouseAction::ClickMiddle,
+                keys::ModifiersState::NONE
+            )
+        );
+        assert_eq!(
+            parse_input_with_modifier("WheelUp").unwrap(),
+            InputWithModifier::new_mouse(
+                pointing_device::MouseAction::WheelUp,
+                keys::ModifiersState::NONE
+            )
         );
     }
 }

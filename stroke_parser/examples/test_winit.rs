@@ -15,7 +15,7 @@ fn main() {
         .run(move |event, control_flow| {
             //control_flow.set_control_flow(control_flow) = ControlFlow::Wait;
             match store.winit_event_to_action(&event) {
-                Some(Action::Command(category, name))
+                Some(Action::Command(category, name, _))
                     if *category == "system" && *name == "exit" =>
                 {
                     control_flow.exit();

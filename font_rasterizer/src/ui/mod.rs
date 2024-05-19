@@ -101,6 +101,8 @@ impl Model for PlaneTextReader {
             ModelOperation::DecreaseColScale => ModelOperationResult::NoCare,
             ModelOperation::CopyDisplayString(_, _) => ModelOperationResult::NoCare,
             ModelOperation::TogglePsychedelic => ModelOperationResult::NoCare,
+            ModelOperation::MoveToClick(_, _, _) => ModelOperationResult::NoCare,
+            ModelOperation::MarkAndClick(_, _, _) => ModelOperationResult::NoCare,
         }
     }
 
