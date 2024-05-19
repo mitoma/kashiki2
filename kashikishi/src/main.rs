@@ -41,8 +41,8 @@ pub fn main() {
     //std::env::set_var("RUST_LOG", "simple_text=debug");
     //std::env::set_var("RUST_LOG", "font_rasterizer::ui::textedit=info");
     //std::env::set_var("RUST_LOG", "font_rasterizer::ui::view_element_state=debug");
+    //std::env::set_var("RUST_LOG", "font_rasterizer::layout_engine=info");
     //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
-    std::env::set_var("RUST_LOG", "font_rasterizer::layout_engine=info");
     pollster::block_on(run());
 }
 

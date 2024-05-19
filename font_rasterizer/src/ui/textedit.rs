@@ -259,6 +259,7 @@ impl Model for TextEdit {
                         buffer_char.position,
                         CaretType::Primary,
                     )));
+                    self.char_states.notify_char(buffer_char, &self.config);
                 }
                 ModelOperationResult::RequireReLayout
             }

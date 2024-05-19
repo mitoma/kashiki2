@@ -100,6 +100,7 @@ pub(crate) struct CharEasings {
     pub(crate) remove_char_mode: RemoveCharMode,
     pub(crate) select_char: GpuEasingConfig,
     pub(crate) unselect_char: GpuEasingConfig,
+    pub(crate) notify_char: GpuEasingConfig,
     pub(crate) position_easing: CpuEasingConfig,
     pub(crate) color_easing: CpuEasingConfig,
     pub(crate) scale_easing: CpuEasingConfig,
@@ -167,6 +168,18 @@ impl Default for CharEasings {
                 duration: Duration::from_millis(300),
                 gain: 1.0,
             },
+            notify_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(
+                        crate::motion::EasingFuncType::Cubic,
+                        false,
+                    ))
+                    .motion_target(MotionTarget::STRETCH_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 3.0,
+            },
             position_easing: CpuEasingConfig {
                 duration: Duration::from_millis(500),
                 easing_func: nenobi::functions::sin_in_out,
@@ -198,6 +211,7 @@ impl CharEasings {
             remove_char_mode: RemoveCharMode::Immediate,
             select_char: GpuEasingConfig::default(),
             unselect_char: GpuEasingConfig::default(),
+            notify_char: GpuEasingConfig::default(),
             position_easing: CpuEasingConfig::default(),
             color_easing: CpuEasingConfig::default(),
             scale_easing: CpuEasingConfig::default(),
@@ -220,6 +234,7 @@ impl CharEasings {
             remove_char_mode: RemoveCharMode::Immediate,
             select_char: ignore_camera_config,
             unselect_char: ignore_camera_config,
+            notify_char: ignore_camera_config,
             position_easing: CpuEasingConfig::zero_motion(),
             color_easing: CpuEasingConfig::zero_motion(),
             scale_easing: CpuEasingConfig::zero_motion(),

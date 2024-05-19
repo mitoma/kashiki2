@@ -82,12 +82,13 @@ C-Z Space world:look-next
 C-Z P     world:look-prev
 A-S-W     world:copy-display
 
-# 画面上をクリックすると近い文字の位置まで移動する(できるかな？)
+# マウス系のショートカット
 ClickLeft   world:move-to-click
 S-ClickLeft world:mark-and-click
 WheelUp     system:previous
 WheelDown   system:next
 S-WheelUp   world:look-prev
 S-WheelDown world:look-next
-C-WheelUp   world:forward
-C-WheelDown world:back
+C-ClickMiddle world:reset-zoom
+C-WheelUp     world:forward
+C-WheelDown   world:back

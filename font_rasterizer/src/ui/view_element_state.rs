@@ -12,7 +12,7 @@ use wgpu::Device;
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
-    context::{RemoveCharMode, TextContext},
+    context::{GpuEasingConfig, RemoveCharMode, TextContext},
     easing_value::EasingPointN,
     font_buffer::Direction,
     instances::GlyphInstance,
@@ -323,12 +323,7 @@ impl CharStates {
                     .base_color
                     .get_selection_color(&text_context.color_theme),
             );
-            state
-                .motion_gain
-                .update([text_context.char_easings.select_char.gain]);
-            instance.motion = text_context.char_easings.select_char.motion;
-            instance.duration = text_context.char_easings.select_char.duration;
-            instance.start_time = now_millis();
+            Self::apply_gpu_easing_config(&text_context.char_easings.select_char, state, instance);
         }
     }
 
@@ -338,13 +333,29 @@ impl CharStates {
             state
                 .color
                 .update(state.base_color.get_color(&text_context.color_theme));
-            state
-                .motion_gain
-                .update([text_context.char_easings.unselect_char.gain]);
-            instance.motion = text_context.char_easings.unselect_char.motion;
-            instance.duration = text_context.char_easings.unselect_char.duration;
-            instance.start_time = now_millis();
+            Self::apply_gpu_easing_config(
+                &text_context.char_easings.unselect_char,
+                state,
+                instance,
+            );
         }
+    }
+
+    pub(crate) fn notify_char(&mut self, c: BufferChar, text_context: &TextContext) {
+        if let Some((state, instance)) = self.get_mut_char_and_instances(&c) {
+            Self::apply_gpu_easing_config(&text_context.char_easings.notify_char, state, instance);
+        }
+    }
+
+    fn apply_gpu_easing_config(
+        gpu_easing_config: &GpuEasingConfig,
+        state: &mut ViewElementState,
+        instance: &mut GlyphInstance,
+    ) {
+        state.motion_gain.update([gpu_easing_config.gain]);
+        instance.motion = gpu_easing_config.motion;
+        instance.duration = gpu_easing_config.duration;
+        instance.start_time = now_millis();
     }
 
     pub(crate) fn get_nearest_char(
