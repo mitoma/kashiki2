@@ -356,15 +356,15 @@ impl SimpleStateCallback for KashikishiCallback {
                                 _ => { /* noop */ }
                             }
                         }
-                        "mark-and-click" => {
+                        "move-to-click-with-mark" => {
                             match argument {
                                 ActionArgument::Point((x, y)) => {
                                     let (x_ratio, y_ratio) = (
                                         (x / context.window_size.width as f32 * 2.0) - 1.0,
                                         1.0 - (y / context.window_size.height as f32 * 2.0),
                                     );
-                                    self.world.editor_operation(&EditorOperation::Mark);
                                     self.world.move_to_position(x_ratio, y_ratio);
+                                    self.world.editor_operation(&EditorOperation::Mark);
                                 }
                                 _ => { /* noop */ }
                             }
