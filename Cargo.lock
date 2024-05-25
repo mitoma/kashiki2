@@ -2291,7 +2291,14 @@ dependencies = [
  "anyhow",
  "bytemuck",
  "cgmath",
+ "font_collector",
+ "font_rasterizer",
  "hidapi",
+ "instant",
+ "log",
+ "pollster",
+ "stroke_parser",
+ "winit",
 ]
 
 [[package]]

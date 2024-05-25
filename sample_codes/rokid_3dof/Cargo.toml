@@ -9,3 +9,12 @@ anyhow.workspace = true
 hidapi = "2.6.1"
 bytemuck.workspace = true
 cgmath.workspace = true
+
+[dev-dependencies]
+font_rasterizer = { path = "../../font_rasterizer" }
+font_collector = { path = "../../font_collector" }
+stroke_parser = { path = "../../stroke_parser" }
+log.workspace = true
+instant.workspace = true
+winit.workspace = true
+pollster.workspace = true

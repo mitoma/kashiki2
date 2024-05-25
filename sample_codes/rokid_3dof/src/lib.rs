@@ -1,5 +1,5 @@
 use anyhow::Ok;
-use cgmath::Quaternion;
+use cgmath::{InnerSpace, Quaternion};
 use hidapi::HidApi;
 
 const ROKID_VENDOR_ID: u16 = 0x04D2;
@@ -7,9 +7,16 @@ const ROKID_MAX_PRODUCT_ID: u16 = 0x162F;
 
 pub struct RokidMax {
     device: hidapi::HidDevice,
-    initial_gyroscope: [f32; 3],
-    initial_accelerometer: [f32; 3],
-    initial_magnetometer: [f32; 3],
+    initial: SensorData,
+    current: SensorData,
+    fifo: Vec<SensorData>,
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct SensorData {
+    pub gyroscope: [f32; 3],
+    pub accelerometer: [f32; 3],
+    pub magnetometer: [f32; 3],
 }
 
 impl RokidMax {
@@ -18,9 +25,9 @@ impl RokidMax {
         let device = hid_api.open(ROKID_VENDOR_ID, ROKID_MAX_PRODUCT_ID)?;
         let mut result = Self {
             device,
-            initial_gyroscope: [0.0; 3],
-            initial_accelerometer: [0.0; 3],
-            initial_magnetometer: [0.0; 3],
+            initial: SensorData::default(),
+            current: SensorData::default(),
+            fifo: Vec::new(),
         };
         result.reset()?;
         Ok(result)
@@ -29,9 +36,34 @@ impl RokidMax {
     pub fn reset(&mut self) -> anyhow::Result<()> {
         match self.read_packet()? {
             RokidMaxPacket::Combined(packet) => {
-                self.initial_gyroscope = packet.gyroscope();
-                self.initial_accelerometer = packet.accelerometer();
-                self.initial_magnetometer = packet.magnetometer();
+                self.fifo.clear();
+                let sensor_data = SensorData {
+                    gyroscope: packet.gyroscope(),
+                    accelerometer: packet.accelerometer(),
+                    magnetometer: packet.magnetometer(),
+                };
+                self.initial = sensor_data.clone();
+                self.current = sensor_data.clone();
+                self.fifo.push(sensor_data);
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    pub fn update(&mut self) -> anyhow::Result<()> {
+        match self.read_packet()? {
+            RokidMaxPacket::Combined(packet) => {
+                while self.fifo.len() >= 20 {
+                    self.fifo.remove(0);
+                }
+                let sensor_data = SensorData {
+                    gyroscope: packet.gyroscope(),
+                    accelerometer: packet.accelerometer(),
+                    magnetometer: packet.magnetometer(),
+                };
+                self.current = sensor_data.clone();
+                self.fifo.push(sensor_data);
             }
             _ => {}
         }
@@ -45,19 +77,69 @@ impl RokidMax {
     }
 
     pub fn gyroscope_quaternion(&self) -> Quaternion<f32> {
-        let packet = self.read_packet().unwrap();
-        match packet {
-            RokidMaxPacket::Combined(packet) => Quaternion::from_arc(
-                self.initial_gyroscope.into(),
-                packet.gyroscope().into(),
-                None,
-            ),
-            _ => Quaternion::from_arc(
-                self.initial_gyroscope.into(),
-                self.initial_gyroscope.into(),
-                None,
-            ),
-        }
+        Quaternion::from_arc(
+            self.initial.gyroscope.into(),
+            self.current.gyroscope.into(),
+            None,
+        )
+        .normalize()
+    }
+
+    pub fn gyroscope_quaternion_avg(&self) -> Quaternion<f32> {
+        let sum = self.fifo.iter().fold([0.0, 0.0, 0.0], |init, sensor| {
+            [
+                init[0] + sensor.gyroscope[0],
+                init[1] + sensor.gyroscope[1],
+                init[2] + sensor.gyroscope[2],
+            ]
+        });
+        let len = self.fifo.len() as f32;
+        let sum = [sum[0] / len, sum[1] / len, sum[2] / len];
+        Quaternion::from_arc(self.initial.gyroscope.into(), sum.into(), None).normalize()
+    }
+
+    pub fn accelerometer_quaternion(&self) -> Quaternion<f32> {
+        Quaternion::from_arc(
+            self.initial.accelerometer.into(),
+            self.current.accelerometer.into(),
+            None,
+        )
+        .normalize()
+    }
+
+    pub fn accelerometer_quaternion_avg(&self) -> Quaternion<f32> {
+        let sum = self.fifo.iter().fold([0.0, 0.0, 0.0], |init, sensor| {
+            [
+                init[0] + sensor.accelerometer[0],
+                init[1] + sensor.accelerometer[1],
+                init[2] + sensor.accelerometer[2],
+            ]
+        });
+        let len = self.fifo.len() as f32;
+        let sum = [sum[0] / len, sum[1] / len, sum[2] / len];
+        Quaternion::from_arc(self.initial.accelerometer.into(), sum.into(), None).normalize()
+    }
+
+    pub fn magnetometer_quaternion(&self) -> Quaternion<f32> {
+        Quaternion::from_arc(
+            self.initial.magnetometer.into(),
+            self.current.magnetometer.into(),
+            None,
+        )
+        .normalize()
+    }
+
+    pub fn magnetometer_quaternion_avg(&self) -> Quaternion<f32> {
+        let sum = self.fifo.iter().fold([0.0, 0.0, 0.0], |init, sensor| {
+            [
+                init[0] + sensor.magnetometer[0],
+                init[1] + sensor.magnetometer[1],
+                init[2] + sensor.magnetometer[2],
+            ]
+        });
+        let len = self.fifo.len() as f32;
+        let sum = [sum[0] / len, sum[1] / len, sum[2] / len];
+        Quaternion::from_arc(self.initial.magnetometer.into(), sum.into(), None).normalize()
     }
 
     pub fn read_packet(&self) -> anyhow::Result<RokidMaxPacket> {
@@ -92,6 +174,7 @@ fn buffer_to_packet(buffer: &[u8]) -> anyhow::Result<RokidMaxPacket> {
 pub enum RokidMaxPacket {
     Misc(MiscPacket),
     Sensor(SensorPacket),
+    // 実際に飛んでくるのはほぼ CombinedPacket のみなので、このパケットの場合だけ処理すれば十分そうだ
     Combined(CombinedPacket),
 }
 
