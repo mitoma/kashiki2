@@ -134,9 +134,7 @@ impl SimpleStateCallback for SingleCharCallback {
         self.rokid_max.update().unwrap();
         self.glyphs.iter_mut().for_each(|i| {
             let instance = i.get_mut(&InstanceKey::Monotonic(0)).unwrap();
-            //instance.rotation = self.rokid_max.accelerometer_quaternion_avg();
-            //instance.rotation = self.rokid_max.gyroscope_quaternion_avg();
-            instance.rotation = self.rokid_max.magnetometer_quaternion_avg();
+            instance.rotation = self.rokid_max.quaternion();
             i.update_buffer(&context.device, &context.queue)
         });
     }
