@@ -18,6 +18,7 @@ pub struct Camera {
     fovy: f32,
     znear: f32,
     zfar: f32,
+    eye_quaternion: Option<cgmath::Quaternion<f32>>,
 }
 
 impl Camera {
@@ -51,6 +52,7 @@ impl Camera {
             fovy,
             znear,
             zfar,
+            eye_quaternion: None,
         }
     }
 
@@ -60,6 +62,12 @@ impl Camera {
             self.target.current().into(),
             self.up,
         );
+        let view = if let Some(eye_quaternion) = self.eye_quaternion {
+            cgmath::Matrix4::from(eye_quaternion) * view
+        } else {
+            view
+        };
+
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
@@ -157,6 +165,14 @@ impl CameraController {
 
     pub fn update_camera_aspect(&self, camera: &mut Camera, window_size: WindowSize) {
         camera.aspect = window_size.aspect();
+    }
+
+    pub fn update_eye_quatanion(
+        &self,
+        camera: &mut Camera,
+        eye_quaternion: Option<cgmath::Quaternion<f32>>,
+    ) {
+        camera.eye_quaternion = eye_quaternion;
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {

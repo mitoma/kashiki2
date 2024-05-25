@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use rokid_3dof::{RokidMax, RokidMaxPacket};
+use rokid_3dof::RokidMax;
 
 fn main() -> anyhow::Result<()> {
     let mut rokid_max = RokidMax::new()?;

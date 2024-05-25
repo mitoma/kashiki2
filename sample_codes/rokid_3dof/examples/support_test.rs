@@ -132,9 +132,12 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         self.rokid_max.update().unwrap();
+        let q = self.rokid_max.quaternion();
+        self.camera_controller
+            .update_eye_quatanion(&mut self.camera, Some(q));
         self.glyphs.iter_mut().for_each(|i| {
-            let instance = i.get_mut(&InstanceKey::Monotonic(0)).unwrap();
-            instance.rotation = self.rokid_max.quaternion();
+            //            let instance = i.get_mut(&InstanceKey::Monotonic(0)).unwrap();
+            //            instance.rotation = q;
             i.update_buffer(&context.device, &context.queue)
         });
     }

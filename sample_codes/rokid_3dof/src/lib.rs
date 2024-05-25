@@ -1,6 +1,8 @@
+use std::f32::consts::PI;
+
 use ahrs::{Ahrs, Madgwick};
 use anyhow::Ok;
-use cgmath::Quaternion;
+use cgmath::{Quaternion, Rad, Rotation3};
 use hidapi::HidApi;
 
 const ROKID_VENDOR_ID: u16 = 0x04D2;
@@ -37,7 +39,7 @@ impl RokidMax {
                 let m = packet.magnetometer().into();
                 self.ahrs.update(&g, &a, &m).unwrap();
             }
-            _ => {}
+            _ => { /* noop */ }
         }
         Ok(())
     }
@@ -50,7 +52,9 @@ impl RokidMax {
 
     pub fn quaternion(&self) -> Quaternion<f32> {
         let quat_vec = self.ahrs.quat.as_vector();
-        Quaternion::new(quat_vec[1], quat_vec[2], quat_vec[3], quat_vec[0])
+        // とりあえずつじつまが合うように補正は入れたが、正しいかは不明
+        Quaternion::new(-quat_vec[1], -quat_vec[2], -quat_vec[3], quat_vec[0])
+            * Quaternion::from_angle_y(Rad(PI))
     }
 
     pub fn read_packet(&self) -> anyhow::Result<RokidMaxPacket> {
@@ -68,15 +72,15 @@ fn buffer_to_packet(buffer: &[u8]) -> anyhow::Result<RokidMaxPacket> {
     let packet_type = buffer[0];
     let packet = match packet_type {
         2 => {
-            let packet = bytemuck::from_bytes::<MiscPacket>(&buffer);
+            let packet = bytemuck::from_bytes::<MiscPacket>(buffer);
             RokidMaxPacket::Misc(packet.to_owned())
         }
         4 => {
-            let packet = bytemuck::from_bytes::<SensorPacket>(&buffer);
+            let packet = bytemuck::from_bytes::<SensorPacket>(buffer);
             RokidMaxPacket::Sensor(packet.to_owned())
         }
         17 => {
-            let packet = bytemuck::from_bytes::<CombinedPacket>(&buffer);
+            let packet = bytemuck::from_bytes::<CombinedPacket>(buffer);
             RokidMaxPacket::Combined(packet.to_owned())
         }
         _ => {
