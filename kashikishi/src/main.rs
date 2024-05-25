@@ -5,6 +5,7 @@ mod memos;
 
 use arboard::Clipboard;
 use font_collector::FontCollector;
+use rokid_3dof::RokidMax;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
 use text_buffer::action::EditorOperation;
 
@@ -92,6 +93,7 @@ struct KashikishiCallback {
     world: Box<dyn World>,
     ime: ImeInput,
     new_chars: HashSet<char>,
+    rokid_max: RokidMax,
 }
 
 impl KashikishiCallback {
@@ -118,12 +120,14 @@ impl KashikishiCallback {
         world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
         let new_chars = HashSet::new();
+        let rokid_max = RokidMax::new().unwrap();
 
         Self {
             store,
             world,
             ime,
             new_chars,
+            rokid_max,
         }
     }
 }
@@ -169,6 +173,12 @@ impl SimpleStateCallback for KashikishiCallback {
         }
         self.world.update(glyph_vertex_buffer, context);
         self.ime.update(context);
+
+        self.rokid_max.update().unwrap();
+        self.world
+            .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
+                self.rokid_max.quaternion(),
+            )));
     }
 
     fn input(
@@ -369,6 +379,7 @@ impl SimpleStateCallback for KashikishiCallback {
                                 _ => { /* noop */ }
                             }
                         }
+                        "reset-rokid" => self.rokid_max.reset().unwrap(),
                         _ => {}
                     };
                     InputResult::InputConsumed

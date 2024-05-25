@@ -65,7 +65,7 @@ impl RokidMax {
 }
 
 fn new_madgwick() -> Madgwick<f32> {
-    Madgwick::new(1.0 / 60.0, 0.01)
+    Madgwick::new(1.0 / 60.0, 0.001)
 }
 
 fn buffer_to_packet(buffer: &[u8]) -> anyhow::Result<RokidMaxPacket> {
