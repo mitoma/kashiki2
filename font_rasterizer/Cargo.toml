@@ -10,7 +10,6 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 cfg-if = "1"
 anyhow = { workspace = true }
-bytemuck = { version = "1.4", features = ["derive"] }
 env_logger = { workspace = true }
 log = { workspace = true }
 pollster = { workspace = true }
@@ -21,7 +20,8 @@ image = { workspace = true }
 rand = "0.8.5"
 
 rustybuzz.workspace = true
-cgmath = "0.18"
+cgmath.workspace = true
+bytemuck.workspace = true
 
 instant = { workspace = true }
 unicode-width = "0.1.12"
