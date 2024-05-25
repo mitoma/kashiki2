@@ -76,7 +76,7 @@ mod windows {
                             unsafe {
                                 let hello_hwnd = FindWindowA(class_name, None);
                                 if hello_hwnd.0 != 0 {
-                                    SetForegroundWindow(hello_hwnd);
+                                    let _ = SetForegroundWindow(hello_hwnd);
                                 }
                             }
                         }
