@@ -20,9 +20,9 @@ use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
 const FONT_DATA: &[u8] =
-    include_bytes!("../../../font_rasterizer/examples/font/HackGenConsole-Regular.ttf");
+    include_bytes!("../../font_rasterizer/examples/font/HackGenConsole-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] =
-    include_bytes!("../../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
+    include_bytes!("../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
     std::env::set_var("RUST_LOG", "support_test=debug");

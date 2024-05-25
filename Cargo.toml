@@ -7,6 +7,7 @@ members = [
     "font_rasterizer_example",
     "sample_codes/*",
     "kashikishi",
+    "rokid_3dof",
 ]
 resolver = "2"
 
