@@ -1,19 +1,18 @@
 use std::{
-    f32::consts::PI,
     sync::{Arc, Mutex},
     thread,
 };
 
-use ahrs::{Ahrs, Madgwick};
 use anyhow::Ok;
-use cgmath::{Quaternion, Rad, Rotation3};
+use cgmath::{Quaternion, Rotation};
 use hidapi::HidApi;
+use vqf_rs::VQF;
 
 const ROKID_VENDOR_ID: u16 = 0x04D2;
 const ROKID_MAX_PRODUCT_ID: u16 = 0x162F;
 
 pub struct RokidMax {
-    ahrs: Arc<Mutex<Madgwick<f32>>>,
+    ahrs: Arc<Mutex<VQF>>,
 }
 
 impl RokidMax {
@@ -21,7 +20,7 @@ impl RokidMax {
         let hid_api = HidApi::new()?;
         let device = hid_api.open(ROKID_VENDOR_ID, ROKID_MAX_PRODUCT_ID)?;
         let mut result = Self {
-            ahrs: Arc::new(Mutex::new(new_madgwick())),
+            ahrs: Arc::new(Mutex::new(new_vqf())),
         };
         result.reset()?;
         let ahrs = result.ahrs.clone();
@@ -29,8 +28,8 @@ impl RokidMax {
             let packet = read_packet(&device).unwrap();
             match packet {
                 RokidMaxPacket::Combined(packet) => {
-                    let mut ahrs = ahrs.lock().unwrap();
-                    update_ahrs(&mut ahrs, packet);
+                    let mut vqf = ahrs.lock().unwrap();
+                    update_vqf(&mut vqf, packet);
                 }
                 _ => { /* noop */ }
             }
@@ -40,36 +39,34 @@ impl RokidMax {
     }
 
     pub fn reset(&mut self) -> anyhow::Result<()> {
-        // とりあえず madgwick のインスタンスを入れ替える
-        *self.ahrs.lock().unwrap() = new_madgwick();
+        self.ahrs.lock().unwrap().reset_state();
         Ok(())
     }
 
     pub fn quaternion(&self) -> Quaternion<f32> {
-        let quat_vec = self.ahrs.lock().unwrap().quat.as_vector().to_owned();
-        // とりあえずつじつまが合うように補正は入れたが、正しいかは不明
-        Quaternion::new(-quat_vec[1], -quat_vec[2], -quat_vec[3], quat_vec[0])
-            * Quaternion::from_angle_y(Rad(PI))
+        let quat_vec = self.ahrs.lock().unwrap().quat_3d();
+        Quaternion::new(quat_vec.0, quat_vec.1, quat_vec.2, quat_vec.3).invert()
     }
 }
 
-fn update_ahrs(ahrs: &mut Madgwick<f32>, packet: CombinedPacket) {
-    let g = packet.gyroscope().into();
-    let a = packet.accelerometer().into();
-    let m = packet.magnetometer().into();
-    let _ = ahrs.update(&g, &a, &m);
+fn update_vqf(vqf: &mut VQF, packet: CombinedPacket) {
+    vqf.update(
+        packet.gyroscope(),
+        packet.accelerometer(),
+        Some(packet.magnetometer()),
+    );
 }
 
 fn read_packet(device: &hidapi::HidDevice) -> anyhow::Result<RokidMaxPacket> {
     let mut buffer: [u8; 128] = [0; 128];
     let size = device.read(&mut buffer)?;
     let buffer = &buffer[0..size];
-    let packet = buffer_to_packet(&buffer)?;
+    let packet = buffer_to_packet(buffer)?;
     Ok(packet)
 }
 
-fn new_madgwick() -> Madgwick<f32> {
-    Madgwick::new(1.0 / 100.0, 0.001)
+fn new_vqf() -> VQF {
+    VQF::new(1.0 / 100.0, None, None, None)
 }
 
 fn buffer_to_packet(buffer: &[u8]) -> anyhow::Result<RokidMaxPacket> {
