@@ -9,8 +9,7 @@ anyhow.workspace = true
 bytemuck.workspace = true
 cgmath.workspace = true
 hidapi = "2.6.1"
-ahrs = "0.6"
-nalgebra = "*"
+vqf-rs = { version = "0.2", features = ["f32", "motion-bias-estimation"] }
 
 [dev-dependencies]
 font_rasterizer = { path = "../font_rasterizer" }
