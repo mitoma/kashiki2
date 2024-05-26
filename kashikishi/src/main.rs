@@ -174,7 +174,6 @@ impl SimpleStateCallback for KashikishiCallback {
         self.world.update(glyph_vertex_buffer, context);
         self.ime.update(context);
 
-        self.rokid_max.update().unwrap();
         self.world
             .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
                 self.rokid_max.quaternion(),
