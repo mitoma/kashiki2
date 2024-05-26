@@ -10,7 +10,7 @@ use font_rasterizer::{
     color_theme::ColorTheme::{self, SolarizedDark},
     context::{StateContext, WindowSize},
     font_buffer::GlyphVertexBuffer,
-    instances::{GlyphInstance, GlyphInstances, InstanceKey},
+    instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
@@ -131,7 +131,6 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
-        self.rokid_max.update().unwrap();
         let q = self.rokid_max.quaternion();
         self.camera_controller
             .update_eye_quatanion(&mut self.camera, Some(q));
