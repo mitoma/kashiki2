@@ -4,6 +4,8 @@ use chrono::Days;
 use font_rasterizer::ui::selectbox::{SelectBox, SelectOption};
 use stroke_parser::Action;
 
+use crate::categorized_memos::CategorizedMemos;
+
 pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> SelectBox {
     let options = vec![
         SelectOption::new(
@@ -21,6 +23,14 @@ pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> Sel
         SelectOption::new(
             "日付の挿入".to_string(),
             Action::new_command("kashikishi", "insert-date"),
+        ),
+        SelectOption::new(
+            "カテゴリを移動".to_string(),
+            Action::new_command("kashikishi", "select-category"),
+        ),
+        SelectOption::new(
+            "編集中のメモの移動".to_string(),
+            Action::new_command("kashikishi", "select-move-memo-category"),
         ),
     ];
     SelectBox::new(action_queue_sender, "アクションの選択".to_string(), options)
@@ -84,6 +94,48 @@ pub(crate) fn change_theme_select(action_queue_sender: Sender<Action>) -> Select
     SelectBox::new(
         action_queue_sender,
         "カラーテーマを選択して下さい".to_string(),
+        options,
+    )
+}
+
+pub(crate) fn select_move_memo_category(action_queue_sender: Sender<Action>) -> SelectBox {
+    let options = vec![
+        SelectOption::new_multiple(
+            "default".to_string(),
+            vec![
+                Action::new_command_with_argument("kashikishi", "move-memo", "default"),
+                Action::new_command("world", "remove-current"),
+            ],
+        ),
+        SelectOption::new_multiple(
+            "archive".to_string(),
+            vec![
+                Action::new_command_with_argument("kashikishi", "move-memo", "archive"),
+                Action::new_command("world", "remove-current"),
+            ],
+        ),
+    ];
+    SelectBox::new(
+        action_queue_sender,
+        "メモの移動先カテゴリーを選択".to_string(),
+        options,
+    )
+}
+
+pub(crate) fn change_memos_category(
+    categorized_memos: &CategorizedMemos,
+    action_queue_sender: Sender<Action>,
+) -> SelectBox {
+    let mut options = Vec::new();
+    for category in categorized_memos.categories() {
+        options.push(SelectOption::new(
+            category.clone(),
+            Action::new_command_with_argument("kashikishi", "change-memos-category", &category),
+        ));
+    }
+    SelectBox::new(
+        action_queue_sender,
+        "移動先のカテゴリーを選択".to_string(),
         options,
     )
 }

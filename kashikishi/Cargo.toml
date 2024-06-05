@@ -11,7 +11,7 @@ wgpu = { workspace = true }
 winit = { workspace = true }
 image = { workspace = true }
 
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
 font_collector = { version = "0.1.0", path = "../font_collector" }
@@ -19,6 +19,6 @@ font_rasterizer = { version = "0.1.0", path = "../font_rasterizer" }
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
 stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
 
-chrono = "0.4.38"
+chrono = { version = "0.4.38", features = ["serde"] }
 dirs = "5.0.1"
 arboard = "3.4.0"

@@ -13,12 +13,19 @@ use super::textedit::TextEdit;
 
 pub struct SelectOption {
     text: String,
-    action: Action,
+    actions: Vec<Action>,
 }
 
 impl SelectOption {
     pub fn new(text: String, action: Action) -> Self {
-        Self { text, action }
+        Self {
+            text,
+            actions: vec![action],
+        }
+    }
+
+    pub fn new_multiple(text: String, actions: Vec<Action>) -> Self {
+        Self { text, actions }
     }
 }
 
@@ -130,9 +137,10 @@ impl Model for SelectBox {
                 self.action_queue_sender
                     .send(Action::new_command("world", "remove-current"))
                     .unwrap();
-                self.action_queue_sender
-                    .send(self.options[self.current_selection].action.clone())
-                    .unwrap();
+                self.options[self.current_selection]
+                    .actions
+                    .iter()
+                    .for_each(|action| self.action_queue_sender.send(action.clone()).unwrap());
             }
             // unmark を使っているのがなんか変な気はするなぁ
             EditorOperation::UnMark => {
@@ -154,11 +162,14 @@ impl Model for SelectBox {
     }
 
     fn to_string(&self) -> String {
+        self.text_edit.to_string()
+        /*
         self.options
             .iter()
             .map(|s| s.text.clone())
             .collect::<Vec<String>>()
             .join("")
+             */
     }
 
     fn model_mode(&self) -> ModelMode {
