@@ -231,7 +231,7 @@ impl SimpleStateCallback for KashikishiCallback {
                     let action = match &*name.to_string() {
                         "exit" => {
                             self.categorized_memos
-                                .update_memos("default", Memos::from(&*self.world));
+                                .update_current_memos(Memos::from(&*self.world));
                             self.categorized_memos.save_memos().unwrap();
                             return InputResult::SendExit;
                         }
@@ -402,7 +402,7 @@ impl SimpleStateCallback for KashikishiCallback {
                     match &*name.to_string() {
                         "save" => {
                             self.categorized_memos
-                                .update_memos("default", Memos::from(&*self.world));
+                                .update_current_memos(Memos::from(&*self.world));
                             self.categorized_memos.save_memos().unwrap();
                         }
                         "add-memo" => {
@@ -440,12 +440,15 @@ impl SimpleStateCallback for KashikishiCallback {
                                 &mut self.new_chars,
                                 &mut self.world,
                                 Box::new(select_move_memo_category(
+                                    &self.categorized_memos,
                                     context.action_queue_sender.clone(),
                                 )),
                             )
                         }
                         "change-memos-category" => match argument {
                             ActionArgument::String(category) => {
+                                self.categorized_memos
+                                    .update_current_memos(Memos::from(&*self.world));
                                 self.categorized_memos.current_category = category;
                                 self.reset_world(context.window_size);
                             }

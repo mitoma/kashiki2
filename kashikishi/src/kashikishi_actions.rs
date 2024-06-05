@@ -98,23 +98,35 @@ pub(crate) fn change_theme_select(action_queue_sender: Sender<Action>) -> Select
     )
 }
 
-pub(crate) fn select_move_memo_category(action_queue_sender: Sender<Action>) -> SelectBox {
-    let options = vec![
-        SelectOption::new_multiple(
-            "default".to_string(),
+pub(crate) fn select_move_memo_category(
+    categorized_memos: &CategorizedMemos,
+    action_queue_sender: Sender<Action>,
+) -> SelectBox {
+    let mut options = vec![];
+
+    let mut has_archive = false;
+    for category in categorized_memos.categories() {
+        if category == "archive" {
+            has_archive = true;
+        }
+        options.push(SelectOption::new_multiple(
+            category.clone(),
             vec![
-                Action::new_command_with_argument("kashikishi", "move-memo", "default"),
+                Action::new_command_with_argument("kashikishi", "move-memo", &category),
                 Action::new_command("world", "remove-current"),
             ],
-        ),
-        SelectOption::new_multiple(
+        ));
+    }
+    if !has_archive {
+        options.push(SelectOption::new_multiple(
             "archive".to_string(),
             vec![
                 Action::new_command_with_argument("kashikishi", "move-memo", "archive"),
                 Action::new_command("world", "remove-current"),
             ],
-        ),
-    ];
+        ));
+    }
+
     SelectBox::new(
         action_queue_sender,
         "メモの移動先カテゴリーを選択".to_string(),

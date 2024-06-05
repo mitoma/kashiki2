@@ -77,8 +77,9 @@ impl CategorizedMemos {
         fs::write(memos_file, memos_json)
     }
 
-    pub(crate) fn update_memos(&mut self, category: &str, memos: Memos) {
-        self.categorized.insert(category.to_string(), memos);
+    pub(crate) fn update_current_memos(&mut self, memos: Memos) {
+        self.categorized
+            .insert(self.current_category.to_string(), memos);
     }
 
     pub(crate) fn get_current_memos(&self) -> Option<&Memos> {
