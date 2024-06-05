@@ -148,6 +148,14 @@ impl KashikishiCallback {
         world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
         self.world = world;
+        // world にすでに表示されるグリフを追加する
+        let chars = self
+            .world
+            .strings()
+            .join("")
+            .chars()
+            .collect::<HashSet<char>>();
+        self.new_chars.extend(chars);
     }
 }
 
