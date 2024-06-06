@@ -111,19 +111,21 @@ pub(crate) fn select_move_memo_category(
         }
         options.push(SelectOption::new_multiple(
             category.clone(),
-            vec![
-                Action::new_command_with_argument("kashikishi", "move-memo", &category),
-                Action::new_command("world", "remove-current"),
-            ],
+            vec![Action::new_command_with_argument(
+                "kashikishi",
+                "move-memo",
+                &category,
+            )],
         ));
     }
     if !has_archive {
         options.push(SelectOption::new_multiple(
             "archive".to_string(),
-            vec![
-                Action::new_command_with_argument("kashikishi", "move-memo", "archive"),
-                Action::new_command("world", "remove-current"),
-            ],
+            vec![Action::new_command_with_argument(
+                "kashikishi",
+                "move-memo",
+                "archive",
+            )],
         ));
     }
 

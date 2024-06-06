@@ -455,6 +455,9 @@ impl SimpleStateCallback for KashikishiCallback {
                         }
                         "change-memos-category" => match argument {
                             ActionArgument::String(category) => {
+                                if self.categorized_memos.current_category == category {
+                                    return InputResult::InputConsumed;
+                                }
                                 self.categorized_memos
                                     .update_current_memos(Memos::from(&*self.world));
                                 self.categorized_memos.current_category = category;
@@ -469,6 +472,10 @@ impl SimpleStateCallback for KashikishiCallback {
                                 }
                                 self.categorized_memos
                                     .add_memo(Some(&category), self.world.current_string());
+                                context
+                                    .action_queue_sender
+                                    .send(Action::new_command("world", "remove-current"))
+                                    .unwrap();
                             }
                             _ => { /* noop */ }
                         },
