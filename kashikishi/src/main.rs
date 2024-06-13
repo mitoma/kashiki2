@@ -1,9 +1,12 @@
 /*#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]*/
 /* ↑は Windows で実行する時にコマンドプロンプトが開かないようにするためのもの。 */
+mod categorized_memos;
 mod kashikishi_actions;
+mod local_datetime_format;
 mod memos;
 
 use arboard::Clipboard;
+use categorized_memos::CategorizedMemos;
 use font_collector::FontCollector;
 use rokid_3dof::RokidMax;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
@@ -27,8 +30,11 @@ use std::collections::HashSet;
 use winit::event::WindowEvent;
 
 use crate::{
-    kashikishi_actions::{command_palette_select, insert_date_select},
-    memos::{load_memos, save_memos, Memos},
+    kashikishi_actions::{
+        change_memos_category, command_palette_select, insert_date_select,
+        select_move_memo_category,
+    },
+    memos::Memos,
 };
 
 //const ICON_IMAGE: &[u8] = include_bytes!("kashikishi-logo.png");
@@ -93,6 +99,7 @@ struct KashikishiCallback {
     world: Box<dyn World>,
     ime: ImeInput,
     new_chars: HashSet<char>,
+    categorized_memos: CategorizedMemos,
     rokid_max: RokidMax,
 }
 
@@ -107,11 +114,37 @@ impl KashikishiCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let ime = ImeInput::new();
 
+        let world = Box::new(HorizontalWorld::new(window_size));
+        let new_chars = HashSet::new();
+
+        let categorized_memos = CategorizedMemos::load_memos();
+
+        let rokid_max = RokidMax::new().unwrap();
+
+        let mut result = Self {
+            store,
+            world,
+            ime,
+            new_chars,
+            categorized_memos,
+            rokid_max,
+        };
+        result.reset_world(window_size);
+        result
+    }
+
+    // ワールドを今のカテゴリでリセットする
+    fn reset_world(&mut self, window_size: WindowSize) {
         let mut world = Box::new(HorizontalWorld::new(window_size));
-        let memos = load_memos();
-        for memo in memos.memos {
+        for memo in self
+            .categorized_memos
+            .get_current_memos()
+            .unwrap()
+            .memos
+            .iter()
+        {
             let mut textedit = TextEdit::default();
-            textedit.editor_operation(&EditorOperation::InsertString(memo));
+            textedit.editor_operation(&EditorOperation::InsertString(memo.to_string()));
             textedit.editor_operation(&EditorOperation::BufferHead);
             let model = Box::new(textedit);
             world.add(model);
@@ -119,16 +152,15 @@ impl KashikishiCallback {
         let look_at = 0;
         world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
-        let new_chars = HashSet::new();
-        let rokid_max = RokidMax::new().unwrap();
-
-        Self {
-            store,
-            world,
-            ime,
-            new_chars,
-            rokid_max,
-        }
+        self.world = world;
+        // world にすでに表示されるグリフを追加する
+        let chars = self
+            .world
+            .strings()
+            .join("")
+            .chars()
+            .collect::<HashSet<char>>();
+        self.new_chars.extend(chars);
     }
 }
 
@@ -216,7 +248,9 @@ impl SimpleStateCallback for KashikishiCallback {
                 "system" => {
                     let action = match &*name.to_string() {
                         "exit" => {
-                            save_memos(Memos::from(&*self.world)).unwrap();
+                            self.categorized_memos
+                                .update_current_memos(Memos::from(&*self.world));
+                            self.categorized_memos.save_memos().unwrap();
                             return InputResult::SendExit;
                         }
                         "command-palette" => {
@@ -386,7 +420,9 @@ impl SimpleStateCallback for KashikishiCallback {
                 "kashikishi" => {
                     match &*name.to_string() {
                         "save" => {
-                            save_memos(Memos::from(&*self.world)).unwrap();
+                            self.categorized_memos
+                                .update_current_memos(Memos::from(&*self.world));
+                            self.categorized_memos.save_memos().unwrap();
                         }
                         "add-memo" => {
                             let textedit = TextEdit::default();
@@ -408,6 +444,52 @@ impl SimpleStateCallback for KashikishiCallback {
                                 Box::new(insert_date_select(context.action_queue_sender.clone())),
                             )
                         }
+                        "select-category" => {
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(change_memos_category(
+                                    &self.categorized_memos,
+                                    context.action_queue_sender.clone(),
+                                )),
+                            )
+                        }
+                        "select-move-memo-category" => {
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(select_move_memo_category(
+                                    &self.categorized_memos,
+                                    context.action_queue_sender.clone(),
+                                )),
+                            )
+                        }
+                        "change-memos-category" => match argument {
+                            ActionArgument::String(category) => {
+                                if self.categorized_memos.current_category == category {
+                                    return InputResult::InputConsumed;
+                                }
+                                self.categorized_memos
+                                    .update_current_memos(Memos::from(&*self.world));
+                                self.categorized_memos.current_category = category;
+                                self.reset_world(context.window_size);
+                            }
+                            _ => { /* noop */ }
+                        },
+                        "move-memo" => match argument {
+                            ActionArgument::String(category) => {
+                                if self.categorized_memos.current_category == category {
+                                    return InputResult::InputConsumed;
+                                }
+                                self.categorized_memos
+                                    .add_memo(Some(&category), self.world.current_string());
+                                context
+                                    .action_queue_sender
+                                    .send(Action::new_command("world", "remove-current"))
+                                    .unwrap();
+                            }
+                            _ => { /* noop */ }
+                        },
                         _ => {}
                     };
                     InputResult::InputConsumed

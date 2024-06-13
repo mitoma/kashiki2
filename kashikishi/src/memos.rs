@@ -1,12 +1,23 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
-
 use font_rasterizer::layout_engine::World;
+use serde::{Deserialize, Serialize};
 
+#[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Memos {
     pub(crate) memos: Vec<String>,
+}
+
+impl Default for Memos {
+    fn default() -> Self {
+        Memos {
+            memos: vec!["".to_string()],
+        }
+    }
+}
+
+impl Memos {
+    pub(crate) fn empty() -> Self {
+        Memos { memos: vec![] }
+    }
 }
 
 impl From<&dyn World> for Memos {
@@ -17,6 +28,7 @@ impl From<&dyn World> for Memos {
     }
 }
 
+/*
 fn memos_file() -> PathBuf {
     // いわゆるホームディレクトリのパスを取得する
     let home_dir = dirs::home_dir().unwrap();
@@ -61,3 +73,4 @@ pub(crate) fn save_memos(memos: Memos) -> Result<(), std::io::Error> {
     let memos_json = serde_json::to_string(&memos.memos).unwrap();
     fs::write(memos_file, memos_json)
 }
+ */
