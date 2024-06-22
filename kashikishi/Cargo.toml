@@ -18,6 +18,7 @@ font_collector = { version = "0.1.0", path = "../font_collector" }
 font_rasterizer = { version = "0.1.0", path = "../font_rasterizer" }
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
 stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
+rokid_3dof = { version = "0.1.0", path = "../rokid_3dof" }
 
 chrono = { version = "0.4.38", features = ["serde"] }
 dirs = "5.0.1"
