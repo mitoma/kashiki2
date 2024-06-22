@@ -15,7 +15,7 @@ jobs:
         job:
           - target: x86_64-unknown-linux-gnu
             os: linux
-            runs-on: ubuntu-20.04
+            runs-on: ubuntu-latest
           - target: x86_64-pc-windows-gnu
             os: windows
             runs-on: windows-latest
@@ -25,12 +25,20 @@ jobs:
 
     runs-on: ${{ matrix.job.runs-on }}
 
+    env:
+      DEBIAN_FRONTEND: noninteractive
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: mitoma/sver-actions/setup@v2
         with:
           os: ${{ matrix.job.os }}
+
+      # Use libudev-dev if OS is linux
+      - name: install libudev-dev
+        if: matrix.job.os == 'linux'
+        run: sudo apt-get install libudev-dev
 
       # ci phase
       - name: check all
