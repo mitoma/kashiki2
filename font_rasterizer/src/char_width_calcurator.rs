@@ -100,12 +100,9 @@ mod test {
         std::env::set_var("RUST_LOG", "debug");
         env_logger::try_init().unwrap_or_default();
 
-        let mut collector = FontCollector::default();
-        collector.add_system_fonts();
-        let kyokasho_font = collector.load_font("UD デジタル 教科書体 N-R");
+        let collector = FontCollector::default();
 
         let font_binaries = vec![
-            kyokasho_font.unwrap(),
             collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
             collector
                 .convert_font(EMOJI_FONT_DATA.to_vec(), None)
