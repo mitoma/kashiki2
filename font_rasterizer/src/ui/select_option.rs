@@ -36,7 +36,7 @@ impl SelectOption {
         self.text.to_string()
     }
 
-    pub fn contains_all(&self, keywords: &Vec<&str>) -> bool {
+    pub fn contains_all(&self, keywords: &[&str]) -> bool {
         // 大文字小文字、無視してキーワードが含まれているか
         let text = self.option_string().to_lowercase();
         keywords

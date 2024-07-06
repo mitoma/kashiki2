@@ -1,9 +1,7 @@
 use std::sync::mpsc::Sender;
 
 use chrono::Days;
-use font_rasterizer::ui::{
-    selectbox::SelectBox, select_option::SelectOption,
-};
+use font_rasterizer::ui::{select_option::SelectOption, selectbox::SelectBox};
 use stroke_parser::Action;
 
 use crate::categorized_memos::CategorizedMemos;
