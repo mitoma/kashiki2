@@ -1,4 +1,4 @@
-use stroke_parser::Action;
+use stroke_parser::{Action, ActionArgument};
 
 pub struct SelectOption {
     pub(crate) text: String,
@@ -19,8 +19,18 @@ impl SelectOption {
 
     pub fn option_string(&self) -> String {
         if self.actions.len() == 1 {
-            if let Action::Command(namespace, name, _) = &self.actions[0] {
-                return format!("{} ({}:{})", self.text, **namespace, **name);
+            if let Action::Command(namespace, name, arg) = &self.actions[0] {
+                match arg {
+                    ActionArgument::String(_)
+                    | ActionArgument::Integer(_)
+                    | ActionArgument::Float(_)
+                    | ActionArgument::Point(_) => {
+                        return format!("{} ({}:{}({}))", self.text, **namespace, **name, arg)
+                    }
+                    ActionArgument::None => {
+                        return format!("{} ({}:{})", self.text, **namespace, **name)
+                    }
+                }
             }
         }
         self.text.to_string()
