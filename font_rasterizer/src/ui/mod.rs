@@ -3,6 +3,7 @@ pub mod searchable_selectbox;
 pub mod selectbox;
 pub mod single_line;
 pub mod textedit;
+pub mod select_option;
 mod view_element_state;
 
 use std::collections::BTreeMap;

@@ -2,8 +2,7 @@ use std::sync::mpsc::Sender;
 
 use chrono::Days;
 use font_rasterizer::ui::{
-    searchable_selectbox::SearchableSelectBox,
-    selectbox::{SelectBox, SelectOption},
+    searchable_selectbox::SearchableSelectBox, select_option::SelectOption, selectbox::SelectBox,
 };
 use stroke_parser::Action;
 

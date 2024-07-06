@@ -9,34 +9,7 @@ use crate::{
     layout_engine::{Model, ModelMode},
 };
 
-use super::textedit::TextEdit;
-
-pub struct SelectOption {
-    pub(crate) text: String,
-    pub(crate) actions: Vec<Action>,
-}
-
-impl SelectOption {
-    pub fn new(text: String, action: Action) -> Self {
-        Self {
-            text,
-            actions: vec![action],
-        }
-    }
-
-    pub fn new_multiple(text: String, actions: Vec<Action>) -> Self {
-        Self { text, actions }
-    }
-
-    pub fn option_string(&self) -> String {
-        if self.actions.len() == 1 {
-            if let Action::Command(namespace, name, _) = &self.actions[0] {
-                return format!("{} ({}:{})", self.text, **namespace, **name);
-            }
-        }
-        self.text.to_string()
-    }
-}
+use super::{select_option::SelectOption, textedit::TextEdit};
 
 pub struct SelectBox {
     selection_offset: usize,

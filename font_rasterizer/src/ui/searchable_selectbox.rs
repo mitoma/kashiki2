@@ -13,7 +13,7 @@ use crate::{
     layout_engine::{Model, ModelMode},
 };
 
-use super::{selectbox::SelectOption, textedit::TextEdit};
+use super::{select_option::SelectOption, textedit::TextEdit};
 
 pub struct SearchableSelectBox {
     current_selection: usize,
