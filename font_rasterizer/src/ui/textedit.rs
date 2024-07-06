@@ -532,6 +532,10 @@ impl TextEdit {
         self.config_updated = true;
     }
 
+    pub(crate) fn direction(&self) -> Direction {
+        self.config.direction
+    }
+
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
         self.world_scale = world_scale;
     }

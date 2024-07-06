@@ -8,6 +8,7 @@ use crate::{
     context::{
         CharEasings, CpuEasingConfig, GpuEasingConfig, RemoveCharMode, StateContext, TextContext,
     },
+    font_buffer::Direction,
     instances::GlyphInstances,
     layout_engine::{Model, ModelMode},
 };
@@ -124,10 +125,19 @@ impl SearchableSelectBox {
 
 impl Model for SearchableSelectBox {
     fn set_position(&mut self, position: cgmath::Point3<f32>) {
-        self.title_text_edit
-            .set_position(position - cgmath::Vector3::new(0.0, -2.0, 0.0));
-        self.search_text_edit
-            .set_position(position - cgmath::Vector3::new(0.0, -1.0, 0.0));
+        let (title_offset, search_offset) = match self.select_items_text_edit.direction() {
+            Direction::Horizontal => (
+                cgmath::Vector3::new(0.0, -2.0, 0.0),
+                cgmath::Vector3::new(0.0, -1.0, 0.0),
+            ),
+            Direction::Vertical => (
+                cgmath::Vector3::new(-2.0, 0.0, 0.0),
+                cgmath::Vector3::new(-1.0, 0.0, 0.0),
+            ),
+        };
+        self.title_text_edit.set_position(position - title_offset);
+        self.search_text_edit.set_position(position - search_offset);
+
         self.select_items_text_edit.set_position(position);
     }
 
@@ -220,6 +230,9 @@ impl Model for SearchableSelectBox {
         op: &crate::layout_engine::ModelOperation,
     ) -> crate::layout_engine::ModelOperationResult {
         // model operation も移譲して問題なさそう
+        // 返り値は適当に select_items_text_edit のものだけ返せばよさそう
+        self.title_text_edit.model_operation(op);
+        self.search_text_edit.model_operation(op);
         self.select_items_text_edit.model_operation(op)
     }
 
