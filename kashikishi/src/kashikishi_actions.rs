@@ -1,12 +1,15 @@
 use std::sync::mpsc::Sender;
 
 use chrono::Days;
-use font_rasterizer::ui::selectbox::{SelectBox, SelectOption};
+use font_rasterizer::ui::{
+    searchable_selectbox::SearchableSelectBox,
+    selectbox::{SelectBox, SelectOption},
+};
 use stroke_parser::Action;
 
 use crate::categorized_memos::CategorizedMemos;
 
-pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> SelectBox {
+pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> SearchableSelectBox {
     let options = vec![
         SelectOption::new(
             "炊紙を終了する".to_string(),
@@ -33,7 +36,7 @@ pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> Sel
             Action::new_command("kashikishi", "select-move-memo-category"),
         ),
     ];
-    SelectBox::new(action_queue_sender, "アクションの選択".to_string(), options)
+    SearchableSelectBox::new(action_queue_sender, "アクションの選択".to_string(), options)
 }
 
 pub(crate) fn insert_date_select(action_queue_sender: Sender<Action>) -> SelectBox {

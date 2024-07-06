@@ -1,4 +1,5 @@
 pub mod ime_input;
+pub mod searchable_selectbox;
 pub mod selectbox;
 pub mod single_line;
 pub mod textedit;

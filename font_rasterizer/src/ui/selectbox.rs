@@ -12,8 +12,8 @@ use crate::{
 use super::textedit::TextEdit;
 
 pub struct SelectOption {
-    text: String,
-    actions: Vec<Action>,
+    pub(crate) text: String,
+    pub(crate) actions: Vec<Action>,
 }
 
 impl SelectOption {
@@ -26,6 +26,15 @@ impl SelectOption {
 
     pub fn new_multiple(text: String, actions: Vec<Action>) -> Self {
         Self { text, actions }
+    }
+
+    pub fn option_string(&self) -> String {
+        if self.actions.len() == 1 {
+            if let Action::Command(namespace, name, _) = &self.actions[0] {
+                return format!("{} ({}:{})", self.text, **namespace, **name);
+            }
+        }
+        self.text.to_string()
     }
 }
 
