@@ -1,7 +1,6 @@
 use std::sync::mpsc::Sender;
 
 use stroke_parser::Action;
-use strsim::levenshtein;
 use text_buffer::action::EditorOperation;
 
 use crate::{
@@ -81,18 +80,16 @@ impl SearchableSelectBox {
         text_edit.editor_operation(&EditorOperation::Cut(|_| {}));
     }
 
-    // レーベンシュタイン距離が検索文字に比較して小さいものを候補として返す
     fn narrowd_options(&self) -> Vec<&SelectOption> {
-        let search_keywords = self.search_text_edit.to_string().trim().to_owned();
+        let text = self.search_text_edit.to_string();
+        let search_keywords = text.split_whitespace().collect::<Vec<_>>();
         if search_keywords.is_empty() {
             return self.options.iter().collect::<Vec<_>>();
         }
-        let mut result = self.options.iter().collect::<Vec<_>>();
-        result.sort_by(|l, r| {
-            levenshtein(&search_keywords, &l.option_string())
-                .cmp(&levenshtein(&search_keywords, &r.option_string()))
-        });
-        result
+        self.options
+            .iter()
+            .filter(|op| op.contains_all(&search_keywords))
+            .collect::<Vec<_>>()
     }
 
     fn update_select_items_text_edit(&mut self) {
@@ -179,6 +176,7 @@ impl Model for SearchableSelectBox {
     }
 
     fn editor_operation(&mut self, op: &EditorOperation) {
+        let narrowed_options_len = self.narrowd_options().len();
         match op {
             EditorOperation::InsertChar(_)
             | EditorOperation::InsertString(_)
@@ -198,13 +196,13 @@ impl Model for SearchableSelectBox {
             // search_items_text_edit に対して操作を行う
             EditorOperation::Previous => {
                 self.current_selection =
-                    (self.current_selection + self.options.len() - 1) % self.options.len()
+                    (self.current_selection + narrowed_options_len - 1) % narrowed_options_len
             }
             EditorOperation::Next => {
-                self.current_selection = (self.current_selection + 1) % self.options.len()
+                self.current_selection = (self.current_selection + 1) % narrowed_options_len
             }
             EditorOperation::BufferHead => self.current_selection = 0,
-            EditorOperation::BufferLast => self.current_selection = self.options.len() - 1,
+            EditorOperation::BufferLast => self.current_selection = narrowed_options_len - 1,
             EditorOperation::InsertEnter => {
                 self.action_queue_sender
                     .send(Action::new_command("world", "remove-current"))
