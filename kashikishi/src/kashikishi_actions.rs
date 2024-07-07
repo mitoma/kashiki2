@@ -20,7 +20,7 @@ pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> Sel
         ),
         SelectOption::new(
             "カラーテーマの変更".to_string(),
-            Action::new_command("system", "select-theme"),
+            Action::new_command("system", "change-theme-ui"),
         ),
         SelectOption::new(
             "日付の挿入".to_string(),
@@ -28,7 +28,7 @@ pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> Sel
         ),
         SelectOption::new(
             "カテゴリを移動".to_string(),
-            Action::new_command("kashikishi", "select-category"),
+            Action::new_command("kashikishi", "move-category-ui"),
         ),
         SelectOption::new(
             "カテゴリの追加".to_string(),
@@ -36,7 +36,7 @@ pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> Sel
         ),
         SelectOption::new(
             "編集中のメモの移動".to_string(),
-            Action::new_command("kashikishi", "select-move-memo-category"),
+            Action::new_command("kashikishi", "move-memo-ui"),
         ),
     ];
     SelectBox::new(action_queue_sender, "アクションの選択".to_string(), options)
@@ -82,7 +82,7 @@ pub(crate) fn insert_date_select(action_queue_sender: Sender<Action>) -> SelectB
     )
 }
 
-pub(crate) fn change_theme_select(action_queue_sender: Sender<Action>) -> SelectBox {
+pub(crate) fn change_theme_ui(action_queue_sender: Sender<Action>) -> SelectBox {
     let options = vec![
         SelectOption::new(
             "Solarized Blackback".to_string(),
@@ -104,7 +104,7 @@ pub(crate) fn change_theme_select(action_queue_sender: Sender<Action>) -> Select
     )
 }
 
-pub(crate) fn select_move_memo_category(
+pub(crate) fn move_category_ui(
     categorized_memos: &CategorizedMemos,
     action_queue_sender: Sender<Action>,
 ) -> SelectBox {
@@ -119,7 +119,7 @@ pub(crate) fn select_move_memo_category(
             category.clone(),
             vec![Action::new_command_with_argument(
                 "kashikishi",
-                "move-memo",
+                "move-category",
                 &category,
             )],
         ));
@@ -129,7 +129,7 @@ pub(crate) fn select_move_memo_category(
             "archive".to_string(),
             vec![Action::new_command_with_argument(
                 "kashikishi",
-                "move-memo",
+                "move-category",
                 "archive",
             )],
         ));
@@ -142,7 +142,7 @@ pub(crate) fn select_move_memo_category(
     )
 }
 
-pub(crate) fn change_memos_category(
+pub(crate) fn move_memo_ui(
     categorized_memos: &CategorizedMemos,
     action_queue_sender: Sender<Action>,
 ) -> SelectBox {
@@ -150,7 +150,7 @@ pub(crate) fn change_memos_category(
     for category in categorized_memos.categories() {
         options.push(SelectOption::new(
             category.clone(),
-            Action::new_command_with_argument("kashikishi", "change-memos-category", &category),
+            Action::new_command_with_argument("kashikishi", "move-memo", &category),
         ));
     }
     SelectBox::new(

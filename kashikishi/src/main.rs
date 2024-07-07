@@ -23,15 +23,14 @@ use font_rasterizer::{
     time::set_clock_mode,
     ui::{caret_char, ime_chars, ime_input::ImeInput, textedit::TextEdit},
 };
-use kashikishi_actions::{add_category_ui, change_theme_select};
+use kashikishi_actions::{add_category_ui, change_theme_ui};
 use log::info;
 use std::collections::HashSet;
 use winit::event::WindowEvent;
 
 use crate::{
     kashikishi_actions::{
-        change_memos_category, command_palette_select, insert_date_select,
-        select_move_memo_category,
+        command_palette_select, insert_date_select, move_category_ui, move_memo_ui,
     },
     memos::Memos,
 };
@@ -255,11 +254,11 @@ impl SimpleStateCallback for KashikishiCallback {
                         "toggle-fullscreen" => {
                             return InputResult::ToggleFullScreen;
                         }
-                        "select-theme" => {
+                        "change-theme-ui" => {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(change_theme_select(context.action_queue_sender.clone())),
+                                Box::new(change_theme_ui(context.action_queue_sender.clone())),
                             )
                         }
                         "change-theme" => match argument {
@@ -433,27 +432,17 @@ impl SimpleStateCallback for KashikishiCallback {
                                 Box::new(insert_date_select(context.action_queue_sender.clone())),
                             )
                         }
-                        "select-category" => {
+                        "move-category-ui" => {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(change_memos_category(
+                                Box::new(move_category_ui(
                                     &self.categorized_memos,
                                     context.action_queue_sender.clone(),
                                 )),
                             )
                         }
-                        "select-move-memo-category" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(select_move_memo_category(
-                                    &self.categorized_memos,
-                                    context.action_queue_sender.clone(),
-                                )),
-                            )
-                        }
-                        "change-memos-category" => match argument {
+                        "move-category" => match argument {
                             ActionArgument::String(category) => {
                                 if self.categorized_memos.current_category == category {
                                     return InputResult::InputConsumed;
@@ -465,6 +454,16 @@ impl SimpleStateCallback for KashikishiCallback {
                             }
                             _ => { /* noop */ }
                         },
+                        "move-memo-ui" => {
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(move_memo_ui(
+                                    &self.categorized_memos,
+                                    context.action_queue_sender.clone(),
+                                )),
+                            )
+                        }
                         "move-memo" => match argument {
                             ActionArgument::String(category) => {
                                 if self.categorized_memos.current_category == category {
@@ -488,7 +487,7 @@ impl SimpleStateCallback for KashikishiCallback {
                         }
                         "add-category" => {
                             if let ActionArgument::String(category) = argument {
-                                if self.categorized_memos.categories().contains(&category) {
+                                if !self.categorized_memos.categories().contains(&category) {
                                     self.categorized_memos
                                         .add_memo(Some(&category), String::new());
                                 }
