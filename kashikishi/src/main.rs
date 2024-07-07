@@ -23,7 +23,7 @@ use font_rasterizer::{
     time::set_clock_mode,
     ui::{caret_char, ime_chars, ime_input::ImeInput, textedit::TextEdit},
 };
-use kashikishi_actions::{add_category_ui, change_theme_ui, open_file_ui};
+use kashikishi_actions::{add_category_ui, change_theme_ui, open_file_ui, remove_category_ui};
 use log::info;
 use std::collections::HashSet;
 use winit::event::WindowEvent;
@@ -490,6 +490,24 @@ impl SimpleStateCallback for KashikishiCallback {
                                 if !self.categorized_memos.categories().contains(&category) {
                                     self.categorized_memos
                                         .add_memo(Some(&category), String::new());
+                                }
+                            }
+                        }
+                        "remove-category-ui" => {
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(remove_category_ui(
+                                    &self.categorized_memos,
+                                    context.action_queue_sender.clone(),
+                                )),
+                            );
+                        }
+                        "remove-category" => {
+                            if let ActionArgument::String(category) = argument {
+                                self.categorized_memos.remove_category(&category);
+                                if self.categorized_memos.current_category == category {
+                                    self.reset_world(context.window_size);
                                 }
                             }
                         }

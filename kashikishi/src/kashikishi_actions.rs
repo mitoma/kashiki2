@@ -39,6 +39,10 @@ pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> Sel
             Action::new_command("kashikishi", "add-category-ui"),
         ),
         SelectOption::new(
+            "カテゴリの削除".to_string(),
+            Action::new_command("kashikishi", "remove-category-ui"),
+        ),
+        SelectOption::new(
             "編集中のメモの移動".to_string(),
             Action::new_command("kashikishi", "move-memo-ui"),
         ),
@@ -172,6 +176,24 @@ pub(crate) fn add_category_ui(action_queue_sender: Sender<Action>) -> TextInput 
     )
 }
 
+pub(crate) fn remove_category_ui(
+    categorized_memos: &CategorizedMemos,
+    action_queue_sender: Sender<Action>,
+) -> SelectBox {
+    let mut options = Vec::new();
+    for category in categorized_memos.categories() {
+        options.push(SelectOption::new(
+            category.clone(),
+            Action::new_command_with_argument("kashikishi", "remove-category", &category),
+        ));
+    }
+    SelectBox::new(
+        action_queue_sender,
+        "削除するカテゴリーを選択(中の文書はdefualtに移動します)".to_string(),
+        options,
+    )
+}
+
 pub(crate) fn open_file_ui(action_queue_sender: Sender<Action>, path: Option<&str>) -> SelectBox {
     let mut options = Vec::new();
     // current directory のファイル一覧を取得
@@ -197,10 +219,7 @@ pub(crate) fn open_file_ui(action_queue_sender: Sender<Action>, path: Option<&st
         let path = entry.path();
         if path.is_dir() {
             options.push(SelectOption::new(
-                format!(
-                    "📁 {}",
-                    path.file_name().unwrap().to_str().unwrap().to_string()
-                ),
+                format!("📁 {}", path.file_name().unwrap().to_str().unwrap()),
                 Action::new_command_with_argument(
                     "kashikishi",
                     "open-file-ui",
@@ -209,10 +228,7 @@ pub(crate) fn open_file_ui(action_queue_sender: Sender<Action>, path: Option<&st
             ));
         } else if path.is_file() {
             options.push(SelectOption::new(
-                format!(
-                    "📄 {}",
-                    path.file_name().unwrap().to_str().unwrap().to_string()
-                ),
+                format!("📄 {}", path.file_name().unwrap().to_str().unwrap()),
                 Action::new_command_with_argument(
                     "kashikishi",
                     "open-file",
