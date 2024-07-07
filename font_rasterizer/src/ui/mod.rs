@@ -2,6 +2,7 @@ pub mod ime_input;
 pub mod select_option;
 pub mod selectbox;
 pub mod single_line;
+pub mod text_input;
 pub mod textedit;
 mod view_element_state;
 
