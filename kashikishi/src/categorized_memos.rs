@@ -73,7 +73,7 @@ impl CategorizedMemos {
             memos_file.with_extension(format!("{}.json", now.format("%Y%m%d%H%M%S")));
         fs::rename(&memos_file, memos_file_backup)?;
 
-        let memos_json = serde_json::to_string(self).unwrap();
+        let memos_json = serde_json::to_string_pretty(self).unwrap();
         fs::write(memos_file, memos_json)
     }
 
