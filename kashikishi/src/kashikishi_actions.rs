@@ -1,7 +1,9 @@
 use std::sync::mpsc::Sender;
 
 use chrono::Days;
-use font_rasterizer::ui::{select_option::SelectOption, selectbox::SelectBox};
+use font_rasterizer::ui::{
+    select_option::SelectOption, selectbox::SelectBox, text_input::TextInput,
+};
 use stroke_parser::Action;
 
 use crate::categorized_memos::CategorizedMemos;
@@ -27,6 +29,10 @@ pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> Sel
         SelectOption::new(
             "カテゴリを移動".to_string(),
             Action::new_command("kashikishi", "select-category"),
+        ),
+        SelectOption::new(
+            "カテゴリの追加".to_string(),
+            Action::new_command("kashikishi", "add-category-ui"),
         ),
         SelectOption::new(
             "編集中のメモの移動".to_string(),
@@ -151,5 +157,13 @@ pub(crate) fn change_memos_category(
         action_queue_sender,
         "移動先のカテゴリーを選択".to_string(),
         options,
+    )
+}
+
+pub(crate) fn add_category_ui(action_queue_sender: Sender<Action>) -> TextInput {
+    TextInput::new(
+        action_queue_sender,
+        "追加するカテゴリーを選択".to_string(),
+        Action::new_command("kashikishi", "add-category"),
     )
 }
