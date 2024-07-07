@@ -23,7 +23,7 @@ use font_rasterizer::{
     time::set_clock_mode,
     ui::{caret_char, ime_chars, ime_input::ImeInput, textedit::TextEdit},
 };
-use kashikishi_actions::{add_category_ui, change_theme_ui};
+use kashikishi_actions::{add_category_ui, change_theme_ui, open_file_ui};
 use log::info;
 use std::collections::HashSet;
 use winit::event::WindowEvent;
@@ -492,6 +492,20 @@ impl SimpleStateCallback for KashikishiCallback {
                                         .add_memo(Some(&category), String::new());
                                 }
                             }
+                        }
+                        "open-file-ui" => {
+                            let arg = match argument {
+                                ActionArgument::String(path) => Some(path),
+                                _ => None,
+                            };
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(open_file_ui(
+                                    context.action_queue_sender.clone(),
+                                    arg.as_deref(),
+                                )),
+                            );
                         }
                         _ => {}
                     };

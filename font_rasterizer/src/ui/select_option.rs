@@ -17,6 +17,10 @@ impl SelectOption {
         Self { text, actions }
     }
 
+    pub fn option_string_short(&self) -> String {
+        self.text.to_string()
+    }
+
     pub fn option_string(&self) -> String {
         if self.actions.len() == 1 {
             if let Action::Command(namespace, name, arg) = &self.actions[0] {

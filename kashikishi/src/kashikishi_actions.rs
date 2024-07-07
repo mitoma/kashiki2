@@ -1,4 +1,4 @@
-use std::sync::mpsc::Sender;
+use std::{path::PathBuf, sync::mpsc::Sender};
 
 use chrono::Days;
 use font_rasterizer::ui::{
@@ -13,6 +13,10 @@ pub(crate) fn command_palette_select(action_queue_sender: Sender<Action>) -> Sel
         SelectOption::new(
             "炊紙を終了する".to_string(),
             Action::new_command("system", "exit"),
+        ),
+        SelectOption::new(
+            "ファイルを開く".to_string(),
+            Action::new_command("kashikishi", "open-file-ui"),
         ),
         SelectOption::new(
             "フルスクリーンの切り替え".to_string(),
@@ -166,4 +170,56 @@ pub(crate) fn add_category_ui(action_queue_sender: Sender<Action>) -> TextInput 
         "追加するカテゴリーを選択".to_string(),
         Action::new_command("kashikishi", "add-category"),
     )
+}
+
+pub(crate) fn open_file_ui(action_queue_sender: Sender<Action>, path: Option<&str>) -> SelectBox {
+    let mut options = Vec::new();
+    // current directory のファイル一覧を取得
+    let current_dir = if let Some(path) = path {
+        PathBuf::from(path)
+    } else {
+        std::env::current_dir().unwrap()
+    };
+
+    if let Some(parent_dir) = current_dir.parent() {
+        options.push(SelectOption::new(
+            "📁 ../".to_string(),
+            Action::new_command_with_argument(
+                "kashikishi",
+                "open-file-ui",
+                parent_dir.to_str().unwrap(),
+            ),
+        ));
+    }
+
+    for entry in std::fs::read_dir(current_dir).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if path.is_dir() {
+            options.push(SelectOption::new(
+                format!(
+                    "📁 {}",
+                    path.file_name().unwrap().to_str().unwrap().to_string()
+                ),
+                Action::new_command_with_argument(
+                    "kashikishi",
+                    "open-file-ui",
+                    path.to_str().unwrap(),
+                ),
+            ));
+        } else if path.is_file() {
+            options.push(SelectOption::new(
+                format!(
+                    "📄 {}",
+                    path.file_name().unwrap().to_str().unwrap().to_string()
+                ),
+                Action::new_command_with_argument(
+                    "kashikishi",
+                    "open-file",
+                    path.to_str().unwrap(),
+                ),
+            ));
+        }
+    }
+    SelectBox::new_without_action_name(action_queue_sender, "ファイルを開く".to_string(), options)
 }

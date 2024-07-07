@@ -21,6 +21,7 @@ pub struct SelectBox {
     search_text_edit: TextEdit,
     select_items_text_edit: TextEdit,
     action_queue_sender: Sender<Action>,
+    show_action_name: bool,
 }
 
 impl SelectBox {
@@ -46,6 +47,23 @@ impl SelectBox {
         message: String,
         options: Vec<SelectOption>,
     ) -> Self {
+        Self::inner_new(action_queue_sender, message, options, true)
+    }
+
+    pub fn new_without_action_name(
+        action_queue_sender: Sender<Action>,
+        message: String,
+        options: Vec<SelectOption>,
+    ) -> Self {
+        Self::inner_new(action_queue_sender, message, options, false)
+    }
+
+    fn inner_new(
+        action_queue_sender: Sender<Action>,
+        message: String,
+        options: Vec<SelectOption>,
+        show_action_name: bool,
+    ) -> Self {
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(Self::text_context());
@@ -67,6 +85,7 @@ impl SelectBox {
             search_text_edit,
             select_items_text_edit,
             action_queue_sender,
+            show_action_name,
         };
         result.update_select_items_text_edit();
         result.update_current_selection();
@@ -94,11 +113,21 @@ impl SelectBox {
 
     fn update_select_items_text_edit(&mut self) {
         Self::clear_text_edit(&mut self.select_items_text_edit);
+        if self.current_selection >= self.narrowd_options().len() {
+            self.current_selection = 0;
+        }
         self.select_items_text_edit
             .editor_operation(&EditorOperation::InsertString(
                 self.narrowd_options()
                     .iter()
-                    .map(|s| format!("- {}", s.option_string()))
+                    .map(|s| {
+                        if self.show_action_name {
+                            s.option_string()
+                        } else {
+                            s.option_string_short()
+                        }
+                        //format!("- {}", text)
+                    })
                     .collect::<Vec<String>>()
                     .join("\n"),
             ));
@@ -157,7 +186,27 @@ impl Model for SelectBox {
     }
 
     fn bound(&self) -> (f32, f32) {
-        self.select_items_text_edit.bound()
+        let bounds = [
+            self.title_text_edit.bound(),
+            self.search_text_edit.bound(),
+            self.select_items_text_edit.bound(),
+        ];
+        match self.select_items_text_edit.direction() {
+            Direction::Horizontal => (
+                bounds.iter().map(|(width, _)| width).sum::<f32>(),
+                bounds
+                    .iter()
+                    .map(|(_, height)| *height)
+                    .fold(f32::NAN, f32::max),
+            ),
+            Direction::Vertical => (
+                bounds
+                    .iter()
+                    .map(|(width, _)| *width)
+                    .fold(f32::NAN, f32::max),
+                bounds.iter().map(|(_, height)| height).sum::<f32>(),
+            ),
+        }
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
@@ -172,7 +221,7 @@ impl Model for SelectBox {
     fn update(&mut self, context: &StateContext) {
         self.title_text_edit.update(context);
         self.search_text_edit.update(context);
-        self.select_items_text_edit.update(context)
+        self.select_items_text_edit.update(context);
     }
 
     fn editor_operation(&mut self, op: &EditorOperation) {
