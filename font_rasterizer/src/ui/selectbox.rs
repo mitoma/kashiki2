@@ -38,6 +38,7 @@ impl SelectBox {
                 ..Default::default()
             },
             hyde_caret: true,
+            min_bound: (0.0, 0.0).into(),
             ..Default::default()
         }
     }
@@ -151,19 +152,20 @@ impl SelectBox {
 
 impl Model for SelectBox {
     fn set_position(&mut self, position: cgmath::Point3<f32>) {
+        let (bound_width, bound_height) = self.select_items_text_edit.bound();
+
         let (title_offset, search_offset) = match self.select_items_text_edit.direction() {
             Direction::Horizontal => (
-                cgmath::Vector3::new(0.0, -2.0, 0.0),
-                cgmath::Vector3::new(0.0, -1.0, 0.0),
+                cgmath::Vector3::new(0.0, -(2.0 + bound_height / 2.0), 0.0),
+                cgmath::Vector3::new(0.0, -(1.0 + bound_height / 2.0), 0.0),
             ),
             Direction::Vertical => (
-                cgmath::Vector3::new(-2.0, 0.0, 0.0),
-                cgmath::Vector3::new(-1.0, 0.0, 0.0),
+                cgmath::Vector3::new(-(2.0 + bound_width / 2.0), 0.0, 0.0),
+                cgmath::Vector3::new(-(1.0 + bound_width / 2.0), 0.0, 0.0),
             ),
         };
         self.title_text_edit.set_position(position - title_offset);
         self.search_text_edit.set_position(position - search_offset);
-
         self.select_items_text_edit.set_position(position);
     }
 
@@ -193,18 +195,18 @@ impl Model for SelectBox {
         ];
         match self.select_items_text_edit.direction() {
             Direction::Horizontal => (
-                bounds.iter().map(|(width, _)| width).sum::<f32>(),
-                bounds
-                    .iter()
-                    .map(|(_, height)| *height)
-                    .fold(f32::NAN, f32::max),
-            ),
-            Direction::Vertical => (
                 bounds
                     .iter()
                     .map(|(width, _)| *width)
                     .fold(f32::NAN, f32::max),
                 bounds.iter().map(|(_, height)| height).sum::<f32>(),
+            ),
+            Direction::Vertical => (
+                bounds.iter().map(|(width, _)| width).sum::<f32>(),
+                bounds
+                    .iter()
+                    .map(|(_, height)| *height)
+                    .fold(f32::NAN, f32::max),
             ),
         }
     }
