@@ -255,13 +255,17 @@ impl Model for SelectBox {
             EditorOperation::BufferHead => self.current_selection = 0,
             EditorOperation::BufferLast => self.current_selection = narrowed_options_len - 1,
             EditorOperation::InsertEnter => {
-                self.action_queue_sender
-                    .send(Action::new_command("world", "remove-current"))
-                    .unwrap();
-                self.narrowd_options()[self.current_selection]
-                    .actions
-                    .iter()
-                    .for_each(|action| self.action_queue_sender.send(action.clone()).unwrap());
+                if let Some(option) = self.narrowd_options().get(self.current_selection) {
+                    self.action_queue_sender
+                        .send(Action::new_command("world", "remove-current"))
+                        .unwrap();
+                    option
+                        .actions
+                        .iter()
+                        .for_each(|action| self.action_queue_sender.send(action.clone()).unwrap())
+                }
+                // Option がない場合は何もしない
+                // TODO 何かしらのエラーメッセージを出すべきか？
             }
             // unmark を使っているのがなんか変な気はするなぁ
             EditorOperation::UnMark => {
