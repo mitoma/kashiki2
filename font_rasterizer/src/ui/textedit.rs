@@ -180,11 +180,15 @@ impl Model for TextEdit {
 
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult {
         match op {
-            ModelOperation::ChangeDirection => {
-                match self.config.direction {
-                    Direction::Horizontal => self.config.direction = Direction::Vertical,
-                    Direction::Vertical => self.config.direction = Direction::Horizontal,
-                }
+            ModelOperation::ChangeDirection(direction) => {
+                self.config.direction = if let Some(direction) = direction {
+                    *direction
+                } else {
+                    match self.config.direction {
+                        Direction::Horizontal => Direction::Vertical,
+                        Direction::Vertical => Direction::Horizontal,
+                    }
+                };
                 self.char_states
                     .instances
                     .set_direction(&self.config.direction);

@@ -85,11 +85,15 @@ impl Model for PlaneTextReader {
 
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult {
         match op {
-            ModelOperation::ChangeDirection => {
-                match self.direction {
-                    Direction::Horizontal => self.direction = Direction::Vertical,
-                    Direction::Vertical => self.direction = Direction::Horizontal,
-                }
+            ModelOperation::ChangeDirection(direction) => {
+                self.direction = if let Some(direction) = direction {
+                    *direction
+                } else {
+                    match self.direction {
+                        Direction::Horizontal => Direction::Vertical,
+                        Direction::Vertical => Direction::Horizontal,
+                    }
+                };
                 self.updated = true;
                 ModelOperationResult::RequireReLayout
             }

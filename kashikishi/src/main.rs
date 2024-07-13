@@ -246,9 +246,7 @@ impl SimpleStateCallback for KashikishiCallback {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(command_palette_select(
-                                    context.action_queue_sender.clone(),
-                                )),
+                                Box::new(command_palette_select(context)),
                             );
                         }
                         "toggle-fullscreen" => {
@@ -258,7 +256,7 @@ impl SimpleStateCallback for KashikishiCallback {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(change_theme_ui(context.action_queue_sender.clone())),
+                                Box::new(change_theme_ui(context)),
                             )
                         }
                         "change-theme" => match argument {
@@ -336,9 +334,9 @@ impl SimpleStateCallback for KashikishiCallback {
                         "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
                         "forward" => self.world.camera_operation(CameraOperation::Forward),
                         "back" => self.world.camera_operation(CameraOperation::Backward),
-                        "change-direction" => {
-                            self.world.model_operation(&ModelOperation::ChangeDirection)
-                        }
+                        "change-direction" => self
+                            .world
+                            .model_operation(&ModelOperation::ChangeDirection(None)),
                         "increase-row-interval" => self
                             .world
                             .model_operation(&ModelOperation::IncreaseRowInterval),
@@ -429,17 +427,14 @@ impl SimpleStateCallback for KashikishiCallback {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(insert_date_select(context.action_queue_sender.clone())),
+                                Box::new(insert_date_select(context)),
                             )
                         }
                         "move-category-ui" => {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(move_category_ui(
-                                    &self.categorized_memos,
-                                    context.action_queue_sender.clone(),
-                                )),
+                                Box::new(move_category_ui(context, &self.categorized_memos)),
                             )
                         }
                         "move-category" => match argument {
@@ -458,10 +453,7 @@ impl SimpleStateCallback for KashikishiCallback {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(move_memo_ui(
-                                    &self.categorized_memos,
-                                    context.action_queue_sender.clone(),
-                                )),
+                                Box::new(move_memo_ui(context, &self.categorized_memos)),
                             )
                         }
                         "move-memo" => match argument {
@@ -497,10 +489,7 @@ impl SimpleStateCallback for KashikishiCallback {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(remove_category_ui(
-                                    &self.categorized_memos,
-                                    context.action_queue_sender.clone(),
-                                )),
+                                Box::new(remove_category_ui(context, &self.categorized_memos)),
                             );
                         }
                         "remove-category" => {
@@ -519,10 +508,7 @@ impl SimpleStateCallback for KashikishiCallback {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(open_file_ui(
-                                    context.action_queue_sender.clone(),
-                                    arg.as_deref(),
-                                )),
+                                Box::new(open_file_ui(context, arg.as_deref())),
                             );
                         }
                         _ => {}

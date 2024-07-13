@@ -7,7 +7,7 @@ use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
     context::{StateContext, WindowSize},
-    font_buffer::GlyphVertexBuffer,
+    font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
 };
 
@@ -335,7 +335,7 @@ pub trait Model {
 }
 
 pub enum ModelOperation<'a> {
-    ChangeDirection,
+    ChangeDirection(Option<Direction>),
     // 行間を増加させる
     IncreaseRowInterval,
     // 行間を減少させる

@@ -25,7 +25,15 @@ pub struct SelectBox {
 }
 
 impl SelectBox {
-    fn text_context() -> TextContext {
+    fn search_context(direction: Direction) -> TextContext {
+        TextContext {
+            min_bound: (0.0, 0.0).into(),
+            direction,
+            ..Default::default()
+        }
+    }
+
+    fn text_context(direction: Direction) -> TextContext {
         TextContext {
             max_col: usize::MAX, // SELECTBOX は基本的に改行しないので大きな値を設定
             char_easings: CharEasings {
@@ -39,43 +47,43 @@ impl SelectBox {
             },
             hyde_caret: true,
             min_bound: (0.0, 0.0).into(),
+            direction,
             ..Default::default()
         }
     }
 
-    pub fn new(
-        action_queue_sender: Sender<Action>,
-        message: String,
-        options: Vec<SelectOption>,
-    ) -> Self {
-        Self::inner_new(action_queue_sender, message, options, true)
+    pub fn new(context: &StateContext, message: String, options: Vec<SelectOption>) -> Self {
+        Self::inner_new(context, message, options, true)
     }
 
     pub fn new_without_action_name(
-        action_queue_sender: Sender<Action>,
+        context: &StateContext,
         message: String,
         options: Vec<SelectOption>,
     ) -> Self {
-        Self::inner_new(action_queue_sender, message, options, false)
+        Self::inner_new(context, message, options, false)
     }
 
     fn inner_new(
-        action_queue_sender: Sender<Action>,
+        context: &StateContext,
         message: String,
         options: Vec<SelectOption>,
         show_action_name: bool,
     ) -> Self {
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::text_context());
+            text_edit.set_config(Self::text_context(context.global_direction));
             text_edit.editor_operation(&EditorOperation::InsertString(message));
-
             text_edit
         };
-        let search_text_edit = TextEdit::default();
+        let search_text_edit = {
+            let mut text_edit = TextEdit::default();
+            text_edit.set_config(Self::search_context(context.global_direction));
+            text_edit
+        };
         let select_items_text_edit = {
             let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::text_context());
+            text_edit.set_config(Self::text_context(context.global_direction));
             text_edit
         };
 
@@ -85,7 +93,7 @@ impl SelectBox {
             title_text_edit,
             search_text_edit,
             select_items_text_edit,
-            action_queue_sender,
+            action_queue_sender: context.action_queue_sender.clone(),
             show_action_name,
         };
         result.update_select_items_text_edit();
