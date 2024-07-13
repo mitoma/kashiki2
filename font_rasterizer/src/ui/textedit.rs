@@ -180,11 +180,12 @@ impl Model for TextEdit {
 
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult {
         match op {
-            ModelOperation::ChangeDirection => {
-                match self.config.direction {
-                    Direction::Horizontal => self.config.direction = Direction::Vertical,
-                    Direction::Vertical => self.config.direction = Direction::Horizontal,
-                }
+            ModelOperation::ChangeDirection(direction) => {
+                self.config.direction = if let Some(direction) = direction {
+                    *direction
+                } else {
+                    self.config.direction.toggle()
+                };
                 self.char_states
                     .instances
                     .set_direction(&self.config.direction);
@@ -530,6 +531,10 @@ impl TextEdit {
             self.config.char_easings.position_easing.easing_func,
         );
         self.config_updated = true;
+    }
+
+    pub(crate) fn direction(&self) -> Direction {
+        self.config.direction
     }
 
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {

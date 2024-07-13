@@ -24,15 +24,14 @@ use font_rasterizer::{
     time::set_clock_mode,
     ui::{caret_char, ime_chars, ime_input::ImeInput, textedit::TextEdit},
 };
-use kashikishi_actions::change_theme_select;
+use kashikishi_actions::{add_category_ui, change_theme_ui, open_file_ui, remove_category_ui};
 use log::info;
 use std::collections::HashSet;
 use winit::event::WindowEvent;
 
 use crate::{
     kashikishi_actions::{
-        change_memos_category, command_palette_select, insert_date_select,
-        select_move_memo_category,
+        command_palette_select, insert_date_select, move_category_ui, move_memo_ui,
     },
     memos::Memos,
 };
@@ -257,19 +256,17 @@ impl SimpleStateCallback for KashikishiCallback {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(command_palette_select(
-                                    context.action_queue_sender.clone(),
-                                )),
+                                Box::new(command_palette_select(context)),
                             );
                         }
                         "toggle-fullscreen" => {
                             return InputResult::ToggleFullScreen;
                         }
-                        "select-theme" => {
+                        "change-theme-ui" => {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(change_theme_select(context.action_queue_sender.clone())),
+                                Box::new(change_theme_ui(context)),
                             )
                         }
                         "change-theme" => match argument {
@@ -347,9 +344,9 @@ impl SimpleStateCallback for KashikishiCallback {
                         "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
                         "forward" => self.world.camera_operation(CameraOperation::Forward),
                         "back" => self.world.camera_operation(CameraOperation::Backward),
-                        "change-direction" => {
-                            self.world.model_operation(&ModelOperation::ChangeDirection)
-                        }
+                        "change-direction" => self
+                            .world
+                            .model_operation(&ModelOperation::ChangeDirection(None)),
                         "increase-row-interval" => self
                             .world
                             .model_operation(&ModelOperation::IncreaseRowInterval),
@@ -441,30 +438,17 @@ impl SimpleStateCallback for KashikishiCallback {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(insert_date_select(context.action_queue_sender.clone())),
+                                Box::new(insert_date_select(context)),
                             )
                         }
-                        "select-category" => {
+                        "move-category-ui" => {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(change_memos_category(
-                                    &self.categorized_memos,
-                                    context.action_queue_sender.clone(),
-                                )),
+                                Box::new(move_category_ui(context, &self.categorized_memos)),
                             )
                         }
-                        "select-move-memo-category" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(select_move_memo_category(
-                                    &self.categorized_memos,
-                                    context.action_queue_sender.clone(),
-                                )),
-                            )
-                        }
-                        "change-memos-category" => match argument {
+                        "move-category" => match argument {
                             ActionArgument::String(category) => {
                                 if self.categorized_memos.current_category == category {
                                     return InputResult::InputConsumed;
@@ -476,6 +460,13 @@ impl SimpleStateCallback for KashikishiCallback {
                             }
                             _ => { /* noop */ }
                         },
+                        "move-memo-ui" => {
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(move_memo_ui(context, &self.categorized_memos)),
+                            )
+                        }
                         "move-memo" => match argument {
                             ActionArgument::String(category) => {
                                 if self.categorized_memos.current_category == category {
@@ -490,6 +481,47 @@ impl SimpleStateCallback for KashikishiCallback {
                             }
                             _ => { /* noop */ }
                         },
+                        "add-category-ui" => {
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(add_category_ui(context.action_queue_sender.clone())),
+                            );
+                        }
+                        "add-category" => {
+                            if let ActionArgument::String(category) = argument {
+                                if !self.categorized_memos.categories().contains(&category) {
+                                    self.categorized_memos
+                                        .add_memo(Some(&category), String::new());
+                                }
+                            }
+                        }
+                        "remove-category-ui" => {
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(remove_category_ui(context, &self.categorized_memos)),
+                            );
+                        }
+                        "remove-category" => {
+                            if let ActionArgument::String(category) = argument {
+                                self.categorized_memos.remove_category(&category);
+                                if self.categorized_memos.current_category == category {
+                                    self.reset_world(context.window_size);
+                                }
+                            }
+                        }
+                        "open-file-ui" => {
+                            let arg = match argument {
+                                ActionArgument::String(path) => Some(path),
+                                _ => None,
+                            };
+                            return add_modal(
+                                &mut self.new_chars,
+                                &mut self.world,
+                                Box::new(open_file_ui(context, arg.as_deref())),
+                            );
+                        }
                         _ => {}
                     };
                     InputResult::InputConsumed

@@ -13,7 +13,7 @@ use crate::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::GlyphVertexBuffer,
+    font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
     support::{
@@ -390,6 +390,7 @@ impl SimpleState {
             color_theme,
             window_size,
             action_queue_sender,
+            global_direction: Direction::Horizontal,
         };
 
         simple_state_callback.init(&mut glyph_vertex_buffer, &context);
@@ -610,6 +611,7 @@ impl ImageState {
             color_theme,
             window_size: size,
             action_queue_sender,
+            global_direction: Direction::Horizontal,
         };
 
         simple_state_callback.init(&mut glyph_vertex_buffer, &context);

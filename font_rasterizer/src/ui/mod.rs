@@ -1,6 +1,8 @@
 pub mod ime_input;
+pub mod select_option;
 pub mod selectbox;
 pub mod single_line;
+pub mod text_input;
 pub mod textedit;
 mod view_element_state;
 
@@ -83,11 +85,12 @@ impl Model for PlaneTextReader {
 
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult {
         match op {
-            ModelOperation::ChangeDirection => {
-                match self.direction {
-                    Direction::Horizontal => self.direction = Direction::Vertical,
-                    Direction::Vertical => self.direction = Direction::Horizontal,
-                }
+            ModelOperation::ChangeDirection(direction) => {
+                self.direction = if let Some(direction) = direction {
+                    *direction
+                } else {
+                    self.direction.toggle()
+                };
                 self.updated = true;
                 ModelOperationResult::RequireReLayout
             }

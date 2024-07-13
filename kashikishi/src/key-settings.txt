@@ -56,6 +56,8 @@ C-X C-S kashikishi:save
 C-Z C   kashikishi:add-memo
 C-Z K   kashikishi:remove-memo
 
+C-X C-F kashikishi:open-file-ui
+
 C-X C-I C-D kashikishi:insert-date
 
 C-Key0    world:reset-zoom

@@ -7,7 +7,7 @@ use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
     context::{StateContext, WindowSize},
-    font_buffer::GlyphVertexBuffer,
+    font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
 };
 
@@ -105,10 +105,12 @@ const INTERVAL: f32 = 5.0;
 impl World for HorizontalWorld {
     fn add(&mut self, model: Box<dyn Model>) {
         self.models.push(model);
+        self.world_updated = true;
     }
 
     fn add_next(&mut self, model: Box<dyn Model>) {
         self.models.insert(self.focus + 1, model);
+        self.world_updated = true;
     }
 
     fn re_layout(&mut self) {
@@ -153,7 +155,11 @@ impl World for HorizontalWorld {
     }
 
     fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
-        let range = self.get_surrounding_model_range();
+        let range = if self.world_updated {
+            0..self.models.len()
+        } else {
+            self.get_surrounding_model_range()
+        };
         for model in self.models[range].iter_mut() {
             model.update(context);
         }
@@ -329,7 +335,7 @@ pub trait Model {
 }
 
 pub enum ModelOperation<'a> {
-    ChangeDirection,
+    ChangeDirection(Option<Direction>),
     // 行間を増加させる
     IncreaseRowInterval,
     // 行間を減少させる

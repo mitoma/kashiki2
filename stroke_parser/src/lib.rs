@@ -7,7 +7,10 @@ use keys::KeyCode;
 use log::warn;
 use pointing_device::MouseAction;
 use serde_derive::{Deserialize, Serialize};
-use std::ops::Deref;
+use std::{
+    fmt::{Display, Formatter},
+    ops::Deref,
+};
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
@@ -73,6 +76,18 @@ pub enum ActionArgument {
     Integer(i32),
     Float(f32),
     Point((f32, f32)),
+}
+
+impl Display for ActionArgument {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            ActionArgument::None => write!(f, "None"),
+            ActionArgument::String(value) => write!(f, "{}", value),
+            ActionArgument::Integer(value) => write!(f, "{}", value),
+            ActionArgument::Float(value) => write!(f, "{}", value),
+            ActionArgument::Point((x, y)) => write!(f, "({}, {})", x, y),
+        }
+    }
 }
 
 impl Action {

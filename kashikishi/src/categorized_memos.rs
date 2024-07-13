@@ -73,7 +73,7 @@ impl CategorizedMemos {
             memos_file.with_extension(format!("{}.json", now.format("%Y%m%d%H%M%S")));
         fs::rename(&memos_file, memos_file_backup)?;
 
-        let memos_json = serde_json::to_string(self).unwrap();
+        let memos_json = serde_json::to_string_pretty(self).unwrap();
         fs::write(memos_file, memos_json)
     }
 
@@ -88,10 +88,24 @@ impl CategorizedMemos {
 
     pub(crate) fn add_memo(&mut self, category: Option<&str>, content: String) {
         self.categorized
-            .entry(category.unwrap_or("default").to_string())
+            .entry(category.unwrap_or(DEFAULT_CATEGORY).to_string())
             .or_insert(Memos::empty())
             .memos
             .push(content);
+    }
+
+    pub(crate) fn remove_category(&mut self, category: &str) {
+        if self.current_category == category {
+            self.current_category = DEFAULT_CATEGORY.to_string();
+        }
+        let category_docs: Option<Memos> = self.categorized.remove(category);
+        if let Some(mut category_docs) = category_docs {
+            self.categorized
+                .entry(DEFAULT_CATEGORY.to_string())
+                .or_insert(Memos::empty())
+                .memos
+                .append(&mut category_docs.memos);
+        }
     }
 
     pub(crate) fn categories(&self) -> Vec<String> {
