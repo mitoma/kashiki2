@@ -99,7 +99,7 @@ struct KashikishiCallback {
     ime: ImeInput,
     new_chars: HashSet<char>,
     categorized_memos: CategorizedMemos,
-    rokid_max: RokidMax,
+    rokid_max: Option<RokidMax>,
 }
 
 impl KashikishiCallback {
@@ -118,7 +118,7 @@ impl KashikishiCallback {
 
         let categorized_memos = CategorizedMemos::load_memos();
 
-        let rokid_max = RokidMax::new().unwrap();
+        let rokid_max = RokidMax::new().ok();
 
         let mut result = Self {
             store,
@@ -205,10 +205,12 @@ impl SimpleStateCallback for KashikishiCallback {
         self.world.update(glyph_vertex_buffer, context);
         self.ime.update(context);
 
-        self.world
-            .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
-                self.rokid_max.quaternion(),
-            )));
+        if let Some(rokid_max) = self.rokid_max.as_ref() {
+            self.world
+                .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
+                    rokid_max.quaternion(),
+                )));
+        }
     }
 
     fn input(
@@ -409,7 +411,11 @@ impl SimpleStateCallback for KashikishiCallback {
                                 _ => { /* noop */ }
                             }
                         }
-                        "reset-rokid" => self.rokid_max.reset().unwrap(),
+                        "reset-rokid" => {
+                            if let Some(rokid_max) = self.rokid_max.as_mut() {
+                                let _ = rokid_max.reset();
+                            }
+                        }
                         _ => {}
                     };
                     InputResult::InputConsumed
