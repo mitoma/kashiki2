@@ -23,6 +23,15 @@ pub enum Direction {
     Vertical,
 }
 
+impl Direction {
+    pub fn toggle(&self) -> Direction {
+        match self {
+            Direction::Horizontal => Direction::Vertical,
+            Direction::Vertical => Direction::Horizontal,
+        }
+    }
+}
+
 // バッファに登録された文字のインデックス情報
 struct BufferIndex {
     vertex_buffer_index: usize,

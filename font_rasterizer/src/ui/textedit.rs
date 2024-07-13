@@ -184,10 +184,7 @@ impl Model for TextEdit {
                 self.config.direction = if let Some(direction) = direction {
                     *direction
                 } else {
-                    match self.config.direction {
-                        Direction::Horizontal => Direction::Vertical,
-                        Direction::Vertical => Direction::Horizontal,
-                    }
+                    self.config.direction.toggle()
                 };
                 self.char_states
                     .instances

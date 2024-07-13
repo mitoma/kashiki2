@@ -89,10 +89,7 @@ impl Model for PlaneTextReader {
                 self.direction = if let Some(direction) = direction {
                     *direction
                 } else {
-                    match self.direction {
-                        Direction::Horizontal => Direction::Vertical,
-                        Direction::Vertical => Direction::Horizontal,
-                    }
+                    self.direction.toggle()
                 };
                 self.updated = true;
                 ModelOperationResult::RequireReLayout
