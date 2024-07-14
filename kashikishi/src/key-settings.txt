@@ -11,8 +11,10 @@ Down system:next
 Up system:previous
 
 # emacs style keybinds
-C-A system:head
+C-A  system:head
+Home system:head
 C-E system:last
+End system:last
 C-F system:forward
 C-B system:back
 C-N system:next
