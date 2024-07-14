@@ -74,7 +74,7 @@ impl HorizontalWorld {
     pub fn new(window_size: WindowSize) -> Self {
         Self {
             camera: Camera::basic(window_size),
-            camera_controller: CameraController::new(10.0),
+            camera_controller: CameraController::new(5.0),
             models: Vec::new(),
             focus: 0,
             world_updated: true,

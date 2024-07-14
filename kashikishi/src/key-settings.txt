@@ -61,6 +61,7 @@ C-X C-F kashikishi:open-file-ui
 C-X C-I C-D kashikishi:insert-date
 
 C-Key0    world:reset-zoom
+A-S-L     world:look-current-and-centering
 C-L       world:look-current
 C-Right   world:look-next
 C-Left    world:look-prev

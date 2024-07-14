@@ -102,10 +102,17 @@ pub enum CameraOperation {
     None,
 }
 
+#[derive(PartialEq)]
 pub enum CameraAdjustment {
+    // モデルの縦横が画面内に収まるようにする
     FitBoth,
+    // モデルの横が画面内に収まるようにする
     FitWidth,
+    // モデルの縦が画面内に収まるようにする
     FitHeight,
+    // モデルの全体が画面内に収まるようにする
+    FitBothAndCentering,
+    // 何もしない
     NoCare,
 }
 
@@ -240,22 +247,30 @@ impl CameraController {
             forward.magnitude()
         };
 
-        let target_position: Point3<f32> = target.focus_position();
+        let target_position: Point3<f32> = if adjustment == CameraAdjustment::FitBothAndCentering {
+            target.position()
+        } else {
+            target.focus_position()
+        };
         let normal = cgmath::Vector3::<f32>::unit_z();
 
         // aspect は width / height
         let (w, h) = target.bound();
+        // bound にちょっと余裕を持たせる。
+        let (w, h) = (w + 2.0, h + 2.0);
         let size = match adjustment {
             // w と h のうち大きい方を使う
-            CameraAdjustment::FitBoth => {
-                if w > h * camera.aspect {
-                    w
+            CameraAdjustment::FitBoth | CameraAdjustment::FitBothAndCentering => {
+                if w / camera.aspect > h {
+                    (w / 2.0) / (camera.fovy.to_radians() / 2.0).tan() / camera.aspect
                 } else {
-                    h * camera.aspect
+                    (h / 2.0) / (camera.fovy.to_radians() / 2.0).tan()
                 }
             }
-            CameraAdjustment::FitWidth => w,
-            CameraAdjustment::FitHeight => h * camera.aspect,
+            CameraAdjustment::FitWidth => {
+                (w / 2.0) / (camera.fovy.to_radians() / 2.0).tan() / camera.aspect
+            }
+            CameraAdjustment::FitHeight => (h / 2.0) / (camera.fovy.to_radians() / 2.0).tan(),
             CameraAdjustment::NoCare => forward_mag,
         };
 
