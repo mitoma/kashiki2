@@ -20,19 +20,20 @@ pub struct TextInput {
 }
 
 impl TextInput {
-    fn text_context() -> TextContext {
+    fn text_context(direction: Direction) -> TextContext {
         TextContext {
             max_col: usize::MAX,
             char_easings: CharEasings::zero_motion(),
             hyde_caret: true,
+            direction,
             ..Default::default()
         }
     }
 
-    pub fn new(action_queue_sender: Sender<Action>, message: String, action: Action) -> Self {
+    pub fn new(context: &StateContext, message: String, action: Action) -> Self {
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::text_context());
+            text_edit.set_config(Self::text_context(context.global_direction));
             text_edit.editor_operation(&EditorOperation::InsertString(message));
 
             text_edit
@@ -43,7 +44,7 @@ impl TextInput {
             action,
             title_text_edit,
             input_text_edit,
-            action_queue_sender,
+            action_queue_sender: context.action_queue_sender.clone(),
         }
     }
 }

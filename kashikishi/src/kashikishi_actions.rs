@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::mpsc::Sender};
+use std::path::PathBuf;
 
 use chrono::Days;
 use font_rasterizer::{
@@ -153,9 +153,9 @@ pub(crate) fn move_memo_ui(
     SelectBox::new(context, "移動先のカテゴリーを選択".to_string(), options)
 }
 
-pub(crate) fn add_category_ui(action_queue_sender: Sender<Action>) -> TextInput {
+pub(crate) fn add_category_ui(context: &StateContext) -> TextInput {
     TextInput::new(
-        action_queue_sender,
+        context,
         "追加するカテゴリーを選択".to_string(),
         Action::new_command("kashikishi", "add-category"),
     )

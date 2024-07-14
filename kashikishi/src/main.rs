@@ -491,7 +491,7 @@ impl SimpleStateCallback for KashikishiCallback {
                             return add_modal(
                                 &mut self.new_chars,
                                 &mut self.world,
-                                Box::new(add_category_ui(context.action_queue_sender.clone())),
+                                Box::new(add_category_ui(context)),
                             );
                         }
                         "add-category" => {
