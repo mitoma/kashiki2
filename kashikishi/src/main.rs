@@ -337,9 +337,13 @@ impl SimpleStateCallback for KashikishiCallback {
                             self.world.look_prev(CameraAdjustment::NoCare);
                         }
                         "reset-zoom" => self.world.look_current(CameraAdjustment::FitBoth),
-                        "look-current-and-centering" => self
-                            .world
-                            .look_current(CameraAdjustment::FitBothAndCentering),
+                        "look-current-and-centering" => {
+                            if let Some(rokid_max) = self.rokid_max.as_mut() {
+                                let _ = rokid_max.reset();
+                            }
+                            self.world
+                                .look_current(CameraAdjustment::FitBothAndCentering)
+                        }
                         "look-current" => self.world.look_current(CameraAdjustment::NoCare),
                         "look-next" => self.world.look_next(CameraAdjustment::NoCare),
                         "look-prev" => self.world.look_prev(CameraAdjustment::NoCare),

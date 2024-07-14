@@ -269,7 +269,7 @@ impl Default for TextContext {
             col_scale: 1.0,
             max_col: 40,
             line_prohibited_chars: LineBoundaryProhibitedChars::default(),
-            min_bound: (10.0, 10.0).into(),
+            min_bound: (10.0, 5.0).into(),
             char_easings: CharEasings::default(),
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
