@@ -98,6 +98,7 @@ pub enum CameraOperation {
     Backward,
     CangeTarget(cgmath::Point3<f32>),
     CangeTargetAndEye(cgmath::Point3<f32>, cgmath::Point3<f32>),
+    UpdateEyeQuaternion(Option<cgmath::Quaternion<f32>>),
     None,
 }
 
@@ -118,6 +119,7 @@ pub struct CameraController {
     is_right_pressed: bool,
     next_target: Option<cgmath::Point3<f32>>,
     next_eye: Option<cgmath::Point3<f32>>,
+    next_eye_quaternion: Option<cgmath::Quaternion<f32>>,
 }
 
 impl CameraController {
@@ -132,6 +134,7 @@ impl CameraController {
             is_right_pressed: false,
             next_target: None,
             next_eye: None,
+            next_eye_quaternion: None,
         }
     }
 
@@ -149,6 +152,9 @@ impl CameraController {
                 self.next_eye = Some(*next_eye);
             }
             CameraOperation::None => {}
+            CameraOperation::UpdateEyeQuaternion(q) => {
+                self.next_eye_quaternion = *q;
+            }
         }
     }
 
@@ -176,6 +182,7 @@ impl CameraController {
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {
+        camera.eye_quaternion = self.next_eye_quaternion;
         if let Some(next_target) = self.next_target {
             camera.target.update(next_target.into());
         }
