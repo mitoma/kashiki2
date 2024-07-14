@@ -1447,6 +1447,7 @@ dependencies = [
  "image",
  "log",
  "pollster",
+ "rokid_3dof",
  "serde",
  "serde_json",
  "stroke_parser",

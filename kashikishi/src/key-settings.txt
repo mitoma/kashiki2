@@ -86,6 +86,7 @@ A-S-W     world:copy-display
 
 # マウス系のショートカット
 ClickLeft   world:move-to-click
+ClickRight  world:reset-rokid
 S-ClickLeft world:move-to-click-with-mark
 WheelUp     system:previous
 WheelDown   system:next

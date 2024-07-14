@@ -8,6 +8,7 @@ mod memos;
 use arboard::Clipboard;
 use categorized_memos::CategorizedMemos;
 use font_collector::FontCollector;
+use rokid_3dof::RokidMax;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
 use text_buffer::action::EditorOperation;
 
@@ -98,6 +99,7 @@ struct KashikishiCallback {
     ime: ImeInput,
     new_chars: HashSet<char>,
     categorized_memos: CategorizedMemos,
+    rokid_max: Option<RokidMax>,
 }
 
 impl KashikishiCallback {
@@ -116,12 +118,15 @@ impl KashikishiCallback {
 
         let categorized_memos = CategorizedMemos::load_memos();
 
+        let rokid_max = RokidMax::new().ok();
+
         let mut result = Self {
             store,
             world,
             ime,
             new_chars,
             categorized_memos,
+            rokid_max,
         };
         result.reset_world(window_size);
         result
@@ -199,6 +204,13 @@ impl SimpleStateCallback for KashikishiCallback {
         }
         self.world.update(glyph_vertex_buffer, context);
         self.ime.update(context);
+
+        if let Some(rokid_max) = self.rokid_max.as_ref() {
+            self.world
+                .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
+                    rokid_max.quaternion(),
+                )));
+        }
     }
 
     fn input(
@@ -397,6 +409,11 @@ impl SimpleStateCallback for KashikishiCallback {
                                     self.world.editor_operation(&EditorOperation::Mark);
                                 }
                                 _ => { /* noop */ }
+                            }
+                        }
+                        "reset-rokid" => {
+                            if let Some(rokid_max) = self.rokid_max.as_mut() {
+                                let _ = rokid_max.reset();
                             }
                         }
                         _ => {}
