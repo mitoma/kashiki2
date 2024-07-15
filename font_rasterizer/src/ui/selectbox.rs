@@ -1,9 +1,10 @@
-use std::sync::mpsc::Sender;
+use std::sync::{mpsc::Sender, Arc};
 
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
 use crate::{
+    char_width_calcurator::CharWidthCalculator,
     context::{
         CharEasings, CpuEasingConfig, GpuEasingConfig, RemoveCharMode, StateContext, TextContext,
     },
@@ -21,6 +22,7 @@ pub struct SelectBox {
     search_text_edit: TextEdit,
     select_items_text_edit: TextEdit,
     action_queue_sender: Sender<Action>,
+    char_width_calcurator: Arc<CharWidthCalculator>,
     show_action_name: bool,
 }
 
@@ -94,6 +96,7 @@ impl SelectBox {
             search_text_edit,
             select_items_text_edit,
             action_queue_sender: context.action_queue_sender.clone(),
+            char_width_calcurator: context.char_width_calcurator.clone(),
             show_action_name,
         };
         result.update_select_items_text_edit();
@@ -120,22 +123,35 @@ impl SelectBox {
             .collect::<Vec<_>>()
     }
 
+    fn max_narrowd_options_len(&self) -> usize {
+        self.narrowd_options()
+            .iter()
+            .map(|opt| self.char_width_calcurator.len(&opt.option_string(0)))
+            .max()
+            .unwrap_or(0)
+    }
+
     fn update_select_items_text_edit(&mut self) {
         Self::clear_text_edit(&mut self.select_items_text_edit);
         if self.current_selection >= self.narrowd_options().len() {
             self.current_selection = 0;
         }
+        let max_narrowd_options_len = self.max_narrowd_options_len();
         self.select_items_text_edit
             .editor_operation(&EditorOperation::InsertString(
                 self.narrowd_options()
                     .iter()
                     .map(|s| {
                         if self.show_action_name {
-                            s.option_string()
+                            // option 毎に文字列をキャッシュするとかもう少し効率のいい方法はあるだろうけど
+                            // 今はめんどいのでこれぐらい雑に済ませておく
+                            s.option_string(
+                                max_narrowd_options_len
+                                    - self.char_width_calcurator.len(&s.option_string(0)),
+                            )
                         } else {
                             s.option_string_short()
                         }
-                        //format!("- {}", text)
                     })
                     .collect::<Vec<String>>()
                     .join("\n"),

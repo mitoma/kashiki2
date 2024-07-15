@@ -18,6 +18,15 @@ impl CharWidthCalculator {
     pub(crate) fn get_width(&self, c: char) -> CharWidth {
         inner_get_width(&self.faces, c)
     }
+
+    pub(crate) fn len(&self, text: &str) -> usize {
+        text.chars()
+            .map(|c| match self.get_width(c) {
+                crate::char_width_calcurator::CharWidth::Regular => 1,
+                crate::char_width_calcurator::CharWidth::Wide => 2,
+            })
+            .sum()
+    }
 }
 
 #[cached(key = "char", convert = "{ c }")]

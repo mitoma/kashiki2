@@ -21,7 +21,7 @@ impl SelectOption {
         self.text.to_string()
     }
 
-    pub fn option_string(&self) -> String {
+    pub fn option_string(&self, padding: usize) -> String {
         if self.actions.len() == 1 {
             if let Action::Command(namespace, name, arg) = &self.actions[0] {
                 match arg {
@@ -29,10 +29,23 @@ impl SelectOption {
                     | ActionArgument::Integer(_)
                     | ActionArgument::Float(_)
                     | ActionArgument::Point(_) => {
-                        return format!("{} ({}:{}({}))", self.text, **namespace, **name, arg)
+                        return format!(
+                            "{} {padding}{}:{}({})",
+                            self.text,
+                            **namespace,
+                            **name,
+                            arg,
+                            padding = " ".repeat(padding)
+                        );
                     }
                     ActionArgument::None => {
-                        return format!("{} ({}:{})", self.text, **namespace, **name)
+                        return format!(
+                            "{} {padding}{}:{}",
+                            self.text,
+                            **namespace,
+                            **name,
+                            padding = " ".repeat(padding)
+                        )
                     }
                 }
             }
@@ -42,7 +55,7 @@ impl SelectOption {
 
     pub fn contains_all(&self, keywords: &[&str]) -> bool {
         // 大文字小文字、無視してキーワードが含まれているか
-        let text = self.option_string().to_lowercase();
+        let text = self.option_string(0).to_lowercase();
         keywords
             .iter()
             .map(|keyword| keyword.to_lowercase())
