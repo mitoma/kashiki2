@@ -136,7 +136,7 @@ pub(crate) fn move_category_ui(
         ));
     }
 
-    SelectBox::new(context, "メモの移動先カテゴリーを選択".to_string(), options)
+    SelectBox::new_without_action_name(context, "メモの移動先カテゴリーを選択".to_string(), options)
 }
 
 pub(crate) fn move_memo_ui(
@@ -150,7 +150,7 @@ pub(crate) fn move_memo_ui(
             Action::new_command_with_argument("kashikishi", "move-memo", &category),
         ));
     }
-    SelectBox::new(context, "移動先のカテゴリーを選択".to_string(), options)
+    SelectBox::new_without_action_name(context, "移動先のカテゴリーを選択".to_string(), options)
 }
 
 pub(crate) fn add_category_ui(context: &StateContext) -> TextInput {
@@ -172,7 +172,7 @@ pub(crate) fn remove_category_ui(
             Action::new_command_with_argument("kashikishi", "remove-category", &category),
         ));
     }
-    SelectBox::new(
+    SelectBox::new_without_action_name(
         context,
         "削除するカテゴリーを選択(中の文書はdefualtに移動します)".to_string(),
         options,
