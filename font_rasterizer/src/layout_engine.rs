@@ -99,6 +99,33 @@ impl HorizontalWorld {
         };
         min..max
     }
+
+    // 円周上にモデルを並べる実装の実験。大体は期待通りに動くが近づく、遠ざかる時に期待した動作とズレがある。
+    // 式も適当だしカメラ周りに何か考慮漏れがあるっぽい。
+    #[allow(dead_code)]
+    fn re_layout_circle(&mut self) {
+        // すべてのモデルの幅の合計
+        let all_width: f32 = self.models.iter().map(|m| m.bound().0 + INTERVAL).sum();
+        // all_width を円周とみなして半径を求める
+        let radius = all_width / (2.0 * std::f32::consts::PI);
+
+        let mut x_position = 0.0;
+        for (idx, model) in self.models.iter_mut().enumerate() {
+            let (w, h) = model.bound();
+            info!("w: {}, h: {}, idx:{}", w, h, idx);
+            let r = (x_position / all_width) * 2.0 * std::f32::consts::PI;
+            x_position += w / 2.0;
+            model.set_position((r.sin() * radius, 0.0, -(r.cos() - 1.0) * radius).into());
+            x_position += w / 2.0;
+            x_position += INTERVAL;
+
+            let rotation = cgmath::Quaternion::from_axis_angle(
+                cgmath::Vector3::unit_y(),
+                cgmath::Deg(-r.to_degrees()),
+            );
+            model.set_rotation(rotation);
+        }
+    }
 }
 const INTERVAL: f32 = 5.0;
 
