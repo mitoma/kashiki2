@@ -240,7 +240,7 @@ impl SimpleStateCallback for KashikishiCallback {
             chars.extend(model.to_string().chars());
             world.add_next(model);
             world.re_layout();
-            world.look_next(CameraAdjustment::NoCare);
+            world.look_next(CameraAdjustment::FitBoth);
             InputResult::InputConsumed
         }
 

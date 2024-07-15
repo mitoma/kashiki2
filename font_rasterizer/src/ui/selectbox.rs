@@ -267,6 +267,9 @@ impl Model for SelectBox {
                     self.action_queue_sender
                         .send(Action::new_command("world", "remove-current"))
                         .unwrap();
+                    self.action_queue_sender
+                        .send(Action::new_command("world", "reset-zoom"))
+                        .unwrap();
                     option
                         .actions
                         .iter()
@@ -279,6 +282,9 @@ impl Model for SelectBox {
             EditorOperation::UnMark => {
                 self.action_queue_sender
                     .send(Action::new_command("world", "remove-current"))
+                    .unwrap();
+                self.action_queue_sender
+                    .send(Action::new_command("world", "reset-zoom"))
                     .unwrap();
             }
             _ => (),
