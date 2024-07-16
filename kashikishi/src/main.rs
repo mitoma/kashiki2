@@ -428,6 +428,13 @@ impl SimpleStateCallback for KashikishiCallback {
                             }
                         }
                         "toggle-ar-mode" => {
+                            if let Some(rokid_max) = self.rokid_max.as_mut() {
+                                let _ = rokid_max.reset();
+                                self.world
+                                    .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
+                                        rokid_max.quaternion(),
+                                    )));
+                            }
                             self.ar_mode = !self.ar_mode;
                         }
                         _ => {}

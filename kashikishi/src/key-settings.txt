@@ -49,6 +49,7 @@ C-X C-T system:select-theme
 
 # 実験的(遊び)
 C-X C-P     world:toggle-psychedelic
+C-R         world:toggle-ar-mode
 
 F11   system:toggle-fullscreen
 # 
