@@ -47,6 +47,10 @@ pub(crate) fn command_palette_select(context: &StateContext) -> SelectBox {
             "編集中のメモの移動".to_string(),
             Action::new_command("kashikishi", "move-memo-ui"),
         ),
+        SelectOption::new(
+            "ARモードの切り替え".to_string(),
+            Action::new_command("world", "toggle-ar-mode"),
+        ),
     ];
     SelectBox::new(context, "アクションの選択".to_string(), options)
 }
