@@ -100,6 +100,7 @@ struct KashikishiCallback {
     new_chars: HashSet<char>,
     categorized_memos: CategorizedMemos,
     rokid_max: Option<RokidMax>,
+    ar_mode: bool,
 }
 
 impl KashikishiCallback {
@@ -127,6 +128,7 @@ impl KashikishiCallback {
             new_chars,
             categorized_memos,
             rokid_max,
+            ar_mode: false,
         };
         result.reset_world(window_size);
         result
@@ -205,11 +207,13 @@ impl SimpleStateCallback for KashikishiCallback {
         self.world.update(glyph_vertex_buffer, context);
         self.ime.update(context);
 
-        if let Some(rokid_max) = self.rokid_max.as_ref() {
-            self.world
-                .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
-                    rokid_max.quaternion(),
-                )));
+        if self.ar_mode {
+            if let Some(rokid_max) = self.rokid_max.as_ref() {
+                self.world
+                    .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
+                        rokid_max.quaternion(),
+                    )));
+            }
         }
     }
 
@@ -422,6 +426,9 @@ impl SimpleStateCallback for KashikishiCallback {
                             if let Some(rokid_max) = self.rokid_max.as_mut() {
                                 let _ = rokid_max.reset();
                             }
+                        }
+                        "toggle-ar-mode" => {
+                            self.ar_mode = !self.ar_mode;
                         }
                         _ => {}
                     };
