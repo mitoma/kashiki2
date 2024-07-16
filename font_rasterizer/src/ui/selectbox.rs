@@ -147,7 +147,8 @@ impl SelectBox {
                             // 今はめんどいのでこれぐらい雑に済ませておく
                             s.option_string(
                                 max_narrowd_options_len
-                                    - self.char_width_calcurator.len(&s.option_string(0)),
+                                    - self.char_width_calcurator.len(&s.option_string(0))
+                                    + /* メニューにちょっと余裕を持たせる */2,
                             )
                         } else {
                             s.option_string_short()
