@@ -101,6 +101,7 @@ impl SelectBox {
         };
         result.update_select_items_text_edit();
         result.update_current_selection();
+        result.update(context);
         result
     }
 
