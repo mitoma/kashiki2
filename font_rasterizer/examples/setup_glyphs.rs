@@ -84,21 +84,11 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, _context: &StateContext) {}
 
-    fn input(
-        &mut self,
-        _glyph_vertex_buffer: &GlyphVertexBuffer,
-        _context: &StateContext,
-        _event: &WindowEvent,
-    ) -> InputResult {
+    fn input(&mut self, _context: &StateContext, _event: &WindowEvent) -> InputResult {
         InputResult::Noop
     }
 
-    fn action(
-        &mut self,
-        _glyph_vertex_buffer: &GlyphVertexBuffer,
-        _context: &StateContext,
-        _action: stroke_parser::Action,
-    ) -> InputResult {
+    fn action(&mut self, _context: &StateContext, _action: stroke_parser::Action) -> InputResult {
         InputResult::Noop
     }
 

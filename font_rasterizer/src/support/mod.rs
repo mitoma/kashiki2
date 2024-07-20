@@ -278,18 +278,8 @@ pub trait SimpleStateCallback {
     fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext);
     fn resize(&mut self, size: WindowSize);
     fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext);
-    fn input(
-        &mut self,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
-        context: &StateContext,
-        event: &WindowEvent,
-    ) -> InputResult;
-    fn action(
-        &mut self,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
-        context: &StateContext,
-        action: Action,
-    ) -> InputResult;
+    fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
+    fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
 }
 
@@ -443,13 +433,11 @@ impl SimpleState {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> InputResult {
-        self.simple_state_callback
-            .input(&self.glyph_vertex_buffer, &self.context, event)
+        self.simple_state_callback.input(&self.context, event)
     }
 
     pub fn action(&mut self, action: Action) -> InputResult {
-        self.simple_state_callback
-            .action(&self.glyph_vertex_buffer, &self.context, action)
+        self.simple_state_callback.action(&self.context, action)
     }
 
     pub fn update(&mut self) {

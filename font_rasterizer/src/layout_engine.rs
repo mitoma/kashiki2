@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::Range};
+use std::{collections::BTreeMap, ops::Range, sync::Arc};
 
 use cgmath::{Matrix4, Point2, Point3, Quaternion, Rotation3};
 use log::info;
@@ -361,7 +361,7 @@ pub trait Model {
     fn model_mode(&self) -> ModelMode;
 }
 
-pub enum ModelOperation<'a> {
+pub enum ModelOperation {
     ChangeDirection(Option<Direction>),
     // 行間を増加させる
     IncreaseRowInterval,
@@ -380,7 +380,7 @@ pub enum ModelOperation<'a> {
     // 文字間の大きさを減少させる
     DecreaseColScale,
     // Copy Display String
-    CopyDisplayString(&'a dyn CharWidthResolver, fn(String)),
+    CopyDisplayString(Arc<dyn CharWidthResolver>, fn(String)),
     // サイケデリックモードを切り替える(実験的なお遊び機能)
     TogglePsychedelic,
     // Click

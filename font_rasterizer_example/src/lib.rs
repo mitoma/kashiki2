@@ -118,12 +118,7 @@ impl SimpleStateCallback for SingleCharCallback {
             .for_each(|i| i.update_buffer(&context.device, &context.queue));
     }
 
-    fn input(
-        &mut self,
-        _glyph_vertex_buffer: &GlyphVertexBuffer,
-        _context: &StateContext,
-        event: &WindowEvent,
-    ) -> InputResult {
+    fn input(&mut self, _context: &StateContext, event: &WindowEvent) -> InputResult {
         match event {
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,
@@ -157,12 +152,7 @@ impl SimpleStateCallback for SingleCharCallback {
         }
     }
 
-    fn action(
-        &mut self,
-        _glyph_vertex_buffer: &GlyphVertexBuffer,
-        _context: &StateContext,
-        _action: Action,
-    ) -> InputResult {
+    fn action(&mut self, _context: &StateContext, _action: Action) -> InputResult {
         InputResult::Noop
     }
 

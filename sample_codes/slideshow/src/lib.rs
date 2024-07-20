@@ -121,12 +121,7 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.update(glyph_vertex_buffer, context);
     }
 
-    fn input(
-        &mut self,
-        _glyph_vertex_buffer: &GlyphVertexBuffer,
-        _context: &StateContext,
-        event: &WindowEvent,
-    ) -> InputResult {
+    fn input(&mut self, _context: &StateContext, event: &WindowEvent) -> InputResult {
         if let WindowEvent::KeyboardInput {
             event:
                 KeyEvent {
@@ -175,12 +170,7 @@ impl SimpleStateCallback for SingleCharCallback {
         InputResult::Noop
     }
 
-    fn action(
-        &mut self,
-        _glyph_vertex_buffer: &GlyphVertexBuffer,
-        _context: &StateContext,
-        _action: Action,
-    ) -> InputResult {
+    fn action(&mut self, _context: &StateContext, _action: Action) -> InputResult {
         InputResult::Noop
     }
 

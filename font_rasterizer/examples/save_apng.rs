@@ -136,21 +136,11 @@ impl SimpleStateCallback for SingleCharCallback {
             .for_each(|i| i.update_buffer(&context.device, &context.queue));
     }
 
-    fn input(
-        &mut self,
-        _glyph_vertex_buffer: &GlyphVertexBuffer,
-        _context: &StateContext,
-        _event: &WindowEvent,
-    ) -> InputResult {
+    fn input(&mut self, _context: &StateContext, _event: &WindowEvent) -> InputResult {
         InputResult::Noop
     }
 
-    fn action(
-        &mut self,
-        _glyph_vertex_buffer: &GlyphVertexBuffer,
-        _context: &StateContext,
-        _action: stroke_parser::Action,
-    ) -> InputResult {
+    fn action(&mut self, _context: &StateContext, _action: stroke_parser::Action) -> InputResult {
         InputResult::Noop
     }
 

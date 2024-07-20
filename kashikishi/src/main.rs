@@ -217,25 +217,15 @@ impl SimpleStateCallback for KashikishiCallback {
         }
     }
 
-    fn input(
-        &mut self,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
-        context: &StateContext,
-        event: &WindowEvent,
-    ) -> InputResult {
+    fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult {
         if let Some(action) = self.store.winit_window_event_to_action(event) {
-            self.action(glyph_vertex_buffer, context, action)
+            self.action(context, action)
         } else {
             InputResult::Noop
         }
     }
 
-    fn action(
-        &mut self,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
-        context: &StateContext,
-        action: Action,
-    ) -> InputResult {
+    fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
         fn add_modal(
             chars: &mut HashSet<char>,
             world: &mut Box<dyn World>,
@@ -387,7 +377,7 @@ impl SimpleStateCallback for KashikishiCallback {
                         "copy-display" => {
                             self.world
                                 .model_operation(&ModelOperation::CopyDisplayString(
-                                    glyph_vertex_buffer,
+                                    context.char_width_calcurator.clone(),
                                     |text| {
                                         let _ = Clipboard::new()
                                             .and_then(|mut context| context.set_text(text));
