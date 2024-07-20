@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use wgpu::include_wgsl;
+
 use crate::{
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstances, InstanceRaw},
@@ -9,6 +11,13 @@ use crate::{
     screen_texture::{self, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
 };
+
+const OVERLAP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
+    include_wgsl!("shader/overlap_shader.wgsl");
+const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
+    include_wgsl!("shader/outline_shader.wgsl");
+const SCREEN_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
+    include_wgsl!("shader/screen_shader.wgsl");
 
 #[derive(Clone, Copy)]
 pub enum Quarity {
@@ -110,10 +119,7 @@ impl RasterizerPipeline {
         let overlap_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
 
-        let overlap_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Overlap Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader/overlap_shader.wgsl").into()),
-        });
+        let overlap_shader = device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR);
 
         let overlap_bind_group = OverlapBindGroup::new(device);
 
@@ -179,10 +185,7 @@ impl RasterizerPipeline {
         let outline_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Outline Texture"));
 
-        let outline_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Outline Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader/outline_shader.wgsl").into()),
-        });
+        let outline_shader = device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR);
 
         let outline_bind_group = OutlineBindGroup::new(device);
 
@@ -241,10 +244,7 @@ impl RasterizerPipeline {
         let outline_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
         // default screen render pipeline
-        let screen_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Outline Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader/screen_shader.wgsl").into()),
-        });
+        let screen_shader = device.create_shader_module(SCREEN_SHADER_DESCRIPTOR);
 
         let screen_bind_group = ScreenBindGroup::new(device);
 
