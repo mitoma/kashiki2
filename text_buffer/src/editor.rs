@@ -1,5 +1,6 @@
 use std::fmt::Display;
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use super::action::*;
 use super::buffer::*;
@@ -152,7 +153,7 @@ impl Editor {
     }
 
     #[inline]
-    fn calc_indent(line_string: &str, width_resolver: &dyn CharWidthResolver) -> usize {
+    fn calc_indent(line_string: &str, width_resolver: Arc<dyn CharWidthResolver>) -> usize {
         let mut list_indent_pattern = DEFAULT_LIST_INDENT_PATTERN.to_vec();
         // インデントパターンを長い順で評価しないと、長いパターンが使われないケースがある
         // 例えば "- " と "- [ ] " がある場合、"- [ ] " が先に評価されないと "- " がマッチしてしまう
@@ -179,7 +180,7 @@ impl Editor {
         &self,
         max_line_width: usize,
         line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
-        width_resolver: &dyn CharWidthResolver,
+        width_resolver: Arc<dyn CharWidthResolver>,
     ) -> PhisicalLayout {
         let mut chars = Vec::new();
         let mut phisical_row = 0;
@@ -205,7 +206,7 @@ impl Editor {
             }
 
             // 箇条書きっぽい行では折り返し時にインデントを入れる
-            let indent = Self::calc_indent(&line.to_line_string(), width_resolver);
+            let indent = Self::calc_indent(&line.to_line_string(), width_resolver.clone());
             for buffer_char in line.chars.iter() {
                 // 物理位置を計算
                 let char_width = width_resolver.resolve_width(buffer_char.c);
@@ -458,7 +459,7 @@ mod tests {
             let layout = editor.calc_phisical_layout(
                 case.max_width,
                 &LineBoundaryProhibitedChars::new(vec![], vec![]),
-                &TestWidthResolver,
+                Arc::new(TestWidthResolver),
             );
             assert_eq!(layout.to_string(), case.output);
             assert_eq!(layout.main_caret_pos, case.main_caret_pos);
@@ -528,7 +529,7 @@ mod tests {
             let layout = editor.calc_phisical_layout(
                 case.max_width,
                 &case.prohibited_chars,
-                &TestWidthResolver,
+                Arc::new(TestWidthResolver),
             );
             assert_eq!(layout.to_string(), case.output);
         }
@@ -576,7 +577,7 @@ mod tests {
             let layout = editor.calc_phisical_layout(
                 case.max_width,
                 &case.prohibited_chars,
-                &TestWidthResolver,
+                Arc::new(TestWidthResolver),
             );
             assert_eq!(layout.to_string(), case.output);
         }

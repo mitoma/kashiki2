@@ -1,6 +1,9 @@
 use std::{
     ops::Range,
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc,
+    },
 };
 
 use cgmath::{Point3, Quaternion, Rotation3};
@@ -9,7 +12,7 @@ use text_buffer::{
     action::EditorOperation,
     buffer::CellPosition,
     caret::{Caret, CaretType},
-    editor::{ChangeEvent, Editor, PhisicalLayout},
+    editor::{ChangeEvent, CharWidthResolver, Editor, PhisicalLayout},
 };
 
 use crate::{
@@ -161,7 +164,7 @@ impl Model for TextEdit {
         self.sync_editor_events(device, color_theme);
 
         if self.text_updated {
-            let layout = self.calc_phisical_layout(&context.char_width_calcurator);
+            let layout = self.calc_phisical_layout(context.char_width_calcurator.clone());
             let bound = self.calc_bound(&layout);
             self.calc_position(&context.char_width_calcurator, &layout, bound);
         }
@@ -238,7 +241,7 @@ impl Model for TextEdit {
                         .calc_phisical_layout(
                             self.max_display_width(),
                             &self.config.line_prohibited_chars,
-                            *width_resolver,
+                            width_resolver.clone(),
                         )
                         .to_string(),
                 );
@@ -376,7 +379,7 @@ impl TextEdit {
     #[inline]
     fn calc_phisical_layout(
         &mut self,
-        char_width_calcurator: &CharWidthCalculator,
+        char_width_calcurator: Arc<dyn CharWidthResolver>,
     ) -> PhisicalLayout {
         self.editor.calc_phisical_layout(
             self.max_display_width(),

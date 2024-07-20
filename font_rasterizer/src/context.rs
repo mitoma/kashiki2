@@ -16,7 +16,7 @@ use crate::{
 pub struct StateContext {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
-    pub(crate) char_width_calcurator: Arc<CharWidthCalculator>,
+    pub char_width_calcurator: Arc<CharWidthCalculator>,
     pub color_theme: ColorTheme,
     pub window_size: WindowSize,
     pub action_queue_sender: Sender<Action>,
