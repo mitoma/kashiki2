@@ -54,22 +54,29 @@ impl SelectBox {
         }
     }
 
-    pub fn new(context: &StateContext, message: String, options: Vec<SelectOption>) -> Self {
-        Self::inner_new(context, message, options, true)
+    pub fn new(
+        context: &StateContext,
+        message: String,
+        options: Vec<SelectOption>,
+        default_narrow: Option<String>,
+    ) -> Self {
+        Self::inner_new(context, message, options, default_narrow, true)
     }
 
     pub fn new_without_action_name(
         context: &StateContext,
         message: String,
         options: Vec<SelectOption>,
+        default_narrow: Option<String>,
     ) -> Self {
-        Self::inner_new(context, message, options, false)
+        Self::inner_new(context, message, options, default_narrow, false)
     }
 
     fn inner_new(
         context: &StateContext,
         message: String,
         options: Vec<SelectOption>,
+        default_narrow: Option<String>,
         show_action_name: bool,
     ) -> Self {
         let title_text_edit = {
@@ -81,6 +88,12 @@ impl SelectBox {
         let search_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(Self::search_context(context.global_direction));
+            if let Some(default_narrow) = default_narrow {
+                text_edit.editor_operation(&EditorOperation::InsertString(format!(
+                    "{} ",
+                    default_narrow
+                )));
+            }
             text_edit
         };
         let select_items_text_edit = {
@@ -325,16 +338,15 @@ impl Model for SelectBox {
         [
             self.title_text_edit.to_string(),
             self.search_text_edit.to_string(),
-            self.select_items_text_edit.to_string(),
+            // options は select_items_text_edit の to_string だけだと最初に絞り込まれていない
+            // 選択肢の文字列が出てこないので全選択肢の文字列を出力する
+            self.options
+                .iter()
+                .map(|s| s.text.clone())
+                .collect::<Vec<String>>()
+                .join(""),
         ]
         .concat()
-        /*
-        self.options
-            .iter()
-            .map(|s| s.text.clone())
-            .collect::<Vec<String>>()
-            .join("")
-             */
     }
 
     fn model_mode(&self) -> ModelMode {

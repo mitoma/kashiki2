@@ -52,7 +52,7 @@ pub(crate) fn command_palette_select(context: &StateContext) -> SelectBox {
             Action::new_command("world", "toggle-ar-mode"),
         ),
     ];
-    SelectBox::new(context, "アクションの選択".to_string(), options)
+    SelectBox::new(context, "アクションの選択".to_string(), options, None)
 }
 
 pub(crate) fn insert_date_select(context: &StateContext) -> SelectBox {
@@ -88,7 +88,7 @@ pub(crate) fn insert_date_select(context: &StateContext) -> SelectBox {
             Action::ImeInput(tomorrow_date),
         ),
     ];
-    SelectBox::new(context, "挿入したい日付を選択".to_string(), options)
+    SelectBox::new(context, "挿入したい日付を選択".to_string(), options, None)
 }
 
 pub(crate) fn change_theme_ui(context: &StateContext) -> SelectBox {
@@ -106,7 +106,12 @@ pub(crate) fn change_theme_ui(context: &StateContext) -> SelectBox {
             Action::new_command_with_argument("system", "change-theme", "light"),
         ),
     ];
-    SelectBox::new(context, "カラーテーマを選択して下さい".to_string(), options)
+    SelectBox::new(
+        context,
+        "カラーテーマを選択して下さい".to_string(),
+        options,
+        None,
+    )
 }
 
 pub(crate) fn move_category_ui(
@@ -140,7 +145,12 @@ pub(crate) fn move_category_ui(
         ));
     }
 
-    SelectBox::new_without_action_name(context, "メモの移動先カテゴリーを選択".to_string(), options)
+    SelectBox::new_without_action_name(
+        context,
+        "メモの移動先カテゴリーを選択".to_string(),
+        options,
+        None,
+    )
 }
 
 pub(crate) fn move_memo_ui(
@@ -154,7 +164,12 @@ pub(crate) fn move_memo_ui(
             Action::new_command_with_argument("kashikishi", "move-memo", &category),
         ));
     }
-    SelectBox::new_without_action_name(context, "移動先のカテゴリーを選択".to_string(), options)
+    SelectBox::new_without_action_name(
+        context,
+        "移動先のカテゴリーを選択".to_string(),
+        options,
+        None,
+    )
 }
 
 pub(crate) fn add_category_ui(context: &StateContext) -> TextInput {
@@ -180,6 +195,7 @@ pub(crate) fn remove_category_ui(
         context,
         "削除するカテゴリーを選択(中の文書はdefualtに移動します)".to_string(),
         options,
+        None,
     )
 }
 
@@ -226,5 +242,5 @@ pub(crate) fn open_file_ui(context: &StateContext, path: Option<&str>) -> Select
             ));
         }
     }
-    SelectBox::new_without_action_name(context, "ファイルを開く".to_string(), options)
+    SelectBox::new_without_action_name(context, "ファイルを開く".to_string(), options, None)
 }
