@@ -171,6 +171,8 @@ impl RasterizerPipeline {
                 // If the pipeline will be used with a multiview render pass, this
                 // indicates how many array layers the attachments will have.
                 multiview: None,
+                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
+                cache: None,
             });
 
         // outline
@@ -233,6 +235,8 @@ impl RasterizerPipeline {
                 // If the pipeline will be used with a multiview render pass, this
                 // indicates how many array layers the attachments will have.
                 multiview: None,
+                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
+                cache: None,
             });
         let outline_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
@@ -289,6 +293,8 @@ impl RasterizerPipeline {
                 // If the pipeline will be used with a multiview render pass, this
                 // indicates how many array layers the attachments will have.
                 multiview: None,
+                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
+                cache: None,
             });
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 

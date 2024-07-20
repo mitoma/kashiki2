@@ -332,6 +332,8 @@ impl SimpleState {
                     } else {
                         wgpu::Limits::default()
                     },
+                    // memory_hints とか今後の新しい機能はまぁデフォルトで行きましょう。
+                    ..Default::default()
                 },
                 None, // Trace path
             )
@@ -538,6 +540,8 @@ impl ImageState {
                     } else {
                         wgpu::Limits::default()
                     },
+                    // memory_hints とか今後の新しい機能はまぁデフォルトで行きましょう。
+                    ..Default::default()
                 },
                 None, // Trace path
             )
