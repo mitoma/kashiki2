@@ -207,6 +207,7 @@ impl SimpleStateCallback for KashikishiCallback {
         self.world.update(glyph_vertex_buffer, context);
         self.ime.update(context);
 
+        // AR モードが有効な場合はカメラの向きを変える。少し雑だが良い場所が見つかるまでここで。
         if self.ar_mode {
             if let Some(rokid_max) = self.rokid_max.as_ref() {
                 self.world

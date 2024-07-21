@@ -237,9 +237,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                 }
                 _ => {}
             }
+            // input イベント後に連鎖して action が発生するケースがあるのでここで処理していく
             while let Ok(action) = state.action_queue_receiver.try_recv() {
-                let input_result = state.action(action);
-                match input_result {
+                match state.action(action) {
                     InputResult::InputConsumed => {
                         // state 内で処理が行われたので何もしない
                     }
