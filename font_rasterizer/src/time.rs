@@ -5,8 +5,13 @@ use instant::{Duration, SystemTime};
 use once_cell::sync::Lazy;
 
 pub enum ClockMode {
+    // 時刻取得時に、都度現在時刻を取得するモード
     System,
+    // 現在時刻取得時に、固定の時刻を返すモード
+    // ただし increment_fixed_clock を呼ぶたびに時刻を現在時刻で再設定するので
+    // フレーム時間を全オブジェクトで同一するなどの目的で使う。
     StepByStep,
+    // 固定時刻を返す。わりとテスト用ですな。
     Fixed,
 }
 
