@@ -163,6 +163,82 @@ impl KashikishiCallback {
             .collect::<HashSet<char>>();
         self.new_chars.extend(chars);
     }
+
+    fn execute_system_action(
+        &mut self,
+        command_name: &str,
+        argument: ActionArgument,
+        context: &StateContext,
+    ) -> SystemActionResult {
+        match command_name {
+            "exit" => {
+                self.categorized_memos
+                    .update_current_memos(Memos::from(&*self.world));
+                self.categorized_memos.save_memos().unwrap();
+                SystemActionResult::Exit
+            }
+            "command-palette" => {
+                SystemActionResult::AddModal(Box::new(command_palette_select(context)))
+            }
+            "toggle-fullscreen" => SystemActionResult::ToggleFullScreen,
+            "change-theme-ui" => SystemActionResult::AddModal(Box::new(change_theme_ui(context))),
+            "change-theme" => match argument {
+                ActionArgument::String(value) => match &*value.to_string() {
+                    "black" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedBlackback),
+                    "dark" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedDark),
+                    "light" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedLight),
+                    _ => SystemActionResult::Noop,
+                },
+                _ => SystemActionResult::Noop,
+            },
+            _ => SystemActionResult::Noop,
+        }
+    }
+
+    fn execute_editor_action(&mut self, command_name: &str) -> EditorOperation {
+        match command_name {
+            "return" => EditorOperation::InsertEnter,
+            "backspace" => EditorOperation::Backspace,
+            "backspace-word" => EditorOperation::BackspaceWord,
+            "delete" => EditorOperation::Delete,
+            "delete-word" => EditorOperation::DeleteWord,
+            "previous" => EditorOperation::Previous,
+            "next" => EditorOperation::Next,
+            "back" => EditorOperation::Back,
+            "forward" => EditorOperation::Forward,
+            "back-word" => EditorOperation::BackWord,
+            "forward-word" => EditorOperation::ForwardWord,
+            "head" => EditorOperation::Head,
+            "last" => EditorOperation::Last,
+            "undo" => EditorOperation::Undo,
+            "buffer-head" => EditorOperation::BufferHead,
+            "buffer-last" => EditorOperation::BufferLast,
+            "paste" => match Clipboard::new().and_then(|mut context| context.get_text()) {
+                Ok(text) => {
+                    self.new_chars.extend(text.chars());
+                    EditorOperation::InsertString(text)
+                }
+                Err(_) => EditorOperation::Noop,
+            },
+            "copy" => EditorOperation::Copy(|text| {
+                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+            }),
+            "cut" => EditorOperation::Cut(|text| {
+                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+            }),
+            "mark" => EditorOperation::Mark,
+            "unmark" => EditorOperation::UnMark,
+            _ => EditorOperation::Noop,
+        }
+    }
+}
+
+enum SystemActionResult {
+    Exit,
+    ToggleFullScreen,
+    ChangeColorTheme(ColorTheme),
+    AddModal(Box<dyn Model>),
+    Noop,
 }
 
 impl SimpleStateCallback for KashikishiCallback {
@@ -241,87 +317,25 @@ impl SimpleStateCallback for KashikishiCallback {
 
         match action {
             Action::Command(category, name, argument) => match &*category.to_string() {
-                "system" => {
-                    let action = match &*name.to_string() {
-                        "exit" => {
-                            self.categorized_memos
-                                .update_current_memos(Memos::from(&*self.world));
-                            self.categorized_memos.save_memos().unwrap();
-                            return InputResult::SendExit;
-                        }
-                        "command-palette" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(command_palette_select(context)),
-                            );
-                        }
-                        "toggle-fullscreen" => {
-                            return InputResult::ToggleFullScreen;
-                        }
-                        "change-theme-ui" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(change_theme_ui(context)),
-                            )
-                        }
-                        "change-theme" => match argument {
-                            ActionArgument::String(value) => match &*value.to_string() {
-                                "black" => {
-                                    return InputResult::ChangeColorTheme(
-                                        ColorTheme::SolarizedBlackback,
-                                    )
-                                }
-                                "dark" => {
-                                    return InputResult::ChangeColorTheme(ColorTheme::SolarizedDark)
-                                }
-                                "light" => {
-                                    return InputResult::ChangeColorTheme(
-                                        ColorTheme::SolarizedLight,
-                                    )
-                                }
-                                _ => EditorOperation::Noop,
-                            },
-                            _ => EditorOperation::Noop,
-                        },
-                        "return" => EditorOperation::InsertEnter,
-                        "backspace" => EditorOperation::Backspace,
-                        "backspace-word" => EditorOperation::BackspaceWord,
-                        "delete" => EditorOperation::Delete,
-                        "delete-word" => EditorOperation::DeleteWord,
-                        "previous" => EditorOperation::Previous,
-                        "next" => EditorOperation::Next,
-                        "back" => EditorOperation::Back,
-                        "forward" => EditorOperation::Forward,
-                        "back-word" => EditorOperation::BackWord,
-                        "forward-word" => EditorOperation::ForwardWord,
-                        "head" => EditorOperation::Head,
-                        "last" => EditorOperation::Last,
-                        "undo" => EditorOperation::Undo,
-                        "buffer-head" => EditorOperation::BufferHead,
-                        "buffer-last" => EditorOperation::BufferLast,
-                        "paste" => {
-                            match Clipboard::new().and_then(|mut context| context.get_text()) {
-                                Ok(text) => {
-                                    self.new_chars.extend(text.chars());
-                                    EditorOperation::InsertString(text)
-                                }
-                                Err(_) => EditorOperation::Noop,
-                            }
-                        }
-                        "copy" => EditorOperation::Copy(|text| {
-                            let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
-                        }),
-                        "cut" => EditorOperation::Cut(|text| {
-                            let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
-                        }),
-                        "mark" => EditorOperation::Mark,
-                        "unmark" => EditorOperation::UnMark,
-                        _ => EditorOperation::Noop,
-                    };
-                    self.world.editor_operation(&action);
-
+                "system" => match self.execute_system_action(&name, argument, context) {
+                    SystemActionResult::Exit => {
+                        self.categorized_memos
+                            .update_current_memos(Memos::from(&*self.world));
+                        self.categorized_memos.save_memos().unwrap();
+                        InputResult::SendExit
+                    }
+                    SystemActionResult::ToggleFullScreen => InputResult::ToggleFullScreen,
+                    SystemActionResult::ChangeColorTheme(theme) => {
+                        InputResult::ChangeColorTheme(theme)
+                    }
+                    SystemActionResult::AddModal(modal) => {
+                        add_modal(&mut self.new_chars, &mut self.world, modal)
+                    }
+                    SystemActionResult::Noop => InputResult::InputConsumed,
+                },
+                "edit" => {
+                    let op = self.execute_editor_action(&name);
+                    self.world.editor_operation(&op);
                     InputResult::InputConsumed
                 }
                 "world" => {
