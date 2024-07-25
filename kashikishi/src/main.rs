@@ -171,12 +171,7 @@ impl KashikishiCallback {
         context: &StateContext,
     ) -> SystemActionResult {
         match command_name {
-            "exit" => {
-                self.categorized_memos
-                    .update_current_memos(Memos::from(&*self.world));
-                self.categorized_memos.save_memos().unwrap();
-                SystemActionResult::Exit
-            }
+            "exit" => SystemActionResult::Exit,
             "command-palette" => {
                 SystemActionResult::AddModal(Box::new(command_palette_select(context)))
             }
@@ -195,7 +190,7 @@ impl KashikishiCallback {
         }
     }
 
-    fn execute_editor_action(&mut self, command_name: &str) -> EditorOperation {
+    fn execute_editor_action(command_name: &str, chars: &mut HashSet<char>) -> EditorOperation {
         match command_name {
             "return" => EditorOperation::InsertEnter,
             "backspace" => EditorOperation::Backspace,
@@ -215,7 +210,7 @@ impl KashikishiCallback {
             "buffer-last" => EditorOperation::BufferLast,
             "paste" => match Clipboard::new().and_then(|mut context| context.get_text()) {
                 Ok(text) => {
-                    self.new_chars.extend(text.chars());
+                    chars.extend(text.chars());
                     EditorOperation::InsertString(text)
                 }
                 Err(_) => EditorOperation::Noop,
@@ -230,6 +225,118 @@ impl KashikishiCallback {
             "unmark" => EditorOperation::UnMark,
             _ => EditorOperation::Noop,
         }
+    }
+
+    fn execute_world_action(
+        &mut self,
+        command_name: &str,
+        argument: ActionArgument,
+        context: &StateContext,
+    ) {
+        match command_name {
+            "remove-current" => {
+                self.world.remove_current();
+                self.world.re_layout();
+                self.world.look_prev(CameraAdjustment::NoCare);
+            }
+            "reset-zoom" => self.world.look_current(CameraAdjustment::FitBoth),
+            "look-current-and-centering" => {
+                if let Some(rokid_max) = self.rokid_max.as_mut() {
+                    let _ = rokid_max.reset();
+                }
+                self.world
+                    .look_current(CameraAdjustment::FitBothAndCentering)
+            }
+            "look-current" => self.world.look_current(CameraAdjustment::NoCare),
+            "look-next" => self.world.look_next(CameraAdjustment::NoCare),
+            "look-prev" => self.world.look_prev(CameraAdjustment::NoCare),
+            "swap-next" => self.world.swap_next(),
+            "swap-prev" => self.world.swap_prev(),
+            "fit-width" => self.world.look_current(CameraAdjustment::FitWidth),
+            "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
+            "forward" => self.world.camera_operation(CameraOperation::Forward),
+            "back" => self.world.camera_operation(CameraOperation::Backward),
+            "change-direction" => self
+                .world
+                .model_operation(&ModelOperation::ChangeDirection(None)),
+            "increase-row-interval" => self
+                .world
+                .model_operation(&ModelOperation::IncreaseRowInterval),
+            "decrease-row-interval" => self
+                .world
+                .model_operation(&ModelOperation::DecreaseRowInterval),
+            "increase-col-interval" => self
+                .world
+                .model_operation(&ModelOperation::IncreaseColInterval),
+            "decrease-col-interval" => self
+                .world
+                .model_operation(&ModelOperation::DecreaseColInterval),
+            "increase-col-scale" => self
+                .world
+                .model_operation(&ModelOperation::IncreaseColScale),
+            "decrease-col-scale" => self
+                .world
+                .model_operation(&ModelOperation::DecreaseColScale),
+            "increase-row-scale" => self
+                .world
+                .model_operation(&ModelOperation::IncreaseRowScale),
+            "decrease-row-scale" => self
+                .world
+                .model_operation(&ModelOperation::DecreaseRowScale),
+            "copy-display" => self
+                .world
+                .model_operation(&ModelOperation::CopyDisplayString(
+                    context.char_width_calcurator.clone(),
+                    |text| {
+                        let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+                    },
+                )),
+            "toggle-psychedelic" => self
+                .world
+                .model_operation(&ModelOperation::TogglePsychedelic),
+            "move-to-click" => {
+                match argument {
+                    ActionArgument::Point((x, y)) => {
+                        let (x_ratio, y_ratio) = (
+                            (x / context.window_size.width as f32 * 2.0) - 1.0,
+                            1.0 - (y / context.window_size.height as f32 * 2.0),
+                        );
+                        self.world.move_to_position(x_ratio, y_ratio);
+                    }
+                    _ => { /* noop */ }
+                }
+            }
+            "move-to-click-with-mark" => {
+                match argument {
+                    ActionArgument::Point((x, y)) => {
+                        let (x_ratio, y_ratio) = (
+                            (x / context.window_size.width as f32 * 2.0) - 1.0,
+                            1.0 - (y / context.window_size.height as f32 * 2.0),
+                        );
+                        self.world.move_to_position(x_ratio, y_ratio);
+                        self.world.editor_operation(&EditorOperation::Mark);
+                    }
+                    _ => { /* noop */ }
+                }
+            }
+            // AR 系はアクションのカテゴリを変えるべきだろうか？
+            "reset-rokid" => {
+                if let Some(rokid_max) = self.rokid_max.as_mut() {
+                    let _ = rokid_max.reset();
+                }
+            }
+            "toggle-ar-mode" => {
+                if let Some(rokid_max) = self.rokid_max.as_mut() {
+                    let _ = rokid_max.reset();
+                    self.world
+                        .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
+                            rokid_max.quaternion(),
+                        )));
+                }
+                self.ar_mode = !self.ar_mode;
+            }
+            _ => {}
+        };
     }
 }
 
@@ -334,116 +441,12 @@ impl SimpleStateCallback for KashikishiCallback {
                     SystemActionResult::Noop => InputResult::InputConsumed,
                 },
                 "edit" => {
-                    let op = self.execute_editor_action(&name);
+                    let op = Self::execute_editor_action(&name, &mut self.new_chars);
                     self.world.editor_operation(&op);
                     InputResult::InputConsumed
                 }
                 "world" => {
-                    match &*name.to_string() {
-                        "remove-current" => {
-                            self.world.remove_current();
-                            self.world.re_layout();
-                            self.world.look_prev(CameraAdjustment::NoCare);
-                        }
-                        "reset-zoom" => self.world.look_current(CameraAdjustment::FitBoth),
-                        "look-current-and-centering" => {
-                            if let Some(rokid_max) = self.rokid_max.as_mut() {
-                                let _ = rokid_max.reset();
-                            }
-                            self.world
-                                .look_current(CameraAdjustment::FitBothAndCentering)
-                        }
-                        "look-current" => self.world.look_current(CameraAdjustment::NoCare),
-                        "look-next" => self.world.look_next(CameraAdjustment::NoCare),
-                        "look-prev" => self.world.look_prev(CameraAdjustment::NoCare),
-                        "swap-next" => self.world.swap_next(),
-                        "swap-prev" => self.world.swap_prev(),
-                        "fit-width" => self.world.look_current(CameraAdjustment::FitWidth),
-                        "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
-                        "forward" => self.world.camera_operation(CameraOperation::Forward),
-                        "back" => self.world.camera_operation(CameraOperation::Backward),
-                        "change-direction" => self
-                            .world
-                            .model_operation(&ModelOperation::ChangeDirection(None)),
-                        "increase-row-interval" => self
-                            .world
-                            .model_operation(&ModelOperation::IncreaseRowInterval),
-                        "decrease-row-interval" => self
-                            .world
-                            .model_operation(&ModelOperation::DecreaseRowInterval),
-                        "increase-col-interval" => self
-                            .world
-                            .model_operation(&ModelOperation::IncreaseColInterval),
-                        "decrease-col-interval" => self
-                            .world
-                            .model_operation(&ModelOperation::DecreaseColInterval),
-                        "increase-col-scale" => self
-                            .world
-                            .model_operation(&ModelOperation::IncreaseColScale),
-                        "decrease-col-scale" => self
-                            .world
-                            .model_operation(&ModelOperation::DecreaseColScale),
-                        "increase-row-scale" => self
-                            .world
-                            .model_operation(&ModelOperation::IncreaseRowScale),
-                        "decrease-row-scale" => self
-                            .world
-                            .model_operation(&ModelOperation::DecreaseRowScale),
-                        "copy-display" => {
-                            self.world
-                                .model_operation(&ModelOperation::CopyDisplayString(
-                                    context.char_width_calcurator.clone(),
-                                    |text| {
-                                        let _ = Clipboard::new()
-                                            .and_then(|mut context| context.set_text(text));
-                                    },
-                                ))
-                        }
-                        "toggle-psychedelic" => self
-                            .world
-                            .model_operation(&ModelOperation::TogglePsychedelic),
-                        "move-to-click" => {
-                            match argument {
-                                ActionArgument::Point((x, y)) => {
-                                    let (x_ratio, y_ratio) = (
-                                        (x / context.window_size.width as f32 * 2.0) - 1.0,
-                                        1.0 - (y / context.window_size.height as f32 * 2.0),
-                                    );
-                                    self.world.move_to_position(x_ratio, y_ratio);
-                                }
-                                _ => { /* noop */ }
-                            }
-                        }
-                        "move-to-click-with-mark" => {
-                            match argument {
-                                ActionArgument::Point((x, y)) => {
-                                    let (x_ratio, y_ratio) = (
-                                        (x / context.window_size.width as f32 * 2.0) - 1.0,
-                                        1.0 - (y / context.window_size.height as f32 * 2.0),
-                                    );
-                                    self.world.move_to_position(x_ratio, y_ratio);
-                                    self.world.editor_operation(&EditorOperation::Mark);
-                                }
-                                _ => { /* noop */ }
-                            }
-                        }
-                        "reset-rokid" => {
-                            if let Some(rokid_max) = self.rokid_max.as_mut() {
-                                let _ = rokid_max.reset();
-                            }
-                        }
-                        "toggle-ar-mode" => {
-                            if let Some(rokid_max) = self.rokid_max.as_mut() {
-                                let _ = rokid_max.reset();
-                                self.world
-                                    .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
-                                        rokid_max.quaternion(),
-                                    )));
-                            }
-                            self.ar_mode = !self.ar_mode;
-                        }
-                        _ => {}
-                    };
+                    self.execute_world_action(&name, argument, context);
                     InputResult::InputConsumed
                 }
                 "kashikishi" => {
