@@ -21,11 +21,11 @@ serde_json = "1.0"
 env_logger = "0.11"
 log = "0.4"
 pollster = "0.3"
-image = "0.25.1"
-rustybuzz = "0.17.0"
-instant = { version = "0.1.12", features = ["wasm-bindgen"] }
+image = "0.25"
+rustybuzz = "0.17"
+instant = { version = "0.1", features = ["wasm-bindgen"] }
 cgmath = "0.18"
-bytemuck = { version = "1.16.0", features = ["derive"] }
+bytemuck = { version = "1.16", features = ["derive"] }
 
 [profile.release-optimized]
 inherits = "release"

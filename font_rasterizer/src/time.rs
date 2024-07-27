@@ -1,8 +1,7 @@
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
 use cgmath::num_traits::ToPrimitive;
 use instant::{Duration, SystemTime};
-use once_cell::sync::Lazy;
 
 pub enum ClockMode {
     // 時刻取得時に、都度現在時刻を取得するモード
@@ -58,11 +57,7 @@ fn internal_now_millis() -> u128 {
         .as_millis()
 }
 
-static CLOCK: Lazy<Mutex<SystemClock>> = Lazy::new(defualt_clock);
-
-fn defualt_clock() -> Mutex<SystemClock> {
-    Mutex::new(SystemClock::new())
-}
+static CLOCK: LazyLock<Mutex<SystemClock>> = LazyLock::new(|| Mutex::new(SystemClock::new()));
 
 pub fn set_clock_mode(clock_mode: ClockMode) {
     CLOCK.lock().unwrap().clock_mode = clock_mode;
