@@ -19,31 +19,38 @@ use crate::{
     memos::Memos,
 };
 
-trait ModalWorld {
+pub(crate) trait ModalWorld {
     fn get_mut(&mut self) -> &mut dyn World;
+    fn get(&self) -> &dyn World;
     fn apply_action(
         &mut self,
         context: &StateContext,
         action: Action,
     ) -> (InputResult, HashSet<char>);
+    fn world_chars(&self) -> HashSet<char>;
+    fn graceful_exit(&mut self);
+    fn add_modal(&mut self, chars: &mut HashSet<char>, model: Box<dyn Model>);
 }
 
-struct CategorizedMemosWorld {
+pub(crate) struct CategorizedMemosWorld {
     world: HorizontalWorld,
     memos: CategorizedMemos,
 }
 
 impl CategorizedMemosWorld {
+    pub(crate) fn new(window_size: WindowSize) -> Self {
+        let mut result = Self {
+            world: HorizontalWorld::new(window_size),
+            memos: CategorizedMemos::load_memos(),
+        };
+        result.reset_world(window_size);
+        result
+    }
+
     // ワールドを今のカテゴリでリセットする
-    fn reset_world(&mut self, window_size: WindowSize) -> HashSet<char> {
+    fn reset_world(&mut self, window_size: WindowSize) {
         let mut world = HorizontalWorld::new(window_size);
-        for memo in self
-            .memos
-            .get_current_memos()
-            .unwrap()
-            .memos
-            .iter()
-        {
+        for memo in self.memos.get_current_memos().unwrap().memos.iter() {
             let mut textedit = TextEdit::default();
             textedit.editor_operation(&EditorOperation::InsertString(memo.to_string()));
             textedit.editor_operation(&EditorOperation::BufferHead);
@@ -54,14 +61,24 @@ impl CategorizedMemosWorld {
         world.look_at(look_at, CameraAdjustment::FitBoth);
         world.re_layout();
         self.world = world;
-        // world にすでに表示されるグリフを追加する
-        let chars = self
-            .world
+    }
+}
+
+impl ModalWorld for CategorizedMemosWorld {
+    fn get_mut(&mut self) -> &mut dyn World {
+        &mut self.world
+    }
+
+    fn get(&self) -> &dyn World {
+        &self.world
+    }
+
+    fn world_chars(&self) -> HashSet<char> {
+        self.world
             .strings()
             .join("")
             .chars()
-            .collect::<HashSet<char>>();
-        chars
+            .collect::<HashSet<char>>()
     }
 
     fn add_modal(&mut self, chars: &mut HashSet<char>, model: Box<dyn Model>) {
@@ -69,12 +86,6 @@ impl CategorizedMemosWorld {
         self.world.add_next(model);
         self.world.re_layout();
         self.world.look_next(CameraAdjustment::FitBoth);
-    }
-}
-
-impl ModalWorld for CategorizedMemosWorld {
-    fn get_mut(&mut self) -> &mut dyn World {
-        &mut self.world
     }
 
     fn apply_action(
@@ -111,10 +122,9 @@ impl ModalWorld for CategorizedMemosWorld {
                 self.world.look_prev(CameraAdjustment::NoCare);
             }
             "insert-date" => self.add_modal(&mut chars, Box::new(insert_date_select(context))),
-            "move-category-ui" => self.add_modal(
-                &mut chars,
-                Box::new(move_category_ui(context, &self.memos)),
-            ),
+            "move-category-ui" => {
+                self.add_modal(&mut chars, Box::new(move_category_ui(context, &self.memos)))
+            }
             "move-category" => match argument {
                 ActionArgument::String(category) => 'outer: {
                     if self.memos.current_category == category {
@@ -123,14 +133,14 @@ impl ModalWorld for CategorizedMemosWorld {
                     self.memos
                         .update_current_memos(Memos::from(&self.world as &dyn World));
                     self.memos.current_category = category;
-                    chars.extend(self.reset_world(context.window_size));
+                    self.reset_world(context.window_size);
+                    chars.extend(self.world_chars());
                 }
                 _ => { /* noop */ }
             },
-            "move-memo-ui" => self.add_modal(
-                &mut chars,
-                Box::new(move_memo_ui(context, &self.memos)),
-            ),
+            "move-memo-ui" => {
+                self.add_modal(&mut chars, Box::new(move_memo_ui(context, &self.memos)))
+            }
             "move-memo" => 'outer: {
                 match argument {
                     ActionArgument::String(category) => {
@@ -153,8 +163,7 @@ impl ModalWorld for CategorizedMemosWorld {
             "add-category" => {
                 if let ActionArgument::String(category) = argument {
                     if !self.memos.categories().contains(&category) {
-                        self.memos
-                            .add_memo(Some(&category), String::new());
+                        self.memos.add_memo(Some(&category), String::new());
                     }
                 }
             }
@@ -182,5 +191,11 @@ impl ModalWorld for CategorizedMemosWorld {
             _ => { /* noop */ }
         }
         (InputResult::InputConsumed, chars)
+    }
+
+    fn graceful_exit(&mut self) {
+        self.memos
+            .update_current_memos(Memos::from(&self.world as &dyn World));
+        self.memos.save_memos().unwrap();
     }
 }
