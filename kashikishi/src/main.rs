@@ -4,6 +4,7 @@ mod categorized_memos;
 mod kashikishi_actions;
 mod local_datetime_format;
 mod memos;
+mod modal_world;
 
 use arboard::Clipboard;
 use categorized_memos::CategorizedMemos;
