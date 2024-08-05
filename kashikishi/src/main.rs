@@ -8,7 +8,7 @@ mod modal_world;
 
 use arboard::Clipboard;
 use font_collector::FontCollector;
-use modal_world::{CategorizedMemosWorld, ModalWorld};
+use modal_world::{CategorizedMemosWorld, HelpWorld, ModalWorld};
 use rokid_3dof::RokidMax;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
 use text_buffer::action::EditorOperation;
@@ -368,6 +368,22 @@ impl SimpleStateCallback for KashikishiCallback {
                 }
                 "world" => {
                     self.execute_world_action(&name, argument, context);
+                    InputResult::InputConsumed
+                }
+                "mode" => {
+                    let world: Option<Box<dyn ModalWorld>> = match &*name.to_string() {
+                        "category" => {
+                            Some(Box::new(CategorizedMemosWorld::new(context.window_size)))
+                        }
+                        "help" => Some(Box::new(HelpWorld::new(context.window_size))),
+                        _ => None,
+                    };
+                    if let Some(world) = world {
+                        self.world.graceful_exit();
+                        self.world = world;
+                        self.new_chars.extend(self.world.world_chars());
+                        self.world.get_mut().look_at(0, CameraAdjustment::FitBoth);
+                    }
                     InputResult::InputConsumed
                 }
                 _ => {

@@ -92,3 +92,7 @@ S-WheelDown world:look-next
 C-ClickMiddle world:reset-zoom
 C-WheelUp     world:forward
 C-WheelDown   world:back
+
+# mode change
+F1 mode:help
+F2 mode:category
