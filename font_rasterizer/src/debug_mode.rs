@@ -1,12 +1,10 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 pub(crate) struct DebugFlags {
     pub(crate) show_glyph_outline: bool,
 }
 
-pub static DEBUG_FLAGS: Lazy<DebugFlags> = Lazy::new(defualt_debug_flags);
-
-fn defualt_debug_flags() -> DebugFlags {
+pub static DEBUG_FLAGS: LazyLock<DebugFlags> = LazyLock::new(|| {
     std::env::var("FONT_RASTERIZER_DEBUG")
         .map(|_debug| DebugFlags {
             show_glyph_outline: true,
@@ -14,4 +12,4 @@ fn defualt_debug_flags() -> DebugFlags {
         .unwrap_or_else(|_| DebugFlags {
             show_glyph_outline: false,
         })
-}
+});

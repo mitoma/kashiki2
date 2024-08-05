@@ -17,7 +17,7 @@ font_collector = { version = "0.1.0", path = "../../font_collector" }
 font_rasterizer = { version = "0.1.0", path = "../../font_rasterizer" }
 stroke_parser = { version = "0.1.0", path = "../../stroke_parser" }
 
-pulldown-cmark = "0.10.3"
+pulldown-cmark = "0.11"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"

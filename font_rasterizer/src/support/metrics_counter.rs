@@ -1,9 +1,12 @@
-use std::{collections::BTreeMap, fmt::Display, sync::Mutex};
+use std::{
+    collections::BTreeMap,
+    fmt::Display,
+    sync::{LazyLock, Mutex},
+};
 
 use instant::{Duration, Instant};
-use once_cell::sync::Lazy;
 
-static METRICS_COUNTER: Lazy<Mutex<MetricsCounter>> = Lazy::new(Default::default);
+static METRICS_COUNTER: LazyLock<Mutex<MetricsCounter>> = LazyLock::new(Default::default);
 
 #[inline]
 pub(super) fn record_start_of_phase(phase_name: &str) {
