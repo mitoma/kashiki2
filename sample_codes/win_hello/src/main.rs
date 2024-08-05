@@ -22,9 +22,13 @@ mod windows {
         event::{ElementState, Event, KeyEvent, WindowEvent},
         event_loop::EventLoop,
         keyboard::Key,
-        raw_window_handle::HasWindowHandle,
+        raw_window_handle::{HasWindowHandle, Win32WindowHandle},
         window::WindowBuilder,
     };
+
+    fn to_hwnd(handle: Win32WindowHandle) -> HWND {
+        HWND(handle.hwnd.get() as *mut std::ffi::c_void)
+    }
 
     /// Windows Hello のサンプルコード。bitwarden/clients が参考になる。
     /// https://github.com/bitwarden/clients/blob/bcb2a976b094f57f1f7e1261e2692f12103d7b16/apps/desktop/desktop_native/src/biometric/windows.rs
@@ -36,15 +40,15 @@ mod windows {
             .unwrap();
         let window_handle = window.window_handle().unwrap();
         let raw_window_handle = window_handle.as_raw();
-        let winit_hwnd = match raw_window_handle {
-            winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle.hwnd,
+        let handle = match raw_window_handle {
+            winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle,
             _ => panic!("Not Windows"),
         };
-        let hwnd = HWND(winit_hwnd.get());
 
         // Windows Hello 用のスレッドを作ってチャネルを持たせる
         let (tx, rx) = std::sync::mpsc::channel::<()>();
         std::thread::spawn(move || {
+            let hwnd = to_hwnd(handle);
             while rx.recv().is_ok() {
                 call_hello(&hwnd).unwrap();
             }
@@ -74,20 +78,19 @@ mod windows {
                             // 100 ms sleep する
                             std::thread::sleep(std::time::Duration::from_millis(100));
                             unsafe {
-                                let hello_hwnd = FindWindowA(class_name, None);
-                                if hello_hwnd.0 != 0 {
+                                if let Ok(hello_hwnd) = FindWindowA(class_name, None) {
                                     let _ = SetForegroundWindow(hello_hwnd);
                                 }
                             }
                         }
                         "b" => {
-                            call_hello(&HWND(0)).unwrap();
+                            call_hello(&HWND::default()).unwrap();
                         }
                         "s" => {
                             setup_first().unwrap();
                         }
                         "h" => {
-                            println!("HWND: {:?}, WindowID: {:?}", hwnd, window_id);
+                            println!("HWND: {:?}, WindowID: {:?}", handle, window_id);
                         }
                         _ => (),
                     }
