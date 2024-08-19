@@ -13,7 +13,7 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
-wgpu = "22.0.0"
+wgpu = "22.1.0"
 winit = "0.29.15"
 serde = "1.0"
 serde_derive = "1.0"
@@ -22,7 +22,7 @@ env_logger = "0.11"
 log = "0.4"
 pollster = "0.3"
 image = "0.25"
-rustybuzz = "0.17"
+rustybuzz = "0.18.0"
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 cgmath = "0.18"
 bytemuck = { version = "1.16", features = ["derive"] }
