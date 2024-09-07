@@ -1,0 +1,97 @@
+[
+    {
+        "namespace": "edit",
+        "name": "return",
+        "description": "改行"
+    },
+    {
+        "namespace": "edit",
+        "name": "backspace",
+        "description": "バックスペース"
+    },
+    {
+        "namespace": "edit",
+        "name": "backspace-word",
+        "description": "前の一単語を削除"
+    },
+    {
+        "namespace": "edit",
+        "name": "delete",
+        "description": "一文字削除"
+    },
+    {
+        "namespace": "edit",
+        "name": "delete-word",
+        "description": "一単語削除"
+    },
+    {
+        "namespace": "edit",
+        "name": "forward",
+        "description": "一文字進む"
+    },
+    {
+        "namespace": "edit",
+        "name": "back",
+        "description": "一文字戻る"
+    },
+    {
+        "namespace": "edit",
+        "name": "forward-word",
+        "description": "一単語進む"
+    },
+    {
+        "namespace": "edit",
+        "name": "back-word",
+        "description": "一単語戻る"
+    },
+    {
+        "namespace": "edit",
+        "name": "next",
+        "description": "一行進む"
+    },
+    {
+        "namespace": "edit",
+        "name": "previous",
+        "description": "一行戻る"
+    },
+    {
+        "namespace": "edit",
+        "name": "buffer-head",
+        "description": "バッファの先頭へ"
+    },
+    {
+        "namespace": "edit",
+        "name": "buffer-last",
+        "description": "バッファの最後へ"
+    },
+    {
+        "namespace": "edit",
+        "name": "mark",
+        "description": "マークを設定"
+    },
+    {
+        "namespace": "edit",
+        "name": "unmark",
+        "description": "解除"
+    },
+    {
+        "namespace": "edit",
+        "name": "copy",
+        "description": "コピー"
+    },
+    {
+        "namespace": "edit",
+        "name": "paste",
+        "description": "ペースト"
+    },
+    {
+        "namespace": "edit",
+        "name": "cut",
+        "description": "カット"
+    },
+    {
+        "namespace": "edit",
+        "name": "undo",
+        "description": "元に戻す"
+    }
+]

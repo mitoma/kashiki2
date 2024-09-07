@@ -1,0 +1,17 @@
+[
+    {
+        "namespace": "system",
+        "name": "toggle-fullscreen",
+        "description": "フルスクリーンの切り替え"
+    },
+    {
+        "namespace": "system",
+        "name": "change-theme-ui",
+        "description": "カラーテーマの変更"
+    },
+    {
+        "namespace": "system",
+        "name": "exit",
+        "description": "炊紙を終了する"
+    }
+]

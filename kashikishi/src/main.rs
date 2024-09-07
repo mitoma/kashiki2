@@ -1,5 +1,6 @@
 /*#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]*/
 /* ↑は Windows で実行する時にコマンドプロンプトが開かないようにするためのもの。 */
+mod action_repository;
 mod categorized_memos;
 mod kashikishi_actions;
 mod local_datetime_format;
@@ -101,7 +102,7 @@ struct KashikishiCallback {
 impl KashikishiCallback {
     fn new(window_size: WindowSize) -> Self {
         let mut store: ActionStore = Default::default();
-        let key_setting = include_str!("key-settings.txt");
+        let key_setting = include_str!("../asset/key-settings.txt");
         info!("{}", key_setting);
         let keybinds = parse_setting(key_setting);
         keybinds

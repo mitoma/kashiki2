@@ -7,25 +7,33 @@ use font_rasterizer::{
 };
 use stroke_parser::Action;
 
-use crate::categorized_memos::CategorizedMemos;
+use crate::{
+    action_repository::{ActionNamespace, ActionRepository},
+    categorized_memos::CategorizedMemos,
+};
 
 pub(crate) fn command_palette_select(context: &StateContext) -> SelectBox {
-    let options = vec![
-        SelectOption::new(
-            "炊紙を終了する".to_string(),
-            Action::new_command("system", "exit"),
-        ),
+    let mut options = Vec::new();
+
+    let action_repository = ActionRepository::default();
+
+    for namespace in [
+        ActionNamespace::System,
+        ActionNamespace::Edit,
+        ActionNamespace::World,
+    ] {
+        for action_definition in action_repository.load_actions(namespace) {
+            options.push(SelectOption::new(
+                action_definition.description.clone(),
+                action_definition.to_action(),
+            ));
+        }
+    }
+
+    let mut manual_options = vec![
         SelectOption::new(
             "ファイルを開く".to_string(),
             Action::new_command("kashikishi", "open-file-ui"),
-        ),
-        SelectOption::new(
-            "フルスクリーンの切り替え".to_string(),
-            Action::new_command("system", "toggle-fullscreen"),
-        ),
-        SelectOption::new(
-            "カラーテーマの変更".to_string(),
-            Action::new_command("system", "change-theme-ui"),
         ),
         SelectOption::new(
             "日付の挿入".to_string(),
@@ -47,11 +55,8 @@ pub(crate) fn command_palette_select(context: &StateContext) -> SelectBox {
             "編集中のメモの移動".to_string(),
             Action::new_command("kashikishi", "move-memo-ui"),
         ),
-        SelectOption::new(
-            "ARモードの切り替え".to_string(),
-            Action::new_command("world", "toggle-ar-mode"),
-        ),
     ];
+    options.append(&mut manual_options);
     SelectBox::new(context, "アクションの選択".to_string(), options, None)
 }
 
