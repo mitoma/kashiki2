@@ -14,6 +14,7 @@ pub enum ActionNamespace {
     Edit,
     System,
     World,
+    #[allow(dead_code)]
     Custom(String),
 }
 
@@ -25,14 +26,6 @@ pub struct ActionDefinition {
 }
 
 impl ActionDefinition {
-    pub fn new(namespace: String, name: String, description: String) -> Self {
-        Self {
-            namespace,
-            name,
-            description,
-        }
-    }
-
     pub fn to_action(&self) -> Action {
         Action::new_command(&self.namespace, &self.name)
     }
