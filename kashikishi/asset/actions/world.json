@@ -1,0 +1,122 @@
+[
+    {
+        "namespace": "world",
+        "name": "toggle-psychedelic",
+        "description": "(実験的)サイケデリックモードを切り替える"
+    },
+    {
+        "namespace": "world",
+        "name": "toggle-ar-mode",
+        "description": "(実験的)ARモードを切り替える"
+    },
+    {
+        "namespace": "world",
+        "name": "reset-zoom",
+        "description": "ズームをリセットする"
+    },
+    {
+        "namespace": "world",
+        "name": "forward",
+        "description": "文書に近づく(ズームイン)"
+    },
+    {
+        "namespace": "world",
+        "name": "forward",
+        "description": "文書から遠ざかる(ズームアウト)"
+    },
+    {
+        "namespace": "world",
+        "name": "fit-width",
+        "description": "文章を横にフィットさせる"
+    },
+    {
+        "namespace": "world",
+        "name": "fit-height",
+        "description": "文章を縦にフィットさせる"
+    },
+    {
+        "namespace": "world",
+        "name": "look-current-and-centering",
+        "description": "編集中の文章を画面内に収める"
+    },
+    {
+        "namespace": "world",
+        "name": "look-current",
+        "description": "編集中の文章に注目する"
+    },
+    {
+        "namespace": "world",
+        "name": "look-next",
+        "description": "次の文章に注目する"
+    },
+    {
+        "namespace": "world",
+        "name": "look-prev",
+        "description": "前の文章に注目する"
+    },
+    {
+        "namespace": "world",
+        "name": "swap-next",
+        "description": "現在の文章と次の文章を入れ替える"
+    },
+    {
+        "namespace": "world",
+        "name": "swap-prev",
+        "description": "現在の文章と前の文章を入れ替える"
+    },
+    {
+        "namespace": "world",
+        "name": "look-current",
+        "description": "編集中のドキュメントに注目する"
+    },
+    {
+        "namespace": "world",
+        "name": "change-direction",
+        "description": "縦書き・横書きを入れ替える"
+    },
+    {
+        "namespace": "world",
+        "name": "increase-row-interval",
+        "description": "行間を広げる"
+    },
+    {
+        "namespace": "world",
+        "name": "decrease-row-interval",
+        "description": "行間を狭める"
+    },
+    {
+        "namespace": "world",
+        "name": "increase-col-interval",
+        "description": "字間を広げる"
+    },
+    {
+        "namespace": "world",
+        "name": "decrease-col-interval",
+        "description": "字間を狭める"
+    },
+    {
+        "namespace": "world",
+        "name": "increase-row-scale",
+        "description": "行方向に文字を拡大する"
+    },
+    {
+        "namespace": "world",
+        "name": "decrease-row-scale",
+        "description": "行方向に文字を縮小する"
+    },
+    {
+        "namespace": "world",
+        "name": "increase-col-scale",
+        "description": "字間方向に文字を拡大する"
+    },
+    {
+        "namespace": "world",
+        "name": "decrease-col-scale",
+        "description": "字間方向に文字を縮小する"
+    },
+    {
+        "namespace": "world",
+        "name": "copy-display",
+        "description": "画面に表示されたインデントで文章をコピー"
+    }
+]

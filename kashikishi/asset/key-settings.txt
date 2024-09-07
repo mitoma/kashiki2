@@ -1,60 +1,53 @@
 # key setting
-Backspace system:backspace
-Back system:backspace
-Delete system:delete
-Return system:return
+Backspace edit:backspace
+Back edit:backspace
+Delete edit:delete
+Return edit:return
 
 # allow setting.
-Right system:forward
-Left system:back
-Down system:next
-Up system:previous
+Right edit:forward
+Left edit:back
+Down edit:next
+Up edit:previous
 
 # emacs style keybinds
-C-A  system:head
-Home system:head
-C-E system:last
-End system:last
-C-F system:forward
-C-B system:back
-C-N system:next
-C-P system:previous
-A-S-Comma  system:buffer-head
-A-S-Period system:buffer-last
-PageDown system:page-down
-A-V      system:page-down
-PageUp   system:page-up
-C-V      system:page-up
+C-A  edit:head
+Home edit:head
+C-E edit:last
+End edit:last
+C-F edit:forward
+C-B edit:back
+C-N edit:next
+C-P edit:previous
+A-S-Comma  edit:buffer-head
+A-S-Period edit:buffer-last
 
-A-F system:forward-word
-A-B system:back-word
+A-F edit:forward-word
+A-B edit:back-word
 
-C-H system:backspace
-A-Delete system:backspace-word
-C-D system:delete
-A-D system:delete-word
-C-M system:return
-C-Space system:mark
-C-G system:unmark
-S-Insert system:paste
-A-W system:copy
-C-K system:kill-ring
-C-W system:cut
-C-Y system:paste
-C-Slash system:undo
+C-H edit:backspace
+A-Delete edit:backspace-word
+C-D edit:delete
+A-D edit:delete-word
+C-M edit:return
+C-Space edit:mark
+C-G edit:unmark
+S-Insert edit:paste
+A-W edit:copy
+C-W edit:cut
+C-Y edit:paste
+C-Slash edit:undo
 
+# system
 C-X C-C system:exit
-
-C-X C-T system:select-theme
+F11     system:toggle-fullscreen
+C-S-P   system:command-palette
 
 # 実験的(遊び)
 C-X C-P     world:toggle-psychedelic
 C-R         world:toggle-ar-mode
 
-F11   system:toggle-fullscreen
 # 
-C-S-P system:command-palette
-
 C-X C-S kashikishi:save
 C-Z C   kashikishi:add-memo
 C-Z K   kashikishi:remove-memo
@@ -92,10 +85,14 @@ A-S-W     world:copy-display
 ClickLeft   world:move-to-click
 ClickRight  world:reset-rokid
 S-ClickLeft world:move-to-click-with-mark
-WheelUp     system:previous
-WheelDown   system:next
+WheelUp     edit:previous
+WheelDown   edit:next
 S-WheelUp   world:look-prev
 S-WheelDown world:look-next
 C-ClickMiddle world:reset-zoom
 C-WheelUp     world:forward
 C-WheelDown   world:back
+
+# mode change
+F1 mode:help
+F2 mode:category

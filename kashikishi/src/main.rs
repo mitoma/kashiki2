@@ -1,13 +1,15 @@
 /*#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]*/
 /* ↑は Windows で実行する時にコマンドプロンプトが開かないようにするためのもの。 */
+mod action_repository;
 mod categorized_memos;
 mod kashikishi_actions;
 mod local_datetime_format;
 mod memos;
+mod modal_world;
 
 use arboard::Clipboard;
-use categorized_memos::CategorizedMemos;
 use font_collector::FontCollector;
+use modal_world::{CategorizedMemosWorld, HelpWorld, ModalWorld};
 use rokid_3dof::RokidMax;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
 use text_buffer::action::EditorOperation;
@@ -18,23 +20,18 @@ use font_rasterizer::{
     context::{StateContext, WindowSize},
     font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
-    layout_engine::{HorizontalWorld, Model, ModelOperation, World},
+    layout_engine::{Model, ModelOperation},
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::set_clock_mode,
-    ui::{caret_char, ime_chars, ime_input::ImeInput, textedit::TextEdit},
+    ui::{caret_char, ime_chars, ime_input::ImeInput},
 };
-use kashikishi_actions::{add_category_ui, change_theme_ui, open_file_ui, remove_category_ui};
+use kashikishi_actions::change_theme_ui;
 use log::info;
 use std::collections::HashSet;
 use winit::event::WindowEvent;
 
-use crate::{
-    kashikishi_actions::{
-        command_palette_select, insert_date_select, move_category_ui, move_memo_ui,
-    },
-    memos::Memos,
-};
+use crate::kashikishi_actions::command_palette_select;
 
 //const ICON_IMAGE: &[u8] = include_bytes!("kashikishi-logo.png");
 
@@ -95,10 +92,9 @@ pub async fn run() {
 
 struct KashikishiCallback {
     store: ActionStore,
-    world: Box<dyn World>,
+    world: Box<dyn ModalWorld>,
     ime: ImeInput,
     new_chars: HashSet<char>,
-    categorized_memos: CategorizedMemos,
     rokid_max: Option<RokidMax>,
     ar_mode: bool,
 }
@@ -106,7 +102,7 @@ struct KashikishiCallback {
 impl KashikishiCallback {
     fn new(window_size: WindowSize) -> Self {
         let mut store: ActionStore = Default::default();
-        let key_setting = include_str!("key-settings.txt");
+        let key_setting = include_str!("../asset/key-settings.txt");
         info!("{}", key_setting);
         let keybinds = parse_setting(key_setting);
         keybinds
@@ -114,66 +110,187 @@ impl KashikishiCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let ime = ImeInput::new();
 
-        let world = Box::new(HorizontalWorld::new(window_size));
-        let new_chars = HashSet::new();
-
-        let categorized_memos = CategorizedMemos::load_memos();
+        let world = Box::new(CategorizedMemosWorld::new(window_size));
+        let mut new_chars = HashSet::new();
+        new_chars.extend(world.world_chars());
 
         let rokid_max = RokidMax::new().ok();
 
-        let mut result = Self {
+        Self {
             store,
             world,
             ime,
             new_chars,
-            categorized_memos,
             rokid_max,
             ar_mode: false,
-        };
-        result.reset_world(window_size);
-        result
+        }
     }
 
-    // ワールドを今のカテゴリでリセットする
-    fn reset_world(&mut self, window_size: WindowSize) {
-        let mut world = Box::new(HorizontalWorld::new(window_size));
-        for memo in self
-            .categorized_memos
-            .get_current_memos()
-            .unwrap()
-            .memos
-            .iter()
-        {
-            let mut textedit = TextEdit::default();
-            textedit.editor_operation(&EditorOperation::InsertString(memo.to_string()));
-            textedit.editor_operation(&EditorOperation::BufferHead);
-            let model = Box::new(textedit);
-            world.add(model);
+    fn execute_system_action(
+        &mut self,
+        command_name: &str,
+        argument: ActionArgument,
+        context: &StateContext,
+    ) -> SystemActionResult {
+        match command_name {
+            "exit" => SystemActionResult::Exit,
+            "command-palette" => {
+                SystemActionResult::AddModal(Box::new(command_palette_select(context)))
+            }
+            "toggle-fullscreen" => SystemActionResult::ToggleFullScreen,
+            "change-theme-ui" => SystemActionResult::AddModal(Box::new(change_theme_ui(context))),
+            "change-theme" => match argument {
+                ActionArgument::String(value) => match &*value.to_string() {
+                    "black" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedBlackback),
+                    "dark" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedDark),
+                    "light" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedLight),
+                    _ => SystemActionResult::Noop,
+                },
+                _ => SystemActionResult::Noop,
+            },
+            _ => SystemActionResult::Noop,
         }
-        let look_at = 0;
-        world.look_at(look_at, CameraAdjustment::FitBoth);
-        world.re_layout();
-        self.world = world;
-        // world にすでに表示されるグリフを追加する
-        let chars = self
-            .world
-            .strings()
-            .join("")
-            .chars()
-            .collect::<HashSet<char>>();
-        self.new_chars.extend(chars);
     }
+
+    fn execute_editor_action(command_name: &str, chars: &mut HashSet<char>) -> EditorOperation {
+        match command_name {
+            "return" => EditorOperation::InsertEnter,
+            "backspace" => EditorOperation::Backspace,
+            "backspace-word" => EditorOperation::BackspaceWord,
+            "delete" => EditorOperation::Delete,
+            "delete-word" => EditorOperation::DeleteWord,
+            "previous" => EditorOperation::Previous,
+            "next" => EditorOperation::Next,
+            "back" => EditorOperation::Back,
+            "forward" => EditorOperation::Forward,
+            "back-word" => EditorOperation::BackWord,
+            "forward-word" => EditorOperation::ForwardWord,
+            "head" => EditorOperation::Head,
+            "last" => EditorOperation::Last,
+            "undo" => EditorOperation::Undo,
+            "buffer-head" => EditorOperation::BufferHead,
+            "buffer-last" => EditorOperation::BufferLast,
+            "paste" => match Clipboard::new().and_then(|mut context| context.get_text()) {
+                Ok(text) => {
+                    chars.extend(text.chars());
+                    EditorOperation::InsertString(text)
+                }
+                Err(_) => EditorOperation::Noop,
+            },
+            "copy" => EditorOperation::Copy(|text| {
+                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+            }),
+            "cut" => EditorOperation::Cut(|text| {
+                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+            }),
+            "mark" => EditorOperation::Mark,
+            "unmark" => EditorOperation::UnMark,
+            _ => EditorOperation::Noop,
+        }
+    }
+
+    fn execute_world_action(
+        &mut self,
+        command_name: &str,
+        argument: ActionArgument,
+        context: &StateContext,
+    ) {
+        let world = self.world.get_mut();
+        match command_name {
+            "remove-current" => {
+                world.remove_current();
+                world.re_layout();
+                world.look_prev(CameraAdjustment::NoCare);
+            }
+            "reset-zoom" => world.look_current(CameraAdjustment::FitBoth),
+            "look-current-and-centering" => {
+                if let Some(rokid_max) = self.rokid_max.as_mut() {
+                    let _ = rokid_max.reset();
+                }
+                world.look_current(CameraAdjustment::FitBothAndCentering)
+            }
+            "look-current" => world.look_current(CameraAdjustment::NoCare),
+            "look-next" => world.look_next(CameraAdjustment::NoCare),
+            "look-prev" => world.look_prev(CameraAdjustment::NoCare),
+            "swap-next" => world.swap_next(),
+            "swap-prev" => world.swap_prev(),
+            "fit-width" => world.look_current(CameraAdjustment::FitWidth),
+            "fit-height" => world.look_current(CameraAdjustment::FitHeight),
+            "forward" => world.camera_operation(CameraOperation::Forward),
+            "back" => world.camera_operation(CameraOperation::Backward),
+            "change-direction" => world.model_operation(&ModelOperation::ChangeDirection(None)),
+            "increase-row-interval" => world.model_operation(&ModelOperation::IncreaseRowInterval),
+            "decrease-row-interval" => world.model_operation(&ModelOperation::DecreaseRowInterval),
+            "increase-col-interval" => world.model_operation(&ModelOperation::IncreaseColInterval),
+            "decrease-col-interval" => world.model_operation(&ModelOperation::DecreaseColInterval),
+            "increase-col-scale" => world.model_operation(&ModelOperation::IncreaseColScale),
+            "decrease-col-scale" => world.model_operation(&ModelOperation::DecreaseColScale),
+            "increase-row-scale" => world.model_operation(&ModelOperation::IncreaseRowScale),
+            "decrease-row-scale" => world.model_operation(&ModelOperation::DecreaseRowScale),
+            "copy-display" => world.model_operation(&ModelOperation::CopyDisplayString(
+                context.char_width_calcurator.clone(),
+                |text| {
+                    let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+                },
+            )),
+            "toggle-psychedelic" => world.model_operation(&ModelOperation::TogglePsychedelic),
+            "move-to-click" => {
+                match argument {
+                    ActionArgument::Point((x, y)) => {
+                        let (x_ratio, y_ratio) = (
+                            (x / context.window_size.width as f32 * 2.0) - 1.0,
+                            1.0 - (y / context.window_size.height as f32 * 2.0),
+                        );
+                        world.move_to_position(x_ratio, y_ratio);
+                    }
+                    _ => { /* noop */ }
+                }
+            }
+            "move-to-click-with-mark" => {
+                match argument {
+                    ActionArgument::Point((x, y)) => {
+                        let (x_ratio, y_ratio) = (
+                            (x / context.window_size.width as f32 * 2.0) - 1.0,
+                            1.0 - (y / context.window_size.height as f32 * 2.0),
+                        );
+                        world.move_to_position(x_ratio, y_ratio);
+                        world.editor_operation(&EditorOperation::Mark);
+                    }
+                    _ => { /* noop */ }
+                }
+            }
+            // AR 系はアクションのカテゴリを変えるべきだろうか？
+            "reset-rokid" => {
+                if let Some(rokid_max) = self.rokid_max.as_mut() {
+                    let _ = rokid_max.reset();
+                }
+            }
+            "toggle-ar-mode" => {
+                if let Some(rokid_max) = self.rokid_max.as_mut() {
+                    let _ = rokid_max.reset();
+                    world.camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
+                        rokid_max.quaternion(),
+                    )));
+                }
+                self.ar_mode = !self.ar_mode;
+            }
+            _ => {}
+        };
+    }
+}
+
+enum SystemActionResult {
+    Exit,
+    ToggleFullScreen,
+    ChangeColorTheme(ColorTheme),
+    AddModal(Box<dyn Model>),
+    Noop,
 }
 
 impl SimpleStateCallback for KashikishiCallback {
     fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         // world にすでに表示されるグリフを追加する
-        let mut chars = self
-            .world
-            .strings()
-            .join("")
-            .chars()
-            .collect::<HashSet<char>>();
+        let mut chars = self.world.world_chars();
 
         // キャレットのグリフを追加する
         chars.insert(caret_char(text_buffer::caret::CaretType::Primary));
@@ -188,11 +305,11 @@ impl SimpleStateCallback for KashikishiCallback {
             .unwrap();
 
         // カメラを初期化する
-        self.world.look_at(0, CameraAdjustment::FitBoth);
+        self.world.get_mut().look_at(0, CameraAdjustment::FitBoth);
     }
 
     fn resize(&mut self, window_size: WindowSize) {
-        self.world.change_window_size(window_size);
+        self.world.get_mut().change_window_size(window_size);
     }
 
     fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
@@ -204,13 +321,14 @@ impl SimpleStateCallback for KashikishiCallback {
                 .unwrap();
             self.new_chars.clear();
         }
-        self.world.update(glyph_vertex_buffer, context);
+        self.world.get_mut().update(glyph_vertex_buffer, context);
         self.ime.update(context);
 
         // AR モードが有効な場合はカメラの向きを変える。少し雑だが良い場所が見つかるまでここで。
         if self.ar_mode {
             if let Some(rokid_max) = self.rokid_max.as_ref() {
                 self.world
+                    .get_mut()
                     .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
                         rokid_max.quaternion(),
                     )));
@@ -227,329 +345,60 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
-        fn add_modal(
-            chars: &mut HashSet<char>,
-            world: &mut Box<dyn World>,
-            model: Box<dyn Model>,
-        ) -> InputResult {
-            chars.extend(model.to_string().chars());
-            world.add_next(model);
-            world.re_layout();
-            world.look_next(CameraAdjustment::FitBoth);
-            InputResult::InputConsumed
-        }
-
         match action {
             Action::Command(category, name, argument) => match &*category.to_string() {
-                "system" => {
-                    let action = match &*name.to_string() {
-                        "exit" => {
-                            self.categorized_memos
-                                .update_current_memos(Memos::from(&*self.world));
-                            self.categorized_memos.save_memos().unwrap();
-                            return InputResult::SendExit;
-                        }
-                        "command-palette" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(command_palette_select(context)),
-                            );
-                        }
-                        "toggle-fullscreen" => {
-                            return InputResult::ToggleFullScreen;
-                        }
-                        "change-theme-ui" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(change_theme_ui(context)),
-                            )
-                        }
-                        "change-theme" => match argument {
-                            ActionArgument::String(value) => match &*value.to_string() {
-                                "black" => {
-                                    return InputResult::ChangeColorTheme(
-                                        ColorTheme::SolarizedBlackback,
-                                    )
-                                }
-                                "dark" => {
-                                    return InputResult::ChangeColorTheme(ColorTheme::SolarizedDark)
-                                }
-                                "light" => {
-                                    return InputResult::ChangeColorTheme(
-                                        ColorTheme::SolarizedLight,
-                                    )
-                                }
-                                _ => EditorOperation::Noop,
-                            },
-                            _ => EditorOperation::Noop,
-                        },
-                        "return" => EditorOperation::InsertEnter,
-                        "backspace" => EditorOperation::Backspace,
-                        "backspace-word" => EditorOperation::BackspaceWord,
-                        "delete" => EditorOperation::Delete,
-                        "delete-word" => EditorOperation::DeleteWord,
-                        "previous" => EditorOperation::Previous,
-                        "next" => EditorOperation::Next,
-                        "back" => EditorOperation::Back,
-                        "forward" => EditorOperation::Forward,
-                        "back-word" => EditorOperation::BackWord,
-                        "forward-word" => EditorOperation::ForwardWord,
-                        "head" => EditorOperation::Head,
-                        "last" => EditorOperation::Last,
-                        "undo" => EditorOperation::Undo,
-                        "buffer-head" => EditorOperation::BufferHead,
-                        "buffer-last" => EditorOperation::BufferLast,
-                        "paste" => {
-                            match Clipboard::new().and_then(|mut context| context.get_text()) {
-                                Ok(text) => {
-                                    self.new_chars.extend(text.chars());
-                                    EditorOperation::InsertString(text)
-                                }
-                                Err(_) => EditorOperation::Noop,
-                            }
-                        }
-                        "copy" => EditorOperation::Copy(|text| {
-                            let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
-                        }),
-                        "cut" => EditorOperation::Cut(|text| {
-                            let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
-                        }),
-                        "mark" => EditorOperation::Mark,
-                        "unmark" => EditorOperation::UnMark,
-                        _ => EditorOperation::Noop,
-                    };
-                    self.world.editor_operation(&action);
-
+                "system" => match self.execute_system_action(&name, argument, context) {
+                    SystemActionResult::Exit => {
+                        self.world.graceful_exit();
+                        InputResult::SendExit
+                    }
+                    SystemActionResult::ToggleFullScreen => InputResult::ToggleFullScreen,
+                    SystemActionResult::ChangeColorTheme(theme) => {
+                        InputResult::ChangeColorTheme(theme)
+                    }
+                    SystemActionResult::AddModal(modal) => {
+                        self.world.add_modal(&mut self.new_chars, modal);
+                        InputResult::InputConsumed
+                    }
+                    SystemActionResult::Noop => InputResult::InputConsumed,
+                },
+                "edit" => {
+                    let op = Self::execute_editor_action(&name, &mut self.new_chars);
+                    self.world.get_mut().editor_operation(&op);
                     InputResult::InputConsumed
                 }
                 "world" => {
-                    match &*name.to_string() {
-                        "remove-current" => {
-                            self.world.remove_current();
-                            self.world.re_layout();
-                            self.world.look_prev(CameraAdjustment::NoCare);
-                        }
-                        "reset-zoom" => self.world.look_current(CameraAdjustment::FitBoth),
-                        "look-current-and-centering" => {
-                            if let Some(rokid_max) = self.rokid_max.as_mut() {
-                                let _ = rokid_max.reset();
-                            }
-                            self.world
-                                .look_current(CameraAdjustment::FitBothAndCentering)
-                        }
-                        "look-current" => self.world.look_current(CameraAdjustment::NoCare),
-                        "look-next" => self.world.look_next(CameraAdjustment::NoCare),
-                        "look-prev" => self.world.look_prev(CameraAdjustment::NoCare),
-                        "swap-next" => self.world.swap_next(),
-                        "swap-prev" => self.world.swap_prev(),
-                        "fit-width" => self.world.look_current(CameraAdjustment::FitWidth),
-                        "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
-                        "forward" => self.world.camera_operation(CameraOperation::Forward),
-                        "back" => self.world.camera_operation(CameraOperation::Backward),
-                        "change-direction" => self
-                            .world
-                            .model_operation(&ModelOperation::ChangeDirection(None)),
-                        "increase-row-interval" => self
-                            .world
-                            .model_operation(&ModelOperation::IncreaseRowInterval),
-                        "decrease-row-interval" => self
-                            .world
-                            .model_operation(&ModelOperation::DecreaseRowInterval),
-                        "increase-col-interval" => self
-                            .world
-                            .model_operation(&ModelOperation::IncreaseColInterval),
-                        "decrease-col-interval" => self
-                            .world
-                            .model_operation(&ModelOperation::DecreaseColInterval),
-                        "increase-col-scale" => self
-                            .world
-                            .model_operation(&ModelOperation::IncreaseColScale),
-                        "decrease-col-scale" => self
-                            .world
-                            .model_operation(&ModelOperation::DecreaseColScale),
-                        "increase-row-scale" => self
-                            .world
-                            .model_operation(&ModelOperation::IncreaseRowScale),
-                        "decrease-row-scale" => self
-                            .world
-                            .model_operation(&ModelOperation::DecreaseRowScale),
-                        "copy-display" => {
-                            self.world
-                                .model_operation(&ModelOperation::CopyDisplayString(
-                                    context.char_width_calcurator.clone(),
-                                    |text| {
-                                        let _ = Clipboard::new()
-                                            .and_then(|mut context| context.set_text(text));
-                                    },
-                                ))
-                        }
-                        "toggle-psychedelic" => self
-                            .world
-                            .model_operation(&ModelOperation::TogglePsychedelic),
-                        "move-to-click" => {
-                            match argument {
-                                ActionArgument::Point((x, y)) => {
-                                    let (x_ratio, y_ratio) = (
-                                        (x / context.window_size.width as f32 * 2.0) - 1.0,
-                                        1.0 - (y / context.window_size.height as f32 * 2.0),
-                                    );
-                                    self.world.move_to_position(x_ratio, y_ratio);
-                                }
-                                _ => { /* noop */ }
-                            }
-                        }
-                        "move-to-click-with-mark" => {
-                            match argument {
-                                ActionArgument::Point((x, y)) => {
-                                    let (x_ratio, y_ratio) = (
-                                        (x / context.window_size.width as f32 * 2.0) - 1.0,
-                                        1.0 - (y / context.window_size.height as f32 * 2.0),
-                                    );
-                                    self.world.move_to_position(x_ratio, y_ratio);
-                                    self.world.editor_operation(&EditorOperation::Mark);
-                                }
-                                _ => { /* noop */ }
-                            }
-                        }
-                        "reset-rokid" => {
-                            if let Some(rokid_max) = self.rokid_max.as_mut() {
-                                let _ = rokid_max.reset();
-                            }
-                        }
-                        "toggle-ar-mode" => {
-                            if let Some(rokid_max) = self.rokid_max.as_mut() {
-                                let _ = rokid_max.reset();
-                                self.world
-                                    .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
-                                        rokid_max.quaternion(),
-                                    )));
-                            }
-                            self.ar_mode = !self.ar_mode;
-                        }
-                        _ => {}
-                    };
+                    self.execute_world_action(&name, argument, context);
                     InputResult::InputConsumed
                 }
-                "kashikishi" => {
-                    match &*name.to_string() {
-                        "save" => {
-                            self.categorized_memos
-                                .update_current_memos(Memos::from(&*self.world));
-                            self.categorized_memos.save_memos().unwrap();
+                "mode" => {
+                    let world: Option<Box<dyn ModalWorld>> = match &*name.to_string() {
+                        "category" => {
+                            Some(Box::new(CategorizedMemosWorld::new(context.window_size)))
                         }
-                        "add-memo" => {
-                            let textedit = TextEdit::default();
-                            let model = Box::new(textedit);
-                            self.world.add(model);
-                            self.world.re_layout();
-                            self.world
-                                .look_at(self.world.model_length() - 1, CameraAdjustment::NoCare);
-                        }
-                        "remove-memo" => {
-                            self.world.remove_current();
-                            self.world.re_layout();
-                            self.world.look_prev(CameraAdjustment::NoCare);
-                        }
-                        "insert-date" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(insert_date_select(context)),
-                            )
-                        }
-                        "move-category-ui" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(move_category_ui(context, &self.categorized_memos)),
-                            )
-                        }
-                        "move-category" => match argument {
-                            ActionArgument::String(category) => {
-                                if self.categorized_memos.current_category == category {
-                                    return InputResult::InputConsumed;
-                                }
-                                self.categorized_memos
-                                    .update_current_memos(Memos::from(&*self.world));
-                                self.categorized_memos.current_category = category;
-                                self.reset_world(context.window_size);
-                            }
-                            _ => { /* noop */ }
-                        },
-                        "move-memo-ui" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(move_memo_ui(context, &self.categorized_memos)),
-                            )
-                        }
-                        "move-memo" => match argument {
-                            ActionArgument::String(category) => {
-                                if self.categorized_memos.current_category == category {
-                                    return InputResult::InputConsumed;
-                                }
-                                self.categorized_memos
-                                    .add_memo(Some(&category), self.world.current_string());
-                                context
-                                    .action_queue_sender
-                                    .send(Action::new_command("world", "remove-current"))
-                                    .unwrap();
-                            }
-                            _ => { /* noop */ }
-                        },
-                        "add-category-ui" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(add_category_ui(context)),
-                            );
-                        }
-                        "add-category" => {
-                            if let ActionArgument::String(category) = argument {
-                                if !self.categorized_memos.categories().contains(&category) {
-                                    self.categorized_memos
-                                        .add_memo(Some(&category), String::new());
-                                }
-                            }
-                        }
-                        "remove-category-ui" => {
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(remove_category_ui(context, &self.categorized_memos)),
-                            );
-                        }
-                        "remove-category" => {
-                            if let ActionArgument::String(category) = argument {
-                                self.categorized_memos.remove_category(&category);
-                                if self.categorized_memos.current_category == category {
-                                    self.reset_world(context.window_size);
-                                }
-                            }
-                        }
-                        "open-file-ui" => {
-                            let arg = match argument {
-                                ActionArgument::String(path) => Some(path),
-                                _ => None,
-                            };
-                            return add_modal(
-                                &mut self.new_chars,
-                                &mut self.world,
-                                Box::new(open_file_ui(context, arg.as_deref())),
-                            );
-                        }
-                        _ => {}
+                        "help" => Some(Box::new(HelpWorld::new(context.window_size))),
+                        _ => None,
                     };
+                    if let Some(world) = world {
+                        self.world.graceful_exit();
+                        self.world = world;
+                        self.new_chars.extend(self.world.world_chars());
+                        self.world.get_mut().look_at(0, CameraAdjustment::FitBoth);
+                    }
                     InputResult::InputConsumed
                 }
-                _ => InputResult::Noop,
+                _ => {
+                    let (result, chars) = self
+                        .world
+                        .apply_action(context, Action::Command(category, name, argument));
+                    self.new_chars.extend(chars);
+                    result
+                }
             },
             Action::Keytype(c) => {
                 self.new_chars.insert(c);
                 let action = EditorOperation::InsertChar(c);
-                self.world.editor_operation(&action);
+                self.world.get_mut().editor_operation(&action);
                 InputResult::InputConsumed
             }
             Action::ImeInput(value) => {
@@ -557,6 +406,7 @@ impl SimpleStateCallback for KashikishiCallback {
                 self.ime
                     .apply_ime_event(&Action::ImeInput(value.clone()), context);
                 self.world
+                    .get_mut()
                     .editor_operation(&EditorOperation::InsertString(value));
                 InputResult::InputConsumed
             }
@@ -571,9 +421,9 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        let mut world_instances = self.world.glyph_instances();
+        let mut world_instances = self.world.get().glyph_instances();
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);
-        (self.world.camera(), world_instances)
+        (self.world.get().camera(), world_instances)
     }
 }

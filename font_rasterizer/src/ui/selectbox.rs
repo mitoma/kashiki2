@@ -342,7 +342,13 @@ impl Model for SelectBox {
             // 選択肢の文字列が出てこないので全選択肢の文字列を出力する
             self.options
                 .iter()
-                .map(|s| s.text.clone())
+                .map(|s| {
+                    if self.show_action_name {
+                        s.option_string(0)
+                    } else {
+                        s.option_string_short()
+                    }
+                })
                 .collect::<Vec<String>>()
                 .join(""),
         ]
