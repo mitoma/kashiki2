@@ -210,7 +210,8 @@ impl HelpWorld {
             world: HorizontalWorld::new(window_size),
         };
 
-        let help_contents: Vec<String> = serde_json::from_str(include_str!("../asset/help.json")).unwrap();
+        let help_contents: Vec<String> =
+            serde_json::from_str(include_str!("../asset/help.json")).unwrap();
 
         for help_content in help_contents {
             let mut textedit = TextEdit::default();
