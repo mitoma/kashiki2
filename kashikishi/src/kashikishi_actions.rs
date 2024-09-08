@@ -21,6 +21,7 @@ pub(crate) fn command_palette_select(context: &StateContext) -> SelectBox {
         ActionNamespace::System,
         ActionNamespace::Edit,
         ActionNamespace::World,
+        ActionNamespace::Kashikishi,
     ] {
         for action_definition in action_repository.load_actions(namespace) {
             options.push(SelectOption::new(
@@ -29,34 +30,6 @@ pub(crate) fn command_palette_select(context: &StateContext) -> SelectBox {
             ));
         }
     }
-
-    let mut manual_options = vec![
-        SelectOption::new(
-            "ファイルを開く".to_string(),
-            Action::new_command("kashikishi", "open-file-ui"),
-        ),
-        SelectOption::new(
-            "日付の挿入".to_string(),
-            Action::new_command("kashikishi", "insert-date"),
-        ),
-        SelectOption::new(
-            "カテゴリを移動".to_string(),
-            Action::new_command("kashikishi", "move-category-ui"),
-        ),
-        SelectOption::new(
-            "カテゴリの追加".to_string(),
-            Action::new_command("kashikishi", "add-category-ui"),
-        ),
-        SelectOption::new(
-            "カテゴリの削除".to_string(),
-            Action::new_command("kashikishi", "remove-category-ui"),
-        ),
-        SelectOption::new(
-            "編集中のメモの移動".to_string(),
-            Action::new_command("kashikishi", "move-memo-ui"),
-        ),
-    ];
-    options.append(&mut manual_options);
     SelectBox::new(context, "アクションの選択".to_string(), options, None)
 }
 

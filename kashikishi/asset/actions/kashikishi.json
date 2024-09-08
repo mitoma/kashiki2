@@ -1,0 +1,32 @@
+[
+    {
+        "namespace": "kashikishi",
+        "name": "open-file-ui",
+        "description": "ファイルを開く"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "insert-date",
+        "description": "日付の挿入"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "move-category-ui",
+        "description": "カテゴリを移動"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "カテゴリの追加",
+        "description": "add-category-ui"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "remove-category-ui",
+        "description": "カテゴリの削除"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "move-memo-ui",
+        "description": "編集中のメモの移動"
+    }
+]
