@@ -16,8 +16,8 @@
     },
     {
         "namespace": "kashikishi",
-        "name": "カテゴリの追加",
-        "description": "add-category-ui"
+        "name": "add-category-ui",
+        "description": "カテゴリの追加"
     },
     {
         "namespace": "kashikishi",
