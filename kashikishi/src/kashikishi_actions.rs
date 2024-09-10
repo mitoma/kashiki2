@@ -12,7 +12,7 @@ use crate::{
     categorized_memos::CategorizedMemos,
 };
 
-pub(crate) fn command_palette_select(context: &StateContext) -> SelectBox {
+pub(crate) fn command_palette_select(context: &StateContext, narrow: Option<String>) -> SelectBox {
     let mut options = Vec::new();
 
     let action_repository = ActionRepository::default();
@@ -30,7 +30,7 @@ pub(crate) fn command_palette_select(context: &StateContext) -> SelectBox {
             ));
         }
     }
-    SelectBox::new(context, "アクションの選択".to_string(), options, None)
+    SelectBox::new(context, "アクションの選択".to_string(), options, narrow)
 }
 
 pub(crate) fn insert_date_select(context: &StateContext) -> SelectBox {

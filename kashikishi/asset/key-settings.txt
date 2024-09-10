@@ -42,6 +42,7 @@ C-Slash edit:undo
 C-X C-C system:exit
 F11     system:toggle-fullscreen
 C-S-P   system:command-palette
+C-S-C   system:command-palette(kashikishi)
 
 # 実験的(遊び)
 C-X C-P     world:toggle-psychedelic

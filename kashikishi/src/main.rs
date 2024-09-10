@@ -135,7 +135,11 @@ impl KashikishiCallback {
         match command_name {
             "exit" => SystemActionResult::Exit,
             "command-palette" => {
-                SystemActionResult::AddModal(Box::new(command_palette_select(context)))
+                let narrow = match argument {
+                    ActionArgument::String(value) => Some(value),
+                    _ => None,
+                };
+                SystemActionResult::AddModal(Box::new(command_palette_select(context, narrow)))
             }
             "toggle-fullscreen" => SystemActionResult::ToggleFullScreen,
             "change-theme-ui" => SystemActionResult::AddModal(Box::new(change_theme_ui(context))),
