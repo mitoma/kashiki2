@@ -149,7 +149,7 @@ impl Font {
         self.names()
             .iter()
             .enumerate()
-            .filter(|(_idx, name)| name.contains(font_name))
+            .filter(|(_idx, name)| name.as_str() == font_name)
             .map(|(idx, _name)| idx as u32)
             .next()
     }
