@@ -148,10 +148,8 @@ impl Font {
     fn font_index(&self, font_name: &str) -> Option<u32> {
         self.names()
             .iter()
-            .enumerate()
-            .filter(|(_idx, name)| name.as_str() == font_name)
-            .map(|(idx, _name)| idx as u32)
-            .next()
+            .position(|name| name == font_name)
+            .map(|idx| idx as u32)
     }
 
     fn data(&self) -> Vec<u8> {
