@@ -62,7 +62,10 @@ pub async fn run() {
     // setup font
     let mut collector = FontCollector::default();
     collector.add_system_fonts();
-    let kyokasho_font = collector.load_font("UD デジタル 教科書体 N-R");
+    // Windows のインストールタイミングによって教科書体のフォント名が微妙に異なるので、複数指定している
+    let kyokasho_font = ["UD デジタル 教科書体 N", "UD デジタル 教科書体 N-R"]
+        .iter()
+        .find_map(|str| collector.load_font(str));
     let mut font_binaries = Vec::new();
     if let Some(kyokasho_font) = kyokasho_font {
         font_binaries.push(kyokasho_font);
