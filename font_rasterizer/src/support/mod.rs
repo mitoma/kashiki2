@@ -153,6 +153,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                                 }
                             }
                         }
+                        InputResult::ToggleDecorations => {
+                            window.set_decorations(!window.is_decorated());
+                        }
                         InputResult::ChangeColorTheme(color_theme) => {
                             state.change_color_theme(color_theme);
                         }
@@ -258,7 +261,10 @@ pub async fn run_support(support: SimpleStateSupport) {
                     InputResult::ChangeColorTheme(color_theme) => {
                         state.change_color_theme(color_theme);
                     }
-                    _ => {}
+                    InputResult::ToggleDecorations => {
+                        window.set_decorations(!window.is_decorated());
+                    }
+                    InputResult::Noop => {}
                 }
             }
             record_start_of_phase("wait for next event");
@@ -269,6 +275,7 @@ pub async fn run_support(support: SimpleStateSupport) {
 pub enum InputResult {
     InputConsumed,
     ToggleFullScreen,
+    ToggleDecorations,
     ChangeColorTheme(ColorTheme),
     SendExit,
     Noop,

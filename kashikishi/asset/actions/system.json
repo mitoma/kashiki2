@@ -6,6 +6,11 @@
     },
     {
         "namespace": "system",
+        "name": "toggle-titlebar",
+        "description": "タイトルバーの表示・非表示の切り替え"
+    },
+    {
+        "namespace": "system",
         "name": "change-theme-ui",
         "description": "カラーテーマの変更"
     },

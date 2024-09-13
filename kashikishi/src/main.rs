@@ -142,6 +142,7 @@ impl KashikishiCallback {
                 SystemActionResult::AddModal(Box::new(command_palette_select(context, narrow)))
             }
             "toggle-fullscreen" => SystemActionResult::ToggleFullScreen,
+            "toggle-titlebar" => SystemActionResult::ToggleTitlebar,
             "change-theme-ui" => SystemActionResult::AddModal(Box::new(change_theme_ui(context))),
             "change-theme" => match argument {
                 ActionArgument::String(value) => match &*value.to_string() {
@@ -286,6 +287,7 @@ impl KashikishiCallback {
 enum SystemActionResult {
     Exit,
     ToggleFullScreen,
+    ToggleTitlebar,
     ChangeColorTheme(ColorTheme),
     AddModal(Box<dyn Model>),
     Noop,
@@ -357,6 +359,7 @@ impl SimpleStateCallback for KashikishiCallback {
                         InputResult::SendExit
                     }
                     SystemActionResult::ToggleFullScreen => InputResult::ToggleFullScreen,
+                    SystemActionResult::ToggleTitlebar => InputResult::ToggleDecorations,
                     SystemActionResult::ChangeColorTheme(theme) => {
                         InputResult::ChangeColorTheme(theme)
                     }
