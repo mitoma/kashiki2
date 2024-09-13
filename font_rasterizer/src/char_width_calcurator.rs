@@ -1,7 +1,8 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use cached::proc_macro::cached;
 use font_collector::FontData;
+use log::debug;
 use rustybuzz::Face;
 use text_buffer::editor::CharWidthResolver;
 use unicode_width::UnicodeWidthChar;
@@ -29,9 +30,24 @@ impl CharWidthCalculator {
     }
 }
 
+static SPECIAL_WIDE_CHARS: LazyLock<Vec<char>> = LazyLock::new(|| {
+    let mut v = Vec::new();
+    v.push('　');
+    // 割と雑だが、ギリシャ文字は全角として扱う
+    ('Α'..='Ω').for_each(|c| v.push(c));
+    ('α'..='ω').for_each(|c| v.push(c));
+    v
+});
+
 #[cached(key = "char", convert = "{ c }")]
 fn inner_get_width(faces: &[FontData], c: char) -> CharWidth {
+    debug!("char:{:?}", c);
+    if SPECIAL_WIDE_CHARS.contains(&c) {
+        debug!("reson:special_wide_chars");
+        return CharWidth::Wide;
+    }
     if c.is_ascii() {
+        debug!("reson:ascii");
         return CharWidth::Regular;
     }
     for face in faces
@@ -39,9 +55,11 @@ fn inner_get_width(faces: &[FontData], c: char) -> CharWidth {
         .flat_map(|f| Face::from_slice(&f.binary, f.index))
     {
         if let Some(width) = calc_width(c, &face) {
+            debug!("reson:calc_width");
             return width;
         }
     }
+    debug!("reson:unicode_width");
     match UnicodeWidthChar::width_cjk(c) {
         Some(1) => CharWidth::Regular,
         Some(_) => CharWidth::Wide,
@@ -58,6 +76,7 @@ fn calc_width(c: char, face: &Face) -> Option<CharWidth> {
             }
         }
     }
+    debug!("calc_width:None");
     None
 }
 
@@ -140,6 +159,15 @@ mod test {
             .map(|c| (c, CharWidth::Wide))
             .collect::<Vec<_>>();
         cases.append(&mut zen_alpha_cases);
+        // ギリシャ文字は CharWidth::Wide
+        let mut zen_upper_greek_cases = ('Α'..='Ω')
+            .map(|c| (c, CharWidth::Wide))
+            .collect::<Vec<_>>();
+        cases.append(&mut zen_upper_greek_cases);
+        let mut zen_lower_greek_cases = ('α'..='ω')
+            .map(|c| (c, CharWidth::Wide))
+            .collect::<Vec<_>>();
+        cases.append(&mut zen_lower_greek_cases);
         for (c, expected) in cases {
             let actual = converter.get_width(c);
             assert_eq!(actual, expected, "char:{}", c);
