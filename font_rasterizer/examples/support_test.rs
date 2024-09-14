@@ -47,6 +47,7 @@ pub async fn run() {
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
         font_binaries,
+        performance_mode: false,
     };
     run_support(support).await;
 }
