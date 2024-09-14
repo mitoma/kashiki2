@@ -58,6 +58,7 @@ pub struct SimpleStateSupport {
     pub color_theme: ColorTheme,
     pub flags: Flags,
     pub font_binaries: Vec<FontData>,
+    pub performance_mode: bool,
 }
 
 pub async fn run_support(support: SimpleStateSupport) {
@@ -112,6 +113,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         support.color_theme,
         support.callback,
         support.font_binaries,
+        support.performance_mode,
     )
     .await;
 
@@ -312,6 +314,7 @@ impl SimpleState {
         color_theme: ColorTheme,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
         font_binaries: Vec<FontData>,
+        performance_mode: bool,
     ) -> Self {
         let window_size = WindowSize::from(window.inner_size());
 
@@ -321,7 +324,11 @@ impl SimpleState {
         let surface = instance.create_surface(window).unwrap();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
+                power_preference: if performance_mode {
+                    wgpu::PowerPreference::HighPerformance
+                } else {
+                    wgpu::PowerPreference::default()
+                },
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
             })

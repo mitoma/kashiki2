@@ -23,3 +23,4 @@ rokid_3dof = { version = "0.1.0", path = "../rokid_3dof" }
 chrono = { version = "0.4.38", features = ["serde"] }
 dirs = "5.0.1"
 arboard = "3.4.0"
+clap = {version = "4.5.17", features = ["derive"]}
