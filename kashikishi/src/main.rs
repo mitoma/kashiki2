@@ -57,6 +57,14 @@ pub struct Args {
     /// use high performance mode
     #[arg(short, long, default_value = "false")]
     pub performance_mode: bool,
+
+    /// use embedded font
+    #[arg(short, long, default_value = "false")]
+    pub use_embedded_font: bool,
+
+    /// font
+    #[arg(short, long, default_values = ["UD デジタル 教科書体 N", "UD デジタル 教科書体 N-R"])]
+    pub font_names: Vec<String>,
 }
 
 const COLOR_THEME: ColorTheme = ColorTheme::SolarizedDark;
@@ -70,22 +78,29 @@ pub async fn run(args: Args) {
     let icon = None;
 
     // setup font
-    let mut collector = FontCollector::default();
-    collector.add_system_fonts();
-    // Windows のインストールタイミングによって教科書体のフォント名が微妙に異なるので、複数指定している
-    let kyokasho_font = ["UD デジタル 教科書体 N", "UD デジタル 教科書体 N-R"]
-        .iter()
-        .find_map(|str| collector.load_font(str));
-    let mut font_binaries = Vec::new();
-    if let Some(kyokasho_font) = kyokasho_font {
-        font_binaries.push(kyokasho_font);
-    }
-    font_binaries.push(collector.convert_font(FONT_DATA.to_vec(), None).unwrap());
-    font_binaries.push(
-        collector
-            .convert_font(EMOJI_FONT_DATA.to_vec(), None)
-            .unwrap(),
-    );
+    let font_binaries = {
+        let mut collector = FontCollector::default();
+        let mut font_binaries = Vec::new();
+        if !args.use_embedded_font {
+            collector.add_system_fonts();
+            // Windows のインストールタイミングによって教科書体のフォント名が微妙に異なるので、複数指定している
+            let fonts = args
+                .font_names
+                .iter()
+                .filter_map(|str| collector.load_font(str));
+            for font in fonts {
+                font_binaries.push(font);
+            }
+        }
+        // 埋め込まれるフォントは fallback に使うから常に追加する
+        font_binaries.push(collector.convert_font(FONT_DATA.to_vec(), None).unwrap());
+        font_binaries.push(
+            collector
+                .convert_font(EMOJI_FONT_DATA.to_vec(), None)
+                .unwrap(),
+        );
+        font_binaries
+    };
 
     set_clock_mode(font_rasterizer::time::ClockMode::StepByStep);
     let window_size = WindowSize::new(800, 600);
