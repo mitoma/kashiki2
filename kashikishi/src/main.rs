@@ -8,6 +8,7 @@ mod memos;
 mod modal_world;
 
 use arboard::Clipboard;
+use clap::{command, Parser};
 use font_collector::FontCollector;
 use modal_world::{CategorizedMemosWorld, HelpWorld, ModalWorld};
 use rokid_3dof::RokidMax;
@@ -18,7 +19,7 @@ use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::GlyphVertexBuffer,
+    font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
     layout_engine::{Model, ModelOperation},
     rasterizer_pipeline::Quarity,
@@ -46,13 +47,22 @@ pub fn main() {
     //std::env::set_var("RUST_LOG", "font_rasterizer::ui::view_element_state=debug");
     //std::env::set_var("RUST_LOG", "font_rasterizer::layout_engine=info");
     //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
-    pollster::block_on(run());
+    let args = Args::parse();
+    pollster::block_on(run(args));
+}
+
+#[derive(Parser, Debug, Clone)]
+#[command(author, version, about = "idea note", long_about = None)]
+pub struct Args {
+    /// use high performance mode
+    #[arg(short, long, default_value = "false")]
+    pub performance_mode: bool,
 }
 
 const COLOR_THEME: ColorTheme = ColorTheme::SolarizedDark;
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-pub async fn run() {
+pub async fn run(args: Args) {
     // setup icon
     // TODO 正式公開前にアイコンを作る必要がありそう
     //let icon_image = image::load_from_memory(ICON_IMAGE).unwrap().to_rgba8();
@@ -89,6 +99,7 @@ pub async fn run() {
         color_theme: COLOR_THEME,
         flags: Flags::DEFAULT,
         font_binaries,
+        performance_mode: args.performance_mode,
     };
     run_support(support).await;
 }
@@ -113,7 +124,10 @@ impl KashikishiCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let ime = ImeInput::new();
 
-        let world = Box::new(CategorizedMemosWorld::new(window_size));
+        let world = Box::new(CategorizedMemosWorld::new(
+            window_size,
+            Direction::Horizontal,
+        ));
         let mut new_chars = HashSet::new();
         new_chars.extend(world.world_chars());
 
@@ -383,9 +397,10 @@ impl SimpleStateCallback for KashikishiCallback {
                 }
                 "mode" => {
                     let world: Option<Box<dyn ModalWorld>> = match &*name.to_string() {
-                        "category" => {
-                            Some(Box::new(CategorizedMemosWorld::new(context.window_size)))
-                        }
+                        "category" => Some(Box::new(CategorizedMemosWorld::new(
+                            context.window_size,
+                            context.global_direction,
+                        ))),
                         "help" => Some(Box::new(HelpWorld::new(context.window_size))),
                         _ => None,
                     };
