@@ -20,6 +20,7 @@ pub struct StateContext {
     pub color_theme: ColorTheme,
     pub window_size: WindowSize,
     pub action_queue_sender: Sender<Action>,
+    pub post_action_queue_sender: Sender<Action>,
     pub global_direction: Direction,
 }
 

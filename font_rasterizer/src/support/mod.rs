@@ -231,6 +231,15 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     }
                                     // 1 フレームごとに時計を更新する(時計のモードが StepByStep の場合のみ意味がある)
                                     increment_fixed_clock(Duration::ZERO);
+                                    // 次のフレームの最初に action を処理するケースがある
+                                    // 主なケースとしては、大量の文字を入力後にレイアウトを変更するケース。
+                                    // この場合 render 後に post_action_queue_receiver にたまった action を処理するのが良い。
+                                    while let Ok(action) =
+                                        state.post_action_queue_receiver.try_recv()
+                                    {
+                                        // この時の InputResult は処理不要のものを返す想定なのでハンドリングしない
+                                        let _ = state.action(action);
+                                    }
                                 }
                                 _ => {}
                             }
@@ -306,6 +315,7 @@ pub struct SimpleState {
     simple_state_callback: Box<dyn SimpleStateCallback>,
 
     action_queue_receiver: Receiver<Action>,
+    post_action_queue_receiver: Receiver<Action>,
 }
 impl SimpleState {
     pub async fn new(
@@ -388,6 +398,7 @@ impl SimpleState {
             GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
 
         let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
+        let (post_action_queue_sender, post_action_queue_receiver) = std::sync::mpsc::channel();
 
         let context = StateContext {
             device,
@@ -396,6 +407,7 @@ impl SimpleState {
             color_theme,
             window_size,
             action_queue_sender,
+            post_action_queue_sender,
             global_direction: Direction::Horizontal,
         };
 
@@ -414,6 +426,7 @@ impl SimpleState {
             simple_state_callback,
 
             action_queue_receiver,
+            post_action_queue_receiver,
         }
     }
 
@@ -609,6 +622,7 @@ impl ImageState {
 
         // 実際には使われない sender
         let (action_queue_sender, _action_queue_receiver) = std::sync::mpsc::channel();
+        let (post_action_queue_sender, _post_action_queue_receiver) = std::sync::mpsc::channel();
 
         let context = StateContext {
             device,
@@ -617,6 +631,7 @@ impl ImageState {
             color_theme,
             window_size: size,
             action_queue_sender,
+            post_action_queue_sender,
             global_direction: Direction::Horizontal,
         };
 

@@ -343,7 +343,10 @@ impl SimpleStateCallback for KashikishiCallback {
             .unwrap();
 
         // カメラを初期化する
-        self.world.get_mut().look_at(0, CameraAdjustment::FitBoth);
+        context
+            .post_action_queue_sender
+            .send(Action::new_command("world", "fit-width"))
+            .unwrap();
     }
 
     fn resize(&mut self, window_size: WindowSize) {
@@ -423,7 +426,10 @@ impl SimpleStateCallback for KashikishiCallback {
                         self.world.graceful_exit();
                         self.world = world;
                         self.new_chars.extend(self.world.world_chars());
-                        self.world.get_mut().look_at(0, CameraAdjustment::FitBoth);
+                        context
+                            .post_action_queue_sender
+                            .send(Action::new_command("world", "fit-width"))
+                            .unwrap();
                     }
                     InputResult::InputConsumed
                 }
