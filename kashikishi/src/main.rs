@@ -253,6 +253,13 @@ impl KashikishiCallback {
             "swap-prev" => world.swap_prev(),
             "fit-width" => world.look_current(CameraAdjustment::FitWidth),
             "fit-height" => world.look_current(CameraAdjustment::FitHeight),
+            "fit-by-direction" => {
+                if context.global_direction == Direction::Horizontal {
+                    world.look_current(CameraAdjustment::FitWidth)
+                } else {
+                    world.look_current(CameraAdjustment::FitHeight)
+                }
+            }
             "forward" => world.camera_operation(CameraOperation::Forward),
             "back" => world.camera_operation(CameraOperation::Backward),
             "change-direction" => world.model_operation(&ModelOperation::ChangeDirection(None)),
@@ -345,7 +352,7 @@ impl SimpleStateCallback for KashikishiCallback {
         // カメラを初期化する
         context
             .post_action_queue_sender
-            .send(Action::new_command("world", "fit-width"))
+            .send(Action::new_command("world", "fit-by-direction"))
             .unwrap();
     }
 
@@ -399,7 +406,7 @@ impl SimpleStateCallback for KashikishiCallback {
                         InputResult::ChangeColorTheme(theme)
                     }
                     SystemActionResult::AddModal(modal) => {
-                        self.world.add_modal(&mut self.new_chars, modal);
+                        self.world.add_modal(context, &mut self.new_chars, modal);
                         InputResult::InputConsumed
                     }
                     SystemActionResult::Noop => InputResult::InputConsumed,
@@ -428,7 +435,7 @@ impl SimpleStateCallback for KashikishiCallback {
                         self.new_chars.extend(self.world.world_chars());
                         context
                             .post_action_queue_sender
-                            .send(Action::new_command("world", "fit-width"))
+                            .send(Action::new_command("world", "fit-by-direction"))
                             .unwrap();
                     }
                     InputResult::InputConsumed

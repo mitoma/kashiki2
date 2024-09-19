@@ -299,7 +299,7 @@ impl Model for SelectBox {
                         .send(Action::new_command("world", "remove-current"))
                         .unwrap();
                     self.action_queue_sender
-                        .send(Action::new_command("world", "reset-zoom"))
+                        .send(Action::new_command("world", "fit-by-direction"))
                         .unwrap();
                     option
                         .actions
@@ -315,7 +315,7 @@ impl Model for SelectBox {
                     .send(Action::new_command("world", "remove-current"))
                     .unwrap();
                 self.action_queue_sender
-                    .send(Action::new_command("world", "reset-zoom"))
+                    .send(Action::new_command("world", "fit-by-direction"))
                     .unwrap();
             }
             _ => (),

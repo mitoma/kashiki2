@@ -30,7 +30,12 @@ pub(crate) trait ModalWorld {
     ) -> (InputResult, HashSet<char>);
     fn world_chars(&self) -> HashSet<char>;
     fn graceful_exit(&mut self);
-    fn add_modal(&mut self, chars: &mut HashSet<char>, model: Box<dyn Model>);
+    fn add_modal(
+        &mut self,
+        context: &StateContext,
+        chars: &mut HashSet<char>,
+        model: Box<dyn Model>,
+    );
 }
 
 pub(crate) struct CategorizedMemosWorld {
@@ -86,11 +91,21 @@ impl ModalWorld for CategorizedMemosWorld {
             .collect::<HashSet<char>>()
     }
 
-    fn add_modal(&mut self, chars: &mut HashSet<char>, model: Box<dyn Model>) {
+    fn add_modal(
+        &mut self,
+        context: &StateContext,
+        chars: &mut HashSet<char>,
+        model: Box<dyn Model>,
+    ) {
         chars.extend(model.to_string().chars());
         self.world.add_next(model);
         self.world.re_layout();
-        self.world.look_next(CameraAdjustment::FitBoth);
+        let adjustment = if context.global_direction == Direction::Horizontal {
+            CameraAdjustment::FitWidth
+        } else {
+            CameraAdjustment::FitHeight
+        };
+        self.world.look_next(adjustment);
     }
 
     fn apply_action(
@@ -126,10 +141,14 @@ impl ModalWorld for CategorizedMemosWorld {
                 self.world.re_layout();
                 self.world.look_prev(CameraAdjustment::NoCare);
             }
-            "insert-date" => self.add_modal(&mut chars, Box::new(insert_date_select(context))),
-            "move-category-ui" => {
-                self.add_modal(&mut chars, Box::new(move_category_ui(context, &self.memos)))
+            "insert-date" => {
+                self.add_modal(context, &mut chars, Box::new(insert_date_select(context)))
             }
+            "move-category-ui" => self.add_modal(
+                context,
+                &mut chars,
+                Box::new(move_category_ui(context, &self.memos)),
+            ),
             "move-category" => match argument {
                 ActionArgument::String(category) => 'outer: {
                     if self.memos.current_category == category {
@@ -143,9 +162,11 @@ impl ModalWorld for CategorizedMemosWorld {
                 }
                 _ => { /* noop */ }
             },
-            "move-memo-ui" => {
-                self.add_modal(&mut chars, Box::new(move_memo_ui(context, &self.memos)))
-            }
+            "move-memo-ui" => self.add_modal(
+                context,
+                &mut chars,
+                Box::new(move_memo_ui(context, &self.memos)),
+            ),
             "move-memo" => 'outer: {
                 match argument {
                     ActionArgument::String(category) => {
@@ -163,7 +184,7 @@ impl ModalWorld for CategorizedMemosWorld {
                 }
             }
             "add-category-ui" => {
-                self.add_modal(&mut chars, Box::new(add_category_ui(context)));
+                self.add_modal(context, &mut chars, Box::new(add_category_ui(context)));
             }
             "add-category" => {
                 if let ActionArgument::String(category) = argument {
@@ -174,6 +195,7 @@ impl ModalWorld for CategorizedMemosWorld {
             }
             "remove-category-ui" => {
                 self.add_modal(
+                    context,
                     &mut chars,
                     Box::new(remove_category_ui(context, &self.memos)),
                 );
@@ -191,7 +213,11 @@ impl ModalWorld for CategorizedMemosWorld {
                     ActionArgument::String(path) => Some(path),
                     _ => None,
                 };
-                self.add_modal(&mut chars, Box::new(open_file_ui(context, arg.as_deref())));
+                self.add_modal(
+                    context,
+                    &mut chars,
+                    Box::new(open_file_ui(context, arg.as_deref())),
+                );
             }
             _ => { /* noop */ }
         }
@@ -259,10 +285,20 @@ impl ModalWorld for HelpWorld {
         // noop
     }
 
-    fn add_modal(&mut self, chars: &mut HashSet<char>, model: Box<dyn Model>) {
+    fn add_modal(
+        &mut self,
+        context: &StateContext,
+        chars: &mut HashSet<char>,
+        model: Box<dyn Model>,
+    ) {
         chars.extend(model.to_string().chars());
         self.world.add_next(model);
         self.world.re_layout();
-        self.world.look_next(CameraAdjustment::FitBoth);
+        let adjustment = if context.global_direction == Direction::Horizontal {
+            CameraAdjustment::FitWidth
+        } else {
+            CameraAdjustment::FitHeight
+        };
+        self.world.look_next(adjustment);
     }
 }
