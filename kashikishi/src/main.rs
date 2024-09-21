@@ -5,15 +5,15 @@ mod categorized_memos;
 mod kashikishi_actions;
 mod local_datetime_format;
 mod memos;
-mod modal_world;
+mod world;
 
 use arboard::Clipboard;
 use clap::{command, Parser};
 use font_collector::FontCollector;
-use modal_world::{CategorizedMemosWorld, HelpWorld, ModalWorld};
 use rokid_3dof::RokidMax;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
 use text_buffer::action::EditorOperation;
+use world::{help_world::HelpWorld, CategorizedMemosWorld, ModalWorld};
 
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
