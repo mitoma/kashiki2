@@ -121,3 +121,25 @@ jobs:
             target
           artifact_name: kashikishi-${{ matrix.job.target }}
           artifact_path: artifact
+
+  # release kashikishi
+  release_kashikishi:
+    # run on tag [v*]
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    needs: [build_artifact]
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mitoma/sver-actions/setup@v2
+
+      - id: extract_tag
+        name: Extract tag name
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: create release
+        run: ./release.sh "${{ steps.extract_tag.outputs.tag }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
