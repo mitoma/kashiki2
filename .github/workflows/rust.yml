@@ -19,7 +19,7 @@ jobs:
           - target: x86_64-pc-windows-gnu
             os: windows
             runs-on: windows-latest
-          - target: x86_64-apple-darwin
+          - target: aarch64-apple-darwin
             os: macos
             runs-on: macos-latest
 
@@ -57,3 +57,89 @@ jobs:
           cache_path: |
             ~/.cargo/registry
             ~/.cargo/git
+
+  # build and upload artifact
+  build_artifact:
+
+    # run on branch [main] or tag [v*]
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/build-artifact' || startsWith(github.ref, 'refs/tags/v')) }}
+    needs: [build]
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        job:
+          - target: x86_64-unknown-linux-gnu
+            os: linux
+            runs-on: ubuntu-latest
+          - target: x86_64-pc-windows-gnu
+            os: windows
+            runs-on: windows-latest
+          - target: aarch64-apple-darwin
+            os: macos
+            runs-on: macos-latest
+
+    runs-on: ${{ matrix.job.runs-on }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mitoma/sver-actions/setup@v2
+        with:
+          os: ${{ matrix.job.os }}
+
+      # Use libudev-dev if OS is linux
+      - name: install libudev-dev
+        if: matrix.job.os == 'linux'
+        run: sudo apt-get install libudev-dev
+
+      # artifact phase
+      - name: build artifact
+        uses: mitoma/sver-actions/exec@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          phase: artifact-${{ matrix.job.target }}
+          command: |
+            rustup target add "${{ matrix.job.target }}"
+            # release build for create artifact
+            cargo build --bin kashikishi --release --target=${{ matrix.job.target }}
+            mkdir artifact
+            cd artifact
+            cp ../LICENSE .
+            cp ../README.md .
+            if [[ "${{ matrix.job.os }}" == windows ]]; then
+              cp ../target/${{ matrix.job.target }}/release/kashikishi.exe .
+            else
+              cp ../target/${{ matrix.job.target }}/release/kashikishi .
+            fi
+          cache_key: kashikishi-${{ matrix.job.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          cache_restore-keys: kashikishi-${{ matrix.job.target }}-cargo-
+          cache_path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          artifact_name: kashikishi-${{ matrix.job.target }}
+          artifact_path: artifact
+
+  # release kashikishi
+  release_kashikishi:
+    # run on tag [v*]
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    needs: [build_artifact]
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mitoma/sver-actions/setup@v2
+
+      - id: extract_tag
+        name: Extract tag name
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: create release
+        run: ./release.sh "${{ steps.extract_tag.outputs.tag }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

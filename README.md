@@ -4,6 +4,10 @@
 
 Rust & WebGPU(wgpu) で開発されてます。
 
+> [!NOTE]
+> この README 文書のオリジナルは GitHub 上で管理されています。
+> https://github.com/mitoma/kashiki2
+
 > [!WARNING]
 > このソフトウェアは現在開発中のため破壊的な仕様変更が随時入ります。
 
@@ -118,3 +122,20 @@ sudo apt-get install libudev-dev
 ## ライセンス
 
 炊紙は MIT ライセンスの下で公開されています。[ref](LICENSE)
+
+### 利用フォントについて
+
+炊紙は配布用バイナリにデフォルトのフォントを埋め込んで利用しています。  
+いずれも Open Font License に従った利用に努めています。
+
+#### 白源(HackGen)
+
+読みやすくバランスの良いフォント
+
+https://github.com/yuru7/HackGen
+
+#### Noto Emoji
+
+かわいい白黒の絵文字フォント
+
+https://fonts.google.com/noto/specimen/Noto+Emoji
