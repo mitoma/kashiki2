@@ -82,11 +82,6 @@ Rust & WebGPU(wgpu) で開発されてます。
 
 ### cargo によるインストール
 
-> [!NOTE]
-> Windows でビルドを行う際、環境によっては 'error: linker `link.exe` not found' というエラーが表示されることがあります。  
-> この場合 Build Tools for Visual Studio 2022 をインストールし、C++によるデスクトップ開発用のツールをインストールすることで多く環境で問題を解決できるでしょう。  
-> https://visualstudio.microsoft.com/ja/downloads/
-
 ```sh
 cargo install --git https://github.com/mitoma/kashiki2.git kashikishi
 ```
@@ -98,6 +93,22 @@ git clone https://github.com/mitoma/kashiki2.git
 cd kashiki2
 cargo run --bin kashikishi --release
 ```
+
+#### Windows でのビルドの注意点
+
+Windows でビルドを行う際、環境によっては 'error: linker `link.exe` not found' というエラーが表示されることがあります。  
+この場合 Build Tools for Visual Studio 2022 をインストールし、C++によるデスクトップ開発用のツールをインストールすることで多く環境で問題を解決できるでしょう。  
+https://visualstudio.microsoft.com/ja/downloads/
+
+#### Linux でのビルドの注意点
+
+Linux でビルドを行う際に `libudev` が必要になる場合があります。  
+Ubuntu であれば以下のコマンドでインストールできます。
+
+```sh
+sudo apt-get install libudev-dev
+```
+
 ## コントリビューション
 
 炊紙はソフトウェアを利用したフィードバックや三次元空間上でテキスト編集するためのアイデアや議論について歓迎します。  
