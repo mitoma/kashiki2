@@ -28,14 +28,14 @@ Rust & WebGPU(wgpu) で開発されてます。
 
 2024年時点の PC であれば多くの環境で 60fps で動作する見込みです。
 
-![文字入力](doc/assets/input-text.gif)
+<img src="doc/assets/input-text.gif" alt="文字入力" style="width: 30em;">
 
 ### 拡大縮小、文字・行間の調整がシームレス
 
 フォントをベクタグラフィックとして扱っているため、拡大縮小が滑らかです。  
 また、文字間・行間の変更をテキスト編集にとって第一級の操作と考えているため、編集中にシームレスに調整できます。 
 
-![ベクターグラフィックでスムース](doc/assets/vector-smooth.gif)
+<img src="doc/assets/vector-smooth.gif" alt="ベクターグラフィックでスムース" style="width: 30em;">
 
 ### 縦書きができる
 
@@ -43,27 +43,27 @@ Rust & WebGPU(wgpu) で開発されてます。
 しかし、文章は縦に見たり横に見たり、レイアウトを柔軟に変えて読み直すことで深い洞察を得ることができます。  
 炊紙では文書編集中に縦書き、横書きを即座に切り替えられます。
 
-![縦書き](doc/assets/tate-yoko.gif)
+<img src="doc/assets/tate-yoko.gif" alt="縦書き" style="width: 30em;">
 
 ### 箇条書き
 
 箇条書きを入力すると自動的にインデントが付きます。  
 これは単に私の文章編集上の好みに過ぎません。
 
-![箇条書き](doc/assets/kajo-gaki.gif)
+<img src="doc/assets/kajo-gaki.gif" alt="箇条書き" style="width: 30em;">
 
 ### (実験的)サイケデリックモード
 
 投げやりな気分の時にはサイケデリックモードを有効にしてみてください。
 
-![サイケデリックモード](doc/assets/psychedelic-mode.gif)
+<img src="doc/assets/psychedelic-mode.gif" alt="サイケデリックモード" style="width: 30em;">
 
 ### (実験的)ARモード
 
 [Rokid Max](https://jp.rokid.com/products/rokid-max) という AR デバイスを所有していて Windows を利用している場合に限り、AR モードを有効にできます。  
 ヘッドトラッキングにより、より三次元空間を活かしたテキスト編集体験ができます。
 
-![ARモード](doc/assets/ar-mode.gif)
+<img src="doc/assets/ar-mode.gif" alt="ARモード" style="width: 30em;">
 
 ### Emacs like なキーバインド
 
@@ -82,11 +82,6 @@ Rust & WebGPU(wgpu) で開発されてます。
 
 ### cargo によるインストール
 
-> [!NOTE]
-> Windows でビルドを行う際、環境によっては 'error: linker `link.exe` not found' というエラーが表示されることがあります。  
-> この場合 Build Tools for Visual Studio 2022 をインストールし、C++によるデスクトップ開発用のツールをインストールすることで多く環境で問題を解決できるでしょう。  
-> https://visualstudio.microsoft.com/ja/downloads/
-
 ```sh
 cargo install --git https://github.com/mitoma/kashiki2.git kashikishi
 ```
@@ -98,6 +93,22 @@ git clone https://github.com/mitoma/kashiki2.git
 cd kashiki2
 cargo run --bin kashikishi --release
 ```
+
+#### Windows でのビルドの注意点
+
+Windows でビルドを行う際、環境によっては 'error: linker `link.exe` not found' というエラーが表示されることがあります。  
+この場合 Build Tools for Visual Studio 2022 をインストールし、C++によるデスクトップ開発用のツールをインストールすることで多く環境で問題を解決できるでしょう。  
+https://visualstudio.microsoft.com/ja/downloads/
+
+#### Linux でのビルドの注意点
+
+Linux でビルドを行う際に `libudev` が必要になる場合があります。  
+Ubuntu であれば以下のコマンドでインストールできます。
+
+```sh
+sudo apt-get install libudev-dev
+```
+
 ## コントリビューション
 
 炊紙はソフトウェアを利用したフィードバックや三次元空間上でテキスト編集するためのアイデアや議論について歓迎します。  
