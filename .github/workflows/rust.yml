@@ -106,9 +106,8 @@ jobs:
             cargo build --bin kashikishi --release --target=${{ matrix.job.target }}
             mkdir artifact
             cd artifact
-            # TODO copy necessary files
-            # cp ../LICENSE .
-            # cp ../README.md .
+            cp ../LICENSE .
+            cp ../README.md .
             if [[ "${{ matrix.job.os }}" == windows ]]; then
               cp ../target/${{ matrix.job.target }}/release/kashikishi.exe .
             else
