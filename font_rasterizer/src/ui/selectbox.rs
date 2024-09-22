@@ -133,7 +133,13 @@ impl SelectBox {
         }
         self.options
             .iter()
-            .filter(|op| op.contains_all(&search_keywords))
+            .filter(|op| {
+                if self.show_action_name {
+                    op.contains_all(&search_keywords)
+                } else {
+                    op.contains_all_for_short(&search_keywords)
+                }
+            })
             .collect::<Vec<_>>()
     }
 
