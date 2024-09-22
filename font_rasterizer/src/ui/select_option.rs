@@ -94,5 +94,4 @@ mod test {
         assert_eq!(option.contains_all_for_short(&["namespace:name"]), false);
         assert_eq!(option.contains_all_for_short(&["name"]), false);
     }
-
 }
