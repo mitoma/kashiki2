@@ -62,7 +62,7 @@ jobs:
   build_artifact:
 
     # run on branch [main] or tag [v*]
-    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/build-artifact' || startsWith(github.ref, 'refs/tags/v')) }}
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
     needs: [build]
 
     strategy:
