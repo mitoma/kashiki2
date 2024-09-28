@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, ops::Range, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashSet},
+    ops::Range,
+    sync::Arc,
+};
 
 use cgmath::{Matrix4, Point2, Point3, Quaternion, Rotation3};
 use log::info;
@@ -53,6 +57,7 @@ pub trait World {
     fn model_operation(&mut self, op: &ModelOperation);
     fn current_string(&self) -> String;
     fn strings(&self) -> Vec<String>;
+    fn chars(&self) -> HashSet<char>;
 
     // 今フォーカスが当たっているモデルのモードを返す
     fn current_model_mode(&self) -> Option<ModelMode>;
@@ -256,6 +261,13 @@ impl World for HorizontalWorld {
 
     fn current_string(&self) -> String {
         self.models[self.focus].to_string()
+    }
+
+    fn chars(&self) -> HashSet<char> {
+        self.models
+            .iter()
+            .flat_map(|m| m.to_string().chars().collect::<HashSet<char>>())
+            .collect()
     }
 
     fn strings(&self) -> Vec<String> {

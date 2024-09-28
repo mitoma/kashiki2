@@ -6,39 +6,26 @@ use font_rasterizer::{
     font_buffer::Direction,
     layout_engine::{HorizontalWorld, Model, World},
     support::InputResult,
-    ui::textedit::TextEdit,
 };
 use stroke_parser::Action;
-use text_buffer::action::EditorOperation;
 
 use super::ModalWorld;
 
-pub(crate) struct HelpWorld {
+/// 特に何もしない World
+/// Null Object Pattern の目的で用意されている。
+pub(crate) struct NullWorld {
     world: HorizontalWorld,
 }
 
-impl HelpWorld {
+impl NullWorld {
     pub(crate) fn new(window_size: WindowSize) -> Self {
-        let mut result = Self {
+        Self {
             world: HorizontalWorld::new(window_size),
-        };
-
-        let help_contents: Vec<String> =
-            serde_json::from_str(include_str!("../../asset/help.json")).unwrap();
-
-        for help_content in help_contents {
-            let mut textedit = TextEdit::default();
-            textedit.editor_operation(&EditorOperation::InsertString(help_content));
-            textedit.editor_operation(&EditorOperation::BufferHead);
-            let model = Box::new(textedit);
-            result.world.add(model);
         }
-        result.world.re_layout();
-        result
     }
 }
 
-impl ModalWorld for HelpWorld {
+impl ModalWorld for NullWorld {
     fn get_mut(&mut self) -> &mut dyn World {
         &mut self.world
     }
@@ -56,7 +43,7 @@ impl ModalWorld for HelpWorld {
     }
 
     fn world_chars(&self) -> HashSet<char> {
-        self.world.chars()
+        HashSet::new()
     }
 
     fn graceful_exit(&mut self) {

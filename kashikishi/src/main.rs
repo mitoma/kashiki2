@@ -13,7 +13,7 @@ use font_collector::FontCollector;
 use rokid_3dof::RokidMax;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
 use text_buffer::action::EditorOperation;
-use world::{CategorizedMemosWorld, HelpWorld, ModalWorld};
+use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld};
 
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
@@ -139,20 +139,13 @@ impl KashikishiCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let ime = ImeInput::new();
 
-        let world = Box::new(CategorizedMemosWorld::new(
-            window_size,
-            Direction::Horizontal,
-        ));
-        let mut new_chars = HashSet::new();
-        new_chars.extend(world.world_chars());
-
         let rokid_max = RokidMax::new().ok();
 
         Self {
             store,
-            world,
+            world: Box::new(NullWorld::new(window_size)),
             ime,
-            new_chars,
+            new_chars: HashSet::new(),
             rokid_max,
             ar_mode: false,
         }
@@ -334,6 +327,9 @@ enum SystemActionResult {
 
 impl SimpleStateCallback for KashikishiCallback {
     fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+        // 初期状態で表示するワールドを設定する
+        self.world = Box::new(StartWorld::new(context));
+
         // world にすでに表示されるグリフを追加する
         let mut chars = self.world.world_chars();
 

@@ -24,6 +24,7 @@ pub struct SelectBox {
     action_queue_sender: Sender<Action>,
     char_width_calcurator: Arc<CharWidthCalculator>,
     show_action_name: bool,
+    cancellable: bool,
 }
 
 impl SelectBox {
@@ -60,7 +61,7 @@ impl SelectBox {
         options: Vec<SelectOption>,
         default_narrow: Option<String>,
     ) -> Self {
-        Self::inner_new(context, message, options, default_narrow, true)
+        Self::inner_new(context, message, options, default_narrow, true, true)
     }
 
     pub fn new_without_action_name(
@@ -69,7 +70,14 @@ impl SelectBox {
         options: Vec<SelectOption>,
         default_narrow: Option<String>,
     ) -> Self {
-        Self::inner_new(context, message, options, default_narrow, false)
+        Self::inner_new(context, message, options, default_narrow, false, true)
+    }
+
+    pub fn without_cancellable(self) -> Self {
+        Self {
+            cancellable: false,
+            ..self
+        }
     }
 
     fn inner_new(
@@ -78,6 +86,7 @@ impl SelectBox {
         options: Vec<SelectOption>,
         default_narrow: Option<String>,
         show_action_name: bool,
+        cancellable: bool,
     ) -> Self {
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
@@ -111,6 +120,7 @@ impl SelectBox {
             action_queue_sender: context.action_queue_sender.clone(),
             char_width_calcurator: context.char_width_calcurator.clone(),
             show_action_name,
+            cancellable,
         };
         result.update_select_items_text_edit();
         result.update_current_selection();
@@ -317,12 +327,14 @@ impl Model for SelectBox {
             }
             // unmark を使っているのがなんか変な気はするなぁ
             EditorOperation::UnMark => {
-                self.action_queue_sender
-                    .send(Action::new_command("world", "remove-current"))
-                    .unwrap();
-                self.action_queue_sender
-                    .send(Action::new_command("world", "fit-by-direction"))
-                    .unwrap();
+                if self.cancellable {
+                    self.action_queue_sender
+                        .send(Action::new_command("world", "remove-current"))
+                        .unwrap();
+                    self.action_queue_sender
+                        .send(Action::new_command("world", "fit-by-direction"))
+                        .unwrap();
+                }
             }
             _ => (),
         }

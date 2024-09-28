@@ -68,11 +68,7 @@ impl ModalWorld for CategorizedMemosWorld {
     }
 
     fn world_chars(&self) -> HashSet<char> {
-        self.world
-            .strings()
-            .join("")
-            .chars()
-            .collect::<HashSet<char>>()
+        self.world.chars()
     }
 
     fn add_modal(

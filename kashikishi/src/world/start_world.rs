@@ -2,43 +2,55 @@ use std::collections::HashSet;
 
 use font_rasterizer::{
     camera::CameraAdjustment,
-    context::{StateContext, WindowSize},
+    context::StateContext,
     font_buffer::Direction,
     layout_engine::{HorizontalWorld, Model, World},
     support::InputResult,
-    ui::textedit::TextEdit,
+    ui::{select_option::SelectOption, selectbox::SelectBox},
 };
 use stroke_parser::Action;
-use text_buffer::action::EditorOperation;
 
 use super::ModalWorld;
 
-pub(crate) struct HelpWorld {
+pub(crate) struct StartWorld {
     world: HorizontalWorld,
 }
 
-impl HelpWorld {
-    pub(crate) fn new(window_size: WindowSize) -> Self {
+impl StartWorld {
+    pub(crate) fn new(context: &StateContext) -> Self {
         let mut result = Self {
-            world: HorizontalWorld::new(window_size),
+            world: HorizontalWorld::new(context.window_size),
         };
 
-        let help_contents: Vec<String> =
-            serde_json::from_str(include_str!("../../asset/help.json")).unwrap();
+        let options = vec![
+            SelectOption::new(
+                "メモ帳をひらく".to_string(),
+                Action::new_command("mode", "category"),
+            ),
+            SelectOption::new(
+                "ヘルプ(使い方の概説)をひらく".to_string(),
+                Action::new_command("mode", "help"),
+            ),
+            SelectOption::new(
+                "炊紙を終了する".to_string(),
+                Action::new_command("system", "exit"),
+            ),
+        ];
+        let start_select = SelectBox::new_without_action_name(
+            context,
+            "炊紙 kashikishi".to_string(),
+            options,
+            None,
+        )
+        .without_cancellable();
 
-        for help_content in help_contents {
-            let mut textedit = TextEdit::default();
-            textedit.editor_operation(&EditorOperation::InsertString(help_content));
-            textedit.editor_operation(&EditorOperation::BufferHead);
-            let model = Box::new(textedit);
-            result.world.add(model);
-        }
+        result.world.add(Box::new(start_select));
         result.world.re_layout();
         result
     }
 }
 
-impl ModalWorld for HelpWorld {
+impl ModalWorld for StartWorld {
     fn get_mut(&mut self) -> &mut dyn World {
         &mut self.world
     }
