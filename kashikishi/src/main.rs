@@ -83,7 +83,6 @@ pub async fn run(args: Args) {
         let mut font_binaries = Vec::new();
         if !args.use_embedded_font {
             collector.add_system_fonts();
-            // Windows のインストールタイミングによって教科書体のフォント名が微妙に異なるので、複数指定している
             let fonts = args
                 .font_names
                 .iter()
@@ -418,6 +417,7 @@ impl SimpleStateCallback for KashikishiCallback {
                 }
                 "mode" => {
                     let world: Option<Box<dyn ModalWorld>> = match &*name.to_string() {
+                        "start" => Some(Box::new(StartWorld::new(context))),
                         "category" => Some(Box::new(CategorizedMemosWorld::new(
                             context.window_size,
                             context.global_direction,

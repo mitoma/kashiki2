@@ -97,3 +97,4 @@ C-WheelDown   world:back
 # mode change
 F1 mode:help
 F2 mode:category
+F3 mode:start

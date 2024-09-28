@@ -24,11 +24,11 @@ impl StartWorld {
 
         let options = vec![
             SelectOption::new(
-                "メモ帳をひらく".to_string(),
+                "メモ帳を開く".to_string(),
                 Action::new_command("mode", "category"),
             ),
             SelectOption::new(
-                "ヘルプ(使い方の概説)をひらく".to_string(),
+                "ヘルプ(使い方の概説)を開く".to_string(),
                 Action::new_command("mode", "help"),
             ),
             SelectOption::new(
