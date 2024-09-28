@@ -18,6 +18,7 @@ pub(crate) fn command_palette_select(context: &StateContext, narrow: Option<Stri
     let action_repository = ActionRepository::default();
 
     for namespace in [
+        ActionNamespace::Mode,
         ActionNamespace::System,
         ActionNamespace::Edit,
         ActionNamespace::World,

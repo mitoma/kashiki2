@@ -1,0 +1,17 @@
+[
+    {
+        "namespace": "mode",
+        "name": "start",
+        "description": "エディタ開始画面に戻る"
+    },
+    {
+        "namespace": "mode",
+        "name": "category",
+        "description": "メモ帳を開く"
+    },
+    {
+        "namespace": "mode",
+        "name": "help",
+        "description": "ヘルプ(使い方の概説)を開く"
+    }
+]

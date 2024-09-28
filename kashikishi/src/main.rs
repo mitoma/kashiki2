@@ -1,19 +1,19 @@
-/*#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]*/
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 /* ↑は Windows で実行する時にコマンドプロンプトが開かないようにするためのもの。 */
 mod action_repository;
 mod categorized_memos;
 mod kashikishi_actions;
 mod local_datetime_format;
 mod memos;
-mod modal_world;
+mod world;
 
 use arboard::Clipboard;
 use clap::{command, Parser};
 use font_collector::FontCollector;
-use modal_world::{CategorizedMemosWorld, HelpWorld, ModalWorld};
 use rokid_3dof::RokidMax;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
 use text_buffer::action::EditorOperation;
+use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld};
 
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
@@ -83,7 +83,6 @@ pub async fn run(args: Args) {
         let mut font_binaries = Vec::new();
         if !args.use_embedded_font {
             collector.add_system_fonts();
-            // Windows のインストールタイミングによって教科書体のフォント名が微妙に異なるので、複数指定している
             let fonts = args
                 .font_names
                 .iter()
@@ -139,20 +138,13 @@ impl KashikishiCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let ime = ImeInput::new();
 
-        let world = Box::new(CategorizedMemosWorld::new(
-            window_size,
-            Direction::Horizontal,
-        ));
-        let mut new_chars = HashSet::new();
-        new_chars.extend(world.world_chars());
-
         let rokid_max = RokidMax::new().ok();
 
         Self {
             store,
-            world,
+            world: Box::new(NullWorld::new(window_size)),
             ime,
-            new_chars,
+            new_chars: HashSet::new(),
             rokid_max,
             ar_mode: false,
         }
@@ -334,6 +326,9 @@ enum SystemActionResult {
 
 impl SimpleStateCallback for KashikishiCallback {
     fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+        // 初期状態で表示するワールドを設定する
+        self.world = Box::new(StartWorld::new(context));
+
         // world にすでに表示されるグリフを追加する
         let mut chars = self.world.world_chars();
 
@@ -422,6 +417,7 @@ impl SimpleStateCallback for KashikishiCallback {
                 }
                 "mode" => {
                     let world: Option<Box<dyn ModalWorld>> = match &*name.to_string() {
+                        "start" => Some(Box::new(StartWorld::new(context))),
                         "category" => Some(Box::new(CategorizedMemosWorld::new(
                             context.window_size,
                             context.global_direction,
