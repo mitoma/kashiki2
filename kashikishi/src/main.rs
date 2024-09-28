@@ -13,7 +13,7 @@ use font_collector::FontCollector;
 use rokid_3dof::RokidMax;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
 use text_buffer::action::EditorOperation;
-use world::{help_world::HelpWorld, CategorizedMemosWorld, ModalWorld};
+use world::{CategorizedMemosWorld, HelpWorld, ModalWorld};
 
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
