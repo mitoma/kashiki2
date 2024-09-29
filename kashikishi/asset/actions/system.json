@@ -16,6 +16,11 @@
     },
     {
         "namespace": "system",
+        "name": "change-global-direction",
+        "description": "システム全体の縦書き・横書き設定を変更"
+    },
+    {
+        "namespace": "system",
         "name": "exit",
         "description": "炊紙を終了する"
     }

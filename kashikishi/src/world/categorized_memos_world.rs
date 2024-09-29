@@ -4,7 +4,7 @@ use font_rasterizer::{
     camera::CameraAdjustment,
     context::{StateContext, WindowSize},
     font_buffer::Direction,
-    layout_engine::{HorizontalWorld, Model, World},
+    layout_engine::{HorizontalWorld, Model, ModelOperation, World},
     support::InputResult,
     ui::TextEdit,
 };
@@ -42,6 +42,7 @@ impl CategorizedMemosWorld {
         let mut world = HorizontalWorld::new(window_size);
         for memo in self.memos.get_current_memos().unwrap().memos.iter() {
             let mut textedit = TextEdit::default();
+            textedit.model_operation(&ModelOperation::ChangeDirection(Some(direction)));
             textedit.editor_operation(&EditorOperation::InsertString(memo.to_string()));
             textedit.editor_operation(&EditorOperation::BufferHead);
             let model = Box::new(textedit);
@@ -109,7 +110,10 @@ impl ModalWorld for CategorizedMemosWorld {
                 self.memos.save_memos().unwrap();
             }
             "add-memo" => {
-                let textedit = TextEdit::default();
+                let mut textedit = TextEdit::default();
+                textedit.model_operation(&ModelOperation::ChangeDirection(Some(
+                    context.global_direction,
+                )));
                 let model = Box::new(textedit);
                 self.world.add(model);
                 self.world.re_layout();

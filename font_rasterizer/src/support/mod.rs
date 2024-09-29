@@ -161,6 +161,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                         InputResult::ChangeColorTheme(color_theme) => {
                             state.change_color_theme(color_theme);
                         }
+                        InputResult::ChangeGlobalDirection(direction) => {
+                            state.context.global_direction = direction;
+                        }
                         InputResult::Noop => {
                             match event {
                                 WindowEvent::CloseRequested => {
@@ -275,6 +278,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                     InputResult::ToggleDecorations => {
                         window.set_decorations(!window.is_decorated());
                     }
+                    InputResult::ChangeGlobalDirection(direction) => {
+                        state.context.global_direction = direction;
+                    }
                     InputResult::Noop => {}
                 }
             }
@@ -288,6 +294,7 @@ pub enum InputResult {
     ToggleFullScreen,
     ToggleDecorations,
     ChangeColorTheme(ColorTheme),
+    ChangeGlobalDirection(Direction),
     SendExit,
     Noop,
 }

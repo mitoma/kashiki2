@@ -177,6 +177,9 @@ impl KashikishiCallback {
                 },
                 _ => SystemActionResult::Noop,
             },
+            "change-global-direction" => {
+                SystemActionResult::ChangeGlobalDirection(context.global_direction.toggle())
+            }
             _ => SystemActionResult::Noop,
         }
     }
@@ -320,6 +323,7 @@ enum SystemActionResult {
     ToggleFullScreen,
     ToggleTitlebar,
     ChangeColorTheme(ColorTheme),
+    ChangeGlobalDirection(Direction),
     AddModal(Box<dyn Model>),
     Noop,
 }
@@ -399,6 +403,9 @@ impl SimpleStateCallback for KashikishiCallback {
                     SystemActionResult::ToggleTitlebar => InputResult::ToggleDecorations,
                     SystemActionResult::ChangeColorTheme(theme) => {
                         InputResult::ChangeColorTheme(theme)
+                    }
+                    SystemActionResult::ChangeGlobalDirection(direction) => {
+                        InputResult::ChangeGlobalDirection(direction)
                     }
                     SystemActionResult::AddModal(modal) => {
                         self.world.add_modal(context, &mut self.new_chars, modal);
