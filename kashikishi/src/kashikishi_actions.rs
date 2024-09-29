@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use chrono::Days;
 use font_rasterizer::{
     context::StateContext,
-    ui::{select_option::SelectOption, selectbox::SelectBox, text_input::TextInput},
+    ui::{SelectBox, SelectOption, TextInput},
 };
 use stroke_parser::Action;
 

@@ -25,7 +25,7 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::set_clock_mode,
-    ui::{caret_char, ime_chars, ime_input::ImeInput},
+    ui::{caret_char, ime_chars, ImeInput},
 };
 use kashikishi_actions::change_theme_ui;
 use log::info;

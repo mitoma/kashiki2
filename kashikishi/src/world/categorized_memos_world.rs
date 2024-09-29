@@ -6,7 +6,7 @@ use font_rasterizer::{
     font_buffer::Direction,
     layout_engine::{HorizontalWorld, Model, World},
     support::InputResult,
-    ui::textedit::TextEdit,
+    ui::TextEdit,
 };
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;

@@ -6,7 +6,7 @@ use font_rasterizer::{
     font_buffer::Direction,
     layout_engine::{HorizontalWorld, Model, World},
     support::InputResult,
-    ui::{select_option::SelectOption, selectbox::SelectBox},
+    ui::{SelectBox, SelectOption},
 };
 use stroke_parser::Action;
 
