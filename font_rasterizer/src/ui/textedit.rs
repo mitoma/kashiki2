@@ -524,6 +524,8 @@ impl TextEdit {
     }
 
     pub(crate) fn set_config(&mut self, config: TextContext) {
+        // direction が変わった場合は char_states の direction も更新する
+        self.char_states.instances.set_direction(&config.direction);
         self.config = config;
         self.position.update_duration_and_easing_func(
             self.config.char_easings.position_easing.duration,
