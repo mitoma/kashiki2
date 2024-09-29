@@ -57,6 +57,17 @@ impl CategorizedMemosWorld {
         world.re_layout();
         self.world = world;
     }
+
+    fn sync(&mut self) {
+        self.memos
+            .update_current_memos(Memos::from(&self.world as &dyn World));
+    }
+
+    fn save(&mut self) {
+        self.memos
+            .update_current_memos(Memos::from(&self.world as &dyn World));
+        self.memos.save_memos().unwrap();
+    }
 }
 
 impl ModalWorld for CategorizedMemosWorld {
@@ -104,11 +115,7 @@ impl ModalWorld for CategorizedMemosWorld {
         };
 
         match name.as_str() {
-            "save" => {
-                self.memos
-                    .update_current_memos(Memos::from(&self.world as &dyn World));
-                self.memos.save_memos().unwrap();
-            }
+            "save" => self.save(),
             "add-memo" => {
                 let mut textedit = TextEdit::default();
                 textedit.model_operation(&ModelOperation::ChangeDirection(Some(
@@ -119,11 +126,13 @@ impl ModalWorld for CategorizedMemosWorld {
                 self.world.re_layout();
                 self.world
                     .look_at(self.world.model_length() - 1, CameraAdjustment::NoCare);
+                self.sync();
             }
             "remove-memo" => {
                 self.world.remove_current();
                 self.world.re_layout();
                 self.world.look_prev(CameraAdjustment::NoCare);
+                self.sync();
             }
             "insert-date" => {
                 self.add_modal(context, &mut chars, Box::new(insert_date_select(context)))
@@ -138,8 +147,7 @@ impl ModalWorld for CategorizedMemosWorld {
                     if self.memos.current_category == category {
                         break 'outer;
                     }
-                    self.memos
-                        .update_current_memos(Memos::from(&self.world as &dyn World));
+                    self.sync();
                     self.memos.current_category = category;
                     self.reset_world(context.window_size, context.global_direction);
                     chars.extend(self.world_chars());
@@ -209,8 +217,6 @@ impl ModalWorld for CategorizedMemosWorld {
     }
 
     fn graceful_exit(&mut self) {
-        self.memos
-            .update_current_memos(Memos::from(&self.world as &dyn World));
-        self.memos.save_memos().unwrap();
+        self.save();
     }
 }

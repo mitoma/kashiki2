@@ -48,10 +48,11 @@ C-S-C   system:command-palette(kashikishi)
 C-X C-P     world:toggle-psychedelic
 C-R         world:toggle-ar-mode
 
-# 
+# kashikishi
 C-X C-S kashikishi:save
 C-Z C   kashikishi:add-memo
 C-Z K   kashikishi:remove-memo
+C-X C M kashikishi:move-category-ui
 
 C-X C-F kashikishi:open-file-ui
 
