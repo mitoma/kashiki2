@@ -18,7 +18,7 @@ use font_rasterizer::{
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
-const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("font/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {

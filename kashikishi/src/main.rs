@@ -37,7 +37,7 @@ use crate::kashikishi_actions::command_palette_select;
 //const ICON_IMAGE: &[u8] = include_bytes!("kashikishi-logo.png");
 
 const FONT_DATA: &[u8] =
-    include_bytes!("../../font_rasterizer/examples/font/HackGenConsole-Regular.ttf");
+    include_bytes!("../../font_rasterizer/examples/font/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] =
     include_bytes!("../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
 

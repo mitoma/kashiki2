@@ -19,7 +19,7 @@ use log::info;
 use winit::event::{ElementState, KeyEvent, WindowEvent};
 
 const FONT_DATA: &[u8] =
-    include_bytes!("../../../font_rasterizer/examples/font/HackGenConsole-Regular.ttf");
+    include_bytes!("../../../font_rasterizer/examples/font/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] =
     include_bytes!("../../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
 

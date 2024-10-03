@@ -150,14 +150,15 @@ C:\Users\[ユーザー名]
 
 ### 利用フォントについて
 
-炊紙は配布用バイナリにデフォルトのフォントを埋め込んで利用しています。  
-いずれも Open Font License に従った利用に努めています。
+炊紙はシステムに「UD デジタル 教科書体」が含まれる場合はそちらを優先的に利用します。  
+UD デジタル 教科書体が利用できない場合は組み込みのフォントを利用します。  
+組み込みのフォントは以下の2点を利用しており、いずれも Open Font License に従った利用に努めています。
 
-#### 白源(HackGen)
+#### BIZ UD明朝
 
 読みやすくバランスの良いフォント
 
-https://github.com/yuru7/HackGen
+https://fonts.google.com/specimen/BIZ+UDMincho/about
 
 #### Noto Emoji
 
