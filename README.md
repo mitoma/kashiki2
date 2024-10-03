@@ -82,7 +82,8 @@ Rust & WebGPU(wgpu) で開発されてます。
 
 ### Releases からダウンロード
 
-現在準備中です。
+https://github.com/mitoma/kashiki2/releases から最新のリリースをダウンロードしてご利用ください。  
+Windows では動作確認を行っていますが、Linux や Mac では動作確認を行っていません。
 
 ### cargo によるインストール
 
