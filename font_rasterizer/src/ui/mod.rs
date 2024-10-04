@@ -125,6 +125,10 @@ impl Model for PlaneTextReader {
     fn model_mode(&self) -> ModelMode {
         ModelMode::Nomal
     }
+
+    fn in_animation(&self) -> bool {
+        false
+    }
 }
 
 impl PlaneTextReader {

@@ -60,6 +60,11 @@ impl<const N: usize> EasingPointN<N> {
         false
     }
 
+    // アニメーション中かどうかを正確かつ非破壊的に判定する。
+    pub(crate) fn in_animation_strict(&self) -> bool {
+        self.v.in_animation()
+    }
+
     pub(crate) fn update(&mut self, v: [f32; N]) {
         let modify = self.v.update(v, self.duration, self.easing_func);
         self.in_animation = modify;

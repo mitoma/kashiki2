@@ -156,4 +156,8 @@ impl Model for TextInput {
     fn model_mode(&self) -> ModelMode {
         ModelMode::Modal
     }
+
+    fn in_animation(&self) -> bool {
+        self.title_text_edit.in_animation() || self.input_text_edit.in_animation()
+    }
 }
