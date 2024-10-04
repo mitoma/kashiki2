@@ -24,7 +24,7 @@ cgmath.workspace = true
 bytemuck.workspace = true
 
 instant = { workspace = true }
-unicode-width = "0.1"
+unicode-width = "0.2"
 cached = "0.53"
 
 # レーベンシュタイン距離を求めるためのライブラリ
@@ -54,4 +54,4 @@ stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
 rayon = "1.10"
 clap = "4.5"
-pulldown-cmark = "0.11"
+pulldown-cmark = "0.12"
