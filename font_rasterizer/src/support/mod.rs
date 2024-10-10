@@ -5,7 +5,6 @@ use std::{
     collections::HashSet,
     iter,
     sync::{mpsc::Receiver, Arc},
-    thread,
 };
 
 use crate::{
@@ -89,11 +88,6 @@ pub async fn run_support(support: SimpleStateSupport) {
 
     #[cfg(target_arch = "wasm32")]
     {
-        // Winit prevents sizing with CSS, so we have to set
-        // the size manually when on web.
-        use winit::dpi::PhysicalSize;
-        let _ = window.request_inner_size(PhysicalSize::new(800, 600));
-
         use winit::platform::web::WindowExtWebSys;
         web_sys::window()
             .and_then(|win| win.document())
@@ -104,6 +98,14 @@ pub async fn run_support(support: SimpleStateSupport) {
                 Some(())
             })
             .expect("Couldn't append canvas to document body.");
+
+        // Winit prevents sizing with CSS, so we have to set
+        // the size manually when on web.
+        use winit::dpi::PhysicalSize;
+        let _ = window.request_inner_size(PhysicalSize::new(
+            support.window_size.width,
+            support.window_size.height,
+        ));
     }
 
     record_start_of_phase("setup state");
@@ -116,6 +118,8 @@ pub async fn run_support(support: SimpleStateSupport) {
         support.performance_mode,
     )
     .await;
+    #[cfg(target_arch = "wasm32")]
+    let mut surface_configured = false;
 
     // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
     let mut render_rate_adjuster = RenderRateAdjuster::new(
@@ -207,15 +211,28 @@ pub async fn run_support(support: SimpleStateSupport) {
                                 WindowEvent::Resized(physical_size) => {
                                     record_start_of_phase("state resize");
                                     state.resize((*physical_size).into());
+                                    #[cfg(target_arch = "wasm32")]
+                                    {
+                                        surface_configured = true;
+                                    }
                                 }
                                 WindowEvent::ScaleFactorChanged { .. } => {
                                     // TODO スケールファクタ変更時に何かする？
                                 }
                                 WindowEvent::RedrawRequested => {
                                     record_start_of_phase("state update");
-                                    if let Some(idle_time) = render_rate_adjuster.idle_time() {
-                                        thread::sleep(idle_time);
-                                        return;
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    {
+                                        if let Some(idle_time) = render_rate_adjuster.idle_time() {
+                                            std::thread::sleep(idle_time);
+                                            return;
+                                        }
+                                    }
+                                    #[cfg(target_arch = "wasm32")]
+                                    {
+                                        if !surface_configured {
+                                            return;
+                                        }
                                     }
                                     state.update();
                                     record_start_of_phase("state render");
@@ -388,7 +405,7 @@ impl SimpleState {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
-        surface.configure(&device, &config);
+        //surface.configure(&device, &config);
 
         let rasterizer_pipeline = RasterizerPipeline::new(
             &device,
