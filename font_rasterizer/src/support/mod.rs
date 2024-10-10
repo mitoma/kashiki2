@@ -118,8 +118,6 @@ pub async fn run_support(support: SimpleStateSupport) {
         support.performance_mode,
     )
     .await;
-    #[cfg(target_arch = "wasm32")]
-    let mut surface_configured = false;
 
     // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
     let mut render_rate_adjuster = RenderRateAdjuster::new(
@@ -211,10 +209,6 @@ pub async fn run_support(support: SimpleStateSupport) {
                                 WindowEvent::Resized(physical_size) => {
                                     record_start_of_phase("state resize");
                                     state.resize((*physical_size).into());
-                                    #[cfg(target_arch = "wasm32")]
-                                    {
-                                        surface_configured = true;
-                                    }
                                 }
                                 WindowEvent::ScaleFactorChanged { .. } => {
                                     // TODO スケールファクタ変更時に何かする？
@@ -225,12 +219,6 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     {
                                         if let Some(idle_time) = render_rate_adjuster.idle_time() {
                                             std::thread::sleep(idle_time);
-                                            return;
-                                        }
-                                    }
-                                    #[cfg(target_arch = "wasm32")]
-                                    {
-                                        if !surface_configured {
                                             return;
                                         }
                                     }
@@ -405,7 +393,7 @@ impl SimpleState {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
-        //surface.configure(&device, &config);
+        surface.configure(&device, &config);
 
         let rasterizer_pipeline = RasterizerPipeline::new(
             &device,
