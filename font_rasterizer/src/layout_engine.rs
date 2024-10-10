@@ -71,6 +71,7 @@ pub struct HorizontalWorld {
     camera: Camera,
     camera_controller: CameraController,
     models: Vec<Box<dyn Model>>,
+    removed_models: Vec<Box<dyn Model>>,
     focus: usize,
     world_updated: bool,
 }
@@ -81,6 +82,7 @@ impl HorizontalWorld {
             camera: Camera::basic(window_size),
             camera_controller: CameraController::new(5.0),
             models: Vec::new(),
+            removed_models: Vec::new(),
             focus: 0,
             world_updated: true,
         }
@@ -180,9 +182,19 @@ impl World for HorizontalWorld {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        self.models[self.get_surrounding_model_range()]
+        let models: Vec<&GlyphInstances> = self.models[self.get_surrounding_model_range()]
             .iter()
             .flat_map(|m| m.glyph_instances())
+            .collect();
+        let removed_models: Vec<&GlyphInstances> = self
+            .removed_models
+            .iter()
+            .flat_map(|m| m.glyph_instances())
+            .collect();
+        models
+            .iter()
+            .chain(removed_models.iter())
+            .cloned()
             .collect()
     }
 
@@ -195,6 +207,11 @@ impl World for HorizontalWorld {
         for model in self.models[range].iter_mut() {
             model.update(context);
         }
+        for model in self.removed_models.iter_mut() {
+            model.update(context);
+        }
+        self.removed_models.retain(|m| m.in_animation());
+
         if self.world_updated {
             self.re_layout();
             self.look_current(CameraAdjustment::NoCare);
@@ -281,7 +298,10 @@ impl World for HorizontalWorld {
 
     fn remove_current(&mut self) {
         self.world_updated = true;
-        self.models.remove(self.focus);
+        let mut removed_model = self.models.remove(self.focus);
+        let (x, y, z) = removed_model.position().into();
+        removed_model.set_position(Point3::new(x, y - 5.0, z));
+        self.removed_models.push(removed_model);
     }
 
     fn swap_next(&mut self) {
@@ -371,6 +391,7 @@ pub trait Model {
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult;
     fn to_string(&self) -> String;
     fn model_mode(&self) -> ModelMode;
+    fn in_animation(&self) -> bool;
 }
 
 pub enum ModelOperation {

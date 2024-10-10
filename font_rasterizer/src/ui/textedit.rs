@@ -278,6 +278,10 @@ impl Model for TextEdit {
     fn model_mode(&self) -> ModelMode {
         ModelMode::Nomal
     }
+
+    fn in_animation(&self) -> bool {
+        self.position.in_animation_strict() || self.bound.in_animation_strict()
+    }
 }
 
 impl TextEdit {
