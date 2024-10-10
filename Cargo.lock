@@ -2540,6 +2540,24 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 [[package]]
 name = "showcase"
 version = "0.1.0"
+dependencies = [
+ "cgmath",
+ "console_error_panic_hook",
+ "console_log",
+ "env_logger",
+ "font_collector",
+ "font_rasterizer",
+ "getrandom",
+ "instant",
+ "log",
+ "pollster",
+ "stroke_parser",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "wgpu",
+ "winit",
+]
 
 [[package]]
 name = "simd-adler32"

@@ -3,4 +3,29 @@ name = "showcase"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
+font_rasterizer = { version = "0.1.0", path = "../../font_rasterizer" }
+stroke_parser = { version = "0.1.0", path = "../../stroke_parser" }
+env_logger = { workspace = true }
+log = { workspace = true }
+pollster = { workspace = true }
+cgmath = "0.18"
+winit = { workspace = true }
+wgpu = { workspace = true }
+instant = { version = "0.1", features = ["wasm-bindgen"] }
+font_collector = { version = "0.1.0", path = "../../font_collector" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+console_log = "1.0.0"
+wgpu = { workspace = true, features = ["webgl"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Document", "Window", "Element"] }
+# wasm-pack する時に js features を有効にする必要がある。
+# getrandom は複数の crate から間接的に依存されているので本来はもっといい指定の方法があるのではないかと思うが
+# 確たる答はないのでとりあえずこの指定で行く。
+getrandom = { version = "0.2", features = ["js"] }

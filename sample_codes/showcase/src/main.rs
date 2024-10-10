@@ -1,3 +1,6 @@
+use showcase::run;
+
 fn main() {
-    println!("Hello, world!");
+    std::env::set_var("RUST_LOG", "support_test=debug");
+    pollster::block_on(run());
 }
