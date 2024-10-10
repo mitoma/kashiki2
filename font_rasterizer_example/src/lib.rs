@@ -100,7 +100,7 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         let value = GlyphInstance {
             color: context.color_theme.cyan().get_color(),
             motion: self.motion.motion_flags(),
@@ -111,6 +111,10 @@ impl SimpleStateCallback for SingleCharCallback {
         let mut instance = GlyphInstances::new('あ', &context.device);
         instance.push(value);
         self.glyphs.push(instance);
+        let chars = vec!['あ'].into_iter().collect();
+        glyph_vertex_buffer
+            .append_glyph(&context.device, &context.queue, chars)
+            .unwrap();
     }
 
     fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
