@@ -118,6 +118,7 @@ pub enum SolarizedColor {
 impl SolarizedColor {
     #[allow(clippy::excessive_precision)]
     pub fn get_color(&self) -> [f32; 3] {
+        #[cfg(not(target_family = "wasm"))]
         match self {
             SolarizedColor::Base03 => [0.0000000000, 0.0199178383, 0.0328759179],
             SolarizedColor::Base02 => [0.0003671363, 0.0328759179, 0.0511220507],
@@ -135,6 +136,26 @@ impl SolarizedColor {
             SolarizedColor::Blue => [0.0151752383, 0.2631747127, 0.6523700953],
             SolarizedColor::Cyan => [0.0189129841, 0.3636038899, 0.3203815520],
             SolarizedColor::Green => [0.2388279885, 0.3250369728, 0.0000000000],
+            SolarizedColor::Black => [0.0, 0.0, 0.0],
+        }
+        #[cfg(target_family = "wasm")]
+        match self {
+            SolarizedColor::Base03 => [0.0000000000, 0.1686274558, 0.2117647082],
+            SolarizedColor::Base02 => [0.0274509806, 0.2117647082, 0.2588235438],
+            SolarizedColor::Base01 => [0.3450980484, 0.4313725531, 0.4588235319],
+            SolarizedColor::Base00 => [0.3960784376, 0.4823529422, 0.5137255192],
+            SolarizedColor::Base0 => [0.5137255192, 0.5803921819, 0.5882353187],
+            SolarizedColor::Base1 => [0.5764706135, 0.6313725710, 0.6313725710],
+            SolarizedColor::Base2 => [0.9333333373, 0.9098039269, 0.8352941275],
+            SolarizedColor::Base3 => [0.9921568632, 0.9647058845, 0.8901960850],
+            SolarizedColor::Yellow => [0.7098039389, 0.5372549295, 0.0000000000],
+            SolarizedColor::Orange => [0.7960784435, 0.2941176593, 0.0862745121],
+            SolarizedColor::Red => [0.8627451062, 0.1960784346, 0.1843137294],
+            SolarizedColor::Magenta => [0.8274509907, 0.2117647082, 0.5098039508],
+            SolarizedColor::Violet => [0.4235294163, 0.4431372583, 0.7686274648],
+            SolarizedColor::Blue => [0.1490196139, 0.5450980663, 0.8235294223],
+            SolarizedColor::Cyan => [0.1647058874, 0.6313725710, 0.5960784554],
+            SolarizedColor::Green => [0.5215686560, 0.6000000238, 0.0000000000],
             SolarizedColor::Black => [0.0, 0.0, 0.0],
         }
     }
@@ -259,11 +280,28 @@ mod test {
             );
         });
         println!("}};");
+
+        println!("for wasm32 (WebGL)");
+        SCHEMES.iter().for_each(|scheme| {
+            println!(
+                "SolarizedColor::{:10} => [{:.10}, {:.10}, {:.10}],",
+                scheme.0,
+                linear(scheme.1),
+                linear(scheme.2),
+                linear(scheme.3)
+            );
+        });
+        println!("}};");
     }
 
     // learn-wgpu の注釈を元に変換する
     fn linear_to_srgb(value: u32) -> f32 {
         (value as f64 / 255.0).powf(2.2) as f32
+    }
+
+    // wasm32 の時は linear のほうが適切っぽい
+    fn linear(value: u32) -> f32 {
+        (value as f64 / 255.0) as f32
     }
 
     // こちらの記事を参考に linear の RGB 情報を sRGB に変換
