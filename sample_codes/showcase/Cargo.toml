@@ -7,7 +7,9 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+font_collector = { version = "0.1.0", path = "../../font_collector" }
 font_rasterizer = { version = "0.1.0", path = "../../font_rasterizer" }
+text_buffer = { version = "0.1.0", path = "../../text_buffer" }
 stroke_parser = { version = "0.1.0", path = "../../stroke_parser" }
 env_logger = { workspace = true }
 log = { workspace = true }
@@ -16,7 +18,6 @@ cgmath = "0.18"
 winit = { workspace = true }
 wgpu = { workspace = true }
 instant = { version = "0.1", features = ["wasm-bindgen"] }
-font_collector = { version = "0.1.0", path = "../../font_collector" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"

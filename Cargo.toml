@@ -14,7 +14,11 @@ resolver = "2"
 [workspace.dependencies]
 anyhow = "1.0"
 wgpu = "22.1.0"
-winit = "0.29.15"
+# winit の wasm で ime support が十分でないので fork してパッチを当てたものを使う。
+# winit の ime support が十分にサポートされれば戻す予定。
+# 今あてているパッチでは Fullscreen API のサポートが不十分なため wasm では Fullscreen をサポートしない。
+# fork元は winit = "0.29.15"
+winit = { git = "https://github.com/mitoma/winit", branch = "wasm-ime-support" }
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
