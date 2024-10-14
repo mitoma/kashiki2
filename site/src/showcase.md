@@ -1,6 +1,7 @@
 # ShowCase
 
-WASM text editor demo.
+Technical showcase.
+This demo use WASM & WebGL.
 
 <div id="kashikishi-area"></div>
 

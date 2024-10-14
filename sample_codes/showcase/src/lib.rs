@@ -74,7 +74,9 @@ impl SingleCharCallback {
         let mut world = HorizontalWorld::new(window_size);
         let mut textedit = TextEdit::default();
 
-        textedit.editor_operation(&EditorOperation::InsertString("Hello, World!".to_string()));
+        textedit.editor_operation(&EditorOperation::InsertString(
+            include_str!("../asset/initial.txt").to_string(),
+        ));
         world.add(Box::new(textedit));
         world.look_current(CameraAdjustment::FitBothAndCentering);
         let ime = ImeInput::new();
@@ -230,14 +232,14 @@ impl SimpleStateCallback for SingleCharCallback {
         glyph_vertex_buffer
             .append_glyph(&context.device, &context.queue, self.world.chars())
             .unwrap();
-        context
-            .action_queue_sender
-            .send(Action::new_command_with_argument(
-                "system",
-                "change-theme",
-                "light",
-            ))
-            .unwrap();
+        [
+            Action::new_command_with_argument("system", "change-theme", "light"),
+            Action::new_command("world", "look-current-and-centering"),
+        ]
+        .into_iter()
+        .for_each(|action| {
+            context.post_action_queue_sender.send(action).unwrap();
+        });
     }
 
     fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
