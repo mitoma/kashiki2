@@ -92,7 +92,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         web_sys::window()
             .and_then(|win| win.document())
             .and_then(|doc| {
-                let dst = doc.get_element_by_id("kasikishi-area")?;
+                let dst = doc.get_element_by_id("kashikishi-area")?;
                 let canvas = web_sys::Element::from(window.canvas()?);
                 dst.append_child(&canvas.clone()).ok()?;
                 let input = web_sys::Element::from(window.input()?);
