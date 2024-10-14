@@ -7,6 +7,6 @@ wasm-pack build --target web --out-dir "${GIT_ROOT_DIR}/site/src/wasm/showcase"
 
 cd "${GIT_ROOT_DIR}/site"
 mdbook clean
-mdbook build
+mdbook serve
 
 cd "${GIT_ROOT_DIR}"
