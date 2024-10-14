@@ -234,11 +234,13 @@ impl SimpleStateCallback for SingleCharCallback {
             .unwrap();
         [
             Action::new_command_with_argument("system", "change-theme", "light"),
-            Action::new_command("world", "look-current-and-centering"),
+            Action::new_command("edit", "buffer-head"),
+            Action::new_command("world", "back"),
+            Action::new_command("world", "back"),
         ]
         .into_iter()
         .for_each(|action| {
-            context.post_action_queue_sender.send(action).unwrap();
+            context.action_queue_sender.send(action).unwrap();
         });
     }
 
