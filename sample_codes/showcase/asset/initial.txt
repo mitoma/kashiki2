@@ -1,0 +1,9 @@
+Hello, 炊紙(kashikishi)!
+
+This is a technical showcase using wasm & WebGL for kashikishi. 
+Although the functions used are different from those of the kashikishi itself, this showcase use the same framework.
+Enjoy!
+
+これは炊紙の wasm & WebGL による技術デモです。
+炊紙本体と使える機能は異なりますが同じレンダリングのロジックを利用しています。
+楽しんで触ってみてください。

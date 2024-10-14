@@ -92,9 +92,11 @@ pub async fn run_support(support: SimpleStateSupport) {
         web_sys::window()
             .and_then(|win| win.document())
             .and_then(|doc| {
-                let dst = doc.get_element_by_id("wasm-example")?;
+                let dst = doc.get_element_by_id("kashikishi-area")?;
                 let canvas = web_sys::Element::from(window.canvas()?);
-                dst.append_child(&canvas).ok()?;
+                dst.append_child(&canvas.clone()).ok()?;
+                let input = web_sys::Element::from(window.input()?);
+                dst.append_child(&input).ok()?;
                 Some(())
             })
             .expect("Couldn't append canvas to document body.");
