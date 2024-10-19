@@ -93,7 +93,8 @@ impl ImeInput {
                 self.text_edit.set_world_scale([
                     f32::min(
                         IME_DEFAULT_SCALE[0],
-                        1.0 / char_width * context.window_size.aspect(),
+                        /* 0.7 は感覚的な値 */
+                        0.7 / char_width * context.window_size.aspect(),
                     ),
                     IME_DEFAULT_SCALE[1],
                 ]);

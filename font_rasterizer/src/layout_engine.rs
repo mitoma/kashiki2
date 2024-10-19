@@ -235,6 +235,11 @@ impl World for HorizontalWorld {
     }
 
     fn look_next(&mut self, adjustment: CameraAdjustment) {
+        // model がない場合は何もしない
+        if self.model_length() == 0 {
+            return;
+        }
+
         // modal の場合はフォーカスを移動させない
         if let Some(ModelMode::Modal) = self.current_model_mode() {
             self.look_current(adjustment);
@@ -245,6 +250,11 @@ impl World for HorizontalWorld {
     }
 
     fn look_prev(&mut self, adjustment: CameraAdjustment) {
+        // model がない場合は何もしない
+        if self.model_length() == 0 {
+            return;
+        }
+
         // modal の場合はフォーカスを移動させない
         if let Some(ModelMode::Modal) = self.current_model_mode() {
             self.look_current(adjustment);
