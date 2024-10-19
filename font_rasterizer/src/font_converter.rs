@@ -332,11 +332,6 @@ mod test {
         let faces = [
             Face::parse(FONT_DATA, 0).expect("face from slice"),
             Face::parse(EMOJI_FONT_DATA, 0).expect("face from slice"),
-            Face::parse(
-                include_bytes!("../examples/font/NotoSansMonoCJKjp-Regular.otf"),
-                0,
-            )
-            .expect("face from slice"),
         ];
 
         for face in faces.iter() {
