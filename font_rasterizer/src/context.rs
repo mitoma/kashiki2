@@ -282,6 +282,36 @@ impl Default for TextContext {
 }
 
 impl TextContext {
+    #[inline]
+    pub fn with_row_interval(mut self, row_interval: f32) -> Self {
+        self.row_interval = row_interval;
+        self
+    }
+
+    #[inline]
+    pub fn with_col_interval(mut self, col_interval: f32) -> Self {
+        self.col_interval = col_interval;
+        self
+    }
+
+    #[inline]
+    pub fn with_row_scale(mut self, row_scale: f32) -> Self {
+        self.row_scale = row_scale;
+        self
+    }
+
+    #[inline]
+    pub fn with_col_scale(mut self, col_scale: f32) -> Self {
+        self.col_scale = col_scale;
+        self
+    }
+
+    #[inline]
+    pub fn with_max_col(mut self, max_col: usize) -> Self {
+        self.max_col = max_col;
+        self
+    }
+
     pub fn instance_scale(&self) -> [f32; 2] {
         match self.direction {
             Direction::Horizontal => [self.col_scale, self.row_scale],

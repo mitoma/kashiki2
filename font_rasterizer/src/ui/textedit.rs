@@ -85,6 +85,15 @@ impl Default for TextEdit {
     }
 }
 
+impl TextEdit {
+    pub fn new(config: TextContext) -> Self {
+        Self {
+            config,
+            ..Default::default()
+        }
+    }
+}
+
 impl Model for TextEdit {
     fn set_position(&mut self, position: Point3<f32>) {
         let p: [f32; 3] = position.into();

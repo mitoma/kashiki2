@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
+    context::{StateContext, TextContext, WindowSize},
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, Model, ModelOperation, World},
@@ -72,7 +72,7 @@ impl SingleCharCallback {
             .for_each(|k| store.register_keybind(k));
 
         let mut world = HorizontalWorld::new(window_size);
-        let mut textedit = TextEdit::default();
+        let mut textedit = TextEdit::new(TextContext::default().with_max_col(40));
 
         textedit.editor_operation(&EditorOperation::InsertString(
             include_str!("../asset/initial.txt").to_string(),
