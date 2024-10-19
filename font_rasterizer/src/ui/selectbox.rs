@@ -301,10 +301,16 @@ impl Model for SelectBox {
             | EditorOperation::BackWord => self.search_text_edit.editor_operation(op),
             // search_items_text_edit に対して操作を行う
             EditorOperation::Previous => {
+                if self.max_narrowd_options_len() == 0 {
+                    return;
+                }
                 self.current_selection =
                     (self.current_selection + narrowed_options_len - 1) % narrowed_options_len
             }
             EditorOperation::Next => {
+                if self.max_narrowd_options_len() == 0 {
+                    return;
+                }
                 self.current_selection = (self.current_selection + 1) % narrowed_options_len
             }
             EditorOperation::BufferHead => self.current_selection = 0,
