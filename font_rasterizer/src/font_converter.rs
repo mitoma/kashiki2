@@ -177,8 +177,8 @@ impl GlyphVertexBuilder {
         let global = face.global_bounding_box();
         let global_width = global.width() as f32;
         let global_height = global.height() as f32;
-        let rect_em = (face.units_per_em() as f32 / 1024.0).sqrt();
-        let center_x = global_width * width.to_f32() / 2.0 + global.x_min as f32;
+        let rect_em = face.units_per_em() as f32;
+        let center_x = global_width * (width.to_f32() / 2.0) + global.x_min as f32;
         let center_y = global_height / 2.0 + global.y_min as f32;
 
         if DEBUG_FLAGS.show_glyph_outline {
@@ -209,8 +209,8 @@ impl GlyphVertexBuilder {
             .vertex
             .iter()
             .map(|InternalVertex { x, y, wait }| {
-                let x = (*x - center_x) / global_width / rect_em;
-                let y = (*y - center_y) / global_height / rect_em;
+                let x = (*x - center_x) / rect_em;
+                let y = (*y - center_y) / rect_em;
                 Vertex {
                     position: [x, y],
                     wait: wait.wait(),
@@ -291,6 +291,7 @@ mod test {
     use std::sync::Arc;
 
     use font_collector::FontCollector;
+    use rustybuzz::ttf_parser::Face;
 
     use super::FontVertexConverter;
 
@@ -323,6 +324,36 @@ mod test {
                 .get_face_and_glyph_ids(c)
                 .expect("get char glyph ids");
             assert_eq!(ids.vertical_glyph_id.is_some(), expected);
+        }
+    }
+
+    #[test]
+    fn font_info_test() {
+        let faces = [
+            Face::parse(FONT_DATA, 0).expect("face from slice"),
+            Face::parse(EMOJI_FONT_DATA, 0).expect("face from slice"),
+            Face::parse(
+                include_bytes!("../examples/font/NotoSansMonoCJKjp-Regular.otf"),
+                0,
+            )
+            .expect("face from slice"),
+        ];
+
+        for face in faces.iter() {
+            println!("-----------------");
+            let global_box = face.global_bounding_box();
+            println!(
+                "global:{:?}, width:{}, height:{}",
+                global_box,
+                global_box.width(),
+                global_box.height()
+            );
+            println!(
+                "em:{:?}, origin_rect_em: {}, new_rect_em: {}",
+                face.units_per_em(),
+                (face.units_per_em() as f32 / 1024.0).sqrt(),
+                (face.units_per_em() as f32).sqrt()
+            );
         }
     }
 }
