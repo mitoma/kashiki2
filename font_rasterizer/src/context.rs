@@ -262,13 +262,15 @@ pub struct TextContext {
 
 impl Default for TextContext {
     fn default() -> Self {
+        // 読みやすい文章の目安として一行日本語30文字程度、
+        // 行間を1.5倍、文字間を1.0倍をデフォルトとして設定する。
         Self {
             direction: Direction::Horizontal,
-            row_interval: 1.0,
-            col_interval: 0.7,
+            row_interval: 1.5,
+            col_interval: 1.0,
             row_scale: 1.0,
             col_scale: 1.0,
-            max_col: 40,
+            max_col: 60,
             line_prohibited_chars: LineBoundaryProhibitedChars::default(),
             min_bound: (10.0, 5.0).into(),
             char_easings: CharEasings::default(),
