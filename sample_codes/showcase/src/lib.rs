@@ -95,6 +95,21 @@ pub fn change_theme_light() {
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn zoom_in() {
+    send_action(Action::new_command("world", "forward"));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn zoom_out() {
+    send_action(Action::new_command("world", "back"));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn toggle_psychedelic() {
+    send_action(Action::new_command("world", "toggle-psychedelic"));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn send_log(message: &str) {
     log::warn!("{}", message);
 }
