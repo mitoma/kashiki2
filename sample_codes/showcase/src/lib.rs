@@ -1,4 +1,7 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    sync::{mpsc::Sender, LazyLock, Mutex},
+};
 
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
@@ -48,6 +51,52 @@ pub async fn run() {
         performance_mode: false,
     };
     run_support(support).await;
+}
+
+static ACTION_FROM_JS: LazyLock<Mutex<Option<Sender<Action>>>> = LazyLock::new(|| Mutex::new(None));
+
+fn set_action_sender(sender: Sender<Action>) {
+    ACTION_FROM_JS.lock().unwrap().replace(sender);
+}
+
+fn send_action(action: Action) {
+    match ACTION_FROM_JS.lock().unwrap().as_ref() {
+        Some(sender) => sender.send(action).unwrap(),
+        None => log::warn!("Action sender is not set"),
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn toggle_direction() {
+    send_action(Action::new_command("world", "change-direction"));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn look_current_and_centering() {
+    send_action(Action::new_command("world", "look-current-and-centering"));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn change_theme_dark() {
+    send_action(Action::new_command_with_argument(
+        "system",
+        "change-theme",
+        "dark",
+    ));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn change_theme_light() {
+    send_action(Action::new_command_with_argument(
+        "system",
+        "change-theme",
+        "light",
+    ));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn send_log(message: &str) {
+    log::warn!("{}", message);
 }
 
 enum SystemActionResult {
@@ -229,6 +278,8 @@ impl SingleCharCallback {
 
 impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+        set_action_sender(context.action_queue_sender.clone());
+
         glyph_vertex_buffer
             .append_glyph(&context.device, &context.queue, self.world.chars())
             .unwrap();

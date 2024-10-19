@@ -5,11 +5,28 @@ This demo use WASM & WebGL.
 
 Click area and edit it!
 <div id="kashikishi-area"></div>
+<input id="toggle-direction-button" type="button" value="Toggle direction"></input>
+<input id="centering-button" type="button" value="Fit the entire document"></input>
+<input id="dark-mode-button" type="button" value="Dark mode"></input>
+<input id="light-mode-button" type="button" value="Light mode"></input>
 
 <script type="module">
-  import init from "./wasm/showcase/showcase.js";
+  import init, { send_log, toggle_direction, look_current_and_centering, change_theme_dark, change_theme_light } from "./wasm/showcase/showcase.js";
   init().then(() => {
     console.log("WASM Loaded");
+    send_log("Hello from JS");
+    document.getElementById("toggle-direction-button").addEventListener("click", () => {
+      toggle_direction();
+    });
+    document.getElementById("centering-button").addEventListener("click", () => {
+      look_current_and_centering();
+    });
+    document.getElementById("dark-mode-button").addEventListener("click", () => {
+      change_theme_dark();
+    });
+    document.getElementById("light-mode-button").addEventListener("click", () => {
+      change_theme_light();
+    });
   });
 </script>
 
