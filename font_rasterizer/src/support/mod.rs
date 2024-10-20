@@ -1,3 +1,4 @@
+pub mod action_processor;
 mod metrics_counter;
 mod render_rate_adjuster;
 
@@ -301,6 +302,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         .unwrap();
 }
 
+#[derive(PartialEq)]
 pub enum InputResult {
     InputConsumed,
     ToggleFullScreen,
