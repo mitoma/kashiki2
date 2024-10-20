@@ -46,7 +46,7 @@ impl ActionProcessorStore {
     }
 }
 
-trait ActionProcessor {
+pub trait ActionProcessor {
     fn namespace(&self) -> CommandNamespace;
     fn name(&self) -> CommandName;
     fn process(

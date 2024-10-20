@@ -98,4 +98,6 @@ impl SimpleStateCallback for SingleCharCallback {
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
         (&self.camera, Vec::new())
     }
+
+    fn shutdown(&mut self) {}
 }

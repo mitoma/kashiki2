@@ -179,4 +179,6 @@ impl SimpleStateCallback for SingleCharCallback {
         let instances = self.world.glyph_instances();
         (self.world.camera(), instances)
     }
+
+    fn shutdown(&mut self) {}
 }

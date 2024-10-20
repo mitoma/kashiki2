@@ -388,4 +388,6 @@ impl SimpleStateCallback for SingleCharCallback {
         world_instances.append(&mut ime_instances);
         (self.world.camera(), world_instances)
     }
+
+    fn shutdown(&mut self) {}
 }

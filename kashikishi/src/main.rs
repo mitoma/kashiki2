@@ -11,7 +11,10 @@ use arboard::Clipboard;
 use clap::{command, Parser};
 use font_collector::FontCollector;
 use rokid_3dof::RokidMax;
-use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
+use stroke_parser::{
+    action_store_parser::parse_setting, Action, ActionArgument, ActionStore, CommandName,
+    CommandNamespace,
+};
 use text_buffer::action::EditorOperation;
 use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld};
 
@@ -21,9 +24,12 @@ use font_rasterizer::{
     context::{StateContext, WindowSize},
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
-    layout_engine::{Model, ModelOperation},
+    layout_engine::{Model, ModelOperation, World},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{
+        action_processor::{ActionProcessor, ActionProcessorStore},
+        run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    },
     time::set_clock_mode,
     ui::{caret_char, ime_chars, ImeInput},
 };
@@ -68,6 +74,39 @@ pub struct Args {
 }
 
 const COLOR_THEME: ColorTheme = ColorTheme::SolarizedDark;
+
+struct SystemCommandPalette;
+impl ActionProcessor for SystemCommandPalette {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "command-palette".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        context: &StateContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let narrow = match arg {
+            ActionArgument::String(value) => Some(value.to_owned()),
+            _ => None,
+        };
+        let modal = command_palette_select(context, narrow);
+        world.add_next(Box::new(modal));
+        world.re_layout();
+        let adjustment = if context.global_direction == Direction::Horizontal {
+            CameraAdjustment::FitWidth
+        } else {
+            CameraAdjustment::FitHeight
+        };
+        world.look_next(adjustment);
+        InputResult::InputConsumed
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run(args: Args) {
@@ -122,6 +161,7 @@ struct KashikishiCallback {
     store: ActionStore,
     world: Box<dyn ModalWorld>,
     ime: ImeInput,
+    action_processor_store: ActionProcessorStore,
     new_chars: HashSet<char>,
     rokid_max: Option<RokidMax>,
     ar_mode: bool,
@@ -138,12 +178,17 @@ impl KashikishiCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let ime = ImeInput::new();
 
+        let mut action_processor_store = ActionProcessorStore::default();
+        action_processor_store.add_default_system_processors();
+        action_processor_store.add_processor(Box::new(SystemCommandPalette));
+
         let rokid_max = RokidMax::new().ok();
 
         Self {
             store,
             world: Box::new(NullWorld::new(window_size)),
             ime,
+            action_processor_store,
             new_chars: HashSet::new(),
             rokid_max,
             ar_mode: false,
@@ -392,27 +437,15 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
+        let result = self
+            .action_processor_store
+            .process(&action, context, self.world.get_mut());
+        if result != InputResult::Noop {
+            return result;
+        }
+
         match action {
             Action::Command(category, name, argument) => match &*category.to_string() {
-                "system" => match self.execute_system_action(&name, argument, context) {
-                    SystemActionResult::Exit => {
-                        self.world.graceful_exit();
-                        InputResult::SendExit
-                    }
-                    SystemActionResult::ToggleFullScreen => InputResult::ToggleFullScreen,
-                    SystemActionResult::ToggleTitlebar => InputResult::ToggleDecorations,
-                    SystemActionResult::ChangeColorTheme(theme) => {
-                        InputResult::ChangeColorTheme(theme)
-                    }
-                    SystemActionResult::ChangeGlobalDirection(direction) => {
-                        InputResult::ChangeGlobalDirection(direction)
-                    }
-                    SystemActionResult::AddModal(modal) => {
-                        self.world.add_modal(context, &mut self.new_chars, modal);
-                        InputResult::InputConsumed
-                    }
-                    SystemActionResult::Noop => InputResult::InputConsumed,
-                },
                 "edit" => {
                     let op = Self::execute_editor_action(&name, &mut self.new_chars);
                     self.world.get_mut().editor_operation(&op);
@@ -481,5 +514,9 @@ impl SimpleStateCallback for KashikishiCallback {
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);
         (self.world.get().camera(), world_instances)
+    }
+
+    fn shutdown(&mut self) {
+        self.world.graceful_exit();
     }
 }

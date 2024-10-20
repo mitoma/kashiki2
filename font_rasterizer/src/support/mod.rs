@@ -149,6 +149,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                         }
                         InputResult::SendExit => {
                             print_metrics_to_stdout();
+                            state.shutdown();
                             control_flow.exit()
                         }
                         InputResult::ToggleFullScreen => {
@@ -174,6 +175,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                             match event {
                                 WindowEvent::CloseRequested => {
                                     print_metrics_to_stdout();
+                                    state.shutdown();
                                     control_flow.exit()
                                 }
                                 WindowEvent::KeyboardInput {
@@ -187,6 +189,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                                 } => {
                                     if support.flags.contains(Flags::EXIT_ON_ESC) {
                                         print_metrics_to_stdout();
+                                        state.shutdown();
                                         control_flow.exit();
                                     }
                                 }
@@ -239,7 +242,11 @@ pub async fn run_support(support: SimpleStateSupport) {
                                             wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated,
                                         ) => state.redraw(),
                                         // The system is out of memory, we should probably quit
-                                        Err(wgpu::SurfaceError::OutOfMemory) => control_flow.exit(),
+                                        Err(wgpu::SurfaceError::OutOfMemory) => {
+                                            print_metrics_to_stdout();
+                                            state.shutdown();
+                                            control_flow.exit()
+                                        }
                                         // We're ignoring timeouts
                                         Err(wgpu::SurfaceError::Timeout) => {
                                             log::warn!("Surface timeout")
@@ -275,6 +282,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                     }
                     InputResult::SendExit => {
                         print_metrics_to_stdout();
+                        state.shutdown();
                         control_flow.exit()
                     }
                     InputResult::ToggleFullScreen => {
@@ -320,6 +328,7 @@ pub trait SimpleStateCallback {
     fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
+    fn shutdown(&mut self);
 }
 
 pub struct SimpleState {
@@ -538,6 +547,10 @@ impl SimpleState {
         screen_output.present();
 
         Ok(())
+    }
+
+    fn shutdown(&mut self) {
+        self.simple_state_callback.shutdown();
     }
 }
 
@@ -761,6 +774,10 @@ impl ImageState {
         self.output_buffer.unmap();
 
         Ok(buffer)
+    }
+
+    fn shutdown(&mut self) {
+        self.simple_state_callback.shutdown();
     }
 }
 
