@@ -803,6 +803,7 @@ pub async fn generate_images<F>(
     let mut frame = 0;
     loop {
         if frame > num_of_frame {
+            state.shutdown();
             break;
         }
         state.update();

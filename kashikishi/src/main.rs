@@ -33,7 +33,6 @@ use font_rasterizer::{
     time::set_clock_mode,
     ui::{caret_char, ime_chars, ImeInput},
 };
-use kashikishi_actions::change_theme_ui;
 use log::info;
 use std::collections::HashSet;
 use winit::event::WindowEvent;
@@ -90,12 +89,14 @@ impl ActionProcessor for SystemCommandPalette {
         arg: &ActionArgument,
         context: &StateContext,
         world: &mut dyn World,
+        new_chars: &mut HashSet<char>,
     ) -> InputResult {
         let narrow = match arg {
             ActionArgument::String(value) => Some(value.to_owned()),
             _ => None,
         };
         let modal = command_palette_select(context, narrow);
+        new_chars.extend(modal.to_string().chars());
         world.add_next(Box::new(modal));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
@@ -192,40 +193,6 @@ impl KashikishiCallback {
             new_chars: HashSet::new(),
             rokid_max,
             ar_mode: false,
-        }
-    }
-
-    fn execute_system_action(
-        &mut self,
-        command_name: &str,
-        argument: ActionArgument,
-        context: &StateContext,
-    ) -> SystemActionResult {
-        match command_name {
-            "exit" => SystemActionResult::Exit,
-            "command-palette" => {
-                let narrow = match argument {
-                    ActionArgument::String(value) => Some(value),
-                    _ => None,
-                };
-                SystemActionResult::AddModal(Box::new(command_palette_select(context, narrow)))
-            }
-            "toggle-fullscreen" => SystemActionResult::ToggleFullScreen,
-            "toggle-titlebar" => SystemActionResult::ToggleTitlebar,
-            "change-theme-ui" => SystemActionResult::AddModal(Box::new(change_theme_ui(context))),
-            "change-theme" => match argument {
-                ActionArgument::String(value) => match &*value.to_string() {
-                    "black" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedBlackback),
-                    "dark" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedDark),
-                    "light" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedLight),
-                    _ => SystemActionResult::Noop,
-                },
-                _ => SystemActionResult::Noop,
-            },
-            "change-global-direction" => {
-                SystemActionResult::ChangeGlobalDirection(context.global_direction.toggle())
-            }
-            _ => SystemActionResult::Noop,
         }
     }
 
@@ -363,16 +330,6 @@ impl KashikishiCallback {
     }
 }
 
-enum SystemActionResult {
-    Exit,
-    ToggleFullScreen,
-    ToggleTitlebar,
-    ChangeColorTheme(ColorTheme),
-    ChangeGlobalDirection(Direction),
-    AddModal(Box<dyn Model>),
-    Noop,
-}
-
 impl SimpleStateCallback for KashikishiCallback {
     fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
         // 初期状態で表示するワールドを設定する
@@ -437,9 +394,12 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
-        let result = self
-            .action_processor_store
-            .process(&action, context, self.world.get_mut());
+        let result = self.action_processor_store.process(
+            &action,
+            context,
+            self.world.get_mut(),
+            &mut self.new_chars,
+        );
         if result != InputResult::Noop {
             return result;
         }

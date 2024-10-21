@@ -1,7 +1,14 @@
+use std::collections::HashSet;
+
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
 use crate::{
-    camera::CameraAdjustment, color_theme::ColorTheme, context::StateContext, font_buffer::Direction, layout_engine::World, ui::{SelectBox, SelectOption}
+    camera::CameraAdjustment,
+    color_theme::ColorTheme,
+    context::StateContext,
+    font_buffer::Direction,
+    layout_engine::{Model, World},
+    ui::{SelectBox, SelectOption},
 };
 
 use super::InputResult;
@@ -15,6 +22,7 @@ impl ActionProcessorStore {
     pub fn add_default_system_processors(&mut self) {
         self.add_processor(Box::new(SystemExit));
         self.add_processor(Box::new(SystemToggleFullscreen));
+        self.add_processor(Box::new(SystemToggleTitlebar));
         self.add_processor(Box::new(SystemChangeGlobalDirection));
         self.add_processor(Box::new(SystemChangeThemeUi));
         self.add_processor(Box::new(SystemChangeTheme));
@@ -34,11 +42,12 @@ impl ActionProcessorStore {
         action: &Action,
         context: &StateContext,
         world: &mut dyn World,
+        new_chars: &mut HashSet<char>,
     ) -> InputResult {
         if let Action::Command(namespace, name, argument) = action {
             for processor in &self.processors {
                 if processor.namespace() == *namespace && processor.name() == *name {
-                    return processor.process(argument, context, world);
+                    return processor.process(argument, context, world, new_chars);
                 }
             }
         }
@@ -54,6 +63,7 @@ pub trait ActionProcessor {
         arg: &ActionArgument,
         context: &StateContext,
         world: &mut dyn World,
+        new_chars: &mut HashSet<char>,
     ) -> InputResult;
 }
 
@@ -73,6 +83,7 @@ impl ActionProcessor for SystemExit {
         _arg: &ActionArgument,
         _context: &StateContext,
         _world: &mut dyn World,
+        _new_chars: &mut HashSet<char>,
     ) -> InputResult {
         InputResult::SendExit
     }
@@ -93,6 +104,7 @@ impl ActionProcessor for SystemToggleFullscreen {
         _arg: &ActionArgument,
         _context: &StateContext,
         _world: &mut dyn World,
+        _new_chars: &mut HashSet<char>,
     ) -> InputResult {
         InputResult::ToggleFullScreen
     }
@@ -113,6 +125,7 @@ impl ActionProcessor for SystemToggleTitlebar {
         _arg: &ActionArgument,
         _context: &StateContext,
         _world: &mut dyn World,
+        _new_chars: &mut HashSet<char>,
     ) -> InputResult {
         InputResult::ToggleDecorations
     }
@@ -133,6 +146,7 @@ impl ActionProcessor for SystemChangeThemeUi {
         _arg: &ActionArgument,
         context: &StateContext,
         world: &mut dyn World,
+        new_chars: &mut HashSet<char>,
     ) -> InputResult {
         let options = vec![
             SelectOption::new(
@@ -154,6 +168,7 @@ impl ActionProcessor for SystemChangeThemeUi {
             options,
             None,
         );
+        new_chars.extend(model.to_string().chars());
         world.add_next(Box::new(model));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
@@ -182,6 +197,7 @@ impl ActionProcessor for SystemChangeTheme {
         arg: &ActionArgument,
         _context: &StateContext,
         _world: &mut dyn World,
+        _new_chars: &mut HashSet<char>,
     ) -> InputResult {
         if let ActionArgument::String(theme) = arg {
             let theme = match theme.as_str() {
@@ -212,6 +228,7 @@ impl ActionProcessor for SystemChangeGlobalDirection {
         _arg: &ActionArgument,
         context: &StateContext,
         _world: &mut dyn World,
+        _new_chars: &mut HashSet<char>,
     ) -> InputResult {
         InputResult::ChangeGlobalDirection(context.global_direction.toggle())
     }

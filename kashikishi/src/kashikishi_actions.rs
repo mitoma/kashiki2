@@ -70,29 +70,6 @@ pub(crate) fn insert_date_select(context: &StateContext) -> SelectBox {
     SelectBox::new(context, "挿入したい日付を選択".to_string(), options, None)
 }
 
-pub(crate) fn change_theme_ui(context: &StateContext) -> SelectBox {
-    let options = vec![
-        SelectOption::new(
-            "Solarized Blackback".to_string(),
-            Action::new_command_with_argument("system", "change-theme", "black"),
-        ),
-        SelectOption::new(
-            "Solarized Dark".to_string(),
-            Action::new_command_with_argument("system", "change-theme", "dark"),
-        ),
-        SelectOption::new(
-            "Solarized Light".to_string(),
-            Action::new_command_with_argument("system", "change-theme", "light"),
-        ),
-    ];
-    SelectBox::new(
-        context,
-        "カラーテーマを選択して下さい".to_string(),
-        options,
-        None,
-    )
-}
-
 pub(crate) fn move_category_ui(
     context: &StateContext,
     categorized_memos: &CategorizedMemos,
