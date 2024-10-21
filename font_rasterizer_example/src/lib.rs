@@ -9,7 +9,6 @@ use font_rasterizer::{
     camera::{Camera, CameraController},
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
@@ -100,7 +99,7 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn init(&mut self, context: &StateContext) {
         let value = GlyphInstance {
             color: context.color_theme.cyan().get_color(),
             motion: self.motion.motion_flags(),
@@ -112,12 +111,10 @@ impl SimpleStateCallback for SingleCharCallback {
         instance.push(value);
         self.glyphs.push(instance);
         let chars = vec!['あ'].into_iter().collect();
-        glyph_vertex_buffer
-            .append_glyph(&context.device, &context.queue, chars)
-            .unwrap();
+        context.ui_string_sender.send(chars).unwrap();
     }
 
-    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn update(&mut self, context: &StateContext) {
         self.glyphs
             .iter_mut()
             .for_each(|i| i.update_buffer(&context.device, &context.queue));

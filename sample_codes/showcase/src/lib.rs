@@ -1,7 +1,4 @@
-use std::{
-    collections::HashSet,
-    sync::{mpsc::Sender, LazyLock, Mutex},
-};
+use std::sync::{mpsc::Sender, LazyLock, Mutex};
 
 use font_collector::FontCollector;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
@@ -13,7 +10,7 @@ use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme,
     context::{StateContext, TextContext, WindowSize},
-    font_buffer::{Direction, GlyphVertexBuffer},
+    font_buffer::Direction,
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, Model, ModelOperation, World},
     rasterizer_pipeline::Quarity,
@@ -124,7 +121,6 @@ struct SingleCharCallback {
     world: HorizontalWorld,
     store: ActionStore,
     ime: ImeInput,
-    new_chars: HashSet<char>,
 }
 
 impl SingleCharCallback {
@@ -144,17 +140,8 @@ impl SingleCharCallback {
         world.add(Box::new(textedit));
         world.look_current(CameraAdjustment::FitBothAndCentering);
         let ime = ImeInput::new();
-        let mut new_chars = HashSet::new();
-        // キャレットのグリフを追加する
-        new_chars.insert(caret_char(text_buffer::caret::CaretType::Primary));
-        new_chars.insert(caret_char(text_buffer::caret::CaretType::Mark));
 
-        Self {
-            world,
-            store,
-            ime,
-            new_chars,
-        }
+        Self { world, store, ime }
     }
 
     fn execute_system_action(
@@ -292,11 +279,20 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn init(&mut self, context: &StateContext) {
         set_action_sender(context.action_queue_sender.clone());
 
-        glyph_vertex_buffer
-            .append_glyph(&context.device, &context.queue, self.world.chars())
+        context
+            .ui_string_sender
+            .send(caret_char(text_buffer::caret::CaretType::Primary).to_string())
+            .unwrap();
+        context
+            .ui_string_sender
+            .send(caret_char(text_buffer::caret::CaretType::Mark).to_string())
+            .unwrap();
+        context
+            .ui_string_sender
+            .send(self.world.chars().into_iter().collect::<String>())
             .unwrap();
         [
             Action::new_command_with_argument("system", "change-theme", "light"),
@@ -310,16 +306,8 @@ impl SimpleStateCallback for SingleCharCallback {
         });
     }
 
-    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
-        // 入力などで新しい char が追加されたら、グリフバッファに追加する
-        if !self.new_chars.is_empty() {
-            let new_chars = self.new_chars.clone();
-            glyph_vertex_buffer
-                .append_glyph(&context.device, &context.queue, new_chars)
-                .unwrap();
-            self.new_chars.clear();
-        }
-        self.world.update(glyph_vertex_buffer, context);
+    fn update(&mut self, context: &StateContext) {
+        self.world.update(context);
         self.ime.update(context);
     }
 
@@ -355,13 +343,13 @@ impl SimpleStateCallback for SingleCharCallback {
                 _ => InputResult::Noop,
             },
             Action::Keytype(c) => {
-                self.new_chars.insert(c);
+                context.ui_string_sender.send(c.to_string()).unwrap();
                 let action = EditorOperation::InsertChar(c);
                 self.world.editor_operation(&action);
                 InputResult::InputConsumed
             }
             Action::ImeInput(value) => {
-                self.new_chars.extend(value.chars());
+                context.ui_string_sender.send(value.clone()).unwrap();
                 self.ime
                     .apply_ime_event(&Action::ImeInput(value.clone()), context);
                 self.world
@@ -369,7 +357,7 @@ impl SimpleStateCallback for SingleCharCallback {
                 InputResult::InputConsumed
             }
             Action::ImePreedit(value, position) => {
-                self.new_chars.extend(value.chars());
+                context.ui_string_sender.send(value.clone()).unwrap();
                 self.ime
                     .apply_ime_event(&Action::ImePreedit(value, position), context);
                 InputResult::InputConsumed

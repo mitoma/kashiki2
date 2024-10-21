@@ -11,7 +11,7 @@ use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
     context::{StateContext, WindowSize},
-    font_buffer::{Direction, GlyphVertexBuffer},
+    font_buffer::Direction,
     instances::GlyphInstances,
 };
 
@@ -27,7 +27,7 @@ pub trait World {
     // 再レイアウトする update するときに呼び出すとよさそう
     fn re_layout(&mut self);
 
-    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext);
+    fn update(&mut self, context: &StateContext);
 
     // この World にいくつモデルを配置されているかを返す
     fn model_length(&self) -> usize;
@@ -198,7 +198,7 @@ impl World for HorizontalWorld {
             .collect()
     }
 
-    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn update(&mut self, context: &StateContext) {
         let range = if self.world_updated {
             0..self.models.len()
         } else {

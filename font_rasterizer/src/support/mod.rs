@@ -322,9 +322,9 @@ pub enum InputResult {
 }
 
 pub trait SimpleStateCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext);
+    fn init(&mut self, context: &StateContext);
     fn resize(&mut self, size: WindowSize);
-    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext);
+    fn update(&mut self, context: &StateContext);
     fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
@@ -344,6 +344,7 @@ pub struct SimpleState {
 
     simple_state_callback: Box<dyn SimpleStateCallback>,
 
+    ui_string_receiver: Receiver<String>,
     action_queue_receiver: Receiver<Action>,
     post_action_queue_receiver: Receiver<Action>,
 }
@@ -425,9 +426,10 @@ impl SimpleState {
 
         let font_binaries = Arc::new(font_binaries);
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
-        let mut glyph_vertex_buffer =
+        let glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
 
+        let (ui_string_sender, ui_string_receiver) = std::sync::mpsc::channel();
         let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
         let (post_action_queue_sender, post_action_queue_receiver) = std::sync::mpsc::channel();
 
@@ -437,12 +439,13 @@ impl SimpleState {
             char_width_calcurator,
             color_theme,
             window_size,
+            ui_string_sender,
             action_queue_sender,
             post_action_queue_sender,
             global_direction: Direction::Horizontal,
         };
 
-        simple_state_callback.init(&mut glyph_vertex_buffer, &context);
+        simple_state_callback.init(&context);
 
         Self {
             context,
@@ -456,6 +459,7 @@ impl SimpleState {
             glyph_vertex_buffer,
             simple_state_callback,
 
+            ui_string_receiver,
             action_queue_receiver,
             post_action_queue_receiver,
         }
@@ -501,11 +505,22 @@ impl SimpleState {
     }
 
     pub fn update(&mut self) {
-        self.simple_state_callback
-            .update(&mut self.glyph_vertex_buffer, &self.context);
+        self.simple_state_callback.update(&self.context);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+        record_start_of_phase("render 0: append glyph");
+        self.ui_string_receiver
+            .try_recv()
+            .into_iter()
+            .for_each(|s| {
+                let _ = self.glyph_vertex_buffer.append_glyph(
+                    &self.context.device,
+                    &self.context.queue,
+                    s.chars().collect(),
+                );
+            });
+
         record_start_of_phase("render 1: setup encoder");
         let mut encoder =
             self.context
@@ -652,10 +667,11 @@ impl ImageState {
 
         let font_binaries = Arc::new(font_binaries);
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
-        let mut glyph_vertex_buffer =
+        let glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries.clone(), char_width_calcurator.clone());
 
         // 実際には使われない sender
+        let (ui_string_sender, _ui_string_receiver) = std::sync::mpsc::channel();
         let (action_queue_sender, _action_queue_receiver) = std::sync::mpsc::channel();
         let (post_action_queue_sender, _post_action_queue_receiver) = std::sync::mpsc::channel();
 
@@ -665,12 +681,13 @@ impl ImageState {
             char_width_calcurator,
             color_theme,
             window_size: size,
+            ui_string_sender,
             action_queue_sender,
             post_action_queue_sender,
             global_direction: Direction::Horizontal,
         };
 
-        simple_state_callback.init(&mut glyph_vertex_buffer, &context);
+        simple_state_callback.init(&context);
         simple_state_callback.resize(context.window_size);
 
         Self {
@@ -687,8 +704,7 @@ impl ImageState {
     }
 
     pub fn update(&mut self) {
-        self.simple_state_callback
-            .update(&mut self.glyph_vertex_buffer, &self.context);
+        self.simple_state_callback.update(&self.context);
     }
 
     pub fn render(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, wgpu::SurfaceError> {

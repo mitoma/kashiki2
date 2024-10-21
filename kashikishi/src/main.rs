@@ -22,7 +22,7 @@ use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::{Direction, GlyphVertexBuffer},
+    font_buffer::Direction,
     instances::GlyphInstances,
     layout_engine::{Model, ModelOperation, World},
     rasterizer_pipeline::Quarity,
@@ -34,7 +34,6 @@ use font_rasterizer::{
     ui::{caret_char, ime_chars, ImeInput},
 };
 use log::info;
-use std::collections::HashSet;
 use winit::event::WindowEvent;
 
 use crate::kashikishi_actions::command_palette_select;
@@ -89,14 +88,13 @@ impl ActionProcessor for SystemCommandPalette {
         arg: &ActionArgument,
         context: &StateContext,
         world: &mut dyn World,
-        new_chars: &mut HashSet<char>,
     ) -> InputResult {
         let narrow = match arg {
             ActionArgument::String(value) => Some(value.to_owned()),
             _ => None,
         };
         let modal = command_palette_select(context, narrow);
-        new_chars.extend(modal.to_string().chars());
+        context.ui_string_sender.send(modal.to_string()).unwrap();
         world.add_next(Box::new(modal));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
@@ -163,7 +161,6 @@ struct KashikishiCallback {
     world: Box<dyn ModalWorld>,
     ime: ImeInput,
     action_processor_store: ActionProcessorStore,
-    new_chars: HashSet<char>,
     rokid_max: Option<RokidMax>,
     ar_mode: bool,
 }
@@ -190,13 +187,12 @@ impl KashikishiCallback {
             world: Box::new(NullWorld::new(window_size)),
             ime,
             action_processor_store,
-            new_chars: HashSet::new(),
             rokid_max,
             ar_mode: false,
         }
     }
 
-    fn execute_editor_action(command_name: &str, chars: &mut HashSet<char>) -> EditorOperation {
+    fn execute_editor_action(command_name: &str, context: &StateContext) -> EditorOperation {
         match command_name {
             "return" => EditorOperation::InsertEnter,
             "backspace" => EditorOperation::Backspace,
@@ -216,7 +212,7 @@ impl KashikishiCallback {
             "buffer-last" => EditorOperation::BufferLast,
             "paste" => match Clipboard::new().and_then(|mut context| context.get_text()) {
                 Ok(text) => {
-                    chars.extend(text.chars());
+                    context.ui_string_sender.send(text.clone()).unwrap();
                     EditorOperation::InsertString(text)
                 }
                 Err(_) => EditorOperation::Noop,
@@ -331,23 +327,20 @@ impl KashikishiCallback {
 }
 
 impl SimpleStateCallback for KashikishiCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn init(&mut self, context: &StateContext) {
         // 初期状態で表示するワールドを設定する
         self.world = Box::new(StartWorld::new(context));
 
         // world にすでに表示されるグリフを追加する
         let mut chars = self.world.world_chars();
-
         // キャレットのグリフを追加する
         chars.insert(caret_char(text_buffer::caret::CaretType::Primary));
         chars.insert(caret_char(text_buffer::caret::CaretType::Mark));
-
         // IME のグリフを追加する
-        chars.extend(ime_chars().iter().cloned());
-
-        // グリフバッファに追加する
-        glyph_vertex_buffer
-            .append_glyph(&context.device, &context.queue, chars)
+        chars.extend(ime_chars());
+        context
+            .ui_string_sender
+            .send(chars.into_iter().collect::<String>())
             .unwrap();
 
         // カメラを初期化する
@@ -361,16 +354,8 @@ impl SimpleStateCallback for KashikishiCallback {
         self.world.get_mut().change_window_size(window_size);
     }
 
-    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
-        // 入力などで新しい char が追加されたら、グリフバッファに追加する
-        if !self.new_chars.is_empty() {
-            let new_chars = self.new_chars.clone();
-            glyph_vertex_buffer
-                .append_glyph(&context.device, &context.queue, new_chars)
-                .unwrap();
-            self.new_chars.clear();
-        }
-        self.world.get_mut().update(glyph_vertex_buffer, context);
+    fn update(&mut self, context: &StateContext) {
+        self.world.get_mut().update(context);
         self.ime.update(context);
 
         // AR モードが有効な場合はカメラの向きを変える。少し雑だが良い場所が見つかるまでここで。
@@ -394,12 +379,9 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
-        let result = self.action_processor_store.process(
-            &action,
-            context,
-            self.world.get_mut(),
-            &mut self.new_chars,
-        );
+        let result = self
+            .action_processor_store
+            .process(&action, context, self.world.get_mut());
         if result != InputResult::Noop {
             return result;
         }
@@ -407,7 +389,7 @@ impl SimpleStateCallback for KashikishiCallback {
         match action {
             Action::Command(category, name, argument) => match &*category.to_string() {
                 "edit" => {
-                    let op = Self::execute_editor_action(&name, &mut self.new_chars);
+                    let op = Self::execute_editor_action(&name, context);
                     self.world.get_mut().editor_operation(&op);
                     InputResult::InputConsumed
                 }
@@ -428,7 +410,10 @@ impl SimpleStateCallback for KashikishiCallback {
                     if let Some(world) = world {
                         self.world.graceful_exit();
                         self.world = world;
-                        self.new_chars.extend(self.world.world_chars());
+                        context
+                            .ui_string_sender
+                            .send(self.world.world_chars().into_iter().collect())
+                            .unwrap();
                         context
                             .post_action_queue_sender
                             .send(Action::new_command("world", "fit-by-direction"))
@@ -440,18 +425,21 @@ impl SimpleStateCallback for KashikishiCallback {
                     let (result, chars) = self
                         .world
                         .apply_action(context, Action::Command(category, name, argument));
-                    self.new_chars.extend(chars);
+                    context
+                        .ui_string_sender
+                        .send(chars.into_iter().collect())
+                        .unwrap();
                     result
                 }
             },
             Action::Keytype(c) => {
-                self.new_chars.insert(c);
+                context.ui_string_sender.send(c.to_string()).unwrap();
                 let action = EditorOperation::InsertChar(c);
                 self.world.get_mut().editor_operation(&action);
                 InputResult::InputConsumed
             }
             Action::ImeInput(value) => {
-                self.new_chars.extend(value.chars());
+                context.ui_string_sender.send(value.clone()).unwrap();
                 self.ime
                     .apply_ime_event(&Action::ImeInput(value.clone()), context);
                 self.world
@@ -460,7 +448,7 @@ impl SimpleStateCallback for KashikishiCallback {
                 InputResult::InputConsumed
             }
             Action::ImePreedit(value, position) => {
-                self.new_chars.extend(value.chars());
+                context.ui_string_sender.send(value.clone()).unwrap();
                 self.ime
                     .apply_ime_event(&Action::ImePreedit(value, position), context);
                 InputResult::InputConsumed
