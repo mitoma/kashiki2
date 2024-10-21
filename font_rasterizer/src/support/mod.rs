@@ -401,10 +401,12 @@ impl SimpleState {
             desired_maximum_frame_latency: 2,
         };
 
+        // 初期のパイプラインサイズは 256x256 で作成する(window_size が 0 の場合はエラーになるので)
+        let initial_pipeline_size = (256, 256);
         let rasterizer_pipeline = RasterizerPipeline::new(
             &device,
-            window_size.width,
-            window_size.height,
+            initial_pipeline_size.0,
+            initial_pipeline_size.1,
             config.format,
             quarity,
             color_theme.background().into(),
