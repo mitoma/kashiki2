@@ -130,6 +130,7 @@ pub async fn run_support(support: SimpleStateSupport) {
             120
         },
     );
+    let mut surface_configured = false;
 
     event_loop
         .run(move |event, control_flow| {
@@ -209,6 +210,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     render_rate_adjuster.change_focus(*focused);
                                 }
                                 WindowEvent::Resized(physical_size) => {
+                                    surface_configured = true;
                                     record_start_of_phase("state resize");
                                     state.resize((*physical_size).into());
                                 }
@@ -216,6 +218,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                                     // TODO スケールファクタ変更時に何かする？
                                 }
                                 WindowEvent::RedrawRequested => {
+                                    if !surface_configured {
+                                        return;
+                                    }
                                     record_start_of_phase("state update");
                                     #[cfg(not(target_arch = "wasm32"))]
                                     {
@@ -395,7 +400,6 @@ impl SimpleState {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
-        surface.configure(&device, &config);
 
         let rasterizer_pipeline = RasterizerPipeline::new(
             &device,
