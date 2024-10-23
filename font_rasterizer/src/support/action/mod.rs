@@ -153,29 +153,3 @@ impl ActionProcessor
         (self.f)(arg, context, world)
     }
 }
-
-// ----- impl system -----
-
-// ----- impl edit -----
-/*
-pub struct EditForward;
-impl ActionProcessor for EditForward {
-    fn namespace(&self) -> CommandNamespace {
-        "edit".into()
-    }
-
-    fn name(&self) -> CommandName {
-        "forward".into()
-    }
-
-    fn process(
-        &self,
-        _arg: &ActionArgument,
-        _context: &StateContext,
-        world: &mut dyn World,
-    ) -> Option<InputResult> {
-        world.editor_operation(&EditorOperation::Forward);
-        Some(InputResult::InputConsumed)
-    }
-}
- */
