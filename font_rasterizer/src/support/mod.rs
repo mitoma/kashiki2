@@ -1,4 +1,4 @@
-pub mod action_processor;
+pub mod action;
 mod metrics_counter;
 mod render_rate_adjuster;
 
