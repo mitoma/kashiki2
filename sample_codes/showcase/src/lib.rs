@@ -1,20 +1,22 @@
 use std::sync::{mpsc::Sender, LazyLock, Mutex};
 
 use font_collector::FontCollector;
-use stroke_parser::{action_store_parser::parse_setting, Action, ActionArgument, ActionStore};
+use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
 use text_buffer::action::EditorOperation;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
-    camera::{Camera, CameraAdjustment, CameraOperation},
+    camera::{Camera, CameraAdjustment},
     color_theme::ColorTheme,
     context::{StateContext, TextContext, WindowSize},
-    font_buffer::Direction,
     instances::GlyphInstances,
-    layout_engine::{HorizontalWorld, Model, ModelOperation, World},
+    layout_engine::{HorizontalWorld, Model, World},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
+    support::{
+        action::ActionProcessorStore, run_support, Flags, InputResult, SimpleStateCallback,
+        SimpleStateSupport,
+    },
     ui::{caret_char, ImeInput, TextEdit},
 };
 use winit::event::WindowEvent;
@@ -111,15 +113,10 @@ pub fn send_log(message: &str) {
     log::warn!("{}", message);
 }
 
-enum SystemActionResult {
-    ChangeColorTheme(ColorTheme),
-    ChangeGlobalDirection(Direction),
-    Noop,
-}
-
 struct SingleCharCallback {
     world: HorizontalWorld,
     store: ActionStore,
+    action_processor_store: ActionProcessorStore,
     ime: ImeInput,
 }
 
@@ -141,140 +138,18 @@ impl SingleCharCallback {
         world.look_current(CameraAdjustment::FitBothAndCentering);
         let ime = ImeInput::new();
 
-        Self { world, store, ime }
-    }
+        let mut action_processor_store = ActionProcessorStore::default();
+        action_processor_store.add_default_system_processors();
+        action_processor_store.add_default_world_processors();
+        action_processor_store.add_default_edit_processors();
+        action_processor_store.remove_processor(&"system".into(), &"exit".into());
 
-    fn execute_system_action(
-        &mut self,
-        command_name: &str,
-        argument: ActionArgument,
-        context: &StateContext,
-    ) -> SystemActionResult {
-        match command_name {
-            "change-theme" => match argument {
-                ActionArgument::String(value) => match &*value.to_string() {
-                    "black" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedBlackback),
-                    "dark" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedDark),
-                    "light" => SystemActionResult::ChangeColorTheme(ColorTheme::SolarizedLight),
-                    _ => SystemActionResult::Noop,
-                },
-                _ => SystemActionResult::Noop,
-            },
-            "change-global-direction" => {
-                SystemActionResult::ChangeGlobalDirection(context.global_direction.toggle())
-            }
-            _ => SystemActionResult::Noop,
+        Self {
+            world,
+            store,
+            action_processor_store,
+            ime,
         }
-    }
-
-    fn execute_editor_action(command_name: &str) -> EditorOperation {
-        match command_name {
-            "return" => EditorOperation::InsertEnter,
-            "backspace" => EditorOperation::Backspace,
-            "backspace-word" => EditorOperation::BackspaceWord,
-            "delete" => EditorOperation::Delete,
-            "delete-word" => EditorOperation::DeleteWord,
-            "previous" => EditorOperation::Previous,
-            "next" => EditorOperation::Next,
-            "back" => EditorOperation::Back,
-            "forward" => EditorOperation::Forward,
-            "back-word" => EditorOperation::BackWord,
-            "forward-word" => EditorOperation::ForwardWord,
-            "head" => EditorOperation::Head,
-            "last" => EditorOperation::Last,
-            "undo" => EditorOperation::Undo,
-            "buffer-head" => EditorOperation::BufferHead,
-            "buffer-last" => EditorOperation::BufferLast,
-            "mark" => EditorOperation::Mark,
-            "unmark" => EditorOperation::UnMark,
-            _ => EditorOperation::Noop,
-        }
-    }
-
-    fn execute_world_action(
-        &mut self,
-        command_name: &str,
-        argument: ActionArgument,
-        context: &StateContext,
-    ) {
-        match command_name {
-            "reset-zoom" => self.world.look_current(CameraAdjustment::FitBoth),
-            "look-current-and-centering" => self
-                .world
-                .look_current(CameraAdjustment::FitBothAndCentering),
-            "look-current" => self.world.look_current(CameraAdjustment::NoCare),
-            "look-next" => self.world.look_next(CameraAdjustment::NoCare),
-            "look-prev" => self.world.look_prev(CameraAdjustment::NoCare),
-            "swap-next" => self.world.swap_next(),
-            "swap-prev" => self.world.swap_prev(),
-            "fit-width" => self.world.look_current(CameraAdjustment::FitWidth),
-            "fit-height" => self.world.look_current(CameraAdjustment::FitHeight),
-            "fit-by-direction" => {
-                if context.global_direction == Direction::Horizontal {
-                    self.world.look_current(CameraAdjustment::FitWidth)
-                } else {
-                    self.world.look_current(CameraAdjustment::FitHeight)
-                }
-            }
-            "forward" => self.world.camera_operation(CameraOperation::Forward),
-            "back" => self.world.camera_operation(CameraOperation::Backward),
-            "change-direction" => self
-                .world
-                .model_operation(&ModelOperation::ChangeDirection(None)),
-            "increase-row-interval" => self
-                .world
-                .model_operation(&ModelOperation::IncreaseRowInterval),
-            "decrease-row-interval" => self
-                .world
-                .model_operation(&ModelOperation::DecreaseRowInterval),
-            "increase-col-interval" => self
-                .world
-                .model_operation(&ModelOperation::IncreaseColInterval),
-            "decrease-col-interval" => self
-                .world
-                .model_operation(&ModelOperation::DecreaseColInterval),
-            "increase-col-scale" => self
-                .world
-                .model_operation(&ModelOperation::IncreaseColScale),
-            "decrease-col-scale" => self
-                .world
-                .model_operation(&ModelOperation::DecreaseColScale),
-            "increase-row-scale" => self
-                .world
-                .model_operation(&ModelOperation::IncreaseRowScale),
-            "decrease-row-scale" => self
-                .world
-                .model_operation(&ModelOperation::DecreaseRowScale),
-            "toggle-psychedelic" => self
-                .world
-                .model_operation(&ModelOperation::TogglePsychedelic),
-            "move-to-click" => {
-                match argument {
-                    ActionArgument::Point((x, y)) => {
-                        let (x_ratio, y_ratio) = (
-                            (x / context.window_size.width as f32 * 2.0) - 1.0,
-                            1.0 - (y / context.window_size.height as f32 * 2.0),
-                        );
-                        self.world.move_to_position(x_ratio, y_ratio);
-                    }
-                    _ => { /* noop */ }
-                }
-            }
-            "move-to-click-with-mark" => {
-                match argument {
-                    ActionArgument::Point((x, y)) => {
-                        let (x_ratio, y_ratio) = (
-                            (x / context.window_size.width as f32 * 2.0) - 1.0,
-                            1.0 - (y / context.window_size.height as f32 * 2.0),
-                        );
-                        self.world.move_to_position(x_ratio, y_ratio);
-                        self.world.editor_operation(&EditorOperation::Mark);
-                    }
-                    _ => { /* noop */ }
-                }
-            }
-            _ => {}
-        };
     }
 }
 
@@ -320,24 +195,20 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
+        let result = self
+            .action_processor_store
+            .process(&action, context, &mut self.world);
+        if result != InputResult::Noop {
+            return result;
+        }
+
         match action {
-            Action::Command(category, name, argument) => match &*category.to_string() {
-                "system" => match self.execute_system_action(&name, argument, context) {
-                    SystemActionResult::ChangeColorTheme(theme) => {
-                        InputResult::ChangeColorTheme(theme)
-                    }
-                    SystemActionResult::ChangeGlobalDirection(direction) => {
-                        InputResult::ChangeGlobalDirection(direction)
-                    }
-                    SystemActionResult::Noop => InputResult::InputConsumed,
-                },
-                "edit" => {
-                    let op = Self::execute_editor_action(&name);
-                    self.world.editor_operation(&op);
-                    InputResult::InputConsumed
-                }
+            Action::Command(category, name, _) => match &*category.to_string() {
                 "world" => {
-                    self.execute_world_action(&name, argument, context);
+                    if name.as_str() == "look-current-and-centering" {
+                        self.world
+                            .look_current(CameraAdjustment::FitBothAndCentering);
+                    }
                     InputResult::InputConsumed
                 }
                 _ => InputResult::Noop,
