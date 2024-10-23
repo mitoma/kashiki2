@@ -1,4 +1,6 @@
+mod edit;
 mod system;
+pub use edit::*;
 pub use system::*;
 
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
@@ -20,6 +22,27 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(SystemChangeGlobalDirection));
         self.add_processor(Box::new(SystemChangeThemeUi));
         self.add_processor(Box::new(SystemChangeTheme));
+    }
+
+    pub fn add_default_edit_processors(&mut self) {
+        self.add_processor(Box::new(EditReturn));
+        self.add_processor(Box::new(EditBackspace));
+        self.add_processor(Box::new(EditBackspaceWord));
+        self.add_processor(Box::new(EditDelete));
+        self.add_processor(Box::new(EditDeleteWord));
+        self.add_processor(Box::new(EditPrevious));
+        self.add_processor(Box::new(EditNext));
+        self.add_processor(Box::new(EditBack));
+        self.add_processor(Box::new(EditForward));
+        self.add_processor(Box::new(EditBackWord));
+        self.add_processor(Box::new(EditForwardWord));
+        self.add_processor(Box::new(EditHead));
+        self.add_processor(Box::new(EditLast));
+        self.add_processor(Box::new(EditUndo));
+        self.add_processor(Box::new(EditBufferHead));
+        self.add_processor(Box::new(EditBufferLast));
+        self.add_processor(Box::new(EditMark));
+        self.add_processor(Box::new(EditUnmark));
     }
 
     pub fn add_lambda_processor(

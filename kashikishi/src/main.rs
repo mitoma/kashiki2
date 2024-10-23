@@ -179,6 +179,30 @@ impl KashikishiCallback {
         let mut action_processor_store = ActionProcessorStore::default();
         action_processor_store.add_default_system_processors();
         action_processor_store.add_processor(Box::new(SystemCommandPalette));
+        action_processor_store.add_default_edit_processors();
+        // clipboard を使う処理はプラットフォーム依存なのでここで追加する
+        action_processor_store.add_lambda_processor("edit", "paste", |_, context, world| {
+            match Clipboard::new().and_then(|mut context| context.get_text()) {
+                Ok(text) => {
+                    context.ui_string_sender.send(text.clone()).unwrap();
+                    world.editor_operation(&EditorOperation::InsertString(text));
+                    InputResult::InputConsumed
+                }
+                Err(_) => InputResult::Noop,
+            }
+        });
+        action_processor_store.add_lambda_processor("edit", "copy", |_, _, world| {
+            world.editor_operation(&EditorOperation::Copy(|text| {
+                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+            }));
+            InputResult::InputConsumed
+        });
+        action_processor_store.add_lambda_processor("edit", "cut", |_, _, world| {
+            world.editor_operation(&EditorOperation::Cut(|text| {
+                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+            }));
+            InputResult::InputConsumed
+        });
 
         let rokid_max = RokidMax::new().ok();
 
@@ -189,43 +213,6 @@ impl KashikishiCallback {
             action_processor_store,
             rokid_max,
             ar_mode: false,
-        }
-    }
-
-    fn execute_editor_action(command_name: &str, context: &StateContext) -> EditorOperation {
-        match command_name {
-            "return" => EditorOperation::InsertEnter,
-            "backspace" => EditorOperation::Backspace,
-            "backspace-word" => EditorOperation::BackspaceWord,
-            "delete" => EditorOperation::Delete,
-            "delete-word" => EditorOperation::DeleteWord,
-            "previous" => EditorOperation::Previous,
-            "next" => EditorOperation::Next,
-            "back" => EditorOperation::Back,
-            "forward" => EditorOperation::Forward,
-            "back-word" => EditorOperation::BackWord,
-            "forward-word" => EditorOperation::ForwardWord,
-            "head" => EditorOperation::Head,
-            "last" => EditorOperation::Last,
-            "undo" => EditorOperation::Undo,
-            "buffer-head" => EditorOperation::BufferHead,
-            "buffer-last" => EditorOperation::BufferLast,
-            "paste" => match Clipboard::new().and_then(|mut context| context.get_text()) {
-                Ok(text) => {
-                    context.ui_string_sender.send(text.clone()).unwrap();
-                    EditorOperation::InsertString(text)
-                }
-                Err(_) => EditorOperation::Noop,
-            },
-            "copy" => EditorOperation::Copy(|text| {
-                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
-            }),
-            "cut" => EditorOperation::Cut(|text| {
-                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
-            }),
-            "mark" => EditorOperation::Mark,
-            "unmark" => EditorOperation::UnMark,
-            _ => EditorOperation::Noop,
         }
     }
 
@@ -388,11 +375,6 @@ impl SimpleStateCallback for KashikishiCallback {
 
         match action {
             Action::Command(category, name, argument) => match &*category.to_string() {
-                "edit" => {
-                    let op = Self::execute_editor_action(&name, context);
-                    self.world.get_mut().editor_operation(&op);
-                    InputResult::InputConsumed
-                }
                 "world" => {
                     self.execute_world_action(&name, argument, context);
                     InputResult::InputConsumed
