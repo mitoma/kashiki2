@@ -125,6 +125,12 @@ impl CommandNamespace {
     }
 }
 
+impl From<&str> for CommandNamespace {
+    fn from(value: &str) -> Self {
+        Self::new(String::from(value))
+    }
+}
+
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct CommandName(String);
 
@@ -139,6 +145,12 @@ impl Deref for CommandName {
 impl CommandName {
     pub fn new(value: String) -> CommandName {
         CommandName(value)
+    }
+}
+
+impl From<&str> for CommandName {
+    fn from(value: &str) -> Self {
+        Self::new(String::from(value))
     }
 }
 

@@ -1,11 +1,8 @@
-use std::collections::HashSet;
-
 use font_collector::FontCollector;
 use font_rasterizer::{
     camera::Camera,
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
     support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
@@ -56,7 +53,7 @@ struct SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn init(&mut self, context: &StateContext) {
         let start = Instant::now();
         let _char_ranges = [
             'a'..='z',
@@ -69,13 +66,11 @@ impl SimpleStateCallback for SingleCharCallback {
             '㐀'..='䶿',
         ]
         .iter()
-        .map(|char_range| char_range.clone().into_iter().collect::<HashSet<char>>())
+        .map(|char_range| char_range.clone().into_iter().collect::<String>())
         .for_each(|c| {
             let start = Instant::now();
             println!("c len: {}", c.len());
-            glyph_vertex_buffer
-                .append_glyph(&context.device, &context.queue, c)
-                .unwrap();
+            context.ui_string_sender.send(c).unwrap();
             let end = Instant::now();
             println!("init: {:?}", end - start);
         });
@@ -83,7 +78,7 @@ impl SimpleStateCallback for SingleCharCallback {
         println!("init: {:?}", end - start);
     }
 
-    fn update(&mut self, _glyph_vertex_buffer: &mut GlyphVertexBuffer, _context: &StateContext) {}
+    fn update(&mut self, _context: &StateContext) {}
 
     fn input(&mut self, _context: &StateContext, _event: &WindowEvent) -> InputResult {
         InputResult::Noop
@@ -98,4 +93,6 @@ impl SimpleStateCallback for SingleCharCallback {
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
         (&self.camera, Vec::new())
     }
+
+    fn shutdown(&mut self) {}
 }

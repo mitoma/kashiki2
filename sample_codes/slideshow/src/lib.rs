@@ -7,7 +7,6 @@ use font_rasterizer::{
     camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::GlyphVertexBuffer,
     instances::GlyphInstances,
     layout_engine::{HorizontalWorld, World},
     motion::{MotionDetail, MotionFlags, MotionTarget},
@@ -109,17 +108,17 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
-        self.update(glyph_vertex_buffer, context);
+    fn init(&mut self, context: &StateContext) {
+        self.update(context);
     }
 
     fn resize(&mut self, window_size: WindowSize) {
         self.world.change_window_size(window_size);
     }
 
-    fn update(&mut self, glyph_vertex_buffer: &mut GlyphVertexBuffer, context: &StateContext) {
+    fn update(&mut self, context: &StateContext) {
         self.world.re_layout();
-        self.world.update(glyph_vertex_buffer, context);
+        self.world.update(context);
     }
 
     fn input(&mut self, _context: &StateContext, event: &WindowEvent) -> InputResult {
@@ -179,4 +178,6 @@ impl SimpleStateCallback for SingleCharCallback {
         let instances = self.world.glyph_instances();
         (self.world.camera(), instances)
     }
+
+    fn shutdown(&mut self) {}
 }
