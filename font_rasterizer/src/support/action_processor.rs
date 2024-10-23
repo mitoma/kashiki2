@@ -26,6 +26,19 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(SystemChangeTheme));
     }
 
+    pub fn add_lambda_processor(
+        &mut self,
+        namespace: &str,
+        name: &str,
+        f: fn(&ActionArgument, &StateContext, &mut dyn World) -> InputResult,
+    ) {
+        self.processors.push(Box::new(LambdaActionProcessor {
+            namespace: CommandNamespace::from(namespace),
+            name: CommandName::from(name),
+            f,
+        }));
+    }
+
     pub fn add_processor(&mut self, processor: Box<dyn ActionProcessor>) {
         self.processors.push(processor);
     }
@@ -61,6 +74,36 @@ pub trait ActionProcessor {
         context: &StateContext,
         world: &mut dyn World,
     ) -> InputResult;
+}
+
+pub struct LambdaActionProcessor<F>
+where
+    F: Fn(&ActionArgument, &StateContext, &mut dyn World) -> InputResult,
+{
+    namespace: CommandNamespace,
+    name: CommandName,
+    f: F,
+}
+
+impl ActionProcessor
+    for LambdaActionProcessor<fn(&ActionArgument, &StateContext, &mut dyn World) -> InputResult>
+{
+    fn namespace(&self) -> CommandNamespace {
+        self.namespace.clone()
+    }
+
+    fn name(&self) -> CommandName {
+        self.name.clone()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        context: &StateContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        (self.f)(arg, context, world)
+    }
 }
 
 // ----- impl system -----
