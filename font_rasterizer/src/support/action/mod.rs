@@ -1,7 +1,9 @@
 mod edit;
 mod system;
+mod world;
 pub use edit::*;
 pub use system::*;
+pub use world::*;
 
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
@@ -43,6 +45,33 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(EditBufferLast));
         self.add_processor(Box::new(EditMark));
         self.add_processor(Box::new(EditUnmark));
+    }
+
+    pub fn add_default_world_processors(&mut self) {
+        self.add_processor(Box::new(WorldRemoveCurrent));
+        self.add_processor(Box::new(WorldResetZoom));
+        self.add_processor(Box::new(WorldLookCurrent));
+        self.add_processor(Box::new(WorldLookNext));
+        self.add_processor(Box::new(WorldLookPrev));
+        self.add_processor(Box::new(WorldSwapNext));
+        self.add_processor(Box::new(WorldSwapPrev));
+        self.add_processor(Box::new(WorldFitWidth));
+        self.add_processor(Box::new(WorldFitHeight));
+        self.add_processor(Box::new(WorldFitByDirection));
+        self.add_processor(Box::new(WorldForward));
+        self.add_processor(Box::new(WorldBack));
+        self.add_processor(Box::new(WorldChangeDirection));
+        self.add_processor(Box::new(WorldIncreaseRowInterval));
+        self.add_processor(Box::new(WorldDecreaseRowInterval));
+        self.add_processor(Box::new(WorldIncreaseColInterval));
+        self.add_processor(Box::new(WorldDecreaseColInterval));
+        self.add_processor(Box::new(WorldIncreaseRowScale));
+        self.add_processor(Box::new(WorldDecreaseRowScale));
+        self.add_processor(Box::new(WorldIncreaseColScale));
+        self.add_processor(Box::new(WorldDecreaseColScale));
+        self.add_processor(Box::new(WorldTogglePsychedelic));
+        self.add_processor(Box::new(WorldMoveToClick));
+        self.add_processor(Box::new(WorldMoveToClickWithMark));
     }
 
     pub fn add_lambda_processor(

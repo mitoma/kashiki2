@@ -178,8 +178,9 @@ impl KashikishiCallback {
 
         let mut action_processor_store = ActionProcessorStore::default();
         action_processor_store.add_default_system_processors();
-        action_processor_store.add_processor(Box::new(SystemCommandPalette));
         action_processor_store.add_default_edit_processors();
+        action_processor_store.add_default_world_processors();
+        action_processor_store.add_processor(Box::new(SystemCommandPalette));
         // clipboard を使う処理はプラットフォーム依存なのでここで追加する
         action_processor_store.add_lambda_processor("edit", "paste", |_, context, world| {
             match Clipboard::new().and_then(|mut context| context.get_text()) {
@@ -219,79 +220,22 @@ impl KashikishiCallback {
     fn execute_world_action(
         &mut self,
         command_name: &str,
-        argument: ActionArgument,
+        _argument: ActionArgument,
         context: &StateContext,
     ) {
         let world = self.world.get_mut();
         match command_name {
-            "remove-current" => {
-                world.remove_current();
-                world.re_layout();
-                world.look_prev(CameraAdjustment::NoCare);
-            }
-            "reset-zoom" => world.look_current(CameraAdjustment::FitBoth),
-            "look-current-and-centering" => {
-                if let Some(rokid_max) = self.rokid_max.as_mut() {
-                    let _ = rokid_max.reset();
-                }
-                world.look_current(CameraAdjustment::FitBothAndCentering)
-            }
-            "look-current" => world.look_current(CameraAdjustment::NoCare),
-            "look-next" => world.look_next(CameraAdjustment::NoCare),
-            "look-prev" => world.look_prev(CameraAdjustment::NoCare),
-            "swap-next" => world.swap_next(),
-            "swap-prev" => world.swap_prev(),
-            "fit-width" => world.look_current(CameraAdjustment::FitWidth),
-            "fit-height" => world.look_current(CameraAdjustment::FitHeight),
-            "fit-by-direction" => {
-                if context.global_direction == Direction::Horizontal {
-                    world.look_current(CameraAdjustment::FitWidth)
-                } else {
-                    world.look_current(CameraAdjustment::FitHeight)
-                }
-            }
-            "forward" => world.camera_operation(CameraOperation::Forward),
-            "back" => world.camera_operation(CameraOperation::Backward),
-            "change-direction" => world.model_operation(&ModelOperation::ChangeDirection(None)),
-            "increase-row-interval" => world.model_operation(&ModelOperation::IncreaseRowInterval),
-            "decrease-row-interval" => world.model_operation(&ModelOperation::DecreaseRowInterval),
-            "increase-col-interval" => world.model_operation(&ModelOperation::IncreaseColInterval),
-            "decrease-col-interval" => world.model_operation(&ModelOperation::DecreaseColInterval),
-            "increase-col-scale" => world.model_operation(&ModelOperation::IncreaseColScale),
-            "decrease-col-scale" => world.model_operation(&ModelOperation::DecreaseColScale),
-            "increase-row-scale" => world.model_operation(&ModelOperation::IncreaseRowScale),
-            "decrease-row-scale" => world.model_operation(&ModelOperation::DecreaseRowScale),
             "copy-display" => world.model_operation(&ModelOperation::CopyDisplayString(
                 context.char_width_calcurator.clone(),
                 |text| {
                     let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
                 },
             )),
-            "toggle-psychedelic" => world.model_operation(&ModelOperation::TogglePsychedelic),
-            "move-to-click" => {
-                match argument {
-                    ActionArgument::Point((x, y)) => {
-                        let (x_ratio, y_ratio) = (
-                            (x / context.window_size.width as f32 * 2.0) - 1.0,
-                            1.0 - (y / context.window_size.height as f32 * 2.0),
-                        );
-                        world.move_to_position(x_ratio, y_ratio);
-                    }
-                    _ => { /* noop */ }
+            "look-current-and-centering" => {
+                if let Some(rokid_max) = self.rokid_max.as_mut() {
+                    let _ = rokid_max.reset();
                 }
-            }
-            "move-to-click-with-mark" => {
-                match argument {
-                    ActionArgument::Point((x, y)) => {
-                        let (x_ratio, y_ratio) = (
-                            (x / context.window_size.width as f32 * 2.0) - 1.0,
-                            1.0 - (y / context.window_size.height as f32 * 2.0),
-                        );
-                        world.move_to_position(x_ratio, y_ratio);
-                        world.editor_operation(&EditorOperation::Mark);
-                    }
-                    _ => { /* noop */ }
-                }
+                world.look_current(CameraAdjustment::FitBothAndCentering)
             }
             // AR 系はアクションのカテゴリを変えるべきだろうか？
             "reset-rokid" => {
