@@ -2843,6 +2843,22 @@ dependencies = [
 [[package]]
 name = "ui-support"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bitflags 2.6.0",
+ "cfg-if",
+ "env_logger",
+ "font_collector",
+ "font_rasterizer",
+ "image",
+ "instant",
+ "log",
+ "pollster",
+ "stroke_parser",
+ "text_buffer",
+ "wgpu",
+ "winit",
+]
 
 [[package]]
 name = "unicase"

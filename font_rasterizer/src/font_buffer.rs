@@ -137,7 +137,7 @@ pub struct GlyphVertexBuffer {
 }
 
 impl GlyphVertexBuffer {
-    pub(crate) fn new(
+    pub fn new(
         font_binaries: Arc<Vec<FontData>>,
         char_width_calculator: Arc<CharWidthCalculator>,
     ) -> GlyphVertexBuffer {

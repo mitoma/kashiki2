@@ -4,3 +4,18 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+pollster = { workspace = true }
+wgpu = { workspace = true }
+winit = { workspace = true }
+image = { workspace = true }
+instant = { workspace = true }
+cfg-if = "1"
+
+font_rasterizer = { version = "0.1.0", path = "../font_rasterizer" }
+font_collector = { version = "0.1.0", path = "../font_collector" }
+stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
+text_buffer = { version = "0.1.0", path = "../text_buffer" }
+bitflags = "2.6"

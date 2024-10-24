@@ -49,9 +49,9 @@ pub enum Quarity {
 /// 3 つめは輪郭を抽出したテクスチャをスクリーンに描画する処理
 ///   2 が 3 よりも解像度が高ければオーバーサンプリングでクオリティが高くなり
 ///   その逆であればドット絵の品質になるよう調整
-pub(crate) struct RasterizerPipeline {
+pub struct RasterizerPipeline {
     // 1 ステージ目(overlap)
-    pub(crate) overlap_bind_group: OverlapBindGroup,
+    pub overlap_bind_group: OverlapBindGroup,
     pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
 
     // 1 ステージ目のアウトプット(≒ 2 ステージ目のインプット)
@@ -62,7 +62,7 @@ pub(crate) struct RasterizerPipeline {
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
     pub(crate) outline_vertex_buffer: ScreenVertexBuffer,
     // 背景色。 2 ステージ目で使われる。
-    pub(crate) bg_color: wgpu::Color,
+    pub bg_color: wgpu::Color,
 
     // 2 ステージ目のアウトプット(≒ 3 ステージ目のインプット)
     pub(crate) outline_texture: ScreenTexture,
@@ -74,7 +74,7 @@ pub(crate) struct RasterizerPipeline {
 }
 
 impl RasterizerPipeline {
-    pub(crate) fn new(
+    pub fn new(
         device: &wgpu::Device,
         width: u32,
         height: u32,
@@ -318,7 +318,7 @@ impl RasterizerPipeline {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn run_all_stage(
+    pub fn run_all_stage(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         device: &wgpu::Device,
