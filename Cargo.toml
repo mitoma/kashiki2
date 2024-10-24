@@ -4,10 +4,11 @@ members = [
     "stroke_parser",
     "font_collector",
     "font_rasterizer",
+    "rokid_3dof",
+    "ui-support",
     "font_rasterizer_example",
     "sample_codes/*",
     "kashikishi",
-    "rokid_3dof",
 ]
 resolver = "2"
 
