@@ -5,7 +5,7 @@ members = [
     "font_collector",
     "font_rasterizer",
     "rokid_3dof",
-    "ui-support",
+    "ui_support",
     "font_rasterizer_example",
     "sample_codes/*",
     "kashikishi",

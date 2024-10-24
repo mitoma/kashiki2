@@ -1,5 +1,5 @@
 [package]
-name = "ui-support"
+name = "ui_support"
 version = "0.1.0"
 edition = "2021"
 
