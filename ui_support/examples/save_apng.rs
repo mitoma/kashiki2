@@ -10,10 +10,12 @@ use font_rasterizer::{
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
 use log::{debug, info};
+use ui_support::{
+    generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+};
 use winit::event::WindowEvent;
 
 //const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");

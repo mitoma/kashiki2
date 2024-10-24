@@ -15,6 +15,7 @@ vqf-rs = { version = "0.2", features = ["f32", "motion-bias-estimation"] }
 font_rasterizer = { path = "../font_rasterizer" }
 font_collector = { path = "../font_collector" }
 stroke_parser = { path = "../stroke_parser" }
+ui_support = { path = "../ui_support" }
 log.workspace = true
 instant.workspace = true
 winit.workspace = true

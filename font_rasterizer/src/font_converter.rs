@@ -295,8 +295,8 @@ mod test {
 
     use super::FontVertexConverter;
 
-    const FONT_DATA: &[u8] = include_bytes!("../examples/font/BIZUDMincho-Regular.ttf");
-    const EMOJI_FONT_DATA: &[u8] = include_bytes!("../examples/font/NotoEmoji-Regular.ttf");
+    const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
+    const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
     #[test]
     fn get_char_glyph_ids_test() {

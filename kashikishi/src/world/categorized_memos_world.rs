@@ -5,11 +5,11 @@ use font_rasterizer::{
     context::{StateContext, WindowSize},
     font_buffer::Direction,
     layout_engine::{HorizontalWorld, Model, ModelOperation, World},
-    support::InputResult,
     ui::TextEdit,
 };
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
+use ui_support::InputResult;
 
 use crate::{
     categorized_memos::CategorizedMemos,

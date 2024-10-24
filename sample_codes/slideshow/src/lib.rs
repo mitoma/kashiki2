@@ -11,16 +11,14 @@ use font_rasterizer::{
     layout_engine::{HorizontalWorld, World},
     motion::{MotionDetail, MotionFlags, MotionTarget},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     ui::PlaneTextReader,
 };
 use log::info;
+use ui_support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport};
 use winit::event::{ElementState, KeyEvent, WindowEvent};
 
-const FONT_DATA: &[u8] =
-    include_bytes!("../../../font_rasterizer/examples/font/BIZUDMincho-Regular.ttf");
-const EMOJI_FONT_DATA: &[u8] =
-    include_bytes!("../../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("../../../fonts/BIZUDMincho-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../../fonts/NotoEmoji-Regular.ttf");
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {

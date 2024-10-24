@@ -1041,6 +1041,7 @@ dependencies = [
  "log",
  "pollster",
  "stroke_parser",
+ "ui_support",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -1489,6 +1490,7 @@ dependencies = [
  "serde_json",
  "stroke_parser",
  "text_buffer",
+ "ui_support",
  "wgpu",
  "winit",
 ]
@@ -2378,6 +2380,7 @@ dependencies = [
  "log",
  "pollster",
  "stroke_parser",
+ "ui_support",
  "vqf-rs",
  "winit",
 ]
@@ -2522,6 +2525,7 @@ dependencies = [
  "pollster",
  "stroke_parser",
  "text_buffer",
+ "ui_support",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -2566,6 +2570,7 @@ dependencies = [
  "pollster",
  "pulldown-cmark 0.11.3",
  "stroke_parser",
+ "ui_support",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -2845,8 +2850,10 @@ name = "ui_support"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "apng",
  "bitflags 2.6.0",
  "cfg-if",
+ "cgmath",
  "env_logger",
  "font_collector",
  "font_rasterizer",
@@ -2854,6 +2861,7 @@ dependencies = [
  "instant",
  "log",
  "pollster",
+ "rayon",
  "stroke_parser",
  "text_buffer",
  "wgpu",

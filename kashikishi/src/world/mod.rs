@@ -13,8 +13,9 @@ use std::collections::HashSet;
 use font_rasterizer::{
     context::StateContext,
     layout_engine::{Model, World},
-    support::InputResult,
 };
+use ui_support::InputResult;
+
 use stroke_parser::Action;
 
 pub(crate) trait ModalWorld {

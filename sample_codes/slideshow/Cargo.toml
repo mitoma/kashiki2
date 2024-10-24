@@ -16,6 +16,7 @@ winit = { workspace = true }
 font_collector = { version = "0.1.0", path = "../../font_collector" }
 font_rasterizer = { version = "0.1.0", path = "../../font_rasterizer" }
 stroke_parser = { version = "0.1.0", path = "../../stroke_parser" }
+ui_support = { version = "0.1.0", path = "../../ui_support" }
 
 pulldown-cmark = "0.11"
 

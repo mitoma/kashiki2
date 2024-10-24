@@ -18,6 +18,7 @@ winit = { workspace = true }
 wgpu = { workspace = true }
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 font_collector = { version = "0.1.0", path = "../font_collector" }
+ui_support = { version = "0.1.0", path = "../ui_support" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"

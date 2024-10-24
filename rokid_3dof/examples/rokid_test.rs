@@ -12,16 +12,15 @@ use font_rasterizer::{
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
+use ui_support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport};
+
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
-const FONT_DATA: &[u8] =
-    include_bytes!("../../font_rasterizer/examples/font/BIZUDMincho-Regular.ttf");
-const EMOJI_FONT_DATA: &[u8] =
-    include_bytes!("../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
 pub fn main() {
     std::env::set_var("RUST_LOG", "support_test=debug");

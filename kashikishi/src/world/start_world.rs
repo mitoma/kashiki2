@@ -5,9 +5,10 @@ use font_rasterizer::{
     context::StateContext,
     font_buffer::Direction,
     layout_engine::{HorizontalWorld, Model, World},
-    support::InputResult,
     ui::{SelectBox, SelectOption},
 };
+use ui_support::InputResult;
+
 use stroke_parser::Action;
 
 use super::ModalWorld;

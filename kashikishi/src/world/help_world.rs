@@ -5,9 +5,10 @@ use font_rasterizer::{
     context::{StateContext, WindowSize},
     font_buffer::Direction,
     layout_engine::{HorizontalWorld, Model, World},
-    support::InputResult,
     ui::TextEdit,
 };
+use ui_support::InputResult;
+
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 

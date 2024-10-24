@@ -11,6 +11,7 @@ font_collector = { version = "0.1.0", path = "../../font_collector" }
 font_rasterizer = { version = "0.1.0", path = "../../font_rasterizer" }
 text_buffer = { version = "0.1.0", path = "../../text_buffer" }
 stroke_parser = { version = "0.1.0", path = "../../stroke_parser" }
+ui_support = { version = "0.1.0", path = "../../ui_support" }
 env_logger = { workspace = true }
 log = { workspace = true }
 pollster = { workspace = true }
