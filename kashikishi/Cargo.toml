@@ -14,14 +14,14 @@ image = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 
-font_collector = { version = "0.1.0", path = "../font_collector" }
-font_rasterizer = { version = "0.1.0", path = "../font_rasterizer" }
-text_buffer = { version = "0.1.0", path = "../text_buffer" }
-stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
-rokid_3dof = { version = "0.1.0", path = "../rokid_3dof" }
-ui_support ={ version = "0.1.0", path = "../ui_support" }
+font_collector = { path = "../font_collector" }
+font_rasterizer = { path = "../font_rasterizer" }
+text_buffer = { path = "../text_buffer" }
+stroke_parser = { path = "../stroke_parser" }
+rokid_3dof = { path = "../rokid_3dof" }
+ui_support = { path = "../ui_support" }
 
 chrono = { version = "0.4.38", features = ["serde"] }
 dirs = "5.0.1"
 arboard = "3.4.0"
-clap = {version = "4.5.17", features = ["derive"]}
+clap = { version = "4.5.17", features = ["derive"] }

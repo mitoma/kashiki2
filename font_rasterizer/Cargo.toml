@@ -8,14 +8,14 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-cfg-if = "1"
+cfg-if = { workspace = true }
 anyhow = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
-bitflags = "2.6"
-rand = "0.8"
+bitflags = { workspace = true }
+rand = { workspace = true }
 
 rustybuzz.workspace = true
 cgmath.workspace = true
@@ -26,9 +26,9 @@ unicode-width = "0.2"
 cached = "0.53"
 
 bezier_converter = { git = "https://github.com/mitoma/sandbox", branch = "main" }
-font_collector = { version = "0.1.0", path = "../font_collector" }
-text_buffer = { version = "0.1.0", path = "../text_buffer" }
-stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
+font_collector = { path = "../font_collector" }
+text_buffer = { path = "../text_buffer" }
+stroke_parser = { path = "../stroke_parser" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"

@@ -13,15 +13,15 @@ winit = { workspace = true }
 image = { workspace = true }
 instant = { workspace = true }
 cgmath = { workspace = true }
-cfg-if = "1"
-rand = "0.8"
+rand = { workspace = true }
+bitflags = { workspace = true }
+cfg-if = { workspace = true }
 
 nenobi = { git = "https://github.com/mitoma/sandbox", branch = "main" }
-font_rasterizer = { version = "0.1.0", path = "../font_rasterizer" }
-font_collector = { version = "0.1.0", path = "../font_collector" }
-stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
-text_buffer = { version = "0.1.0", path = "../text_buffer" }
-bitflags = "2.6"
+font_rasterizer = { path = "../font_rasterizer" }
+font_collector = { path = "../font_collector" }
+stroke_parser = { path = "../stroke_parser" }
+text_buffer = { path = "../text_buffer" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"
