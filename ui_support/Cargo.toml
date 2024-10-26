@@ -23,6 +23,14 @@ stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
 bitflags = "2.6"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+web-sys = { version = "0.3", features = ["Document", "Window", "Element"] }
+wgpu = { workspace = true, features = ["webgl"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+
 [dev-dependencies]
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
 rayon = "1.10"
