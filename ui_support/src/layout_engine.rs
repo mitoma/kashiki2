@@ -123,7 +123,7 @@ impl HorizontalWorld {
             info!("w: {}, h: {}, idx:{}", w, h, idx);
             let r = (x_position / all_width) * 2.0 * std::f32::consts::PI;
             x_position += w / 2.0;
-            model.set_position((r.sin() * radius, 0.0, -(r.cos() - 1.0) * radius).into());
+            model.set_position((r.sin() * radius, -h / 2.0, -(r.cos() - 1.0) * radius).into());
             x_position += w / 2.0;
             x_position += INTERVAL;
 
@@ -154,7 +154,7 @@ impl World for HorizontalWorld {
             let (w, h) = model.bound();
             info!("w: {}, h: {}, idx:{}", w, h, idx);
             x_position += w / 2.0;
-            model.set_position((x_position, 0.0, 0.0).into());
+            model.set_position((x_position, -h / 2.0, 0.0).into());
             x_position += w / 2.0;
             x_position += INTERVAL;
 
