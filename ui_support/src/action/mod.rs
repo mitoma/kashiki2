@@ -76,6 +76,7 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(WorldTogglePsychedelic));
         self.add_processor(Box::new(WorldMoveToClick));
         self.add_processor(Box::new(WorldMoveToClickWithMark));
+        self.add_processor(Box::new(WorldChangeLayout));
     }
 
     pub fn add_lambda_processor(

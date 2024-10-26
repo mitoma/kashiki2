@@ -5,7 +5,7 @@ use font_rasterizer::{context::StateContext, font_buffer::Direction};
 
 use crate::{
     camera::{CameraAdjustment, CameraOperation},
-    layout_engine::{ModelOperation, World},
+    layout_engine::{ModelOperation, World, WorldLayout},
 };
 
 use super::{ActionProcessor, InputResult};
@@ -217,5 +217,21 @@ fn move_to_click_with_mark(arg: &ActionArgument, context: &StateContext, world: 
             world.editor_operation(&EditorOperation::Mark);
         }
         _ => { /* noop */ }
+    }
+}
+
+world_processor!(WorldChangeLayout, "change-layout", chanoge_layout);
+fn chanoge_layout(arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+    match arg {
+        ActionArgument::String(layout_name) => {
+            let layout = match layout_name.as_str() {
+                //"grid" => world.model_operation(&ModelOperation::ChangeLayout("grid")),
+                "line" => WorldLayout::Liner,
+                "circle" => WorldLayout::Circle,
+                _ => WorldLayout::Liner,
+            };
+            world.change_layout(layout);
+        }
+        _ => world.change_layout(world.layout().next()),
     }
 }
