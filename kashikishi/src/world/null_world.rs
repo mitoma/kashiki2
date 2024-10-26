@@ -6,7 +6,7 @@ use font_rasterizer::{
 };
 use ui_support::{
     camera::CameraAdjustment,
-    layout_engine::{HorizontalWorld, Model, World},
+    layout_engine::{DefaultWorld, Model, World},
     InputResult,
 };
 
@@ -17,13 +17,13 @@ use super::ModalWorld;
 /// 特に何もしない World
 /// Null Object Pattern の目的で用意されている。
 pub(crate) struct NullWorld {
-    world: HorizontalWorld,
+    world: DefaultWorld,
 }
 
 impl NullWorld {
     pub(crate) fn new(window_size: WindowSize) -> Self {
         Self {
-            world: HorizontalWorld::new(window_size),
+            world: DefaultWorld::new(window_size),
         }
     }
 }

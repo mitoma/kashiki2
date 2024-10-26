@@ -6,7 +6,7 @@ use font_rasterizer::{
 };
 use ui_support::{
     camera::CameraAdjustment,
-    layout_engine::{HorizontalWorld, Model, World},
+    layout_engine::{DefaultWorld, Model, World},
     ui::TextEdit,
     InputResult,
 };
@@ -17,13 +17,13 @@ use text_buffer::action::EditorOperation;
 use super::ModalWorld;
 
 pub(crate) struct HelpWorld {
-    world: HorizontalWorld,
+    world: DefaultWorld,
 }
 
 impl HelpWorld {
     pub(crate) fn new(window_size: WindowSize) -> Self {
         let mut result = Self {
-            world: HorizontalWorld::new(window_size),
+            world: DefaultWorld::new(window_size),
         };
 
         let help_contents: Vec<String> =

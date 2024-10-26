@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use font_rasterizer::{context::StateContext, font_buffer::Direction};
 use ui_support::{
     camera::CameraAdjustment,
-    layout_engine::{HorizontalWorld, Model, World},
+    layout_engine::{DefaultWorld, Model, World},
     ui::{SelectBox, SelectOption},
     InputResult,
 };
@@ -13,13 +13,13 @@ use stroke_parser::Action;
 use super::ModalWorld;
 
 pub(crate) struct StartWorld {
-    world: HorizontalWorld,
+    world: DefaultWorld,
 }
 
 impl StartWorld {
     pub(crate) fn new(context: &StateContext) -> Self {
         let mut result = Self {
-            world: HorizontalWorld::new(context.window_size),
+            world: DefaultWorld::new(context.window_size),
         };
 
         let options = vec![

@@ -68,7 +68,7 @@ pub trait World {
     fn move_to_position(&mut self, x_ratio: f32, y_ratio: f32);
 }
 
-pub struct HorizontalWorld {
+pub struct DefaultWorld {
     camera: Camera,
     camera_controller: CameraController,
     models: Vec<Box<dyn Model>>,
@@ -78,7 +78,7 @@ pub struct HorizontalWorld {
     direction: Direction,
 }
 
-impl HorizontalWorld {
+impl DefaultWorld {
     pub fn new(window_size: WindowSize) -> Self {
         Self {
             camera: Camera::basic(window_size),
@@ -171,7 +171,7 @@ impl HorizontalWorld {
 }
 const INTERVAL: f32 = 5.0;
 
-impl World for HorizontalWorld {
+impl World for DefaultWorld {
     fn add(&mut self, model: Box<dyn Model>) {
         self.models.push(model);
         self.world_updated = true;

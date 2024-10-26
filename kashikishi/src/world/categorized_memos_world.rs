@@ -8,7 +8,7 @@ use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
 use ui_support::{
     camera::CameraAdjustment,
-    layout_engine::{HorizontalWorld, Model, ModelOperation, World},
+    layout_engine::{DefaultWorld, Model, ModelOperation, World},
     ui::TextEdit,
     InputResult,
 };
@@ -25,14 +25,14 @@ use crate::{
 use super::ModalWorld;
 
 pub(crate) struct CategorizedMemosWorld {
-    world: HorizontalWorld,
+    world: DefaultWorld,
     memos: CategorizedMemos,
 }
 
 impl CategorizedMemosWorld {
     pub(crate) fn new(window_size: WindowSize, direction: Direction) -> Self {
         let mut result = Self {
-            world: HorizontalWorld::new(window_size),
+            world: DefaultWorld::new(window_size),
             memos: CategorizedMemos::load_memos(),
         };
         result.reset_world(window_size, direction);
@@ -41,7 +41,7 @@ impl CategorizedMemosWorld {
 
     // ワールドを今のカテゴリでリセットする
     fn reset_world(&mut self, window_size: WindowSize, direction: Direction) {
-        let mut world = HorizontalWorld::new(window_size);
+        let mut world = DefaultWorld::new(window_size);
         for memo in self.memos.get_current_memos().unwrap().memos.iter() {
             let mut textedit = TextEdit::default();
             textedit.model_operation(&ModelOperation::ChangeDirection(Some(direction)));

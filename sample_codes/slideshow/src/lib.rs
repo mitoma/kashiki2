@@ -13,7 +13,7 @@ use font_rasterizer::{
 use log::info;
 use ui_support::{
     camera::{Camera, CameraAdjustment, CameraOperation},
-    layout_engine::{HorizontalWorld, World},
+    layout_engine::{DefaultWorld, World},
     run_support,
     ui::PlaneTextReader,
     Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
@@ -55,7 +55,7 @@ struct SingleCharCallback {
 
 impl SingleCharCallback {
     fn new(window_size: WindowSize) -> Self {
-        let mut world = Box::new(HorizontalWorld::new(window_size));
+        let mut world = Box::new(DefaultWorld::new(window_size));
         let slide = include_str!("slide.md");
 
         let parser = pulldown_cmark::Parser::new(slide);

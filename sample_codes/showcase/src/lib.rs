@@ -15,7 +15,7 @@ use font_rasterizer::{
 use ui_support::{
     action::ActionProcessorStore,
     camera::{Camera, CameraAdjustment},
-    layout_engine::{HorizontalWorld, Model, World},
+    layout_engine::{DefaultWorld, Model, World},
     run_support,
     ui::{caret_char, ImeInput, TextEdit},
     ui_context::TextContext,
@@ -114,7 +114,7 @@ pub fn send_log(message: &str) {
 }
 
 struct SingleCharCallback {
-    world: HorizontalWorld,
+    world: DefaultWorld,
     store: ActionStore,
     action_processor_store: ActionProcessorStore,
     ime: ImeInput,
@@ -128,7 +128,7 @@ impl SingleCharCallback {
             .into_iter()
             .for_each(|k| store.register_keybind(k));
 
-        let mut world = HorizontalWorld::new(window_size);
+        let mut world = DefaultWorld::new(window_size);
         let mut textedit = TextEdit::new(TextContext::default().with_max_col(40));
 
         textedit.editor_operation(&EditorOperation::InsertString(
