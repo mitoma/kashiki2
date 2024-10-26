@@ -22,16 +22,17 @@ use instant::Duration;
 use log::info;
 use text_buffer::caret::CaretType;
 
-use crate::{
+use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     context::StateContext,
     font_buffer::Direction,
     instances::{GlyphInstance, GlyphInstances},
-    layout_engine::{Model, ModelMode, ModelOperation, ModelOperationResult},
     motion::MotionFlags,
     time::now_millis,
 };
+
+use crate::layout_engine::{Model, ModelMode, ModelOperation, ModelOperationResult};
 
 pub struct PlaneTextReader {
     pub value: String,

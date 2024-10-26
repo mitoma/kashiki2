@@ -7,24 +7,24 @@ use text_buffer::action::EditorOperation;
 use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
-    camera::{Camera, CameraAdjustment},
     color_theme::ColorTheme,
-    context::{StateContext, TextContext, WindowSize},
+    context::{StateContext, WindowSize},
     instances::GlyphInstances,
-    layout_engine::{HorizontalWorld, Model, World},
     rasterizer_pipeline::Quarity,
-    support::{
-        action::ActionProcessorStore, run_support, Flags, InputResult, SimpleStateCallback,
-        SimpleStateSupport,
-    },
+};
+use ui_support::{
+    action::ActionProcessorStore,
+    camera::{Camera, CameraAdjustment},
+    layout_engine::{HorizontalWorld, Model, World},
+    run_support,
     ui::{caret_char, ImeInput, TextEdit},
+    ui_context::TextContext,
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
 };
 use winit::event::WindowEvent;
 
-const FONT_DATA: &[u8] =
-    include_bytes!("../../../font_rasterizer/examples/font/BIZUDMincho-Regular.ttf");
-const EMOJI_FONT_DATA: &[u8] =
-    include_bytes!("../../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("../../../fonts/BIZUDMincho-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../../fonts/NotoEmoji-Regular.ttf");
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {

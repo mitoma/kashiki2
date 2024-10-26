@@ -1,11 +1,9 @@
 use std::path::PathBuf;
 
 use chrono::Days;
-use font_rasterizer::{
-    context::StateContext,
-    ui::{SelectBox, SelectOption, TextInput},
-};
+use font_rasterizer::context::StateContext;
 use stroke_parser::Action;
+use ui_support::ui::{SelectBox, SelectOption, TextInput};
 
 use crate::{
     action_repository::{ActionNamespace, ActionRepository},

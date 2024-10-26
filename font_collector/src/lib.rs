@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn test_list_fonts2() {
         let mut collector = FontCollector::default();
-        collector.add_font_path(PathBuf::from("../font_rasterizer/examples/font"));
+        collector.add_font_path(PathBuf::from("../fonts"));
         assert_eq!(collector.list_font_names().len(), 2);
     }
 }

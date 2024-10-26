@@ -1,24 +1,26 @@
 use font_collector::FontCollector;
 use instant::Duration;
+use ui_support::{
+    camera::{Camera, CameraController},
+    run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 use cgmath::Rotation3;
 use font_rasterizer::{
-    camera::{Camera, CameraController},
     color_theme::ColorTheme::{self, SolarizedDark},
     context::{StateContext, WindowSize},
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
-const FONT_DATA: &[u8] = include_bytes!("font/BIZUDMincho-Regular.ttf");
-const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
 pub fn main() {
     std::env::set_var("RUST_LOG", "support_test=debug");

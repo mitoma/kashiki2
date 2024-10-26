@@ -1,15 +1,17 @@
 use std::collections::HashSet;
 
 use font_rasterizer::{
-    camera::CameraAdjustment,
     context::{StateContext, WindowSize},
     font_buffer::Direction,
-    layout_engine::{HorizontalWorld, Model, ModelOperation, World},
-    support::InputResult,
-    ui::TextEdit,
 };
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
+use ui_support::{
+    camera::CameraAdjustment,
+    layout_engine::{HorizontalWorld, Model, ModelOperation, World},
+    ui::TextEdit,
+    InputResult,
+};
 
 use crate::{
     categorized_memos::CategorizedMemos,

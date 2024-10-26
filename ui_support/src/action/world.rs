@@ -1,15 +1,14 @@
 use stroke_parser::{ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
+use font_rasterizer::{context::StateContext, font_buffer::Direction};
+
 use crate::{
     camera::{CameraAdjustment, CameraOperation},
-    context::StateContext,
-    font_buffer::Direction,
     layout_engine::{ModelOperation, World},
-    support::InputResult,
 };
 
-use super::ActionProcessor;
+use super::{ActionProcessor, InputResult};
 
 macro_rules! world_processor {
     ( $proc_name:ident, $name:expr, $world_operation:ident ) => {

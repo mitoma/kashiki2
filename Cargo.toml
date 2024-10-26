@@ -4,10 +4,11 @@ members = [
     "stroke_parser",
     "font_collector",
     "font_rasterizer",
+    "rokid_3dof",
+    "ui_support",
     "font_rasterizer_example",
     "sample_codes/*",
     "kashikishi",
-    "rokid_3dof",
 ]
 resolver = "2"
 
@@ -35,6 +36,9 @@ rustybuzz = "0.20.0"
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 cgmath = "0.18"
 bytemuck = { version = "1.18", features = ["derive"] }
+bitflags = "2.6"
+rand = "0.8"
+cfg-if = "1.0"
 
 [profile.release-optimized]
 inherits = "release"

@@ -12,15 +12,15 @@ pub struct CharWidthCalculator {
 }
 
 impl CharWidthCalculator {
-    pub(crate) fn new(faces: Arc<Vec<FontData>>) -> Self {
+    pub fn new(faces: Arc<Vec<FontData>>) -> Self {
         Self { faces }
     }
 
-    pub(crate) fn get_width(&self, c: char) -> CharWidth {
+    pub fn get_width(&self, c: char) -> CharWidth {
         inner_get_width(&self.faces, c)
     }
 
-    pub(crate) fn len(&self, text: &str) -> usize {
+    pub fn len(&self, text: &str) -> usize {
         text.chars()
             .map(|c| match self.get_width(c) {
                 crate::char_width_calcurator::CharWidth::Regular => 1,
@@ -120,8 +120,8 @@ mod test {
 
     use super::{CharWidth, CharWidthCalculator};
 
-    const FONT_DATA: &[u8] = include_bytes!("../examples/font/BIZUDMincho-Regular.ttf");
-    const EMOJI_FONT_DATA: &[u8] = include_bytes!("../examples/font/NotoEmoji-Regular.ttf");
+    const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
+    const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
     #[test]
     fn get_width() {

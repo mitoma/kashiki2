@@ -1,9 +1,10 @@
+use font_rasterizer::context::StateContext;
 use stroke_parser::{ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
-use crate::{context::StateContext, layout_engine::World, support::InputResult};
+use crate::layout_engine::World;
 
-use super::ActionProcessor;
+use super::{ActionProcessor, InputResult};
 
 macro_rules! edit_processor {
     ( $proc_name:ident, $name:expr, $editor_operation:ident ) => {

@@ -1,16 +1,14 @@
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
+use font_rasterizer::{color_theme::ColorTheme, context::StateContext, font_buffer::Direction};
+
 use crate::{
     camera::CameraAdjustment,
-    color_theme::ColorTheme,
-    context::StateContext,
-    font_buffer::Direction,
     layout_engine::{Model, World},
-    support::InputResult,
     ui::{SelectBox, SelectOption},
 };
 
-use super::ActionProcessor;
+use super::{ActionProcessor, InputResult};
 
 pub struct SystemExit;
 impl ActionProcessor for SystemExit {

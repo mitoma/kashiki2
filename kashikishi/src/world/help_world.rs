@@ -1,13 +1,16 @@
 use std::collections::HashSet;
 
 use font_rasterizer::{
-    camera::CameraAdjustment,
     context::{StateContext, WindowSize},
     font_buffer::Direction,
-    layout_engine::{HorizontalWorld, Model, World},
-    support::InputResult,
-    ui::TextEdit,
 };
+use ui_support::{
+    camera::CameraAdjustment,
+    layout_engine::{HorizontalWorld, Model, World},
+    ui::TextEdit,
+    InputResult,
+};
+
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 

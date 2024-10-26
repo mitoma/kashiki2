@@ -1,6 +1,8 @@
 use cgmath::{InnerSpace, Point3};
 
-use crate::{context::WindowSize, easing_value::EasingPointN, layout_engine::Model};
+use font_rasterizer::context::WindowSize;
+
+use crate::{easing_value::EasingPointN, layout_engine::Model};
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(

@@ -8,12 +8,13 @@ use cgmath::{Matrix4, Point2, Point3, Quaternion, Rotation3};
 use log::info;
 use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 
-use crate::{
-    camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
+use font_rasterizer::{
     context::{StateContext, WindowSize},
     font_buffer::Direction,
     instances::GlyphInstances,
 };
+
+use crate::camera::{Camera, CameraAdjustment, CameraController, CameraOperation};
 
 // 画面全体を表す
 pub trait World {

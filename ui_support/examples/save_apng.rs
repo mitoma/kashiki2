@@ -4,16 +4,18 @@ use instant::Duration;
 
 use cgmath::Rotation3;
 use font_rasterizer::{
-    camera::{Camera, CameraController},
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     instances::{GlyphInstance, GlyphInstances},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
-    support::{generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
     time::now_millis,
 };
 use log::{debug, info};
+use ui_support::{
+    camera::{Camera, CameraController},
+    generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+};
 use winit::event::WindowEvent;
 
 //const FONT_DATA: &[u8] = include_bytes!("font/HackGenConsole-Regular.ttf");

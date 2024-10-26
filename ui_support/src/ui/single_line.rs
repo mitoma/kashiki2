@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use cgmath::Rotation3;
 use instant::Duration;
 
-use crate::{
+use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     context::StateContext,
     instances::{GlyphInstance, GlyphInstances},

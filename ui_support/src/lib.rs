@@ -1,6 +1,12 @@
 pub mod action;
+pub mod camera;
+mod easing_value;
+pub mod layout_engine;
 mod metrics_counter;
 mod render_rate_adjuster;
+mod text_instances;
+pub mod ui;
+pub mod ui_context;
 
 use std::{
     collections::HashSet,
@@ -8,19 +14,20 @@ use std::{
     sync::{mpsc::Receiver, Arc},
 };
 
-use crate::{
-    camera::Camera,
+use camera::Camera;
+use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     font_buffer::{Direction, GlyphVertexBuffer},
     instances::GlyphInstances,
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
-    support::{
-        metrics_counter::{print_metrics_to_stdout, record_start_of_phase},
-        render_rate_adjuster::RenderRateAdjuster,
-    },
     time::{increment_fixed_clock, set_clock_mode, ClockMode},
+};
+
+use crate::{
+    metrics_counter::{print_metrics_to_stdout, record_start_of_phase},
+    render_rate_adjuster::RenderRateAdjuster,
 };
 
 use bitflags::bitflags;

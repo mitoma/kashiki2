@@ -9,17 +9,20 @@ use text_buffer::{
 };
 use wgpu::Device;
 
-use crate::{
+use font_rasterizer::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
-    context::{GpuEasingConfig, RemoveCharMode, TextContext},
-    easing_value::EasingPointN,
     font_buffer::Direction,
     instances::GlyphInstance,
-    layout_engine::ModelAttributes,
     motion::MotionFlags,
-    text_instances::TextInstances,
     time::now_millis,
+};
+
+use crate::{
+    easing_value::EasingPointN,
+    layout_engine::ModelAttributes,
+    text_instances::TextInstances,
+    ui_context::{GpuEasingConfig, RemoveCharMode, TextContext},
 };
 
 use super::caret_char;

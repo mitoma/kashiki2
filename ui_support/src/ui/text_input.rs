@@ -3,11 +3,11 @@ use std::sync::mpsc::Sender;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
+use font_rasterizer::{context::StateContext, font_buffer::Direction, instances::GlyphInstances};
+
 use crate::{
-    context::{CharEasings, StateContext, TextContext},
-    font_buffer::Direction,
-    instances::GlyphInstances,
     layout_engine::{Model, ModelMode},
+    ui_context::{CharEasings, TextContext},
 };
 
 use super::textedit::TextEdit;

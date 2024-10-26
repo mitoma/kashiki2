@@ -19,31 +19,30 @@ use text_buffer::action::EditorOperation;
 use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld};
 
 use font_rasterizer::{
-    camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     font_buffer::Direction,
     instances::GlyphInstances,
-    layout_engine::{Model, ModelOperation, World},
     rasterizer_pipeline::Quarity,
-    support::{
-        action::{ActionProcessor, ActionProcessorStore},
-        run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
-    },
     time::set_clock_mode,
-    ui::{caret_char, ime_chars, ImeInput},
 };
 use log::info;
+use ui_support::{
+    action::{ActionProcessor, ActionProcessorStore},
+    camera::{Camera, CameraAdjustment, CameraOperation},
+    layout_engine::{Model, ModelOperation, World},
+    run_support,
+    ui::{caret_char, ime_chars, ImeInput},
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+};
 use winit::event::WindowEvent;
 
 use crate::kashikishi_actions::command_palette_select;
 
 //const ICON_IMAGE: &[u8] = include_bytes!("kashikishi-logo.png");
 
-const FONT_DATA: &[u8] =
-    include_bytes!("../../font_rasterizer/examples/font/BIZUDMincho-Regular.ttf");
-const EMOJI_FONT_DATA: &[u8] =
-    include_bytes!("../../font_rasterizer/examples/font/NotoEmoji-Regular.ttf");
+const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
 pub fn main() {
     //std::env::set_var("RUST_LOG", "simple_text=debug");

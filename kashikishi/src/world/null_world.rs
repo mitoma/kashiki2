@@ -1,12 +1,15 @@
 use std::collections::HashSet;
 
 use font_rasterizer::{
-    camera::CameraAdjustment,
     context::{StateContext, WindowSize},
     font_buffer::Direction,
-    layout_engine::{HorizontalWorld, Model, World},
-    support::InputResult,
 };
+use ui_support::{
+    camera::CameraAdjustment,
+    layout_engine::{HorizontalWorld, Model, World},
+    InputResult,
+};
+
 use stroke_parser::Action;
 
 use super::ModalWorld;

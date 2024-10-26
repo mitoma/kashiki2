@@ -12,5 +12,5 @@ serde_json = { workspace = true }
 log = { workspace = true }
 
 [dev-dependencies]
-text_buffer = { version = "0.1.0", path = "../text_buffer" }
+text_buffer = { path = "../text_buffer" }
 env_logger = { workspace = true }

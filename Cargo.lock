@@ -108,9 +108,9 @@ dependencies = [
 
 [[package]]
 name = "anstream"
-version = "0.6.15"
+version = "0.6.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64e15c1ab1f89faffbf04a634d5e1962e9074f2741eef6d97f3c4e322426d526"
+checksum = "23a1e53f0f5d86382dafe1cf314783b2044280f406e7e1506368220ad11b1338"
 dependencies = [
  "anstyle",
  "anstyle-parse",
@@ -123,36 +123,36 @@ dependencies = [
 
 [[package]]
 name = "anstyle"
-version = "1.0.8"
+version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bec1de6f59aedf83baf9ff929c98f2ad654b97c9510f4e70cf6f661d49fd5b1"
+checksum = "8365de52b16c035ff4fcafe0092ba9390540e3e352870ac09933bebcaa2c8c56"
 
 [[package]]
 name = "anstyle-parse"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb47de1e80c2b463c735db5b217a0ddc39d612e7ac9e2e96a5aed1f57616c1cb"
+checksum = "3b2d16507662817a6a20a9ea92df6652ee4f94f914589377d69f3b21bc5798a9"
 dependencies = [
  "utf8parse",
 ]
 
 [[package]]
 name = "anstyle-query"
-version = "1.1.1"
+version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d36fc52c7f6c869915e99412912f22093507da8d9e942ceaf66fe4b7c14422a"
+checksum = "79947af37f4177cfead1110013d678905c37501914fba0efea834c3fe9a8d60c"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
 name = "anstyle-wincon"
-version = "3.0.4"
+version = "3.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bf74e1b6e971609db8ca7a9ce79fd5768ab6ae46441c572e46cf596f59e57f8"
+checksum = "2109dbce0e72be3ec00bed26e6a7479ca384ad226efdd66db8fa2e3a38c83125"
 dependencies = [
  "anstyle",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -602,9 +602,9 @@ checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
 name = "colorchoice"
-version = "1.0.2"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3fd119d74b830634cea2a0f58bbd0d54540518a14397557951e79340abc28c0"
+checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
 name = "com"
@@ -992,31 +992,23 @@ name = "font_rasterizer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "apng",
  "bezier_converter",
  "bitflags 2.6.0",
  "bytemuck",
  "cached",
  "cfg-if",
  "cgmath",
- "clap",
  "console_error_panic_hook",
  "console_log",
  "env_logger",
  "font_collector",
  "fs_extra",
  "glob",
- "image",
  "instant",
  "log",
- "nenobi",
- "pollster",
- "pulldown-cmark 0.12.2",
  "rand",
- "rayon",
  "rustybuzz",
  "stroke_parser",
- "strsim",
  "text_buffer",
  "unicode-width 0.2.0",
  "wasm-bindgen",
@@ -1041,6 +1033,7 @@ dependencies = [
  "log",
  "pollster",
  "stroke_parser",
+ "ui_support",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -1489,6 +1482,7 @@ dependencies = [
  "serde_json",
  "stroke_parser",
  "text_buffer",
+ "ui_support",
  "wgpu",
  "winit",
 ]
@@ -2124,19 +2118,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pulldown-cmark"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f86ba2052aebccc42cbbb3ed234b8b13ce76f75c3551a303cb2bcffcff12bb14"
-dependencies = [
- "bitflags 2.6.0",
- "getopts",
- "memchr",
- "pulldown-cmark-escape",
- "unicase",
-]
-
-[[package]]
 name = "pulldown-cmark-escape"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2325,9 +2306,9 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.11.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38200e5ee88914975b69f657f0801b6f6dccafd44fd9326302a4aaeecfacb1d8"
+checksum = "b544ef1b4eac5dc2db33ea63606ae9ffcfac26c1416a2806ae0bf5f56b201191"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2378,6 +2359,7 @@ dependencies = [
  "log",
  "pollster",
  "stroke_parser",
+ "ui_support",
  "vqf-rs",
  "winit",
 ]
@@ -2522,6 +2504,7 @@ dependencies = [
  "pollster",
  "stroke_parser",
  "text_buffer",
+ "ui_support",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -2564,8 +2547,9 @@ dependencies = [
  "font_rasterizer",
  "log",
  "pollster",
- "pulldown-cmark 0.11.3",
+ "pulldown-cmark",
  "stroke_parser",
+ "ui_support",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -2838,6 +2822,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5902c5d130972a0000f60860bfbf46f7ca3db5391eddfedd1b8728bd9dc96c0e"
 dependencies = [
  "core_maths",
+]
+
+[[package]]
+name = "ui_support"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "apng",
+ "bitflags 2.6.0",
+ "cfg-if",
+ "cgmath",
+ "console_error_panic_hook",
+ "console_log",
+ "env_logger",
+ "font_collector",
+ "font_rasterizer",
+ "image",
+ "instant",
+ "log",
+ "nenobi",
+ "pollster",
+ "rand",
+ "rayon",
+ "stroke_parser",
+ "text_buffer",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "wgpu",
+ "winit",
 ]
 
 [[package]]

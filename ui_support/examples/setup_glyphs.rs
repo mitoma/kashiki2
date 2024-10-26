@@ -1,16 +1,17 @@
 use font_collector::FontCollector;
 use font_rasterizer::{
-    camera::Camera,
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
-    support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport},
 };
 use instant::Instant;
+use ui_support::{
+    camera::Camera, run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+};
 use winit::event::WindowEvent;
 
-const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
+const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
 pub fn main() {
     std::env::set_var("RUST_LOG", "support_test=debug");

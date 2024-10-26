@@ -15,14 +15,18 @@ use text_buffer::{
     editor::{ChangeEvent, CharWidthResolver, Editor, PhisicalLayout},
 };
 
-use crate::{
+use font_rasterizer::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
-    context::{StateContext, TextContext},
-    easing_value::EasingPointN,
+    context::StateContext,
     font_buffer::Direction,
     instances::GlyphInstances,
+};
+
+use crate::{
+    easing_value::EasingPointN,
     layout_engine::{Model, ModelAttributes, ModelMode, ModelOperation, ModelOperationResult},
+    ui_context::TextContext,
 };
 
 use super::{
