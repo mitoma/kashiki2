@@ -50,7 +50,7 @@ pub struct TextEdit {
     config_updated: bool,
 
     position: EasingPointN<3>,
-    rotation: Quaternion<f32>,
+    rotation: EasingPointN<4>,
     world_scale: [f32; 2],
 
     bound: EasingPointN<2>,
@@ -64,6 +64,11 @@ impl Default for TextEdit {
 
         let position = EasingPointN::new([0.0, 0.0, 0.0]);
         let bound = config.min_bound.into();
+        let rotation =
+            cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_y(), cgmath::Deg(0.0));
+        let [x, y, z] = rotation.v.into();
+        let s = rotation.s;
+        let rotation = EasingPointN::new([x, y, z, s]);
         Self {
             config,
             editor: Editor::new(tx),
@@ -79,10 +84,7 @@ impl Default for TextEdit {
             config_updated: true,
 
             position,
-            rotation: cgmath::Quaternion::from_axis_angle(
-                cgmath::Vector3::unit_y(),
-                cgmath::Deg(0.0),
-            ),
+            rotation,
             world_scale: [1.0, 1.0],
             bound,
         }
@@ -135,15 +137,17 @@ impl Model for TextEdit {
     }
 
     fn set_rotation(&mut self, rotation: Quaternion<f32>) {
-        if self.rotation == rotation {
+        let [x, y, z] = rotation.v.into();
+        let s = rotation.s;
+        if self.rotation.last() == [x, y, z, s] {
             return;
         }
-        self.rotation = rotation;
+        self.rotation.update([x, y, z, s]);
         self.config_updated = true;
     }
 
     fn rotation(&self) -> Quaternion<f32> {
-        self.rotation
+        self.rotation.last().into()
     }
 
     fn bound(&self) -> (f32, f32) {
@@ -293,7 +297,9 @@ impl Model for TextEdit {
     }
 
     fn in_animation(&self) -> bool {
-        self.position.in_animation_strict() || self.bound.in_animation_strict()
+        self.position.in_animation_strict()
+            || self.bound.in_animation_strict()
+            || self.rotation.in_animation_strict()
     }
 }
 
@@ -504,7 +510,7 @@ impl TextEdit {
         let current_position: Point3<f32> = self.position.current().into();
         ModelAttributes {
             position: current_position,
-            rotation: self.rotation,
+            rotation: self.rotation.current().into(),
             center,
             world_scale: self.world_scale,
         }
