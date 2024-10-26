@@ -587,11 +587,18 @@ fn update_instance(
 
     // set position
     let [x, y, z] = view_char_state.position.current();
-    let pos = cgmath::Matrix4::from(model_attribuetes.rotation)
-        * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
+    // モデル全体を回転させた後にモデルとしての中心を真ん中に移動する
+    let pos = (cgmath::Matrix4::from(model_attribuetes.rotation)
+        * cgmath::Matrix4::from_translation(cgmath::Vector3 {
+            x: x - model_attribuetes.center.x,
+            y: y - model_attribuetes.center.y,
+            z,
+        }))
+    .w;
+    // そのあと、World に対しての位置を考慮して移動する
     let new_position = cgmath::Vector3 {
-        x: pos.x - model_attribuetes.center.x + model_attribuetes.position.x,
-        y: pos.y - model_attribuetes.center.y + model_attribuetes.position.y,
+        x: pos.x + model_attribuetes.position.x,
+        y: pos.y + model_attribuetes.position.y,
         z: pos.z + model_attribuetes.position.z,
     };
     instance.position = new_position;
