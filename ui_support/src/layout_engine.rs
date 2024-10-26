@@ -75,6 +75,7 @@ pub struct HorizontalWorld {
     removed_models: Vec<Box<dyn Model>>,
     focus: usize,
     world_updated: bool,
+    direction: Direction,
 }
 
 impl HorizontalWorld {
@@ -86,6 +87,7 @@ impl HorizontalWorld {
             removed_models: Vec::new(),
             focus: 0,
             world_updated: true,
+            direction: Direction::Horizontal,
         }
     }
 
@@ -106,6 +108,38 @@ impl HorizontalWorld {
             self.models.len()
         };
         min..max
+    }
+
+    fn re_layout_horizontal(&mut self) {
+        let mut x_position = 0.0;
+        for (idx, model) in self.models.iter_mut().enumerate() {
+            let (w, h) = model.bound();
+            info!("w: {}, h: {}, idx:{}", w, h, idx);
+            x_position += w / 2.0;
+            model.set_position((x_position, -h / 2.0, 0.0).into());
+            x_position += w / 2.0;
+            x_position += INTERVAL;
+
+            let rotation =
+                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_y(), cgmath::Deg(0.0));
+            model.set_rotation(rotation);
+        }
+    }
+
+    fn re_layout_vertical(&mut self) {
+        let mut y_position = 0.0;
+        for (idx, model) in self.models.iter_mut().enumerate() {
+            let (w, h) = model.bound();
+            info!("w: {}, h: {}, idx:{}", w, h, idx);
+            y_position -= h / 2.0;
+            model.set_position((-w / 2.0, y_position, 0.0).into());
+            y_position -= h / 2.0;
+            y_position -= INTERVAL;
+
+            let rotation =
+                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_y(), cgmath::Deg(0.0));
+            model.set_rotation(rotation);
+        }
     }
 
     // 円周上にモデルを並べる実装の実験。大体は期待通りに動くが近づく、遠ざかる時に期待した動作とズレがある。
@@ -149,18 +183,9 @@ impl World for HorizontalWorld {
     }
 
     fn re_layout(&mut self) {
-        let mut x_position = 0.0;
-        for (idx, model) in self.models.iter_mut().enumerate() {
-            let (w, h) = model.bound();
-            info!("w: {}, h: {}, idx:{}", w, h, idx);
-            x_position += w / 2.0;
-            model.set_position((x_position, -h / 2.0, 0.0).into());
-            x_position += w / 2.0;
-            x_position += INTERVAL;
-
-            let rotation =
-                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_y(), cgmath::Deg(0.0));
-            model.set_rotation(rotation);
+        match self.direction {
+            Direction::Horizontal => self.re_layout_horizontal(),
+            Direction::Vertical => self.re_layout_vertical(),
         }
     }
 
@@ -200,6 +225,14 @@ impl World for HorizontalWorld {
     }
 
     fn update(&mut self, context: &StateContext) {
+        if self.direction != context.global_direction {
+            self.direction = context.global_direction;
+            self.models.iter_mut().for_each(|m| {
+                m.model_operation(&ModelOperation::ChangeDirection(Some(self.direction)));
+            });
+            self.world_updated = true;
+        }
+
         let range = if self.world_updated {
             0..self.models.len()
         } else {
