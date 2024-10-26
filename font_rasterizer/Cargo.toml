@@ -12,11 +12,9 @@ cfg-if = "1"
 anyhow = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
-pollster = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
 bitflags = "2.6"
-image = { workspace = true }
 rand = "0.8"
 
 rustybuzz.workspace = true
@@ -27,10 +25,6 @@ instant = { workspace = true }
 unicode-width = "0.2"
 cached = "0.53"
 
-# レーベンシュタイン距離を求めるためのライブラリ
-strsim = "0.11"
-
-nenobi = { git = "https://github.com/mitoma/sandbox", branch = "main" }
 bezier_converter = { git = "https://github.com/mitoma/sandbox", branch = "main" }
 font_collector = { version = "0.1.0", path = "../font_collector" }
 text_buffer = { version = "0.1.0", path = "../text_buffer" }
@@ -47,11 +41,3 @@ web-sys = { version = "0.3", features = ["Document", "Window", "Element"] }
 [build-dependencies]
 fs_extra = "1.2"
 glob = "0.3"
-
-[dev-dependencies]
-text_buffer = { version = "0.1.0", path = "../text_buffer" }
-stroke_parser = { version = "0.1.0", path = "../stroke_parser" }
-apng = { git = "https://github.com/mitoma/apng", branch = "master" }
-rayon = "1.10"
-clap = "4.5"
-pulldown-cmark = "0.12"

@@ -992,31 +992,23 @@ name = "font_rasterizer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "apng",
  "bezier_converter",
  "bitflags 2.6.0",
  "bytemuck",
  "cached",
  "cfg-if",
  "cgmath",
- "clap",
  "console_error_panic_hook",
  "console_log",
  "env_logger",
  "font_collector",
  "fs_extra",
  "glob",
- "image",
  "instant",
  "log",
- "nenobi",
- "pollster",
- "pulldown-cmark 0.12.2",
  "rand",
- "rayon",
  "rustybuzz",
  "stroke_parser",
- "strsim",
  "text_buffer",
  "unicode-width 0.2.0",
  "wasm-bindgen",
@@ -2126,19 +2118,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pulldown-cmark"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f86ba2052aebccc42cbbb3ed234b8b13ce76f75c3551a303cb2bcffcff12bb14"
-dependencies = [
- "bitflags 2.6.0",
- "getopts",
- "memchr",
- "pulldown-cmark-escape",
- "unicase",
-]
-
-[[package]]
 name = "pulldown-cmark-escape"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2568,7 +2547,7 @@ dependencies = [
  "font_rasterizer",
  "log",
  "pollster",
- "pulldown-cmark 0.11.3",
+ "pulldown-cmark",
  "stroke_parser",
  "ui_support",
  "wasm-bindgen",
@@ -2854,6 +2833,8 @@ dependencies = [
  "bitflags 2.6.0",
  "cfg-if",
  "cgmath",
+ "console_error_panic_hook",
+ "console_log",
  "env_logger",
  "font_collector",
  "font_rasterizer",
@@ -2866,6 +2847,9 @@ dependencies = [
  "rayon",
  "stroke_parser",
  "text_buffer",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
  "wgpu",
  "winit",
 ]
