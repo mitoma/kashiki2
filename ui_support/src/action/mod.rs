@@ -1,10 +1,12 @@
 mod edit;
 mod system;
 mod world;
+
 pub use edit::*;
 pub use system::*;
 pub use world::*;
 
+use std::collections::BTreeMap;
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
 use font_rasterizer::context::StateContext;
@@ -15,7 +17,7 @@ use super::InputResult;
 
 #[derive(Default)]
 pub struct ActionProcessorStore {
-    processors: Vec<Box<dyn ActionProcessor>>,
+    processors: BTreeMap<(CommandNamespace, CommandName), Box<dyn ActionProcessor>>,
 }
 
 impl ActionProcessorStore {
@@ -82,20 +84,25 @@ impl ActionProcessorStore {
         name: &str,
         f: fn(&ActionArgument, &StateContext, &mut dyn World) -> InputResult,
     ) {
-        self.processors.push(Box::new(LambdaActionProcessor {
-            namespace: CommandNamespace::from(namespace),
-            name: CommandName::from(name),
-            f,
-        }));
+        self.processors.insert(
+            (CommandNamespace::from(namespace), CommandName::from(name)),
+            Box::new(LambdaActionProcessor {
+                namespace: CommandNamespace::from(namespace),
+                name: CommandName::from(name),
+                f,
+            }),
+        );
     }
 
     pub fn add_processor(&mut self, processor: Box<dyn ActionProcessor>) {
-        self.processors.push(processor);
+        self.processors.insert(
+            (processor.namespace().clone(), processor.name().clone()),
+            processor,
+        );
     }
 
     pub fn remove_processor(&mut self, namespace: &CommandNamespace, name: &CommandName) {
-        self.processors
-            .retain(|processor| processor.namespace() != *namespace || processor.name() != *name);
+        self.processors.remove(&(namespace.clone(), name.clone()));
     }
 
     pub fn process(
@@ -105,10 +112,8 @@ impl ActionProcessorStore {
         world: &mut dyn World,
     ) -> InputResult {
         if let Action::Command(namespace, name, argument) = action {
-            for processor in &self.processors {
-                if processor.namespace() == *namespace && processor.name() == *name {
-                    return processor.process(argument, context, world);
-                }
+            if let Some(processor) = self.processors.get(&(namespace.clone(), name.clone())) {
+                return processor.process(argument, context, world);
             }
         }
         InputResult::Noop
