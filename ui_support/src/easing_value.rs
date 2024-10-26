@@ -4,7 +4,7 @@ use cgmath::{Point2, Point3};
 use instant::Duration;
 use nenobi::array::{TimeBaseEasingValueN, TimeBaseEasingValueNFactory};
 
-use crate::time::now_millis;
+use font_rasterizer::time::now_millis;
 
 pub struct EasingPointN<const N: usize> {
     in_animation: bool,
@@ -32,15 +32,15 @@ impl<const N: usize> EasingPointN<N> {
         }
     }
 
-    pub(crate) fn current(&self) -> [f32; N] {
+    pub fn current(&self) -> [f32; N] {
         self.v.current_value()
     }
 
-    pub(crate) fn last(&self) -> [f32; N] {
+    pub fn last(&self) -> [f32; N] {
         self.v.last_value()
     }
 
-    pub(crate) fn gc(&mut self) {
+    pub fn gc(&mut self) {
         self.v.gc();
     }
 
@@ -48,7 +48,7 @@ impl<const N: usize> EasingPointN<N> {
     // last_value と同一の値の current_value を取りづらいので
     // 最後の一回だけアニメーション中ではなくても true を返す。
     // これは破壊的な処理なので mut になっている。
-    pub(crate) fn in_animation(&mut self) -> bool {
+    pub fn in_animation(&mut self) -> bool {
         let in_animcation = self.v.in_animation();
         if in_animcation {
             return true;
@@ -61,23 +61,23 @@ impl<const N: usize> EasingPointN<N> {
     }
 
     // アニメーション中かどうかを正確かつ非破壊的に判定する。
-    pub(crate) fn in_animation_strict(&self) -> bool {
+    pub fn in_animation_strict(&self) -> bool {
         self.v.in_animation()
     }
 
-    pub(crate) fn update(&mut self, v: [f32; N]) {
+    pub fn update(&mut self, v: [f32; N]) {
         let modify = self.v.update(v, self.duration, self.easing_func);
         self.in_animation = modify;
         self.gc();
     }
 
-    pub(crate) fn add(&mut self, v: [f32; N]) {
+    pub fn add(&mut self, v: [f32; N]) {
         let modify = self.v.add(v, self.duration, self.easing_func);
         self.in_animation = modify;
         self.gc();
     }
 
-    pub(crate) fn update_duration_and_easing_func(
+    pub fn update_duration_and_easing_func(
         &mut self,
         duration: Duration,
         easing_func: fn(f32) -> f32,

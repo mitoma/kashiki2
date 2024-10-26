@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 
-use font_rasterizer::{
+use font_rasterizer::{context::StateContext, font_buffer::Direction};
+use ui_support::{
     camera::CameraAdjustment,
-    context::StateContext,
-    font_buffer::Direction,
     layout_engine::{HorizontalWorld, Model, World},
     ui::{SelectBox, SelectOption},
+    InputResult,
 };
-use ui_support::InputResult;
 
 use stroke_parser::Action;
 

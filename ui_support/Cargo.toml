@@ -14,7 +14,9 @@ image = { workspace = true }
 instant = { workspace = true }
 cgmath = { workspace = true }
 cfg-if = "1"
+rand = "0.8"
 
+nenobi = { git = "https://github.com/mitoma/sandbox", branch = "main" }
 font_rasterizer = { version = "0.1.0", path = "../font_rasterizer" }
 font_collector = { version = "0.1.0", path = "../font_collector" }
 stroke_parser = { version = "0.1.0", path = "../stroke_parser" }

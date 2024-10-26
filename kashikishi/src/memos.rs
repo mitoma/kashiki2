@@ -1,5 +1,5 @@
-use font_rasterizer::layout_engine::World;
 use serde::{Deserialize, Serialize};
+use ui_support::layout_engine::World;
 
 #[derive(PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Memos {

@@ -10,11 +10,11 @@ pub(crate) use start_world::StartWorld;
 
 use std::collections::HashSet;
 
-use font_rasterizer::{
-    context::StateContext,
+use font_rasterizer::context::StateContext;
+use ui_support::{
     layout_engine::{Model, World},
+    InputResult,
 };
-use ui_support::InputResult;
 
 use stroke_parser::Action;
 

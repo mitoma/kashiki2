@@ -7,7 +7,9 @@ pub use world::*;
 
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
-use font_rasterizer::{context::StateContext, layout_engine::World};
+use font_rasterizer::context::StateContext;
+
+use crate::layout_engine::World;
 
 use super::InputResult;
 

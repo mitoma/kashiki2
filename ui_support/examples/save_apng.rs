@@ -4,7 +4,6 @@ use instant::Duration;
 
 use cgmath::Rotation3;
 use font_rasterizer::{
-    camera::{Camera, CameraController},
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     instances::{GlyphInstance, GlyphInstances},
@@ -14,6 +13,7 @@ use font_rasterizer::{
 };
 use log::{debug, info};
 use ui_support::{
+    camera::{Camera, CameraController},
     generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
 };
 use winit::event::WindowEvent;

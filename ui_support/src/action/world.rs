@@ -1,10 +1,10 @@
 use stroke_parser::{ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::{
+use font_rasterizer::{context::StateContext, font_buffer::Direction};
+
+use crate::{
     camera::{CameraAdjustment, CameraOperation},
-    context::StateContext,
-    font_buffer::Direction,
     layout_engine::{ModelOperation, World},
 };
 

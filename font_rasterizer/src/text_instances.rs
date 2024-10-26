@@ -2,14 +2,13 @@ use std::collections::BTreeMap;
 
 use text_buffer::{
     buffer::{BufferChar, CellPosition},
-    caret::Caret,
+    caret::{Caret, CaretType},
 };
 use wgpu::{Device, Queue};
 
 use crate::{
     font_buffer::Direction,
     instances::{GlyphInstance, GlyphInstances, InstanceKey},
-    ui::caret_char,
 };
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -22,6 +21,15 @@ impl From<BufferChar> for TextInstancesKey {
     fn from(value: BufferChar) -> Self {
         let BufferChar { c, position } = value;
         Self { c, position }
+    }
+}
+
+// FIXME: 一時的な置き場
+#[inline]
+pub fn caret_char(caret_type: CaretType) -> char {
+    match caret_type {
+        CaretType::Primary => '_',
+        CaretType::Mark => '^',
     }
 }
 

@@ -1,12 +1,14 @@
 use font_collector::FontCollector;
 use instant::Duration;
-use ui_support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport};
+use ui_support::{
+    camera::{Camera, CameraController},
+    run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 use cgmath::Rotation3;
 use font_rasterizer::{
-    camera::{Camera, CameraController},
     color_theme::ColorTheme::{self, SolarizedDark},
     context::{StateContext, WindowSize},
     instances::{GlyphInstance, GlyphInstances},

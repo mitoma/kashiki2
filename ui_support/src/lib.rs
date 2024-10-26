@@ -1,6 +1,11 @@
 pub mod action;
+pub mod camera;
+mod easing_value;
+pub mod layout_engine;
 mod metrics_counter;
 mod render_rate_adjuster;
+pub mod ui;
+pub mod ui_context;
 
 use std::{
     collections::HashSet,
@@ -8,8 +13,8 @@ use std::{
     sync::{mpsc::Receiver, Arc},
 };
 
+use camera::Camera;
 use font_rasterizer::{
-    camera::Camera,
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},

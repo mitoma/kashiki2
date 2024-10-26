@@ -3,14 +3,13 @@ use std::sync::{mpsc::Sender, Arc};
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
+use font_rasterizer::{
+    char_width_calcurator::CharWidthCalculator, context::StateContext, font_buffer::Direction, instances::GlyphInstances
+};
+
 use crate::{
-    char_width_calcurator::CharWidthCalculator,
-    context::{
-        CharEasings, CpuEasingConfig, GpuEasingConfig, RemoveCharMode, StateContext, TextContext,
-    },
-    font_buffer::Direction,
-    instances::GlyphInstances,
     layout_engine::{Model, ModelMode},
+    ui_context::{CharEasings, CpuEasingConfig, GpuEasingConfig, RemoveCharMode, TextContext},
 };
 
 use super::{select_option::SelectOption, textedit::TextEdit};

@@ -1,10 +1,11 @@
 use cgmath::Point2;
 use text_buffer::action::EditorOperation;
 
+use font_rasterizer::{context::StateContext, instances::GlyphInstances};
+
 use crate::{
-    context::{CharEasings, StateContext, TextContext},
-    instances::GlyphInstances,
     layout_engine::Model,
+    ui_context::{CharEasings, TextContext},
 };
 
 use super::textedit::TextEdit;

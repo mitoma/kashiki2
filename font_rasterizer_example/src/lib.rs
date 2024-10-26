@@ -6,7 +6,6 @@ use wasm_bindgen::prelude::*;
 
 use cgmath::Rotation3;
 use font_rasterizer::{
-    camera::{Camera, CameraController},
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     instances::{GlyphInstance, GlyphInstances},
@@ -15,7 +14,10 @@ use font_rasterizer::{
     time::now_millis,
 };
 use log::info;
-use ui_support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport};
+use ui_support::{
+    camera::{Camera, CameraController},
+    run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+};
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
 const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");

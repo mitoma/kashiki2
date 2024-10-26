@@ -4,17 +4,20 @@ use stroke_parser::Action;
 use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{
-    camera::{Camera, CameraAdjustment, CameraOperation},
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     instances::GlyphInstances,
-    layout_engine::{HorizontalWorld, World},
     motion::{MotionDetail, MotionFlags, MotionTarget},
     rasterizer_pipeline::Quarity,
-    ui::PlaneTextReader,
 };
 use log::info;
-use ui_support::{run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport};
+use ui_support::{
+    camera::{Camera, CameraAdjustment, CameraOperation},
+    layout_engine::{HorizontalWorld, World},
+    run_support,
+    ui::PlaneTextReader,
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+};
 use winit::event::{ElementState, KeyEvent, WindowEvent};
 
 const FONT_DATA: &[u8] = include_bytes!("../../../fonts/BIZUDMincho-Regular.ttf");

@@ -3,12 +3,12 @@ use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
+use font_rasterizer::{color_theme::ThemedColor, context::StateContext, instances::GlyphInstances};
+
 use crate::{
-    color_theme::ThemedColor,
-    context::{CharEasings, StateContext, TextContext},
-    instances::GlyphInstances,
     layout_engine::Model,
     ui::textedit::TextEditOperation,
+    ui_context::{CharEasings, TextContext},
 };
 
 use super::textedit::TextEdit;
