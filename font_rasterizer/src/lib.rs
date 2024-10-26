@@ -12,5 +12,4 @@ pub mod rasterizer_pipeline;
 mod screen_bind_group;
 mod screen_texture;
 mod screen_vertex_buffer;
-pub mod text_instances;
 pub mod time;

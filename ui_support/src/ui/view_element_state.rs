@@ -15,13 +15,13 @@ use font_rasterizer::{
     font_buffer::Direction,
     instances::GlyphInstance,
     motion::MotionFlags,
-    text_instances::TextInstances,
     time::now_millis,
 };
 
 use crate::{
     easing_value::EasingPointN,
     layout_engine::ModelAttributes,
+    text_instances::TextInstances,
     ui_context::{GpuEasingConfig, RemoveCharMode, TextContext},
 };
 
