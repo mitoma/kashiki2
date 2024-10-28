@@ -132,12 +132,13 @@ impl WorldLayout {
                 let mut x_position = 0.0;
                 for (idx, model) in world.models.iter_mut().enumerate() {
                     let (w, h) = model.bound();
+                    x_position += (w / 2.0) + INTERVAL;
                     info!("w: {}, h: {}, idx:{}", w, h, idx);
                     let r = (x_position / all_width) * 2.0 * std::f32::consts::PI;
                     model.set_position(
                         (r.sin() * radius, -h / 2.0, -(r.cos() - 1.0) * radius).into(),
                     );
-                    x_position += w + INTERVAL;
+                    x_position += (w / 2.0) + INTERVAL;
 
                     let rotation = cgmath::Quaternion::from_axis_angle(
                         cgmath::Vector3::unit_y(),
