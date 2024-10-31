@@ -89,41 +89,32 @@ impl WorldLayout {
 
     fn layout(&self, world: &mut DefaultWorld) {
         match self {
-            WorldLayout::Liner => match world.direction {
-                Direction::Horizontal => {
-                    let mut x_position = 0.0;
-                    for (idx, model) in world.models.iter_mut().enumerate() {
-                        let (w, h) = model.bound();
-                        info!("w: {}, h: {}, idx:{}", w, h, idx);
-                        x_position += w / 2.0;
-                        model.set_position((x_position, -h / 2.0, 0.0).into());
-                        x_position += w / 2.0 + INTERVAL;
+            WorldLayout::Liner => {
+                let mut position = 0.0;
+                for (idx, model) in world.models.iter_mut().enumerate() {
+                    let (w, h) = model.bound();
+                    info!("w: {}, h: {}, idx:{}", w, h, idx);
 
-                        let rotation = cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_y(),
-                            cgmath::Deg(0.0),
-                        );
-                        model.set_rotation(rotation);
+                    let rotation = cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_y(),
+                        cgmath::Deg(0.0),
+                    );
+                    model.set_rotation(rotation);
+
+                    match world.direction {
+                        Direction::Horizontal => {
+                            position += w / 2.0;
+                            model.set_position((position, -h / 2.0, 0.0).into());
+                            position += w / 2.0 + INTERVAL;
+                        }
+                        Direction::Vertical => {
+                            position -= h / 2.0;
+                            model.set_position((-w / 2.0, position, 0.0).into());
+                            position -= h / 2.0 + INTERVAL;
+                        }
                     }
                 }
-                Direction::Vertical => {
-                    let mut y_position = 0.0;
-                    for (idx, model) in world.models.iter_mut().enumerate() {
-                        let (w, h) = model.bound();
-                        info!("w: {}, h: {}, idx:{}", w, h, idx);
-                        y_position -= h / 2.0;
-                        model.set_position((-w / 2.0, y_position, 0.0).into());
-                        y_position -= h / 2.0 + INTERVAL;
-
-                        let rotation = cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_y(),
-                            cgmath::Deg(0.0),
-                        );
-                        model.set_rotation(rotation);
-                    }
-                }
-            },
-            // FIXME: モデルのサイズが小さいときに配置がおかしくなり横の文書と重なる
+            }
             WorldLayout::Circle => {
                 // すべてのモデルの幅の合計
                 let all_width: f32 = world.models.iter().map(|m| m.bound().0 + INTERVAL).sum();
