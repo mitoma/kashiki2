@@ -95,9 +95,9 @@ impl WorldLayout {
                     for (idx, model) in world.models.iter_mut().enumerate() {
                         let (w, h) = model.bound();
                         info!("w: {}, h: {}, idx:{}", w, h, idx);
-                        //x_position += w / 2.0;
+                        x_position += w / 2.0;
                         model.set_position((x_position, -h / 2.0, 0.0).into());
-                        x_position += w + INTERVAL;
+                        x_position += w / 2.0 + INTERVAL;
 
                         let rotation = cgmath::Quaternion::from_axis_angle(
                             cgmath::Vector3::unit_y(),
@@ -111,8 +111,9 @@ impl WorldLayout {
                     for (idx, model) in world.models.iter_mut().enumerate() {
                         let (w, h) = model.bound();
                         info!("w: {}, h: {}, idx:{}", w, h, idx);
+                        y_position -= h / 2.0;
                         model.set_position((-w / 2.0, y_position, 0.0).into());
-                        y_position -= h + INTERVAL;
+                        y_position -= h / 2.0 + INTERVAL;
 
                         let rotation = cgmath::Quaternion::from_axis_angle(
                             cgmath::Vector3::unit_y(),
