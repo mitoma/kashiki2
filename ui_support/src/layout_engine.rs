@@ -51,6 +51,10 @@ pub trait World {
     fn camera_operation(&mut self, camera_operation: CameraOperation);
     // ウィンドウサイズ変更の通知を受け取る
     fn change_window_size(&mut self, window_size: WindowSize);
+    // レイアウトを変更する
+    fn change_layout(&mut self, layout: WorldLayout);
+    // レイアウトを返す
+    fn layout(&self) -> &WorldLayout;
     // glyph_instances を返す
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
 
@@ -68,6 +72,107 @@ pub trait World {
     fn move_to_position(&mut self, x_ratio: f32, y_ratio: f32);
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum WorldLayout {
+    Liner,
+    Circle,
+}
+
+const INTERVAL: f32 = 5.0;
+impl WorldLayout {
+    pub fn next(&self) -> Self {
+        match self {
+            WorldLayout::Liner => WorldLayout::Circle,
+            WorldLayout::Circle => WorldLayout::Liner,
+        }
+    }
+
+    fn layout(&self, world: &mut DefaultWorld) {
+        match self {
+            WorldLayout::Liner => {
+                let mut position = 0.0;
+                for (idx, model) in world.models.iter_mut().enumerate() {
+                    let (w, h) = model.bound();
+                    info!("w: {}, h: {}, idx:{}", w, h, idx);
+
+                    let rotation = cgmath::Quaternion::from_axis_angle(
+                        cgmath::Vector3::unit_y(),
+                        cgmath::Deg(0.0),
+                    );
+                    model.set_rotation(rotation);
+
+                    match world.direction {
+                        Direction::Horizontal => {
+                            position += w / 2.0;
+                            model.set_position((position, -h / 2.0, 0.0).into());
+                            position += w / 2.0 + INTERVAL;
+                        }
+                        Direction::Vertical => {
+                            position -= h / 2.0;
+                            model.set_position((-w / 2.0, position, 0.0).into());
+                            position -= h / 2.0 + INTERVAL;
+                        }
+                    }
+                }
+            }
+            WorldLayout::Circle => {
+                match world.direction {
+                    Direction::Horizontal => {
+                        // すべてのモデルの幅の合計
+                        let all_width: f32 =
+                            world.models.iter().map(|m| m.bound().0 + INTERVAL).sum();
+                        // all_width を円周とみなして半径を求める
+                        let radius = all_width / (2.0 * std::f32::consts::PI);
+
+                        let mut x_position = 0.0;
+                        for (idx, model) in world.models.iter_mut().enumerate() {
+                            let (w, h) = model.bound();
+                            x_position += w / 2.0;
+                            info!("w: {}, h: {}, idx:{}", w, h, idx);
+                            let r = (x_position / all_width) * 2.0 * std::f32::consts::PI;
+                            model.set_position(
+                                (r.sin() * radius, -h / 2.0, -(r.cos() - 1.0) * radius).into(),
+                            );
+                            x_position += w / 2.0 + INTERVAL;
+
+                            let rotation = cgmath::Quaternion::from_axis_angle(
+                                cgmath::Vector3::unit_y(),
+                                cgmath::Deg(-r.to_degrees()),
+                            );
+                            model.set_rotation(rotation);
+                        }
+                    }
+                    Direction::Vertical => {
+                        // すべてのモデルの幅の合計
+                        let all_height: f32 =
+                            world.models.iter().map(|m| m.bound().1 + INTERVAL).sum();
+                        // all_width を円周とみなして半径を求める
+                        let radius = all_height / (2.0 * std::f32::consts::PI);
+
+                        let mut y_position = 0.0;
+                        for (idx, model) in world.models.iter_mut().enumerate() {
+                            let (w, h) = model.bound();
+                            y_position += h / 2.0;
+                            info!("w: {}, h: {}, idx:{}", w, h, idx);
+                            let r = (y_position / all_height) * 2.0 * std::f32::consts::PI;
+                            model.set_position(
+                                (-w / 2.0, -r.sin() * radius, -(r.cos() + 1.0) * radius).into(),
+                            );
+                            y_position += h / 2.0 + INTERVAL;
+
+                            let rotation = cgmath::Quaternion::from_axis_angle(
+                                cgmath::Vector3::unit_x(),
+                                cgmath::Deg(-r.to_degrees()),
+                            );
+                            model.set_rotation(rotation);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub struct DefaultWorld {
     camera: Camera,
     camera_controller: CameraController,
@@ -76,6 +181,7 @@ pub struct DefaultWorld {
     focus: usize,
     world_updated: bool,
     direction: Direction,
+    layout: WorldLayout,
 }
 
 impl DefaultWorld {
@@ -88,6 +194,7 @@ impl DefaultWorld {
             focus: 0,
             world_updated: true,
             direction: Direction::Horizontal,
+            layout: WorldLayout::Liner,
         }
     }
 
@@ -109,67 +216,7 @@ impl DefaultWorld {
         };
         min..max
     }
-
-    fn re_layout_horizontal(&mut self) {
-        let mut x_position = 0.0;
-        for (idx, model) in self.models.iter_mut().enumerate() {
-            let (w, h) = model.bound();
-            info!("w: {}, h: {}, idx:{}", w, h, idx);
-            x_position += w / 2.0;
-            model.set_position((x_position, -h / 2.0, 0.0).into());
-            x_position += w / 2.0;
-            x_position += INTERVAL;
-
-            let rotation =
-                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_y(), cgmath::Deg(0.0));
-            model.set_rotation(rotation);
-        }
-    }
-
-    fn re_layout_vertical(&mut self) {
-        let mut y_position = 0.0;
-        for (idx, model) in self.models.iter_mut().enumerate() {
-            let (w, h) = model.bound();
-            info!("w: {}, h: {}, idx:{}", w, h, idx);
-            y_position -= h / 2.0;
-            model.set_position((-w / 2.0, y_position, 0.0).into());
-            y_position -= h / 2.0;
-            y_position -= INTERVAL;
-
-            let rotation =
-                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_y(), cgmath::Deg(0.0));
-            model.set_rotation(rotation);
-        }
-    }
-
-    // 円周上にモデルを並べる実装の実験。大体は期待通りに動くが近づく、遠ざかる時に期待した動作とズレがある。
-    // 式も適当だしカメラ周りに何か考慮漏れがあるっぽい。
-    #[allow(dead_code)]
-    fn re_layout_circle(&mut self) {
-        // すべてのモデルの幅の合計
-        let all_width: f32 = self.models.iter().map(|m| m.bound().0 + INTERVAL).sum();
-        // all_width を円周とみなして半径を求める
-        let radius = all_width / (2.0 * std::f32::consts::PI);
-
-        let mut x_position = 0.0;
-        for (idx, model) in self.models.iter_mut().enumerate() {
-            let (w, h) = model.bound();
-            info!("w: {}, h: {}, idx:{}", w, h, idx);
-            let r = (x_position / all_width) * 2.0 * std::f32::consts::PI;
-            x_position += w / 2.0;
-            model.set_position((r.sin() * radius, -h / 2.0, -(r.cos() - 1.0) * radius).into());
-            x_position += w / 2.0;
-            x_position += INTERVAL;
-
-            let rotation = cgmath::Quaternion::from_axis_angle(
-                cgmath::Vector3::unit_y(),
-                cgmath::Deg(-r.to_degrees()),
-            );
-            model.set_rotation(rotation);
-        }
-    }
 }
-const INTERVAL: f32 = 5.0;
 
 impl World for DefaultWorld {
     fn add(&mut self, model: Box<dyn Model>) {
@@ -183,10 +230,7 @@ impl World for DefaultWorld {
     }
 
     fn re_layout(&mut self) {
-        match self.direction {
-            Direction::Horizontal => self.re_layout_horizontal(),
-            Direction::Vertical => self.re_layout_vertical(),
-        }
+        self.layout.clone().layout(self);
     }
 
     fn model_length(&self) -> usize {
@@ -406,6 +450,17 @@ impl World for DefaultWorld {
                 ));
             }
         }
+    }
+
+    fn change_layout(&mut self, layout: WorldLayout) {
+        if self.layout == layout {
+            return;
+        }
+        self.layout = layout;
+        self.world_updated = true;
+    }
+    fn layout(&self) -> &WorldLayout {
+        &self.layout
     }
 }
 

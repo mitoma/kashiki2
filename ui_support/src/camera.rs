@@ -1,4 +1,4 @@
-use cgmath::{InnerSpace, Point3};
+use cgmath::{InnerSpace, Point3, Vector3};
 
 use font_rasterizer::context::WindowSize;
 
@@ -15,7 +15,7 @@ const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 pub struct Camera {
     eye: EasingPointN<3>,
     target: EasingPointN<3>,
-    up: cgmath::Vector3<f32>,
+    up: EasingPointN<3>,
     aspect: f32,
     fovy: f32,
     znear: f32,
@@ -25,10 +25,11 @@ pub struct Camera {
 
 impl Camera {
     pub fn basic(window_size: WindowSize) -> Self {
+        let Vector3 { x, y, z } = cgmath::Vector3::unit_y();
         Self::new(
             [0.0, 0.0, 1.0].into(),
             [0.0, 0.0, 0.0].into(),
-            cgmath::Vector3::unit_y(),
+            [x, y, z].into(),
             window_size.aspect(),
             // fovy は視野角。ここでは45度を指定
             45.0,
@@ -38,9 +39,9 @@ impl Camera {
     }
 
     pub fn new(
-        eye: EasingPointN<3>,     // 視点の位置
-        target: EasingPointN<3>,  // ターゲットの位置
-        up: cgmath::Vector3<f32>, // 上を指す単位行列 (x:0, y:1, z:0)
+        eye: EasingPointN<3>,    // 視点の位置
+        target: EasingPointN<3>, // ターゲットの位置
+        up: EasingPointN<3>,     // 上を指す単位行列 (x:0, y:1, z:0)
         aspect: f32,
         fovy: f32,
         znear: f32,
@@ -62,7 +63,7 @@ impl Camera {
         let view = cgmath::Matrix4::look_at_rh(
             self.eye.current().into(),
             self.target.current().into(),
-            self.up,
+            self.up.current().into(),
         );
         let view = if let Some(eye_quaternion) = self.eye_quaternion {
             cgmath::Matrix4::from(eye_quaternion) * view
@@ -191,6 +192,8 @@ impl CameraController {
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {
+        let current_up: Vector3<f32> = camera.up.current().into();
+
         camera.eye_quaternion = self.next_eye_quaternion;
         if let Some(next_target) = self.next_target {
             camera.target.update(next_target.into());
@@ -218,7 +221,7 @@ impl CameraController {
             current_eye -= forward_norm * self.speed;
         }
 
-        let right = forward_norm.cross(camera.up); // ターゲットへの単位行列と縦軸との外積をとる
+        let right = forward_norm.cross(current_up); // ターゲットへの単位行列と縦軸との外積をとる
 
         // なぜ再定義が必要？
         let forward = current_target - current_eye;
@@ -233,10 +236,10 @@ impl CameraController {
         }
 
         if self.is_up_pressed {
-            current_eye += camera.up * self.speed;
+            current_eye += current_up * self.speed;
         }
         if self.is_down_pressed {
-            current_eye -= camera.up * self.speed;
+            current_eye -= current_up * self.speed;
         }
         camera.eye.update(current_eye.into());
     }
@@ -278,6 +281,8 @@ impl CameraController {
 
         let camera_position = target_position + (target.rotation() * normal * (size));
 
+        let up = target.rotation() * cgmath::Vector3::<f32>::unit_y();
+        camera.up.update([up.x, up.y, up.z]);
         camera.target.update(target_position.into());
         camera.eye.update(camera_position.into());
     }

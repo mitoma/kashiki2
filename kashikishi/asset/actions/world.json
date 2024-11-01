@@ -118,5 +118,10 @@
         "namespace": "world",
         "name": "copy-display",
         "description": "画面に表示されたインデントで文章をコピー"
+    },
+    {
+        "namespace": "world",
+        "name": "change-layout",
+        "description": "レイアウトを変更する"
     }
 ]
