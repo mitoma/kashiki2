@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use cgmath::{Point2, Point3};
 use instant::Duration;
@@ -7,10 +7,15 @@ use nenobi::array::{TimeBaseEasingValueN, TimeBaseEasingValueNFactory};
 use font_rasterizer::time::now_millis;
 
 pub struct EasingPointN<const N: usize> {
-    in_animation: bool,
     v: TimeBaseEasingValueN<f32, N>,
     duration: Duration,
     easing_func: fn(f32) -> f32,
+    last_evaluation: Mutex<LastEvaluation>,
+}
+
+struct LastEvaluation {
+    time: i64,
+    in_animation: bool,
 }
 
 // FIXME このキャストなんだかばかばかしいから直したい
@@ -25,10 +30,13 @@ impl<const N: usize> EasingPointN<N> {
         let factory = FACTORY.get_or_init(|| TimeBaseEasingValueNFactory::new(now_millis_i64));
         let v = factory.new_value(v);
         Self {
-            in_animation: true,
             v,
             duration: Duration::from_millis(500),
             easing_func: nenobi::functions::sin_out,
+            last_evaluation: Mutex::new(LastEvaluation {
+                time: now_millis_i64(),
+                in_animation: true,
+            }),
         }
     }
 
@@ -44,36 +52,45 @@ impl<const N: usize> EasingPointN<N> {
         self.v.gc();
     }
 
-    // 実用上 in_animation の最後の判定時に true を返さないと
+    // 実用上、前回の in_animation の次の判定時は true を返しておかないと
     // last_value と同一の値の current_value を取りづらいので
     // 最後の一回だけアニメーション中ではなくても true を返す。
-    // これは破壊的な処理なので mut になっている。
-    pub fn in_animation(&mut self) -> bool {
-        let in_animcation = self.v.in_animation();
-        if in_animcation {
-            return true;
+    pub fn in_animation(&self) -> bool {
+        let now = now_millis_i64();
+        let mut last_evaluation = self.last_evaluation.lock().unwrap();
+        if now == last_evaluation.time {
+            return last_evaluation.in_animation;
         }
-        if self.in_animation {
-            self.in_animation = false;
-            return true;
-        }
-        false
-    }
-
-    // アニメーション中かどうかを正確かつ非破壊的に判定する。
-    pub fn in_animation_strict(&self) -> bool {
-        self.v.in_animation()
+        let last_in_animation = last_evaluation.in_animation;
+        let current_in_animation = self.v.in_animation();
+        *last_evaluation = LastEvaluation {
+            time: now,
+            in_animation: current_in_animation,
+        };
+        last_in_animation || current_in_animation
     }
 
     pub fn update(&mut self, v: [f32; N]) {
         let modify = self.v.update(v, self.duration, self.easing_func);
-        self.in_animation = modify;
+        self.last_evaluation
+            .lock()
+            .map(|mut last_evaluation| {
+                last_evaluation.time = now_millis_i64();
+                last_evaluation.in_animation = last_evaluation.in_animation || modify;
+            })
+            .unwrap();
         self.gc();
     }
 
     pub fn add(&mut self, v: [f32; N]) {
         let modify = self.v.add(v, self.duration, self.easing_func);
-        self.in_animation = modify;
+        self.last_evaluation
+            .lock()
+            .map(|mut last_evaluation| {
+                last_evaluation.time = now_millis_i64();
+                last_evaluation.in_animation = last_evaluation.in_animation || modify;
+            })
+            .unwrap();
         self.gc();
     }
 
