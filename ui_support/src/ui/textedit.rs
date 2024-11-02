@@ -521,7 +521,11 @@ impl TextEdit {
     fn calc_instance_positions(&mut self, char_width_calcurator: &CharWidthCalculator) {
         let bound_in_animation = self.bound.in_animation();
         let position_in_animation = self.position.in_animation();
-        let update_environment = position_in_animation || bound_in_animation || self.config_updated;
+        let rotataion_in_animation = self.rotation.in_animation();
+        let update_environment = self.config_updated
+            || position_in_animation
+            || bound_in_animation
+            || rotataion_in_animation;
 
         let model_attributes = self.model_attributes();
 
