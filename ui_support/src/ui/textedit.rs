@@ -297,9 +297,7 @@ impl Model for TextEdit {
     }
 
     fn in_animation(&self) -> bool {
-        self.position.in_animation_strict()
-            || self.bound.in_animation_strict()
-            || self.rotation.in_animation_strict()
+        self.position.in_animation() || self.bound.in_animation() || self.rotation.in_animation()
     }
 }
 
