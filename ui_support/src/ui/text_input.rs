@@ -30,7 +30,12 @@ impl TextInput {
         }
     }
 
-    pub fn new(context: &StateContext, message: String, action: Action) -> Self {
+    pub fn new(
+        context: &StateContext,
+        message: String,
+        default_input: Option<String>,
+        action: Action,
+    ) -> Self {
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(Self::text_context(context.global_direction));
@@ -38,7 +43,13 @@ impl TextInput {
 
             text_edit
         };
-        let input_text_edit = TextEdit::default();
+        let input_text_edit = {
+            let mut text_edit = TextEdit::default();
+            if let Some(input) = default_input {
+                text_edit.editor_operation(&EditorOperation::InsertString(input));
+            }
+            text_edit
+        };
 
         Self {
             action,

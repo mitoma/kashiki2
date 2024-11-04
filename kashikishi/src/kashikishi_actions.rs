@@ -130,6 +130,7 @@ pub(crate) fn add_category_ui(context: &StateContext) -> TextInput {
     TextInput::new(
         context,
         "追加するカテゴリーを選択".to_string(),
+        None,
         Action::new_command("kashikishi", "add-category"),
     )
 }
