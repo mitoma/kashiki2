@@ -136,13 +136,13 @@ impl RasterizerPipeline {
                 layout: Some(&overlap_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &overlap_shader,
-                    entry_point: "vs_main",
+                    entry_point: Some("vs_main"),
                     buffers: &[GlyphVertexBuffer::desc(), InstanceRaw::desc()],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &overlap_shader,
-                    entry_point: "fs_main",
+                    entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: overlap_texture.texture_format,
                         blend: Some(wgpu::BlendState {
@@ -202,13 +202,13 @@ impl RasterizerPipeline {
                 layout: Some(&outline_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &outline_shader,
-                    entry_point: "vs_main",
+                    entry_point: Some("vs_main"),
                     buffers: &[ScreenVertexBuffer::desc()],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &outline_shader,
-                    entry_point: "fs_main",
+                    entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: outline_texture.texture_format,
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
@@ -254,13 +254,13 @@ impl RasterizerPipeline {
                 layout: Some(&outline_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &screen_shader,
-                    entry_point: "vs_main",
+                    entry_point: Some("vs_main"),
                     buffers: &[ScreenVertexBuffer::desc()],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &screen_shader,
-                    entry_point: "fs_main",
+                    entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: screen_texture_format,
                         blend: Some(wgpu::BlendState {
@@ -384,17 +384,17 @@ impl RasterizerPipeline {
                 for (len, buffer) in instances {
                     if let Ok(draw_info) = glyph_vertex_buffer.draw_info(c, direction) {
                         // グリフの座標情報(vertex)
-                        if vertex_buffer_id != Some(draw_info.vertex.global_id()) {
+                        if vertex_buffer_id != Some(draw_info.vertex) {
                             overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
-                            vertex_buffer_id = Some(draw_info.vertex.global_id());
+                            vertex_buffer_id = Some(draw_info.vertex);
                         }
                         // グリフの座標情報(index)
-                        if index_buffer_id != Some(draw_info.index.global_id()) {
+                        if index_buffer_id != Some(draw_info.index) {
                             overlay_render_pass.set_index_buffer(
                                 draw_info.index.slice(..),
                                 wgpu::IndexFormat::Uint32,
                             );
-                            index_buffer_id = Some(draw_info.index.global_id());
+                            index_buffer_id = Some(draw_info.index);
                         }
                         // インスタンスの位置
                         overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));

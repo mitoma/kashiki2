@@ -14,7 +14,7 @@ resolver = "2"
 
 [workspace.dependencies]
 anyhow = "1.0"
-wgpu = "22.1.0"
+wgpu = "23.0.0"
 # fork元は winit = "0.29.x" ブランチ。いくつかのパッチを当てたものを使っている。
 # patch-1
 #   wasm で ime support が十分でないのでパッチを当てている。
@@ -30,7 +30,7 @@ serde_derive = "1.0"
 serde_json = "1.0"
 env_logger = "0.11"
 log = "0.4"
-pollster = "0.3"
+pollster = "0.4"
 image = "0.25"
 rustybuzz = "0.20.0"
 instant = { version = "0.1", features = ["wasm-bindgen"] }
