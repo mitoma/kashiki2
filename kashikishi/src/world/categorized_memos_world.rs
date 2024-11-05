@@ -17,7 +17,7 @@ use crate::{
     categorized_memos::CategorizedMemos,
     kashikishi_actions::{
         add_category_ui, insert_date_select, move_category_ui, move_memo_ui, open_file_ui,
-        remove_category_ui,
+        remove_category_ui, rename_category_select_ui, rename_category_ui,
     },
     memos::Memos,
 };
@@ -185,6 +185,27 @@ impl ModalWorld for CategorizedMemosWorld {
                     if !self.memos.categories().contains(&category) {
                         self.memos.add_memo(Some(&category), String::new());
                     }
+                }
+            }
+            "rename-category-select-ui" => {
+                self.add_modal(
+                    context,
+                    &mut chars,
+                    Box::new(rename_category_select_ui(context, &self.memos)),
+                );
+            }
+            "rename-category-ui" => {
+                if let ActionArgument::String(category) = argument {
+                    self.add_modal(
+                        context,
+                        &mut chars,
+                        Box::new(rename_category_ui(context, &category)),
+                    );
+                }
+            }
+            "rename-category" => {
+                if let ActionArgument::String(new_name) = argument {
+                    self.memos.rename_category(&new_name);
                 }
             }
             "remove-category-ui" => {

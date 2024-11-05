@@ -135,6 +135,34 @@ pub(crate) fn add_category_ui(context: &StateContext) -> TextInput {
     )
 }
 
+pub(crate) fn rename_category_select_ui(
+    context: &StateContext,
+    categorized_memos: &CategorizedMemos,
+) -> SelectBox {
+    let mut options = Vec::new();
+    for category in categorized_memos.categories() {
+        options.push(SelectOption::new(
+            category.clone(),
+            Action::new_command_with_argument("kashikishi", "rename-category-ui", &category),
+        ));
+    }
+    SelectBox::new_without_action_name(
+        context,
+        "名前を変更するカテゴリーを選択".to_string(),
+        options,
+        None,
+    )
+}
+
+pub(crate) fn rename_category_ui(context: &StateContext, category_name: &str) -> TextInput {
+    TextInput::new(
+        context,
+        "変更後の名前を入力".to_string(),
+        Some(category_name.to_string()),
+        Action::new_command("kashikishi", "rename-category"),
+    )
+}
+
 pub(crate) fn remove_category_ui(
     context: &StateContext,
     categorized_memos: &CategorizedMemos,
