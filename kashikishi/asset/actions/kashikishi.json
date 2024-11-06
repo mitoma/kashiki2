@@ -21,6 +21,11 @@
     },
     {
         "namespace": "kashikishi",
+        "name": "rename-category-select-ui",
+        "description": "カテゴリの名前変更"
+    },
+    {
+        "namespace": "kashikishi",
         "name": "remove-category-ui",
         "description": "カテゴリの削除"
     },

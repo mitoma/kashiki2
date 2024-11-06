@@ -1,6 +1,6 @@
 use std::sync::mpsc::Sender;
 
-use stroke_parser::Action;
+use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{context::StateContext, font_buffer::Direction, instances::GlyphInstances};
@@ -17,6 +17,7 @@ pub struct TextInput {
     title_text_edit: TextEdit,
     input_text_edit: TextEdit,
     action_queue_sender: Sender<Action>,
+    default_input: Option<String>,
 }
 
 impl TextInput {
@@ -30,7 +31,12 @@ impl TextInput {
         }
     }
 
-    pub fn new(context: &StateContext, message: String, action: Action) -> Self {
+    pub fn new(
+        context: &StateContext,
+        message: String,
+        default_input: Option<String>,
+        action: Action,
+    ) -> Self {
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(Self::text_context(context.global_direction));
@@ -38,13 +44,20 @@ impl TextInput {
 
             text_edit
         };
-        let input_text_edit = TextEdit::default();
+        let input_text_edit = {
+            let mut text_edit = TextEdit::default();
+            if let Some(input) = default_input.as_ref() {
+                text_edit.editor_operation(&EditorOperation::InsertString(input.to_owned()));
+            }
+            text_edit
+        };
 
         Self {
             action,
             title_text_edit,
             input_text_edit,
             action_queue_sender: context.action_queue_sender.clone(),
+            default_input,
         }
     }
 }
@@ -114,9 +127,15 @@ impl Model for TextInput {
                 let arg = self.input_text_edit.to_string();
 
                 let action = match &self.action {
-                    Action::Command(namespace, name, _arg) => {
-                        Action::new_command_with_argument(namespace, name, &arg)
-                    }
+                    Action::Command(namespace, name, _arg) => Action::Command(
+                        namespace.clone(),
+                        name.clone(),
+                        ActionArgument::String2(
+                            arg,
+                            // default value が指定されていた時にはそれを第二引数として渡す
+                            self.default_input.clone().unwrap_or_default(),
+                        ),
+                    ),
                     Action::Keytype(_)
                     | Action::ImeEnable
                     | Action::ImeDisable
