@@ -178,6 +178,12 @@ pub async fn run_support(support: SimpleStateSupport) {
                         InputResult::ChangeGlobalDirection(direction) => {
                             state.context.global_direction = direction;
                         }
+                        InputResult::ChangeWindowSize(window_size) => {
+                            let _ = window.request_inner_size(winit::dpi::LogicalSize {
+                                width: window_size.width,
+                                height: window_size.height,
+                            });
+                        }
                         InputResult::Noop => {
                             match event {
                                 WindowEvent::CloseRequested => {
@@ -309,6 +315,12 @@ pub async fn run_support(support: SimpleStateSupport) {
                     InputResult::ChangeGlobalDirection(direction) => {
                         state.context.global_direction = direction;
                     }
+                    InputResult::ChangeWindowSize(window_size) => {
+                        let _ = window.request_inner_size(winit::dpi::LogicalSize {
+                            width: window_size.width,
+                            height: window_size.height,
+                        });
+                    }
                     InputResult::Noop => {}
                 }
             }
@@ -324,6 +336,7 @@ pub enum InputResult {
     ToggleDecorations,
     ChangeColorTheme(ColorTheme),
     ChangeGlobalDirection(Direction),
+    ChangeWindowSize(WindowSize),
     SendExit,
     Noop,
 }
