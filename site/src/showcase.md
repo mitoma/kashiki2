@@ -13,6 +13,7 @@ Click area and edit it!
 <input id="zoom-in-button" type="button" value="Zoom In"></input>
 <input id="zoom-out-button" type="button" value="Zoom Out"></input>
 
+<input id="change-window-size" type="button" value="Change WindowSize"></input>
 <input id="psychedelic-mode-button" type="button" value="TOGGLE PSYCHEDELIC MODE"></input>
 
 <script type="module" src="./custom_js/showcase.js"></script>

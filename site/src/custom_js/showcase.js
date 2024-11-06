@@ -23,4 +23,7 @@ init().then(() => {
     document.getElementById("psychedelic-mode-button").addEventListener("click", () => {
         kashiki.toggle_psychedelic();
     });
+    document.getElementById("change-window-size").addEventListener("click", () => {
+        kashiki.change_window_size();
+    });
 });
