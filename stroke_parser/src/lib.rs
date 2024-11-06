@@ -73,6 +73,7 @@ impl Action {
 pub enum ActionArgument {
     None,
     String(String),
+    String2(String, String),
     Integer(i32),
     Float(f32),
     Point((f32, f32)),
@@ -83,6 +84,7 @@ impl Display for ActionArgument {
         match self {
             ActionArgument::None => write!(f, "None"),
             ActionArgument::String(value) => write!(f, "{}", value),
+            ActionArgument::String2(v1, v2) => write!(f, "{}, {}", v1, v2),
             ActionArgument::Integer(value) => write!(f, "{}", value),
             ActionArgument::Float(value) => write!(f, "{}", value),
             ActionArgument::Point((x, y)) => write!(f, "({}, {})", x, y),

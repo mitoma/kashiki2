@@ -26,6 +26,7 @@ impl SelectOption {
             if let Action::Command(namespace, name, arg) = &self.actions[0] {
                 match arg {
                     ActionArgument::String(_)
+                    | ActionArgument::String2(_, _)
                     | ActionArgument::Integer(_)
                     | ActionArgument::Float(_)
                     | ActionArgument::Point(_) => {

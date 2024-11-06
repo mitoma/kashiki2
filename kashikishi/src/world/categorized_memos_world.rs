@@ -181,7 +181,7 @@ impl ModalWorld for CategorizedMemosWorld {
                 self.add_modal(context, &mut chars, Box::new(add_category_ui(context)));
             }
             "add-category" => {
-                if let ActionArgument::String(category) = argument {
+                if let ActionArgument::String2(category, _) = argument {
                     if !self.memos.categories().contains(&category) {
                         self.memos.add_memo(Some(&category), String::new());
                     }
@@ -204,8 +204,8 @@ impl ModalWorld for CategorizedMemosWorld {
                 }
             }
             "rename-category" => {
-                if let ActionArgument::String(new_name) = argument {
-                    self.memos.rename_category(&new_name);
+                if let ActionArgument::String2(new_name, old_name) = argument {
+                    self.memos.rename_category(&new_name, &old_name);
                 }
             }
             "remove-category-ui" => {

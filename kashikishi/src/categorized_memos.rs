@@ -94,6 +94,11 @@ impl CategorizedMemos {
             .push(content);
     }
 
+    pub(crate) fn rename_category(&mut self, new_name: &str, old_name: &str) {
+        let memos = self.categorized.remove(old_name).unwrap_or_default();
+        self.categorized.insert(new_name.to_string(), memos);
+    }
+
     pub(crate) fn remove_category(&mut self, category: &str) {
         if self.current_category == category {
             self.current_category = DEFAULT_CATEGORY.to_string();
