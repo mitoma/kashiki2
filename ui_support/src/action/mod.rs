@@ -28,6 +28,8 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(SystemChangeGlobalDirection));
         self.add_processor(Box::new(SystemChangeThemeUi));
         self.add_processor(Box::new(SystemChangeTheme));
+        self.add_processor(Box::new(SystemChangeWindowSizeUi));
+        self.add_processor(Box::new(SystemChangeWindowSize));
     }
 
     pub fn add_default_edit_processors(&mut self) {

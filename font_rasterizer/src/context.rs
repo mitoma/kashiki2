@@ -19,7 +19,7 @@ pub struct StateContext {
     pub global_direction: Direction,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WindowSize {
     pub width: u32,
     pub height: u32,

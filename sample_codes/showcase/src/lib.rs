@@ -109,6 +109,11 @@ pub fn toggle_psychedelic() {
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub fn change_window_size() {
+    send_action(Action::new_command("system", "change-window-size-ui"));
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub fn send_log(message: &str) {
     log::warn!("{}", message);
 }

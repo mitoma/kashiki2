@@ -21,6 +21,11 @@
     },
     {
         "namespace": "system",
+        "name": "change-window-size-ui",
+        "description": "画面サイズの変更"
+    },
+    {
+        "namespace": "system",
         "name": "exit",
         "description": "炊紙を終了する"
     }

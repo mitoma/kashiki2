@@ -1,6 +1,10 @@
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
-use font_rasterizer::{color_theme::ColorTheme, context::StateContext, font_buffer::Direction};
+use font_rasterizer::{
+    color_theme::ColorTheme,
+    context::{StateContext, WindowSize},
+    font_buffer::Direction,
+};
 
 use crate::{
     camera::CameraAdjustment,
@@ -167,5 +171,116 @@ impl ActionProcessor for SystemChangeGlobalDirection {
         _world: &mut dyn World,
     ) -> InputResult {
         InputResult::ChangeGlobalDirection(context.global_direction.toggle())
+    }
+}
+
+pub struct SystemChangeWindowSizeUi;
+impl ActionProcessor for SystemChangeWindowSizeUi {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-window-size-ui".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        context: &StateContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let options = vec![
+            SelectOption::new(
+                "800x600 [4:3]".to_string(),
+                Action::Command(
+                    "system".into(),
+                    "change-window-size".into(),
+                    ActionArgument::Point((800.0, 600.0)),
+                ),
+            ),
+            SelectOption::new(
+                "1200x900 [4:3]".to_string(),
+                Action::Command(
+                    "system".into(),
+                    "change-window-size".into(),
+                    ActionArgument::Point((1200.0, 900.0)),
+                ),
+            ),
+            SelectOption::new(
+                "800x450 [16:9]".to_string(),
+                Action::Command(
+                    "system".into(),
+                    "change-window-size".into(),
+                    ActionArgument::Point((800.0, 450.0)),
+                ),
+            ),
+            SelectOption::new(
+                "1200x675 [16:9]".to_string(),
+                Action::Command(
+                    "system".into(),
+                    "change-window-size".into(),
+                    ActionArgument::Point((1200.0, 675.0)),
+                ),
+            ),
+            SelectOption::new(
+                "500x500 [1:1]".to_string(),
+                Action::Command(
+                    "system".into(),
+                    "change-window-size".into(),
+                    ActionArgument::Point((500.0, 500.0)),
+                ),
+            ),
+            SelectOption::new(
+                "1000x1000 [1:1]".to_string(),
+                Action::Command(
+                    "system".into(),
+                    "change-window-size".into(),
+                    ActionArgument::Point((1000.0, 1000.0)),
+                ),
+            ),
+        ];
+        let model = SelectBox::new(
+            context,
+            "画面サイズを選択してください".to_string(),
+            options,
+            None,
+        );
+        context.ui_string_sender.send(model.to_string()).unwrap();
+        world.add_next(Box::new(model));
+        world.re_layout();
+        let adjustment = if context.global_direction == Direction::Horizontal {
+            CameraAdjustment::FitWidth
+        } else {
+            CameraAdjustment::FitHeight
+        };
+        world.look_next(adjustment);
+
+        InputResult::InputConsumed
+    }
+}
+
+pub struct SystemChangeWindowSize;
+impl ActionProcessor for SystemChangeWindowSize {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-window-size".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        _context: &StateContext,
+        _world: &mut dyn World,
+    ) -> InputResult {
+        match *arg {
+            ActionArgument::Point((width, height)) => {
+                InputResult::ChangeWindowSize(WindowSize::new(width as u32, height as u32))
+            }
+            _ => InputResult::Noop,
+        }
     }
 }
