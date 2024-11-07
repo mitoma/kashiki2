@@ -1,4 +1,3 @@
-use arboard::Clipboard;
 use font_rasterizer::context::StateContext;
 use stroke_parser::{ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
@@ -55,7 +54,7 @@ edit_processor!(EditUnmark, "unmark", UnMark);
 // wasm で clipboard にアクセスするのは権限周りで制限があるのでひとまず internal な処理にする。
 
 #[cfg(target_arch = "wasm32")]
-static clipboard_for_wasm: std::sync::Mutex<String> = std::sync::Mutex::new(());
+static CLIPBOARD_FOR_WASM: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 
 pub struct EditCopy;
 impl ActionProcessor for EditCopy {
@@ -75,12 +74,13 @@ impl ActionProcessor for EditCopy {
     ) -> InputResult {
         cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
-                let text = world.editor_operation(&EditorOperation::Copy(|text| text.to_string()));
-                let mut clipboard = clipboard_for_wasm.lock().unwrap();
-                *clipboard = text;
+                world.editor_operation(&EditorOperation::Copy(|text| {
+                    let mut clipboard = CLIPBOARD_FOR_WASM.lock().unwrap();
+                    *clipboard = text;
+                }));
             } else {
                 world.editor_operation(&EditorOperation::Copy(|text| {
-                    let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+                    let _ = arboard::Clipboard::new().and_then(|mut context| context.set_text(text));
                 }));
             }
         }
@@ -106,11 +106,11 @@ impl ActionProcessor for EditPaste {
     ) -> InputResult {
         cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
-                let clipboard = clipboard_for_wasm.lock().unwrap();
-                let text = clipboard.clone()
-                world.editor_operation(&EditorOperation::Paste(text));
+                let clipboard = CLIPBOARD_FOR_WASM.lock().unwrap();
+                let text = clipboard.clone();
+                world.editor_operation(&EditorOperation::InsertString(text));
             } else {
-                match Clipboard::new().and_then(|mut context| context.get_text()) {
+                match arboard::Clipboard::new().and_then(|mut context| context.get_text()) {
                     Ok(text) => {
                         context.ui_string_sender.send(text.clone()).unwrap();
                         world.editor_operation(&EditorOperation::InsertString(text));
@@ -141,12 +141,13 @@ impl ActionProcessor for EditCut {
     ) -> InputResult {
         cfg_if::cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
-                let text = world.editor_operation(&EditorOperation::Cut(|text| text.to_string()));
-                let mut clipboard = clipboard_for_wasm.lock().unwrap();
-                *clipboard = text;
+                world.editor_operation(&EditorOperation::Cut(|text| {
+                    let mut clipboard = CLIPBOARD_FOR_WASM.lock().unwrap();
+                    *clipboard = text;
+                }));
             } else {
                 world.editor_operation(&EditorOperation::Cut(|text| {
-                    let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
+                    let _ = arboard::Clipboard::new().and_then(|mut context| context.set_text(text));
                 }));
             }
         }
