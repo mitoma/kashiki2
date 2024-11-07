@@ -230,7 +230,11 @@ impl BufferApplyer {
                     reverse_actions.push(ReverseAction::Backspace);
                 });
             }
-            EditorOperation::Backspace => {
+            EditorOperation::Backspace => 'backspace: {
+                if let Some(mark_caret) = mark_caret {
+                    Self::internal_cut(&mut reverse_actions, buffer, current_caret, mark_caret);
+                    break 'backspace;
+                }
                 let removed_char = buffer.backspace(current_caret);
                 match removed_char {
                     RemovedChar::Char(c) => {
@@ -240,7 +244,11 @@ impl BufferApplyer {
                     RemovedChar::None => {}
                 }
             }
-            EditorOperation::Delete => {
+            EditorOperation::Delete => 'delete: {
+                if let Some(mark_caret) = mark_caret {
+                    Self::internal_cut(&mut reverse_actions, buffer, current_caret, mark_caret);
+                    break 'delete;
+                }
                 let removed_char = buffer.delete(current_caret);
                 match removed_char {
                     RemovedChar::Char(c) => {
@@ -296,22 +304,9 @@ impl BufferApplyer {
             }
             EditorOperation::Cut(func) => {
                 if let Some(mark_caret) = mark_caret {
-                    let text = buffer.copy_string(mark_caret, current_caret);
+                    let text =
+                        Self::internal_cut(&mut reverse_actions, buffer, current_caret, mark_caret);
                     func(text.clone());
-                    reverse_actions
-                        .actions
-                        .push(ReverseAction::InsertString(text));
-                    let (from, to) = if mark_caret < current_caret {
-                        (mark_caret, current_caret)
-                    } else {
-                        (current_caret, mark_caret)
-                    };
-                    loop {
-                        if from.position == to.position {
-                            break;
-                        }
-                        let _removed_char = buffer.backspace(to);
-                    }
                 }
             }
             EditorOperation::Noop => {}
@@ -320,6 +315,29 @@ impl BufferApplyer {
             EditorOperation::UnMark => {}
         };
         reverse_actions
+    }
+
+    fn internal_cut(
+        reverse_actions: &mut ReverseActions,
+        buffer: &mut Buffer,
+        current_caret: &mut Caret,
+        mark_caret: &mut Caret,
+    ) -> String {
+        let text = buffer.copy_string(mark_caret, current_caret);
+        reverse_actions
+            .actions
+            .push(ReverseAction::InsertString(text.clone()));
+        let (from, to) = if mark_caret < current_caret {
+            (mark_caret, current_caret)
+        } else {
+            (current_caret, mark_caret)
+        };
+        loop {
+            if from.position == to.position {
+                return text;
+            }
+            let _removed_char = buffer.backspace(to);
+        }
     }
 }
 
