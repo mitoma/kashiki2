@@ -355,7 +355,8 @@ impl SimpleStateCallback for KashikishiCallback {
                     .apply_ime_event(&Action::ImePreedit(value, position), context);
                 InputResult::InputConsumed
             }
-            _ => InputResult::Noop,
+            Action::ImeEnable => InputResult::Noop,
+            Action::ImeDisable => InputResult::Noop,
         }
     }
 
