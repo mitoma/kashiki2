@@ -2729,6 +2729,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "apng",
+ "arboard",
  "bitflags 2.6.0",
  "cfg-if",
  "cgmath",
