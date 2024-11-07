@@ -306,7 +306,7 @@ impl BufferApplyer {
                 if let Some(mark_caret) = mark_caret {
                     let text =
                         Self::internal_cut(&mut reverse_actions, buffer, current_caret, mark_caret);
-                    func(text.clone());
+                    func(text);
                 }
             }
             EditorOperation::Noop => {}
