@@ -51,6 +51,9 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(EditBufferLast));
         self.add_processor(Box::new(EditMark));
         self.add_processor(Box::new(EditUnmark));
+        self.add_processor(Box::new(EditCopy));
+        self.add_processor(Box::new(EditPaste));
+        self.add_processor(Box::new(EditCut));
     }
 
     pub fn add_default_world_processors(&mut self) {

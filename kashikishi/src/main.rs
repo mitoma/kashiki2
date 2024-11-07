@@ -180,29 +180,6 @@ impl KashikishiCallback {
         action_processor_store.add_default_edit_processors();
         action_processor_store.add_default_world_processors();
         action_processor_store.add_processor(Box::new(SystemCommandPalette));
-        // clipboard を使う処理はプラットフォーム依存なのでここで追加する
-        action_processor_store.add_lambda_processor("edit", "paste", |_, context, world| {
-            match Clipboard::new().and_then(|mut context| context.get_text()) {
-                Ok(text) => {
-                    context.ui_string_sender.send(text.clone()).unwrap();
-                    world.editor_operation(&EditorOperation::InsertString(text));
-                    InputResult::InputConsumed
-                }
-                Err(_) => InputResult::Noop,
-            }
-        });
-        action_processor_store.add_lambda_processor("edit", "copy", |_, _, world| {
-            world.editor_operation(&EditorOperation::Copy(|text| {
-                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
-            }));
-            InputResult::InputConsumed
-        });
-        action_processor_store.add_lambda_processor("edit", "cut", |_, _, world| {
-            world.editor_operation(&EditorOperation::Cut(|text| {
-                let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
-            }));
-            InputResult::InputConsumed
-        });
 
         let rokid_max = RokidMax::new().ok();
 

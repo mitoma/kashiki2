@@ -13,6 +13,7 @@ image = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+arboard = { workspace = true }
 
 font_collector = { path = "../font_collector" }
 font_rasterizer = { path = "../font_rasterizer" }
@@ -23,5 +24,4 @@ ui_support = { path = "../ui_support" }
 
 chrono = { version = "0.4.38", features = ["serde"] }
 dirs = "5.0.1"
-arboard = "3.4.0"
 clap = { version = "4.5.17", features = ["derive"] }
