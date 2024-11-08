@@ -10,6 +10,7 @@ pollster = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
 image = { workspace = true }
+anyhow = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -25,3 +26,4 @@ ui_support = { path = "../ui_support" }
 chrono = { version = "0.4.38", features = ["serde"] }
 dirs = "5.0.1"
 clap = { version = "4.5.17", features = ["derive"] }
+serde-jsonlines = "0.6.0"

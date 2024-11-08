@@ -7,6 +7,8 @@ mod local_datetime_format;
 mod memos;
 mod world;
 
+use std::path::Path;
+
 use arboard::Clipboard;
 use clap::{command, Parser};
 use font_collector::FontCollector;
@@ -24,11 +26,12 @@ use font_rasterizer::{
     font_buffer::Direction,
     instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
-    time::set_clock_mode,
+    time::{now_millis, set_clock_mode},
 };
 use log::info;
 use ui_support::{
     action::{ActionProcessor, ActionProcessorStore},
+    action_recorder::ActionRecorder,
     camera::{Camera, CameraAdjustment, CameraOperation},
     layout_engine::{Model, ModelOperation, World},
     run_support,
@@ -68,6 +71,10 @@ pub struct Args {
     /// font
     #[arg(short, long, default_values = ["UD デジタル 教科書体 N", "UD デジタル 教科書体 N-R"])]
     pub font_names: Vec<String>,
+
+    /// record script
+    #[arg(short, long, default_value = "false")]
+    pub record_script: bool,
 }
 
 const COLOR_THEME: ColorTheme = ColorTheme::SolarizedDark;
@@ -140,7 +147,7 @@ pub async fn run(args: Args) {
 
     set_clock_mode(font_rasterizer::time::ClockMode::StepByStep);
     let window_size = WindowSize::new(800, 600);
-    let callback = KashikishiCallback::new(window_size);
+    let callback = KashikishiCallback::new(window_size, args.clone());
     let support = SimpleStateSupport {
         window_icon: icon,
         window_title: "Kashikishi".to_string(),
@@ -162,10 +169,11 @@ struct KashikishiCallback {
     action_processor_store: ActionProcessorStore,
     rokid_max: Option<RokidMax>,
     ar_mode: bool,
+    startup_args: Args,
 }
 
 impl KashikishiCallback {
-    fn new(window_size: WindowSize) -> Self {
+    fn new(window_size: WindowSize, startup_args: Args) -> Self {
         let mut store: ActionStore = Default::default();
         let key_setting = include_str!("../asset/key-settings.txt");
         info!("{}", key_setting);
@@ -190,6 +198,7 @@ impl KashikishiCallback {
             action_processor_store,
             rokid_max,
             ar_mode: false,
+            startup_args,
         }
     }
 
@@ -286,6 +295,8 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
+        let _ = self.action_recorder.as_mut().map(|r| r.record(&action));
+
         let result = self
             .action_processor_store
             .process(&action, context, self.world.get_mut());
