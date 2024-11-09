@@ -1,0 +1,22 @@
+[
+    {
+        "namespace": "action-recorder",
+        "name": "start-record",
+        "description": "操作を記録する"
+    },
+    {
+        "namespace": "action-recorder",
+        "name": "stop-record",
+        "description": "操作の記録を停止する"
+    },
+    {
+        "namespace": "action-recorder",
+        "name": "start-replay",
+        "description": "操作を再生する"
+    },
+    {
+        "namespace": "action-recorder",
+        "name": "stop-replay",
+        "description": "操作の再生を停止する"
+    }
+]

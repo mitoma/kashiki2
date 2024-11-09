@@ -11,6 +11,9 @@ static EDIT_ACTIONS: LazyLock<Vec<ActionDefinition>> =
     LazyLock::new(|| serde_json::from_str(include_str!("../asset/actions/edit.json")).unwrap());
 static WORLD_ACTIONS: LazyLock<Vec<ActionDefinition>> =
     LazyLock::new(|| serde_json::from_str(include_str!("../asset/actions/world.json")).unwrap());
+static ACTION_RECORDER_ACTIONS: LazyLock<Vec<ActionDefinition>> = LazyLock::new(|| {
+    serde_json::from_str(include_str!("../asset/actions/action-recorder.json")).unwrap()
+});
 static KASHIKISHI_ACTIONS: LazyLock<Vec<ActionDefinition>> = LazyLock::new(|| {
     serde_json::from_str(include_str!("../asset/actions/kashikishi.json")).unwrap()
 });
@@ -21,6 +24,7 @@ pub enum ActionNamespace {
     System,
     World,
     Kashikishi,
+    ActionRecorder,
     #[allow(dead_code)]
     Custom(String),
 }
@@ -49,6 +53,7 @@ impl ActionRepository {
             ActionNamespace::Edit => EDIT_ACTIONS.as_slice(),
             ActionNamespace::World => WORLD_ACTIONS.as_slice(),
             ActionNamespace::Kashikishi => KASHIKISHI_ACTIONS.as_slice(),
+            ActionNamespace::ActionRecorder => &ACTION_RECORDER_ACTIONS.as_slice(),
             ActionNamespace::Custom(_) => todo!(),
         }
     }

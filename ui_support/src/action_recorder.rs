@@ -28,6 +28,7 @@ impl ActionRecordRepository for FileActionRecordRepository {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct InMemoryActionRecordRepository {
     records: Vec<Action>,
 }

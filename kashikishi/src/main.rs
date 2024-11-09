@@ -29,6 +29,7 @@ use font_rasterizer::{
 use log::info;
 use ui_support::{
     action::{ActionProcessor, ActionProcessorStore},
+    action_recorder::{ActionRecorder, InMemoryActionRecordRepository},
     camera::{Camera, CameraAdjustment, CameraOperation},
     layout_engine::{Model, ModelOperation, World},
     run_support,
@@ -162,6 +163,7 @@ struct KashikishiCallback {
     action_processor_store: ActionProcessorStore,
     rokid_max: Option<RokidMax>,
     ar_mode: bool,
+    action_recorder: ActionRecorder,
 }
 
 impl KashikishiCallback {
@@ -183,6 +185,9 @@ impl KashikishiCallback {
 
         let rokid_max = RokidMax::new().ok();
 
+        let action_recorder =
+            ActionRecorder::new(Box::new(InMemoryActionRecordRepository::default()));
+
         Self {
             store,
             world: Box::new(NullWorld::new(window_size)),
@@ -190,6 +195,7 @@ impl KashikishiCallback {
             action_processor_store,
             rokid_max,
             ar_mode: false,
+            action_recorder,
         }
     }
 
@@ -262,6 +268,8 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn update(&mut self, context: &StateContext) {
+        self.action_recorder.replay(context);
+
         self.world.get_mut().update(context);
         self.ime.update(context);
 
@@ -286,6 +294,8 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
+        self.action_recorder.record(&action);
+
         let result = self
             .action_processor_store
             .process(&action, context, self.world.get_mut());
@@ -297,6 +307,24 @@ impl SimpleStateCallback for KashikishiCallback {
             Action::Command(category, name, argument) => match &*category.to_string() {
                 "world" => {
                     self.execute_world_action(&name, argument, context);
+                    InputResult::InputConsumed
+                }
+                "action-recorder" => {
+                    match name.as_str() {
+                        "start-record" => {
+                            self.action_recorder.start_record();
+                        }
+                        "stop-record" => {
+                            self.action_recorder.stop_record();
+                        }
+                        "start-replay" => {
+                            self.action_recorder.start_replay();
+                        }
+                        "stop-replay" => {
+                            self.action_recorder.stop_replay();
+                        }
+                        _ => {}
+                    }
                     InputResult::InputConsumed
                 }
                 "mode" => {
