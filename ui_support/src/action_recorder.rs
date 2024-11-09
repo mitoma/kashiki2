@@ -79,7 +79,7 @@ pub fn sleep(ms: u64) {
             })
             promise.await;
         } else {
-            thread::sleep(std::time::Duration::from_millis(ms as u64));
+            thread::sleep(std::time::Duration::from_millis(ms));
         }
     }
 }
