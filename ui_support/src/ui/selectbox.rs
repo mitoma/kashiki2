@@ -1,5 +1,7 @@
 use std::sync::{mpsc::Sender, Arc};
 
+use log::info;
+use similar::{capture_diff_slices, ChangeTag};
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
@@ -10,7 +12,7 @@ use font_rasterizer::{
 
 use crate::{
     layout_engine::{Model, ModelMode},
-    ui_context::{CharEasings, CpuEasingConfig, GpuEasingConfig, RemoveCharMode, TextContext},
+    ui_context::{CharEasings, GpuEasingConfig, TextContext},
 };
 
 use super::{select_option::SelectOption, textedit::TextEdit};
@@ -42,10 +44,8 @@ impl SelectBox {
             char_easings: CharEasings {
                 select_char: GpuEasingConfig::default(),
                 unselect_char: GpuEasingConfig::default(),
-                add_char: GpuEasingConfig::default(),
-                remove_char: GpuEasingConfig::default(),
-                remove_char_mode: RemoveCharMode::Immediate,
-                position_easing: CpuEasingConfig::zero_motion(),
+                add_char: GpuEasingConfig::fadein(),
+                remove_char: GpuEasingConfig::fadeout(),
                 ..Default::default()
             },
             hyde_caret: true,
@@ -128,13 +128,6 @@ impl SelectBox {
         result
     }
 
-    fn clear_text_edit(text_edit: &mut TextEdit) {
-        text_edit.editor_operation(&EditorOperation::BufferHead);
-        text_edit.editor_operation(&EditorOperation::Mark);
-        text_edit.editor_operation(&EditorOperation::BufferLast);
-        text_edit.editor_operation(&EditorOperation::Cut(|_| {}));
-    }
-
     fn narrowd_options(&self) -> Vec<&SelectOption> {
         let text = self.search_text_edit.to_string();
         let search_keywords = text.split_whitespace().collect::<Vec<_>>();
@@ -153,6 +146,14 @@ impl SelectBox {
             .collect::<Vec<_>>()
     }
 
+    fn max_options_len(&self) -> usize {
+        self.options
+            .iter()
+            .map(|opt| self.char_width_calcurator.len(&opt.option_string(0)))
+            .max()
+            .unwrap_or(0)
+    }
+
     fn max_narrowd_options_len(&self) -> usize {
         self.narrowd_options()
             .iter()
@@ -162,31 +163,74 @@ impl SelectBox {
     }
 
     fn update_select_items_text_edit(&mut self) {
-        Self::clear_text_edit(&mut self.select_items_text_edit);
         if self.current_selection >= self.narrowd_options().len() {
             self.current_selection = 0;
         }
-        let max_narrowd_options_len = self.max_narrowd_options_len();
-        self.select_items_text_edit
-            .editor_operation(&EditorOperation::InsertString(
-                self.narrowd_options()
-                    .iter()
-                    .map(|s| {
-                        if self.show_action_name {
-                            // option 毎に文字列をキャッシュするとかもう少し効率のいい方法はあるだろうけど
-                            // 今はめんどいのでこれぐらい雑に済ませておく
-                            s.option_string(
-                                max_narrowd_options_len
+        let max_options_len = self.max_options_len();
+        let current_text: Vec<String> = self
+            .select_items_text_edit
+            .to_string()
+            .lines()
+            .map(|s| s.to_owned())
+            .collect();
+        let next_text: Vec<String> = self
+            .narrowd_options()
+            .iter()
+            .map(|s| {
+                if self.show_action_name {
+                    // option 毎に文字列をキャッシュするとかもう少し効率のいい方法はあるだろうけど
+                    // 今はめんどいのでこれぐらい雑に済ませておく
+                    s.option_string(
+                        max_options_len
                                     - self.char_width_calcurator.len(&s.option_string(0))
                                     + /* メニューにちょっと余裕を持たせる */2,
-                            )
-                        } else {
-                            s.option_string_short()
-                        }
-                    })
-                    .collect::<Vec<String>>()
-                    .join("\n"),
-            ));
+                    )
+                } else {
+                    s.option_string_short()
+                }
+            })
+            .collect();
+        let diff = capture_diff_slices(similar::Algorithm::Patience, &current_text, &next_text);
+
+        // まずはバッファの先頭に移動しておく
+        self.select_items_text_edit
+            .editor_operation(&EditorOperation::BufferHead);
+        info!("------------");
+        for change in diff
+            .iter()
+            .flat_map(|d| d.iter_changes(&current_text, &next_text))
+        {
+            info!("change: {:?}", change);
+            match change.tag() {
+                ChangeTag::Equal => {
+                    // 同じ場合は次の行に移動する
+                    self.select_items_text_edit
+                        .editor_operation(&EditorOperation::Next);
+                }
+                ChangeTag::Insert => {
+                    // 追加の場合はそのまま挿入する
+                    self.select_items_text_edit
+                        .editor_operation(&EditorOperation::InsertString(
+                            change.value().trim().to_owned(),
+                        ));
+                    self.select_items_text_edit
+                        .editor_operation(&EditorOperation::InsertEnter);
+                }
+                ChangeTag::Delete => {
+                    // 削除の場合は削除する
+                    self.select_items_text_edit
+                        .editor_operation(&EditorOperation::Mark);
+                    self.select_items_text_edit
+                        .editor_operation(&EditorOperation::Last);
+                    self.select_items_text_edit
+                        .editor_operation(&EditorOperation::Cut(|_| {}));
+                    self.select_items_text_edit
+                        .editor_operation(&EditorOperation::Delete);
+                }
+            }
+        }
+        self.select_items_text_edit
+            .editor_operation(&EditorOperation::BufferHead);
     }
 
     fn update_current_selection(&mut self) {
