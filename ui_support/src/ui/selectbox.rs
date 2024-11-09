@@ -44,6 +44,8 @@ impl SelectBox {
             char_easings: CharEasings {
                 select_char: GpuEasingConfig::default(),
                 unselect_char: GpuEasingConfig::default(),
+                add_char: GpuEasingConfig::fadein(),
+                remove_char: GpuEasingConfig::fadeout(),
                 ..Default::default()
             },
             hyde_caret: true,

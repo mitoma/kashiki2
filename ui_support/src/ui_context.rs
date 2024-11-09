@@ -48,6 +48,30 @@ impl Default for GpuEasingConfig {
     }
 }
 
+impl GpuEasingConfig {
+    pub fn fadein() -> Self {
+        Self {
+            motion: MotionFlags::builder()
+                .motion_detail(MotionDetail::TO_CURRENT)
+                .motion_target(MotionTarget::STRETCH_X_MINUS | MotionTarget::STRETCH_Y_MINUS)
+                .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, false))
+                .build(),
+            duration: Duration::from_millis(300),
+            gain: 1.0,
+        }
+    }
+    pub fn fadeout() -> Self {
+        Self {
+            motion: MotionFlags::builder()
+                .motion_target(MotionTarget::STRETCH_X_MINUS | MotionTarget::STRETCH_Y_MINUS)
+                .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, false))
+                .build(),
+            duration: Duration::from_millis(300),
+            gain: 1.0,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RemoveCharMode {
     Immediate,
