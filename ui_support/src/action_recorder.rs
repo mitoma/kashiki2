@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, io::BufReader, path::Path, thread};
+use std::{collections::VecDeque, io::BufReader, path::Path};
 
 use font_rasterizer::{context::StateContext, time::now_millis};
 use serde_jsonlines::{write_json_lines, BufReadExt};
@@ -7,7 +7,7 @@ use stroke_parser::{Action, ActionArgument};
 const SCRIPT_NAME: &str = "record.jsonl";
 
 pub trait ActionRecordRepository {
-    fn save(&mut self, action: &Vec<Action>);
+    fn save(&mut self, action: &[Action]);
     fn load(&self) -> Vec<Action>;
 }
 
@@ -15,7 +15,7 @@ pub trait ActionRecordRepository {
 pub struct FileActionRecordRepository;
 
 impl ActionRecordRepository for FileActionRecordRepository {
-    fn save(&mut self, action: &Vec<Action>) {
+    fn save(&mut self, action: &[Action]) {
         let path = Path::new(SCRIPT_NAME);
         write_json_lines(path, action).unwrap();
     }
@@ -23,7 +23,7 @@ impl ActionRecordRepository for FileActionRecordRepository {
     fn load(&self) -> Vec<Action> {
         BufReader::new(std::fs::File::open(SCRIPT_NAME).unwrap())
             .json_lines::<Action>()
-            .flat_map(|action| action)
+            .flatten()
             .collect()
     }
 }
@@ -34,7 +34,7 @@ pub struct InMemoryActionRecordRepository {
 }
 
 impl ActionRecordRepository for InMemoryActionRecordRepository {
-    fn save(&mut self, action: &Vec<Action>) {
+    fn save(&mut self, action: &[Action]) {
         self.records.extend(action.iter().cloned());
     }
 

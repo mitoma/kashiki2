@@ -53,7 +53,7 @@ impl ActionRepository {
             ActionNamespace::Edit => EDIT_ACTIONS.as_slice(),
             ActionNamespace::World => WORLD_ACTIONS.as_slice(),
             ActionNamespace::Kashikishi => KASHIKISHI_ACTIONS.as_slice(),
-            ActionNamespace::ActionRecorder => &ACTION_RECORDER_ACTIONS.as_slice(),
+            ActionNamespace::ActionRecorder => ACTION_RECORDER_ACTIONS.as_slice(),
             ActionNamespace::Custom(_) => todo!(),
         }
     }
