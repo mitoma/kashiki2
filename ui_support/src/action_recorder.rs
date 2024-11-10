@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, io::BufReader, path::Path};
+use std::{cell::LazyCell, collections::VecDeque, io::BufReader, path::Path, sync::LazyLock};
 
 use font_rasterizer::{context::StateContext, time::now_millis};
 use serde_jsonlines::{write_json_lines, BufReadExt};
@@ -161,9 +161,23 @@ impl ActionRecorder {
     }
 }
 
+static NAMES: LazyLock<Vec<CommandName>> = LazyLock::new(|| {
+    vec![
+        "start-record".into(),
+        "stop-record".into(),
+        "start-replay".into(),
+        "stop-replay".into(),
+        "set-replay-mode".into(),
+    ]
+});
+
 impl NamespaceActionProcessors for ActionRecorder {
     fn namespace(&self) -> stroke_parser::CommandNamespace {
         "action-recorder".into()
+    }
+
+    fn names(&self) -> &[CommandName] {
+        NAMES.as_slice()
     }
 
     fn process(

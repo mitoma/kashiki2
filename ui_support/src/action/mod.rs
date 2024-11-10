@@ -128,10 +128,10 @@ impl ActionProcessorStore {
     ) -> InputResult {
         if let Action::Command(namespace, name, argument) = action {
             if let Some(processor) = self.namespace_processors.get(namespace) {
-                return processor
-                    .lock()
-                    .unwrap()
-                    .process(name, argument, context, world);
+                let mut processor = processor.lock().unwrap();
+                if processor.names().contains(&name) {
+                    return processor.process(name, argument, context, world);
+                }
             }
             if let Some(processor) = self.processors.get(&(namespace.clone(), name.clone())) {
                 return processor.process(argument, context, world);
@@ -139,10 +139,21 @@ impl ActionProcessorStore {
         }
         InputResult::Noop
     }
+
+    pub fn is_registerd(&self, namespace: &CommandNamespace, name: &CommandName) -> bool {
+        self.namespace_processors
+            .get(&namespace)
+            .map(|p| p.lock().unwrap().names().contains(&name))
+            .unwrap_or_else(|| {
+                self.processors
+                    .contains_key(&(namespace.clone(), name.clone()))
+            })
+    }
 }
 
 pub trait NamespaceActionProcessors {
     fn namespace(&self) -> CommandNamespace;
+    fn names(&self) -> &[CommandName];
     fn process(
         &mut self,
         command_name: &CommandName,
