@@ -20,6 +20,7 @@ pub(crate) fn command_palette_select(context: &StateContext, narrow: Option<Stri
         ActionNamespace::System,
         ActionNamespace::Edit,
         ActionNamespace::World,
+        ActionNamespace::ActionRecorder,
         ActionNamespace::Kashikishi,
     ] {
         for action_definition in action_repository.load_actions(namespace) {

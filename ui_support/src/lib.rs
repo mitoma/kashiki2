@@ -1,4 +1,5 @@
 pub mod action;
+pub mod action_recorder;
 pub mod camera;
 mod easing_value;
 pub mod layout_engine;
