@@ -6,7 +6,7 @@ pub use edit::*;
 pub use system::*;
 pub use world::*;
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, rc::Rc, sync::Mutex};
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
 use font_rasterizer::context::StateContext;
@@ -17,6 +17,7 @@ use super::InputResult;
 
 #[derive(Default)]
 pub struct ActionProcessorStore {
+    namespace_processors: BTreeMap<CommandNamespace, Rc<Mutex<dyn NamespaceActionProcessors>>>,
     processors: BTreeMap<(CommandNamespace, CommandName), Box<dyn ActionProcessor>>,
 }
 
@@ -100,6 +101,14 @@ impl ActionProcessorStore {
         );
     }
 
+    pub fn add_namespace_processors(
+        &mut self,
+        processor: Rc<Mutex<dyn NamespaceActionProcessors>>,
+    ) {
+        let namespace = processor.lock().unwrap().namespace().clone();
+        self.namespace_processors.insert(namespace, processor);
+    }
+
     pub fn add_processor(&mut self, processor: Box<dyn ActionProcessor>) {
         self.processors.insert(
             (processor.namespace().clone(), processor.name().clone()),
@@ -118,12 +127,29 @@ impl ActionProcessorStore {
         world: &mut dyn World,
     ) -> InputResult {
         if let Action::Command(namespace, name, argument) = action {
+            if let Some(processor) = self.namespace_processors.get(namespace) {
+                return processor
+                    .lock()
+                    .unwrap()
+                    .process(name, argument, context, world);
+            }
             if let Some(processor) = self.processors.get(&(namespace.clone(), name.clone())) {
                 return processor.process(argument, context, world);
             }
         }
         InputResult::Noop
     }
+}
+
+pub trait NamespaceActionProcessors {
+    fn namespace(&self) -> CommandNamespace;
+    fn process(
+        &mut self,
+        command_name: &CommandName,
+        arg: &ActionArgument,
+        context: &StateContext,
+        world: &mut dyn World,
+    ) -> InputResult;
 }
 
 pub trait ActionProcessor {

@@ -2,7 +2,9 @@ use std::{collections::VecDeque, io::BufReader, path::Path};
 
 use font_rasterizer::{context::StateContext, time::now_millis};
 use serde_jsonlines::{write_json_lines, BufReadExt};
-use stroke_parser::{Action, ActionArgument};
+use stroke_parser::{Action, ActionArgument, CommandName};
+
+use crate::{action::NamespaceActionProcessors, InputResult};
 
 const SCRIPT_NAME: &str = "record.jsonl";
 
@@ -156,5 +158,49 @@ impl ActionRecorder {
 
     pub fn set_replay_mode(&mut self, replay_mode: ReplayMode) {
         self.replay_mode = replay_mode;
+    }
+}
+
+impl NamespaceActionProcessors for ActionRecorder {
+    fn namespace(&self) -> stroke_parser::CommandNamespace {
+        "action-recorder".into()
+    }
+
+    fn process(
+        &mut self,
+        command_name: &CommandName,
+        arg: &ActionArgument,
+        _context: &StateContext,
+        _world: &mut dyn crate::layout_engine::World,
+    ) -> InputResult {
+        match command_name.as_str() {
+            "start-record" => {
+                self.start_record();
+                InputResult::InputConsumed
+            }
+            "stop-record" => {
+                self.stop_record();
+                InputResult::InputConsumed
+            }
+            "start-replay" => {
+                self.start_replay();
+                InputResult::InputConsumed
+            }
+            "stop-replay" => {
+                self.stop_replay();
+                InputResult::InputConsumed
+            }
+            "set-replay-mode" => {
+                if let ActionArgument::String(replay_mode) = arg {
+                    match replay_mode.as_str() {
+                        "normal" => self.set_replay_mode(ReplayMode::Normal),
+                        "fast" => self.set_replay_mode(ReplayMode::Fast),
+                        _ => {}
+                    }
+                }
+                InputResult::InputConsumed
+            }
+            _ => InputResult::Noop,
+        }
     }
 }

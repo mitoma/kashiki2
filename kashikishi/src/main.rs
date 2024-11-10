@@ -7,6 +7,8 @@ mod local_datetime_format;
 mod memos;
 mod world;
 
+use std::{rc::Rc, sync::Mutex};
+
 use arboard::Clipboard;
 use clap::{command, Parser};
 use font_collector::FontCollector;
@@ -163,7 +165,7 @@ struct KashikishiCallback {
     action_processor_store: ActionProcessorStore,
     rokid_max: Option<RokidMax>,
     ar_mode: bool,
-    action_recorder: ActionRecorder,
+    action_recorder: Rc<Mutex<ActionRecorder>>,
 }
 
 impl KashikishiCallback {
@@ -177,16 +179,17 @@ impl KashikishiCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let ime = ImeInput::new();
 
+        let action_recorder =
+            ActionRecorder::new(Box::new(InMemoryActionRecordRepository::default()));
+        let action_recorder = Rc::new(Mutex::new(action_recorder));
+        let rokid_max = RokidMax::new().ok();
+
         let mut action_processor_store = ActionProcessorStore::default();
         action_processor_store.add_default_system_processors();
         action_processor_store.add_default_edit_processors();
         action_processor_store.add_default_world_processors();
         action_processor_store.add_processor(Box::new(SystemCommandPalette));
-
-        let rokid_max = RokidMax::new().ok();
-
-        let action_recorder =
-            ActionRecorder::new(Box::new(InMemoryActionRecordRepository::default()));
+        action_processor_store.add_namespace_processors(action_recorder.clone());
 
         Self {
             store,
@@ -268,7 +271,7 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn update(&mut self, context: &StateContext) {
-        self.action_recorder.replay(context);
+        self.action_recorder.lock().unwrap().replay(context);
 
         self.world.get_mut().update(context);
         self.ime.update(context);
@@ -294,7 +297,7 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
-        self.action_recorder.record(&action);
+        self.action_recorder.lock().unwrap().record(&action);
 
         let result = self
             .action_processor_store
@@ -307,24 +310,6 @@ impl SimpleStateCallback for KashikishiCallback {
             Action::Command(category, name, argument) => match &*category.to_string() {
                 "world" => {
                     self.execute_world_action(&name, argument, context);
-                    InputResult::InputConsumed
-                }
-                "action-recorder" => {
-                    match name.as_str() {
-                        "start-record" => {
-                            self.action_recorder.start_record();
-                        }
-                        "stop-record" => {
-                            self.action_recorder.stop_record();
-                        }
-                        "start-replay" => {
-                            self.action_recorder.start_replay();
-                        }
-                        "stop-replay" => {
-                            self.action_recorder.stop_replay();
-                        }
-                        _ => {}
-                    }
                     InputResult::InputConsumed
                 }
                 "mode" => {
