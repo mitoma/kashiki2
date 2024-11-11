@@ -6,11 +6,6 @@
     },
     {
         "namespace": "world",
-        "name": "toggle-ar-mode",
-        "description": "(実験的)ARモードを切り替える"
-    },
-    {
-        "namespace": "world",
         "name": "reset-zoom",
         "description": "ズームをリセットする"
     },

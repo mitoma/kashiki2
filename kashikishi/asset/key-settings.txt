@@ -47,7 +47,7 @@ A-S-D   system:change-global-direction
 
 # 実験的(遊び)
 C-X C-P     world:toggle-psychedelic
-C-R         world:toggle-ar-mode
+C-R         rokid-max:toggle-mode
 
 # kashikishi
 C-X C-S kashikishi:save
@@ -86,7 +86,7 @@ A-S-W     world:copy-display
 
 # マウス系のショートカット
 ClickLeft   world:move-to-click
-ClickRight  world:reset-rokid
+ClickRight  rokid-max:reset
 S-ClickLeft world:move-to-click-with-mark
 WheelUp     edit:previous
 WheelDown   edit:next

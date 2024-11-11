@@ -5,6 +5,7 @@ mod categorized_memos;
 mod kashikishi_actions;
 mod local_datetime_format;
 mod memos;
+mod rokid_max_ext;
 mod world;
 
 use std::{rc::Rc, sync::Mutex};
@@ -13,6 +14,7 @@ use arboard::Clipboard;
 use clap::{command, Parser};
 use font_collector::FontCollector;
 use rokid_3dof::RokidMax;
+use rokid_max_ext::RokidMaxAction;
 use stroke_parser::{
     action_store_parser::parse_setting, Action, ActionArgument, ActionStore, CommandName,
     CommandNamespace,
@@ -163,8 +165,7 @@ struct KashikishiCallback {
     world: Box<dyn ModalWorld>,
     ime: ImeInput,
     action_processor_store: ActionProcessorStore,
-    rokid_max: Option<RokidMax>,
-    ar_mode: bool,
+    rokid_max_action: Rc<Mutex<RokidMaxAction>>,
     action_recorder: Rc<Mutex<ActionRecorder>>,
 }
 
@@ -179,25 +180,27 @@ impl KashikishiCallback {
             .for_each(|k| store.register_keybind(k.clone()));
         let ime = ImeInput::new();
 
-        let action_recorder =
-            ActionRecorder::new(Box::new(InMemoryActionRecordRepository::default()));
-        let action_recorder = Rc::new(Mutex::new(action_recorder));
-        let rokid_max = RokidMax::new().ok();
-
         let mut action_processor_store = ActionProcessorStore::default();
         action_processor_store.add_default_system_processors();
         action_processor_store.add_default_edit_processors();
         action_processor_store.add_default_world_processors();
         action_processor_store.add_processor(Box::new(SystemCommandPalette));
+
+        let action_recorder =
+            ActionRecorder::new(Box::new(InMemoryActionRecordRepository::default()));
+        let action_recorder = Rc::new(Mutex::new(action_recorder));
         action_processor_store.add_namespace_processors(action_recorder.clone());
+
+        let rokid_max_action = RokidMaxAction::new();
+        let rokid_max_action = Rc::new(Mutex::new(rokid_max_action));
+        action_processor_store.add_namespace_processors(rokid_max_action.clone());
 
         Self {
             store,
             world: Box::new(NullWorld::new(window_size)),
             ime,
             action_processor_store,
-            rokid_max,
-            ar_mode: false,
+            rokid_max_action,
             action_recorder,
         }
     }
@@ -217,25 +220,11 @@ impl KashikishiCallback {
                 },
             )),
             "look-current-and-centering" => {
-                if let Some(rokid_max) = self.rokid_max.as_mut() {
-                    let _ = rokid_max.reset();
-                }
+                let _ = self
+                    .rokid_max_action
+                    .lock()
+                    .map(|mut rokid_max_action| rokid_max_action.reset());
                 world.look_current(CameraAdjustment::FitBothAndCentering)
-            }
-            // AR 系はアクションのカテゴリを変えるべきだろうか？
-            "reset-rokid" => {
-                if let Some(rokid_max) = self.rokid_max.as_mut() {
-                    let _ = rokid_max.reset();
-                }
-            }
-            "toggle-ar-mode" => {
-                if let Some(rokid_max) = self.rokid_max.as_mut() {
-                    let _ = rokid_max.reset();
-                    world.camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
-                        rokid_max.quaternion(),
-                    )));
-                }
-                self.ar_mode = !self.ar_mode;
             }
             _ => {}
         };
@@ -276,16 +265,13 @@ impl SimpleStateCallback for KashikishiCallback {
         self.world.get_mut().update(context);
         self.ime.update(context);
 
-        // AR モードが有効な場合はカメラの向きを変える。少し雑だが良い場所が見つかるまでここで。
-        if self.ar_mode {
-            if let Some(rokid_max) = self.rokid_max.as_ref() {
-                self.world
-                    .get_mut()
-                    .camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
-                        rokid_max.quaternion(),
-                    )));
-            }
-        }
+        let _ = self.rokid_max_action.lock().map(|rokid_max_action| {
+            self.world
+                .get_mut()
+                .camera_operation(CameraOperation::UpdateEyeQuaternion(
+                    rokid_max_action.quaternion(),
+                ));
+        });
     }
 
     fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult {
