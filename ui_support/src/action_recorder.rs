@@ -1,4 +1,4 @@
-use std::{cell::LazyCell, collections::VecDeque, io::BufReader, path::Path, sync::LazyLock};
+use std::{collections::VecDeque, io::BufReader, path::Path, sync::LazyLock};
 
 use font_rasterizer::{context::StateContext, time::now_millis};
 use serde_jsonlines::{write_json_lines, BufReadExt};

@@ -129,7 +129,7 @@ impl ActionProcessorStore {
         if let Action::Command(namespace, name, argument) = action {
             if let Some(processor) = self.namespace_processors.get(namespace) {
                 let mut processor = processor.lock().unwrap();
-                if processor.names().contains(&name) {
+                if processor.names().contains(name) {
                     return processor.process(name, argument, context, world);
                 }
             }
@@ -142,8 +142,8 @@ impl ActionProcessorStore {
 
     pub fn is_registerd(&self, namespace: &CommandNamespace, name: &CommandName) -> bool {
         self.namespace_processors
-            .get(&namespace)
-            .map(|p| p.lock().unwrap().names().contains(&name))
+            .get(namespace)
+            .map(|p| p.lock().unwrap().names().contains(name))
             .unwrap_or_else(|| {
                 self.processors
                     .contains_key(&(namespace.clone(), name.clone()))

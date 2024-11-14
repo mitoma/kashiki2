@@ -13,7 +13,6 @@ use std::{rc::Rc, sync::Mutex};
 use arboard::Clipboard;
 use clap::{command, Parser};
 use font_collector::FontCollector;
-use rokid_3dof::RokidMax;
 use rokid_max_ext::RokidMaxAction;
 use stroke_parser::{
     action_store_parser::parse_setting, Action, ActionArgument, ActionStore, CommandName,
