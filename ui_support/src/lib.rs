@@ -9,11 +9,7 @@ mod text_instances;
 pub mod ui;
 pub mod ui_context;
 
-use std::{
-    collections::HashSet,
-    iter,
-    sync::{mpsc::Receiver, Arc},
-};
+use std::sync::{mpsc::Receiver, Arc};
 
 use camera::Camera;
 use font_rasterizer::{
@@ -120,8 +116,10 @@ pub async fn run_support(support: SimpleStateSupport) {
     }
 
     record_start_of_phase("setup state");
-    let mut state = SimpleState::new(
-        window.clone(),
+    let mut state = RenderState::new(
+        RenderTargetRequest::Window {
+            window: window.clone(),
+        },
         support.quarity,
         support.color_theme,
         support.callback,
@@ -342,23 +340,146 @@ pub enum InputResult {
     Noop,
 }
 
-pub trait SimpleStateCallback {
-    fn init(&mut self, context: &StateContext);
-    fn resize(&mut self, size: WindowSize);
-    fn update(&mut self, context: &StateContext);
-    fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
-    fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
-    fn shutdown(&mut self);
+enum RenderTargetRequest {
+    Window { window: Arc<Window> },
+    Image { window_size: WindowSize },
 }
 
-pub struct SimpleState {
+impl RenderTargetRequest {
+    fn window_size(&self) -> WindowSize {
+        match self {
+            RenderTargetRequest::Window { window } => WindowSize::from(window.inner_size()),
+            RenderTargetRequest::Image { window_size } => *window_size,
+        }
+    }
+}
+
+pub enum RenderTargetResponse {
+    Window,
+    Image(ImageBuffer<Rgba<u8>, Vec<u8>>),
+}
+
+enum RenderTarget {
+    Window {
+        surface: wgpu::Surface<'static>,
+        surface_texture: Option<wgpu::SurfaceTexture>,
+        config: wgpu::SurfaceConfiguration,
+    },
+    Image {
+        surface_texture: wgpu::Texture,
+        output_buffer: wgpu::Buffer,
+    },
+}
+impl RenderTarget {
+    fn format(&self) -> wgpu::TextureFormat {
+        match self {
+            RenderTarget::Window { config, .. } => config.format,
+            RenderTarget::Image {
+                surface_texture, ..
+            } => surface_texture.format(),
+        }
+    }
+
+    fn get_screen_view(&mut self) -> wgpu::TextureView {
+        match self {
+            RenderTarget::Window {
+                surface,
+                surface_texture,
+                ..
+            } => {
+                let st = surface.get_current_texture().unwrap();
+                let texture_view = st
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default());
+                surface_texture.replace(st);
+                texture_view
+            }
+            RenderTarget::Image {
+                surface_texture, ..
+            } => surface_texture.create_view(&wgpu::TextureViewDescriptor::default()),
+        }
+    }
+
+    fn pre_submit(&mut self, encoder: &mut wgpu::CommandEncoder, context: &StateContext) {
+        match self {
+            RenderTarget::Window { .. } => {
+                // 何もしない
+            }
+            RenderTarget::Image {
+                ref surface_texture,
+                ref output_buffer,
+            } => {
+                let size = context.window_size;
+                let u32_size = std::mem::size_of::<u32>() as u32;
+                encoder.copy_texture_to_buffer(
+                    wgpu::ImageCopyTexture {
+                        aspect: wgpu::TextureAspect::All,
+                        texture: surface_texture,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                    },
+                    wgpu::ImageCopyBuffer {
+                        buffer: output_buffer,
+                        layout: wgpu::ImageDataLayout {
+                            offset: 0,
+                            bytes_per_row: Some(u32_size * size.width),
+                            rows_per_image: Some(size.height),
+                        },
+                    },
+                    wgpu::Extent3d {
+                        width: size.width,
+                        height: size.height,
+                        depth_or_array_layers: 1,
+                    },
+                );
+            }
+        }
+    }
+
+    fn flush(&mut self, context: &StateContext) -> RenderTargetResponse {
+        match self {
+            RenderTarget::Window {
+                surface_texture, ..
+            } => {
+                surface_texture.take().unwrap().present();
+                RenderTargetResponse::Window
+            }
+            RenderTarget::Image {
+                ref output_buffer, ..
+            } => {
+                let size = context.window_size;
+                let buffer = {
+                    let buffer_slice = output_buffer.slice(..);
+
+                    let (tx, rx) = std::sync::mpsc::channel();
+
+                    // NOTE: We have to create the mapping THEN device.poll() before await
+                    // the future. Otherwise the application will freeze.
+                    buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+                        tx.send(result).unwrap();
+                    });
+                    context.device.poll(wgpu::Maintain::Wait);
+                    rx.recv().unwrap().unwrap();
+
+                    let data = buffer_slice.get_mapped_range();
+                    let raw_data = data.to_vec();
+
+                    ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(size.width, size.height, raw_data)
+                        .unwrap()
+                };
+                output_buffer.unmap();
+                RenderTargetResponse::Image(buffer)
+            }
+        }
+    }
+}
+
+struct RenderState {
     context: StateContext,
 
     quarity: Quarity,
 
-    surface: wgpu::Surface<'static>,
-    config: wgpu::SurfaceConfiguration,
+    render_target: RenderTarget,
 
     rasterizer_pipeline: RasterizerPipeline,
     glyph_vertex_buffer: GlyphVertexBuffer,
@@ -369,21 +490,29 @@ pub struct SimpleState {
     action_queue_receiver: Receiver<Action>,
     post_action_queue_receiver: Receiver<Action>,
 }
-impl SimpleState {
-    pub async fn new(
-        window: Arc<Window>,
+
+impl RenderState {
+    async fn new(
+        render_target_request: RenderTargetRequest,
         quarity: Quarity,
         color_theme: ColorTheme,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
         font_binaries: Vec<FontData>,
         performance_mode: bool,
     ) -> Self {
-        let window_size = WindowSize::from(window.inner_size());
+        let window_size = render_target_request.window_size();
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(InstanceDescriptor::default());
-        let surface = instance.create_surface(window).unwrap();
+
+        let surface = match &render_target_request {
+            RenderTargetRequest::Window { window } => {
+                Some(instance.create_surface(window.clone()).unwrap())
+            }
+            RenderTargetRequest::Image { .. } => None,
+        };
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: if performance_mode {
@@ -391,7 +520,7 @@ impl SimpleState {
                 } else {
                     wgpu::PowerPreference::default()
                 },
-                compatible_surface: Some(&surface),
+                compatible_surface: surface.as_ref(),
                 force_fallback_adapter: false,
             })
             .await
@@ -416,22 +545,70 @@ impl SimpleState {
             .await
             .unwrap();
 
-        let surface_caps = surface.get_capabilities(&adapter);
-        let surface_format = surface_caps
-            .formats
-            .iter()
-            .copied()
-            .find(|f| f.is_srgb())
-            .unwrap_or(surface_caps.formats[0]);
-        let config = wgpu::SurfaceConfiguration {
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
-            width: window_size.width,
-            height: window_size.height,
-            present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Opaque,
-            view_formats: vec![],
-            desired_maximum_frame_latency: 2,
+        let render_target = match render_target_request {
+            RenderTargetRequest::Window { .. } => {
+                let surface = surface.unwrap();
+                let surface_caps = surface.get_capabilities(&adapter);
+                let surface_format = surface_caps
+                    .formats
+                    .iter()
+                    .copied()
+                    .find(|f| f.is_srgb())
+                    .unwrap_or(surface_caps.formats[0]);
+                let config = wgpu::SurfaceConfiguration {
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                    format: surface_format,
+                    width: window_size.width,
+                    height: window_size.height,
+                    present_mode: wgpu::PresentMode::Fifo,
+                    alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+                    view_formats: vec![],
+                    desired_maximum_frame_latency: 2,
+                };
+                RenderTarget::Window {
+                    surface,
+                    surface_texture: None,
+                    config,
+                }
+            }
+            RenderTargetRequest::Image { window_size } => {
+                let surface_texture_desc = wgpu::TextureDescriptor {
+                    size: wgpu::Extent3d {
+                        width: window_size.width,
+                        height: window_size.height,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    view_formats: &[],
+                    usage: wgpu::TextureUsages::COPY_SRC
+                        | wgpu::TextureUsages::RENDER_ATTACHMENT
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    label: None,
+                };
+                let surface_texture = device.create_texture(&surface_texture_desc);
+
+                // create output buffer
+                let u32_size = std::mem::size_of::<u32>() as u32;
+                let output_buffer_size =
+                    (u32_size * window_size.width * window_size.height) as wgpu::BufferAddress;
+                let output_buffer_desc = wgpu::BufferDescriptor {
+                    size: output_buffer_size,
+                    usage: wgpu::BufferUsages::COPY_DST
+                        // this tells wpgu that we want to read this buffer from the cpu
+                        | wgpu::BufferUsages::MAP_READ,
+                    label: Some("Output Buffer"),
+                    mapped_at_creation: false,
+                };
+                let output_buffer = device.create_buffer(&output_buffer_desc);
+
+                RenderTarget::Image {
+                    surface_texture,
+                    output_buffer,
+                }
+            }
         };
 
         // 初期のパイプラインサイズは 256x256 で作成する(window_size が 0 の場合はエラーになるので)
@@ -440,7 +617,7 @@ impl SimpleState {
             &device,
             initial_pipeline_size.0,
             initial_pipeline_size.1,
-            config.format,
+            render_target.format(),
             quarity,
             color_theme.background().into(),
         );
@@ -470,10 +647,9 @@ impl SimpleState {
 
         Self {
             context,
-
-            surface,
-            config,
             quarity,
+
+            render_target,
 
             rasterizer_pipeline,
 
@@ -499,9 +675,21 @@ impl SimpleState {
     pub fn resize(&mut self, new_size: WindowSize) {
         if new_size.width > 0 && new_size.height > 0 {
             self.context.window_size = new_size;
-            self.config.width = new_size.width;
-            self.config.height = new_size.height;
-            self.surface.configure(&self.context.device, &self.config);
+
+            match self.render_target {
+                RenderTarget::Window {
+                    ref mut surface,
+                    ref mut config,
+                    ..
+                } => {
+                    config.width = new_size.width;
+                    config.height = new_size.height;
+                    surface.configure(&self.context.device, config);
+                }
+                RenderTarget::Image { .. } => {
+                    // 何もしない
+                }
+            }
 
             self.simple_state_callback.resize(new_size);
 
@@ -510,7 +698,7 @@ impl SimpleState {
                 &self.context.device,
                 new_size.width,
                 new_size.height,
-                self.config.format,
+                self.render_target.format(),
                 self.quarity,
                 self.context.color_theme.background().into(),
             )
@@ -529,7 +717,7 @@ impl SimpleState {
         self.simple_state_callback.update(&self.context);
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self) -> Result<RenderTargetResponse, wgpu::SurfaceError> {
         record_start_of_phase("render 0: append glyph");
         self.ui_string_receiver
             .try_recv()
@@ -556,10 +744,7 @@ impl SimpleState {
             .overlap_bind_group
             .update_buffer(&self.context.queue);
         record_start_of_phase("render 2-2: create texture");
-        let screen_output = self.surface.get_current_texture()?;
-        let screen_view = screen_output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+        let screen_view = self.render_target.get_screen_view();
 
         record_start_of_phase("render 3: callback render");
         let (camera, glyph_instances) = self.simple_state_callback.render();
@@ -579,243 +764,29 @@ impl SimpleState {
         );
 
         record_start_of_phase("render 5: submit");
-        self.context.queue.submit(iter::once(encoder.finish()));
-        screen_output.present();
 
-        Ok(())
-    }
-
-    fn shutdown(&mut self) {
-        self.simple_state_callback.shutdown();
-    }
-}
-
-pub struct ImageState {
-    context: StateContext,
-
-    surface_texture: wgpu::Texture,
-    output_buffer: wgpu::Buffer,
-
-    rasterizer_pipeline: RasterizerPipeline,
-    glyph_vertex_buffer: GlyphVertexBuffer,
-
-    simple_state_callback: Box<dyn SimpleStateCallback>,
-}
-
-impl ImageState {
-    pub async fn new(
-        image_size: (u32, u32),
-        quarity: Quarity,
-        color_theme: ColorTheme,
-        mut simple_state_callback: Box<dyn SimpleStateCallback>,
-        font_binaries: Vec<FontData>,
-    ) -> Self {
-        let size = WindowSize {
-            width: image_size.0,
-            height: image_size.1,
-        };
-
-        // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(InstanceDescriptor::default());
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            })
-            .await
-            .unwrap();
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    required_features: wgpu::Features::empty(),
-                    // WebGL doesn't support all of wgpu's features, so if
-                    // we're building for the web we'll have to disable some.
-                    required_limits: if cfg!(target_arch = "wasm32") {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                    } else {
-                        wgpu::Limits::default()
-                    },
-                    // memory_hints とか今後の新しい機能はまぁデフォルトで行きましょう。
-                    ..Default::default()
-                },
-                None, // Trace path
-            )
-            .await
-            .unwrap();
-
-        let surface_texture_desc = wgpu::TextureDescriptor {
-            size: wgpu::Extent3d {
-                width: image_size.0,
-                height: image_size.1,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            view_formats: &[],
-            usage: wgpu::TextureUsages::COPY_SRC
-                | wgpu::TextureUsages::RENDER_ATTACHMENT
-                | wgpu::TextureUsages::TEXTURE_BINDING,
-            label: None,
-        };
-        let surface_texture = device.create_texture(&surface_texture_desc);
-
-        // create output buffer
-        let u32_size = std::mem::size_of::<u32>() as u32;
-        let output_buffer_size = (u32_size * image_size.0 * image_size.1) as wgpu::BufferAddress;
-        let output_buffer_desc = wgpu::BufferDescriptor {
-            size: output_buffer_size,
-            usage: wgpu::BufferUsages::COPY_DST
-                // this tells wpgu that we want to read this buffer from the cpu
-                | wgpu::BufferUsages::MAP_READ,
-            label: Some("Output Buffer"),
-            mapped_at_creation: false,
-        };
-        let output_buffer = device.create_buffer(&output_buffer_desc);
-
-        let rasterizer_pipeline = RasterizerPipeline::new(
-            &device,
-            size.width,
-            size.height,
-            surface_texture.format(),
-            quarity,
-            color_theme.background().into(),
-        );
-
-        let font_binaries = Arc::new(font_binaries);
-        let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
-        let glyph_vertex_buffer =
-            GlyphVertexBuffer::new(font_binaries.clone(), char_width_calcurator.clone());
-
-        // 実際には使われない sender
-        let (ui_string_sender, _ui_string_receiver) = std::sync::mpsc::channel();
-        let (action_queue_sender, _action_queue_receiver) = std::sync::mpsc::channel();
-        let (post_action_queue_sender, _post_action_queue_receiver) = std::sync::mpsc::channel();
-
-        let context = StateContext {
-            device,
-            queue,
-            char_width_calcurator,
-            color_theme,
-            window_size: size,
-            ui_string_sender,
-            action_queue_sender,
-            post_action_queue_sender,
-            global_direction: Direction::Horizontal,
-        };
-
-        simple_state_callback.init(&context);
-        simple_state_callback.resize(context.window_size);
-
-        Self {
-            context,
-
-            surface_texture,
-            output_buffer,
-
-            rasterizer_pipeline,
-
-            glyph_vertex_buffer,
-            simple_state_callback,
-        }
-    }
-
-    pub fn update(&mut self) {
-        self.simple_state_callback.update(&self.context);
-    }
-
-    pub fn render(&mut self) -> Result<ImageBuffer<Rgba<u8>, Vec<u8>>, wgpu::SurfaceError> {
-        let size = self.context.window_size;
-        let mut encoder =
-            self.context
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
-
-        // run all stage
-        self.rasterizer_pipeline
-            .overlap_bind_group
-            .update_buffer(&self.context.queue);
-        let screen_view = self
-            .surface_texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
-        let (camera, glyph_instances) = self.simple_state_callback.render();
-
-        let chars = glyph_instances.iter().map(|i| i.c).collect::<HashSet<_>>();
-        self.glyph_vertex_buffer
-            .append_glyph(&self.context.device, &self.context.queue, chars)
-            .unwrap();
-
-        self.rasterizer_pipeline.run_all_stage(
-            &mut encoder,
-            &self.context.device,
-            &self.context.queue,
-            &self.glyph_vertex_buffer,
-            (
-                camera.build_view_projection_matrix().into(),
-                camera.build_default_view_projection_matrix().into(),
-            ),
-            &glyph_instances,
-            screen_view,
-        );
-
-        let u32_size = std::mem::size_of::<u32>() as u32;
-        encoder.copy_texture_to_buffer(
-            wgpu::ImageCopyTexture {
-                aspect: wgpu::TextureAspect::All,
-                texture: &self.surface_texture,
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-            },
-            wgpu::ImageCopyBuffer {
-                buffer: &self.output_buffer,
-                layout: wgpu::ImageDataLayout {
-                    offset: 0,
-                    bytes_per_row: Some(u32_size * size.width),
-                    rows_per_image: Some(size.height),
-                },
-            },
-            wgpu::Extent3d {
-                width: size.width,
-                height: size.height,
-                depth_or_array_layers: 1,
-            },
-        );
+        self.render_target.pre_submit(&mut encoder, &self.context);
 
         self.context.queue.submit(Some(encoder.finish()));
 
-        let buffer = {
-            let buffer_slice = self.output_buffer.slice(..);
+        let result = self.render_target.flush(&self.context);
 
-            let (tx, rx) = std::sync::mpsc::channel();
-
-            // NOTE: We have to create the mapping THEN device.poll() before await
-            // the future. Otherwise the application will freeze.
-            buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-                tx.send(result).unwrap();
-            });
-            self.context.device.poll(wgpu::Maintain::Wait);
-            rx.recv().unwrap().unwrap();
-
-            let data = buffer_slice.get_mapped_range();
-            let raw_data = data.to_vec();
-
-            ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(size.width, size.height, raw_data).unwrap()
-        };
-        self.output_buffer.unmap();
-
-        Ok(buffer)
+        Ok(result)
     }
 
     fn shutdown(&mut self) {
         self.simple_state_callback.shutdown();
     }
+}
+
+pub trait SimpleStateCallback {
+    fn init(&mut self, context: &StateContext);
+    fn resize(&mut self, size: WindowSize);
+    fn update(&mut self, context: &StateContext);
+    fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
+    fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
+    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
+    fn shutdown(&mut self);
 }
 
 pub async fn generate_images<F>(
@@ -828,12 +799,16 @@ pub async fn generate_images<F>(
     F: Send,
 {
     set_clock_mode(ClockMode::Fixed);
-    let mut state = ImageState::new(
-        (support.window_size.width, support.window_size.height),
+
+    let mut state = RenderState::new(
+        RenderTargetRequest::Image {
+            window_size: support.window_size,
+        },
         support.quarity,
         support.color_theme,
         support.callback,
         support.font_binaries,
+        support.performance_mode,
     )
     .await;
 
@@ -844,7 +819,13 @@ pub async fn generate_images<F>(
             break;
         }
         state.update();
-        callback(state.render().unwrap(), frame);
+
+        let image = if let RenderTargetResponse::Image(image) = state.render().unwrap() {
+            image
+        } else {
+            panic!("image is not found")
+        };
+        callback(image, frame);
         increment_fixed_clock(frame_gain);
         frame += 1;
     }
@@ -856,18 +837,26 @@ pub async fn generate_image_iter(
     frame_gain: Duration,
 ) -> impl Iterator<Item = (ImageBuffer<Rgba<u8>, Vec<u8>>, u32)> {
     set_clock_mode(ClockMode::Fixed);
-    let mut state = ImageState::new(
-        (support.window_size.width, support.window_size.height),
+
+    let mut state = RenderState::new(
+        RenderTargetRequest::Image {
+            window_size: support.window_size,
+        },
         support.quarity,
         support.color_theme,
         support.callback,
         support.font_binaries,
+        support.performance_mode,
     )
     .await;
 
     (0..num_of_frame).map(move |frame| {
         state.update();
-        let image = state.render().unwrap();
+        let image = if let RenderTargetResponse::Image(image) = state.render().unwrap() {
+            image
+        } else {
+            panic!("image is not found")
+        };
 
         increment_fixed_clock(frame_gain);
         (image, frame)
