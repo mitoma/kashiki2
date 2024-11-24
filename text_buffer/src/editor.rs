@@ -153,6 +153,41 @@ impl Editor {
     }
 
     #[inline]
+    fn highlight_positions(&self, highlight_string: &str) -> Vec<CellPosition> {
+        let mut result = Vec::new();
+        for line in &self.buffer.lines {
+            let line_string = line.to_line_string();
+            let mut slice_start = 0;
+            let mut search_target = &line_string[slice_start..];
+            while let Some(idx) = search_target.find(highlight_string) {
+                let start = slice_start + idx;
+                let end = start + highlight_string.len();
+                result.push(CellPosition {
+                    row: line.row_num,
+                    col: start,
+                });
+                slice_start = end;
+                search_target = &line_string[slice_start..];
+            }
+        }
+        result
+    }
+
+    pub fn highlight(&self, highlight_string: &str) {
+        self.highlight_positions(highlight_string)
+            .iter()
+            .flat_map(|pos| {
+                self.buffer.lines[pos.row].chars[pos.col..(pos.col + highlight_string.len())]
+                    .to_vec()
+            })
+            .for_each(|buffer_char| {
+                self.sender
+                    .send(ChangeEvent::SelectChar(buffer_char))
+                    .unwrap();
+            });
+    }
+
+    #[inline]
     fn calc_indent(line_string: &str, width_resolver: Arc<dyn CharWidthResolver>) -> usize {
         let mut list_indent_pattern = DEFAULT_LIST_INDENT_PATTERN.to_vec();
         // インデントパターンを長い順で評価しないと、長いパターンが使われないケースがある
@@ -580,6 +615,39 @@ mod tests {
                 Arc::new(TestWidthResolver),
             );
             assert_eq!(layout.to_string(), case.output);
+        }
+    }
+
+    #[test]
+    fn test_highlight_positions() {
+        struct TestCase {
+            test_string: String,
+            higlight_string: String,
+            cell_positions: Vec<CellPosition>,
+        }
+        let cases = vec![
+            TestCase {
+                test_string: "Hello, World!".to_string(),
+                higlight_string: "World".to_string(),
+                cell_positions: vec![CellPosition { row: 0, col: 7 }],
+            },
+            TestCase {
+                test_string: "Hello, World! World!".to_string(),
+                higlight_string: "World".to_string(),
+                cell_positions: vec![
+                    CellPosition { row: 0, col: 7 },
+                    CellPosition { row: 0, col: 14 },
+                ],
+            },
+        ];
+        for case in cases.iter() {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let mut editor = Editor::new(sender.clone());
+            editor.operation(&EditorOperation::InsertString(case.test_string.clone()));
+            let _ = receiver.try_iter().collect::<Vec<_>>();
+
+            let result = editor.highlight_positions(&case.higlight_string);
+            assert_eq!(result, case.cell_positions);
         }
     }
 }
