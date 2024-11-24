@@ -1,8 +1,8 @@
 use font_rasterizer::context::StateContext;
-use stroke_parser::{ActionArgument, CommandName, CommandNamespace};
+use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
-use crate::layout_engine::World;
+use crate::{layout_engine::World, ui::TextInput};
 
 use super::{ActionProcessor, InputResult};
 
@@ -150,6 +150,62 @@ impl ActionProcessor for EditCut {
                     let _ = arboard::Clipboard::new().and_then(|mut context| context.set_text(text));
                 }));
             }
+        }
+        InputResult::InputConsumed
+    }
+}
+
+pub struct EditHighlightUi;
+impl ActionProcessor for EditHighlightUi {
+    fn namespace(&self) -> CommandNamespace {
+        "edit".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "highlight-ui".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        context: &StateContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let model = TextInput::new(
+            context,
+            "キーワード検索".to_string(),
+            None,
+            Action::new_command("edit", "highlight"),
+        );
+        context
+            .ui_string_sender
+            .send("キーワード検索".to_string())
+            .unwrap();
+        world.add_next(Box::new(model));
+        world.re_layout();
+        world.look_next(crate::camera::CameraAdjustment::NoCare);
+        InputResult::InputConsumed
+    }
+}
+
+pub struct EditHighlight;
+impl ActionProcessor for EditHighlight {
+    fn namespace(&self) -> CommandNamespace {
+        "edit".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "highlight".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        _context: &StateContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        if let ActionArgument::String2(keyword, _) = arg {
+            world.editor_operation(&EditorOperation::Highlight(keyword.clone()));
         }
         InputResult::InputConsumed
     }

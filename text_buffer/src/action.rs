@@ -36,6 +36,8 @@ pub enum EditorOperation {
     Cut(fn(String)),
     Mark,
     UnMark,
+
+    Highlight(String),
 }
 
 impl EditorOperation {
@@ -308,6 +310,9 @@ impl BufferApplyer {
                         Self::internal_cut(&mut reverse_actions, buffer, current_caret, mark_caret);
                     func(text);
                 }
+            }
+            EditorOperation::Highlight(keyword) => {
+                buffer.highlight(keyword);
             }
             EditorOperation::Noop => {}
             EditorOperation::Undo => {}
