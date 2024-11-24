@@ -851,14 +851,24 @@ pub async fn generate_image_iter(
     .await;
 
     (0..num_of_frame).map(move |frame| {
+        while let Ok(action) = state.action_queue_receiver.try_recv() {
+            // この時の InputResult は処理不要のものを返す想定なのでハンドリングしない
+            let _ = state.action(action);
+        }
+
         state.update();
         let image = if let RenderTargetResponse::Image(image) = state.render().unwrap() {
             image
         } else {
             panic!("image is not found")
         };
-
         increment_fixed_clock(frame_gain);
+
+        while let Ok(action) = state.post_action_queue_receiver.try_recv() {
+            // この時の InputResult は処理不要のものを返す想定なのでハンドリングしない
+            let _ = state.action(action);
+        }
+
         (image, frame)
     })
 }
