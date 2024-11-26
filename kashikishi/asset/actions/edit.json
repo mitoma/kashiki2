@@ -93,5 +93,10 @@
         "namespace": "edit",
         "name": "undo",
         "description": "元に戻す"
+    },
+    {
+        "namespace": "edit",
+        "name": "highlight-ui",
+        "description": "ハイライト"
     }
 ]

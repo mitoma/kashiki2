@@ -294,6 +294,55 @@ impl Buffer {
         }
         result
     }
+
+    #[inline]
+    fn byte_to_char_index(s: &str, byte_index: usize) -> Option<usize> {
+        s.char_indices()
+            .enumerate()
+            .find_map(|(char_index, (byte_pos, _))| {
+                if byte_pos == byte_index {
+                    Some(char_index)
+                } else {
+                    None
+                }
+            })
+    }
+
+    #[inline]
+    fn highlight_positions(&self, highlight_string: &str) -> Vec<CellPosition> {
+        let mut result = Vec::new();
+        for line in &self.lines {
+            let line_string = line.to_line_string();
+            let mut slice_start = 0;
+            let mut search_target = &line_string[slice_start..];
+
+            while let Some(idx) = search_target.find(highlight_string) {
+                let start = slice_start + idx;
+                let end = start + highlight_string.len();
+                result.push(CellPosition {
+                    row: line.row_num,
+                    col: Self::byte_to_char_index(&line_string, start).unwrap(),
+                });
+                slice_start = end;
+                search_target = &line_string[slice_start..];
+            }
+        }
+        result
+    }
+
+    pub fn highlight(&self, highlight_string: &str) {
+        self.highlight_positions(highlight_string)
+            .iter()
+            .flat_map(|pos| {
+                self.lines[pos.row].chars[pos.col..(pos.col + highlight_string.chars().count())]
+                    .to_vec()
+            })
+            .for_each(|buffer_char| {
+                self.sender
+                    .send(ChangeEvent::SelectChar(buffer_char))
+                    .unwrap();
+            });
+    }
 }
 
 #[derive(Default)]
@@ -922,7 +971,6 @@ mod tests {
         sut.back(&mut caret);
         let _ = rx.try_iter().collect::<Vec<_>>();
         sut.backspace(&mut caret);
-        //rx.try_iter().for_each(|e| println!("{:?}", e));
         {
             let events: Vec<ChangeEvent> = rx.try_iter().collect();
             #[rustfmt::skip]
@@ -1049,6 +1097,116 @@ mod tests {
         ];
         for c in cases {
             assert_eq!(c.target.in_caret_range(c.from, c.to), c.expected);
+        }
+    }
+
+    #[test]
+    fn test_highlight_positions() {
+        struct TestCase {
+            test_string: &'static str,
+            higlight_string: &'static str,
+            cell_positions: Vec<CellPosition>,
+        }
+        let cases = vec![
+            TestCase {
+                test_string: "Hello, World!",
+                higlight_string: "World",
+                cell_positions: vec![CellPosition { row: 0, col: 7 }],
+            },
+            TestCase {
+                test_string: "Hello, World! World!",
+                higlight_string: "World",
+                cell_positions: vec![
+                    CellPosition { row: 0, col: 7 },
+                    CellPosition { row: 0, col: 14 },
+                ],
+            },
+            TestCase {
+                test_string: indoc::indoc! {r#"
+                    Hello,
+                    Good World!
+                    And
+                    Bad World.
+                "#},
+                higlight_string: "World",
+                cell_positions: vec![
+                    CellPosition { row: 1, col: 5 },
+                    CellPosition { row: 3, col: 4 },
+                ],
+            },
+            TestCase {
+                test_string: indoc::indoc! {r#"
+                    Hello!
+                    Good Bye.
+                "#},
+                higlight_string: "Hi!",
+                cell_positions: vec![],
+            },
+            TestCase {
+                test_string: "こんにちは、世界！🐖世界！",
+                higlight_string: "世界",
+                cell_positions: vec![
+                    CellPosition { row: 0, col: 6 },
+                    CellPosition { row: 0, col: 10 },
+                ],
+            },
+        ];
+        for case in cases.iter() {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let mut sut = Buffer::new(sender.clone());
+            let mut caret = Caret::new([0, 0].into(), &sender);
+            sut.insert_string(&mut caret, case.test_string.to_string());
+            let _ = receiver.try_iter().collect::<Vec<_>>();
+
+            let result = sut.highlight_positions(case.higlight_string);
+            assert_eq!(result, case.cell_positions);
+        }
+    }
+
+    #[test]
+    fn test_highlight() {
+        struct TestCase {
+            test_string: &'static str,
+            higlight_string: &'static str,
+            events: Vec<ChangeEvent>,
+        }
+        let cases = vec![TestCase {
+            test_string: "Hello, World!",
+            higlight_string: "World",
+            events: vec![
+                ChangeEvent::SelectChar(BufferChar {
+                    position: [0, 7].into(),
+                    c: 'W',
+                }),
+                ChangeEvent::SelectChar(BufferChar {
+                    position: [0, 8].into(),
+                    c: 'o',
+                }),
+                ChangeEvent::SelectChar(BufferChar {
+                    position: [0, 9].into(),
+                    c: 'r',
+                }),
+                ChangeEvent::SelectChar(BufferChar {
+                    position: [0, 10].into(),
+                    c: 'l',
+                }),
+                ChangeEvent::SelectChar(BufferChar {
+                    position: [0, 11].into(),
+                    c: 'd',
+                }),
+            ],
+        }];
+        for case in cases.into_iter() {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let mut sut = Buffer::new(sender.clone());
+            let mut caret = Caret::new([0, 0].into(), &sender);
+            sut.insert_string(&mut caret, case.test_string.to_string());
+            let _ = receiver.try_iter().collect::<Vec<_>>();
+
+            sut.highlight(case.higlight_string);
+            for event in case.events.into_iter() {
+                assert_eq!(receiver.recv(), Ok(event));
+            }
         }
     }
 }

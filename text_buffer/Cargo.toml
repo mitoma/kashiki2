@@ -5,3 +5,6 @@ authors = ["mitoma <mutetheradio@gmail.com>"]
 edition = "2021"
 
 [dependencies]
+
+[dev-dependencies]
+indoc = "2"
