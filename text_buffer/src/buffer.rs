@@ -343,6 +343,43 @@ impl Buffer {
                     .unwrap();
             });
     }
+
+    pub fn unhighlight(&self, highlight_string: &str) {
+        self.highlight_positions(highlight_string)
+            .iter()
+            .flat_map(|pos| {
+                self.lines[pos.row].chars[pos.col..(pos.col + highlight_string.chars().count())]
+                    .to_vec()
+            })
+            .for_each(|buffer_char| {
+                self.sender
+                    .send(ChangeEvent::UnSelectChar(buffer_char))
+                    .unwrap();
+            });
+    }
+
+    pub fn move_to_next(&mut self, caret: &mut Caret, keyword: &str) {
+        let positions = self.highlight_positions(keyword);
+        let _ = positions
+            .iter()
+            .find(|pos| pos > &&caret.position)
+            .or(positions.first())
+            .map(|pos| {
+                caret.move_to(*pos, &self.sender);
+            });
+    }
+
+    pub fn move_to_previous(&mut self, caret: &mut Caret, keyword: &str) {
+        let positions = self.highlight_positions(keyword);
+        let _ = positions
+            .iter()
+            .rev()
+            .find(|pos| pos < &&caret.position)
+            .or(positions.last())
+            .map(|pos| {
+                caret.move_to(*pos, &self.sender);
+            });
+    }
 }
 
 #[derive(Default)]
@@ -1207,6 +1244,115 @@ mod tests {
             for event in case.events.into_iter() {
                 assert_eq!(receiver.recv(), Ok(event));
             }
+        }
+    }
+
+    #[test]
+    fn test_move_to_next() {
+        struct TestCase {
+            test_string: &'static str,
+            higlight_string: &'static str,
+            start_position: CellPosition,
+            moved_positions: Vec<CellPosition>,
+        }
+        let cases = vec![
+            TestCase {
+                test_string: indoc::indoc! {r#"
+                    My name is nes.
+                    Friend is pola.
+                    Other friend Is roid.
+                "#},
+                higlight_string: "is",
+                start_position: CellPosition { row: 0, col: 8 },
+                moved_positions: vec![
+                    CellPosition { row: 1, col: 7 },
+                    CellPosition { row: 0, col: 8 },
+                    CellPosition { row: 1, col: 7 },
+                ],
+            },
+            TestCase {
+                test_string: indoc::indoc! {r#"
+                    本日はお日柄もよく。
+                    銀行員もよく笑っております。
+                    くよくよしなさんな。
+                "#},
+                higlight_string: "よく",
+                start_position: CellPosition { row: 0, col: 0 },
+                moved_positions: vec![
+                    CellPosition { row: 0, col: 7 },
+                    CellPosition { row: 1, col: 4 },
+                    CellPosition { row: 2, col: 1 },
+                ],
+            },
+        ];
+        for case in cases.iter() {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let mut sut = Buffer::new(sender.clone());
+            let mut caret = Caret::new([0, 0].into(), &sender);
+            sut.insert_string(&mut caret, case.test_string.to_string());
+            let _ = receiver.try_iter().collect::<Vec<_>>();
+
+            let mut caret = Caret::new(case.start_position, &sender);
+
+            case.moved_positions.iter().for_each(|p| {
+                sut.move_to_next(&mut caret, case.higlight_string);
+                assert_eq!(caret.position, *p);
+            });
+        }
+    }
+
+    #[test]
+    fn test_move_to_previous() {
+        struct TestCase {
+            test_string: &'static str,
+            higlight_string: &'static str,
+            start_position: CellPosition,
+            moved_positions: Vec<CellPosition>,
+        }
+        let cases = vec![
+            TestCase {
+                test_string: indoc::indoc! {r#"
+                    My name is nes.
+                    Friend is pola.
+                    Other friend Is roid.
+                "#},
+                higlight_string: "is",
+                start_position: CellPosition { row: 1, col: 0 },
+                moved_positions: vec![
+                    CellPosition { row: 0, col: 8 },
+                    CellPosition { row: 1, col: 7 },
+                    CellPosition { row: 0, col: 8 },
+                ],
+            },
+            TestCase {
+                test_string: indoc::indoc! {r#"
+                    本日はお日柄もよく。
+                    銀行員もよく笑っております。
+                    くよくよしなさんな。
+                "#},
+                higlight_string: "よく",
+                start_position: CellPosition { row: 2, col: 8 },
+                moved_positions: vec![
+                    CellPosition { row: 2, col: 1 },
+                    CellPosition { row: 1, col: 4 },
+                    CellPosition { row: 0, col: 7 },
+                    CellPosition { row: 2, col: 1 },
+                ],
+            },
+        ];
+        for case in cases.iter() {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let mut sut = Buffer::new(sender.clone());
+            let mut caret = Caret::new([0, 0].into(), &sender);
+            sut.insert_string(&mut caret, case.test_string.to_string());
+            let _ = receiver.try_iter().collect::<Vec<_>>();
+
+            let mut caret = Caret::new(case.start_position, &sender);
+
+            case.moved_positions.iter().for_each(|p| {
+                sut.move_to_previous(&mut caret, case.higlight_string);
+                assert_eq!(caret.position, *p);
+            });
         }
     }
 }

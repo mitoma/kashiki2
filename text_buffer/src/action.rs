@@ -38,6 +38,8 @@ pub enum EditorOperation {
     UnMark,
 
     Highlight(String),
+    MoveToNext(String),
+    MoveToPrevious(String),
 }
 
 impl EditorOperation {
@@ -213,6 +215,14 @@ impl BufferApplyer {
             EditorOperation::BufferLast => {
                 reverse_actions.push(ReverseAction::MoveTo(*current_caret));
                 buffer.buffer_last(current_caret);
+            }
+            EditorOperation::MoveToNext(keyword) => {
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                buffer.move_to_next(current_caret, keyword);
+            }
+            EditorOperation::MoveToPrevious(keyword) => {
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                buffer.move_to_previous(current_caret, keyword);
             }
 
             // modify buffer
