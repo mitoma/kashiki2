@@ -1,6 +1,6 @@
 use std::sync::{mpsc::Receiver, Arc};
 
-use font_collector::FontData;
+use font_collector::FontRepository;
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
@@ -177,7 +177,7 @@ impl RenderState {
         quarity: Quarity,
         color_theme: ColorTheme,
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
-        font_binaries: Vec<FontData>,
+        font_repository: FontRepository,
         performance_mode: bool,
     ) -> Self {
         let window_size = render_target_request.window_size();
@@ -302,6 +302,7 @@ impl RenderState {
             color_theme.background().into(),
         );
 
+        let font_binaries = font_repository.get_fonts();
         let font_binaries = Arc::new(font_binaries);
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
         let glyph_vertex_buffer =
@@ -321,6 +322,7 @@ impl RenderState {
             action_queue_sender,
             post_action_queue_sender,
             global_direction: Direction::Horizontal,
+            font_repository,
         };
 
         simple_state_callback.init(&context);

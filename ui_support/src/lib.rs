@@ -31,7 +31,7 @@ use crate::{
 };
 
 use bitflags::bitflags;
-use font_collector::FontData;
+use font_collector::FontRepository;
 use image::{ImageBuffer, Rgba};
 use instant::Duration;
 
@@ -63,7 +63,7 @@ pub struct SimpleStateSupport {
     pub quarity: Quarity,
     pub color_theme: ColorTheme,
     pub flags: Flags,
-    pub font_binaries: Vec<FontData>,
+    pub font_repository: FontRepository,
     pub performance_mode: bool,
 }
 
@@ -125,7 +125,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         support.quarity,
         support.color_theme,
         support.callback,
-        support.font_binaries,
+        support.font_repository,
         support.performance_mode,
     )
     .await;
@@ -370,7 +370,7 @@ pub async fn generate_images<F>(
         support.quarity,
         support.color_theme,
         support.callback,
-        support.font_binaries,
+        support.font_repository,
         support.performance_mode,
     )
     .await;
@@ -408,7 +408,7 @@ pub async fn generate_image_iter(
         support.quarity,
         support.color_theme,
         support.callback,
-        support.font_binaries,
+        support.font_repository,
         support.performance_mode,
     )
     .await;

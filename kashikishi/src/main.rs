@@ -12,7 +12,7 @@ use std::{rc::Rc, sync::Mutex};
 
 use arboard::Clipboard;
 use clap::{command, Parser};
-use font_collector::FontCollector;
+use font_collector::{FontCollector, FontRepository};
 use rokid_max_ext::RokidMaxAction;
 use stroke_parser::{
     action_store_parser::parse_setting, Action, ActionArgument, ActionStore, CommandName,
@@ -119,27 +119,20 @@ pub async fn run(args: Args) {
     let icon = None;
 
     // setup font
-    let font_binaries = {
-        let mut collector = FontCollector::default();
-        let mut font_binaries = Vec::new();
+    let font_repository = {
+        let mut font_collector = FontCollector::default();
         if !args.use_embedded_font {
-            collector.add_system_fonts();
-            let fonts = args
-                .font_names
-                .iter()
-                .filter_map(|str| collector.load_font(str));
-            for font in fonts {
-                font_binaries.push(font);
-            }
+            font_collector.add_system_fonts();
         }
-        // 埋め込まれるフォントは fallback に使うから常に追加する
-        font_binaries.push(collector.convert_font(FONT_DATA.to_vec(), None).unwrap());
-        font_binaries.push(
-            collector
-                .convert_font(EMOJI_FONT_DATA.to_vec(), None)
-                .unwrap(),
-        );
-        font_binaries
+        let mut font_repository = FontRepository::new(font_collector);
+        if !args.use_embedded_font {
+            args.font_names.iter().for_each(|name| {
+                font_repository.add_fallback_font_from_system(name);
+            });
+        }
+        font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
+        font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
+        font_repository
     };
 
     set_clock_mode(font_rasterizer::time::ClockMode::StepByStep);
@@ -153,7 +146,7 @@ pub async fn run(args: Args) {
         quarity: Quarity::CappedVeryHigh(1920 * 2, 1200 * 2),
         color_theme: COLOR_THEME,
         flags: Flags::DEFAULT,
-        font_binaries,
+        font_repository,
         performance_mode: args.performance_mode,
     };
     run_support(support).await;

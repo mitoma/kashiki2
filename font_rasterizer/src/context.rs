@@ -1,5 +1,6 @@
 use std::sync::{mpsc::Sender, Arc};
 
+use font_collector::FontRepository;
 use stroke_parser::Action;
 use winit::dpi::PhysicalSize;
 
@@ -17,6 +18,7 @@ pub struct StateContext {
     pub action_queue_sender: Sender<Action>,
     pub post_action_queue_sender: Sender<Action>,
     pub global_direction: Direction,
+    pub font_repository: FontRepository,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

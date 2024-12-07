@@ -5,10 +5,58 @@ use std::path::PathBuf;
 use convert_text::PreferredLanguage;
 use log::{info, warn};
 
+#[derive(Debug, Clone)]
 pub struct FontData {
     pub font_name: String,
     pub binary: Vec<u8>,
     pub index: u32,
+}
+
+#[derive(Default)]
+pub struct FontRepository {
+    font_collector: FontCollector,
+    primary_font: Option<FontData>,
+    fallback_fonts: Vec<FontData>,
+}
+
+impl FontRepository {
+    pub fn new(font_collector: FontCollector) -> Self {
+        Self {
+            font_collector,
+            primary_font: None,
+            fallback_fonts: Vec::new(),
+        }
+    }
+
+    // 効率的ではないが所有権を頑張ると大変なので一旦ここはあきらめる
+    pub fn get_fonts(&self) -> Vec<FontData> {
+        let mut fonts = Vec::new();
+        if let Some(font) = self.primary_font.as_ref() {
+            fonts.push(font.clone());
+        }
+        for fallback_font in &self.fallback_fonts {
+            fonts.push(fallback_font.clone());
+        }
+        fonts
+    }
+
+    pub fn set_primary_font(&mut self, font_name: &str) {
+        if let Some(font_data) = self.font_collector.load_font(font_name) {
+            self.primary_font = Some(font_data);
+        }
+    }
+
+    pub fn add_fallback_font_from_system(&mut self, font_name: &str) {
+        if let Some(font_data) = self.font_collector.load_font(font_name) {
+            self.fallback_fonts.push(font_data);
+        }
+    }
+
+    pub fn add_fallback_font_from_binary(&mut self, data: Vec<u8>, font_name: Option<String>) {
+        if let Some(font_data) = self.font_collector.convert_font(data, font_name) {
+            self.fallback_fonts.push(font_data);
+        }
+    }
 }
 
 pub struct FontCollector {

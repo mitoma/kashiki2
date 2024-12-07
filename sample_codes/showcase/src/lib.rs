@@ -1,6 +1,6 @@
 use std::sync::{mpsc::Sender, LazyLock, Mutex};
 
-use font_collector::FontCollector;
+use font_collector::FontRepository;
 use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
 use text_buffer::action::EditorOperation;
 #[cfg(target_arch = "wasm32")]
@@ -28,13 +28,9 @@ const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../../fonts/NotoEmoji-Regular.
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let collector = FontCollector::default();
-    let font_binaries = vec![
-        collector.convert_font(FONT_DATA.to_vec(), None).unwrap(),
-        collector
-            .convert_font(EMOJI_FONT_DATA.to_vec(), None)
-            .unwrap(),
-    ];
+    let mut font_repository = FontRepository::default();
+    font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
+    font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
     let window_size = WindowSize::new(1024, 768);
     let callback = SingleCharCallback::new(window_size);
@@ -46,7 +42,7 @@ pub async fn run() {
         quarity: Quarity::VeryHigh,
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
-        font_binaries,
+        font_repository,
         performance_mode: false,
     };
     run_support(support).await;
