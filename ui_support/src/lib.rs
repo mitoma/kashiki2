@@ -178,7 +178,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                         }
                         InputResult::ChangeFont(font_name) => {
                             state.change_font(font_name);
-                        },
+                        }
                         InputResult::ChangeGlobalDirection(direction) => {
                             state.context.global_direction = direction;
                         }
@@ -315,7 +315,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                     }
                     InputResult::ChangeFont(font_name) => {
                         state.change_font(font_name);
-                    },
+                    }
                     InputResult::ToggleDecorations => {
                         window.set_decorations(!window.is_decorated());
                     }
