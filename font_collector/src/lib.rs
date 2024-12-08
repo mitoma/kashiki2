@@ -80,6 +80,9 @@ impl Default for FontCollector {
 impl FontCollector {
     pub fn add_system_fonts(&mut self) {
         self.font_paths.push(system_font_dir());
+        if let Some(path) = user_font_dir() {
+            self.font_paths.push(path)
+        }
     }
 
     pub fn add_font_path(&mut self, path: PathBuf) {
@@ -117,7 +120,7 @@ impl FontCollector {
             if font_names.is_empty() {
                 continue;
             }
-            info!("font_path:{:?}, names:{:?}", font_path, font_names);
+            println!("font_path:{:?}, names:{:?}", font_path, font_names);
             fonts.push(Font::File(font_path.clone(), font_names));
         }
         fonts
@@ -166,6 +169,16 @@ impl FontCollector {
 
 fn system_font_dir() -> PathBuf {
     PathBuf::from("C:\\Windows\\Fonts")
+}
+
+fn user_font_dir() -> Option<PathBuf> {
+    if let Some(font_dir) = dirs::font_dir() {
+        return Some(font_dir);
+    }
+    if let Some(user_dir) = dirs::home_dir() {
+        return Some(user_dir.join("AppData/Local/Microsoft/Windows/Fonts"));
+    }
+    None
 }
 
 fn font_names(font_path: &PathBuf, preferred_language: Option<PreferredLanguage>) -> Vec<String> {
