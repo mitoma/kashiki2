@@ -120,7 +120,7 @@ impl FontCollector {
             if font_names.is_empty() {
                 continue;
             }
-            println!("font_path:{:?}, names:{:?}", font_path, font_names);
+            info!("font_path:{:?}, names:{:?}", font_path, font_names);
             fonts.push(Font::File(font_path.clone(), font_names));
         }
         fonts
