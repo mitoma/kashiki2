@@ -459,4 +459,21 @@ impl RenderState {
     pub(crate) fn shutdown(&mut self) {
         self.simple_state_callback.shutdown();
     }
+
+    pub(crate) fn change_font(&mut self, font_name: String) {
+        self.context.font_repository.set_primary_font(&font_name);
+        let font_binaries = self.context.font_repository.get_fonts();
+        let font_binaries = Arc::new(font_binaries);
+        let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
+
+        let registerd_chars = self.glyph_vertex_buffer.registerd_chars();
+        self.glyph_vertex_buffer =
+            GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
+        let _ = self.glyph_vertex_buffer.append_glyph(
+            &self.context.device,
+            &self.context.queue,
+            registerd_chars,
+        );
+        self.context.char_width_calcurator = char_width_calcurator;
+    }
 }

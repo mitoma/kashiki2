@@ -57,6 +57,10 @@ impl FontRepository {
             self.fallback_fonts.push(font_data);
         }
     }
+
+    pub fn list_font_names(&self) -> Vec<String> {
+        self.font_collector.list_font_names()
+    }
 }
 
 pub struct FontCollector {

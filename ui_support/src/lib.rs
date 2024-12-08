@@ -176,6 +176,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                         InputResult::ChangeColorTheme(color_theme) => {
                             state.change_color_theme(color_theme);
                         }
+                        InputResult::ChangeFont(font_name) => {
+                            state.change_font(font_name);
+                        },
                         InputResult::ChangeGlobalDirection(direction) => {
                             state.context.global_direction = direction;
                         }
@@ -310,6 +313,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                     InputResult::ChangeColorTheme(color_theme) => {
                         state.change_color_theme(color_theme);
                     }
+                    InputResult::ChangeFont(font_name) => {
+                        state.change_font(font_name);
+                    },
                     InputResult::ToggleDecorations => {
                         window.set_decorations(!window.is_decorated());
                     }
@@ -338,6 +344,7 @@ pub enum InputResult {
     ChangeColorTheme(ColorTheme),
     ChangeGlobalDirection(Direction),
     ChangeWindowSize(WindowSize),
+    ChangeFont(String),
     SendExit,
     Noop,
 }
