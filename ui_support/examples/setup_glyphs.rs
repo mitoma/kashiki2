@@ -1,4 +1,4 @@
-use font_collector::FontCollector;
+use font_collector::{FontCollector, FontRepository};
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
@@ -20,16 +20,11 @@ pub fn main() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let mut collector = FontCollector::default();
-    collector.add_system_fonts();
-    let data = collector.load_font("UD デジタル 教科書体 N-R");
-
-    let font_binaries = vec![
-        data.unwrap(),
-        collector
-            .convert_font(EMOJI_FONT_DATA.to_vec(), None)
-            .unwrap(),
-    ];
+    let mut font_collector = FontCollector::default();
+    font_collector.add_system_fonts();
+    let mut font_repository = FontRepository::new(font_collector);
+    font_repository.set_primary_font("UD デジタル 教科書体 N-R");
+    font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
     let window_size = WindowSize::new(800, 600);
     let callback = SingleCharCallback {
@@ -43,7 +38,7 @@ pub async fn run() {
         quarity: Quarity::VeryHigh,
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
-        font_binaries,
+        font_repository,
         performance_mode: false,
     };
     run_support(support).await;

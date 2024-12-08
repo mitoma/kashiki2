@@ -40,6 +40,7 @@ bitflags = "2.6"
 rand = "0.8"
 cfg-if = "1.0"
 arboard = "3.4.0"
+dirs = "5.0.1"
 
 [profile.release-optimized]
 inherits = "release"

@@ -190,6 +190,10 @@ impl GlyphVertexBuffer {
         }
     }
 
+    pub fn registerd_chars(&self) -> HashSet<char> {
+        self.buffer_index.keys().cloned().collect()
+    }
+
     pub fn append_glyph(
         &mut self,
         device: &wgpu::Device,

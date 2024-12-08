@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 log.workspace = true
 rustybuzz.workspace = true
+dirs.workspace = true
 encoding_rs = "0.8.33"

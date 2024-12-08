@@ -284,3 +284,75 @@ impl ActionProcessor for SystemChangeWindowSize {
         }
     }
 }
+
+pub struct SystemChangeFontUi;
+impl ActionProcessor for SystemChangeFontUi {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-font-ui".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        context: &StateContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let options = context
+            .font_repository
+            .list_font_names()
+            .iter()
+            .map(|name| {
+                SelectOption::new(
+                    name.clone(),
+                    Action::new_command_with_argument("system", "change-font", name),
+                )
+            })
+            .collect::<Vec<SelectOption>>();
+
+        let model = SelectBox::new_without_action_name(
+            context,
+            "フォントを選択してください".to_string(),
+            options,
+            None,
+        );
+        context.ui_string_sender.send(model.to_string()).unwrap();
+        world.add_next(Box::new(model));
+        world.re_layout();
+        let adjustment = if context.global_direction == Direction::Horizontal {
+            CameraAdjustment::FitWidth
+        } else {
+            CameraAdjustment::FitHeight
+        };
+        world.look_next(adjustment);
+
+        InputResult::InputConsumed
+    }
+}
+
+pub struct SystemChangeFont;
+impl ActionProcessor for SystemChangeFont {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-font".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        _context: &StateContext,
+        _world: &mut dyn World,
+    ) -> InputResult {
+        if let ActionArgument::String(font_name) = arg {
+            InputResult::ChangeFont(font_name.clone())
+        } else {
+            InputResult::Noop
+        }
+    }
+}

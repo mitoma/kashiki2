@@ -1,5 +1,5 @@
 use apng::{load_dynamic_image, Frame, ParallelEncoder};
-use font_collector::FontCollector;
+use font_collector::{FontCollector, FontRepository};
 use instant::Duration;
 
 use cgmath::Rotation3;
@@ -32,12 +32,12 @@ pub fn main() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let mut collector = FontCollector::default();
-    collector.add_system_fonts();
-
-    let data = collector.load_font("UD デジタル 教科書体 N-R");
-    let emoji_data = collector.load_font("Segoe UI Emoji");
-    let font_binaries = vec![data.unwrap(), emoji_data.unwrap()];
+    let mut font_collector = FontCollector::default();
+    font_collector.add_system_fonts();
+    let mut font_repository = FontRepository::new(font_collector);
+    font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N-R");
+    font_repository.add_fallback_font_from_system("Segoe UI Emoji");
+    //let font_binaries = vec![data.unwrap(), emoji_data.unwrap()];
 
     let window_size = WindowSize::new(512, 512);
     let callback = SingleCharCallback::new(window_size);
@@ -49,7 +49,7 @@ pub async fn run() {
         quarity: Quarity::VeryHigh,
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
-        font_binaries,
+        font_repository,
         performance_mode: false,
     };
 

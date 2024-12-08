@@ -16,6 +16,11 @@
     },
     {
         "namespace": "system",
+        "name": "change-font-ui",
+        "description": "フォントの変更"
+    },
+    {
+        "namespace": "system",
         "name": "change-global-direction",
         "description": "システム全体の縦書き・横書き設定を変更"
     },
