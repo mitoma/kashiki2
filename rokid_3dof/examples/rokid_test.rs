@@ -1,4 +1,4 @@
-use font_collector::{FontCollector, FontRepository};
+use font_collector::FontRepository;
 use instant::Duration;
 use rokid_3dof::RokidMax;
 #[cfg(target_arch = "wasm32")]
