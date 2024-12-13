@@ -511,6 +511,8 @@ pub enum ModelOperation {
     IncreaseColScale,
     // 文字間の大きさを減少させる
     DecreaseColScale,
+    // 文章の最小サイズを切り替える
+    ToggleMinBound,
     // Copy Display String
     CopyDisplayString(Arc<dyn CharWidthResolver>, fn(String)),
     // サイケデリックモードを切り替える(実験的なお遊び機能)

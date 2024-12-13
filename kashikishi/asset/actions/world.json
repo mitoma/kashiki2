@@ -118,5 +118,10 @@
         "namespace": "world",
         "name": "change-layout",
         "description": "レイアウトを変更する"
+    },
+    {
+        "namespace": "world",
+        "name": "toggle-min-bound",
+        "description": "文章の最小サイズを切り替える"
     }
 ]

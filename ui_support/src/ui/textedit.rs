@@ -180,7 +180,7 @@ impl Model for TextEdit {
 
         self.sync_editor_events(device, color_theme);
 
-        if self.text_updated {
+        if self.text_updated || self.config_updated {
             let layout = self.calc_phisical_layout(context.char_width_calcurator.clone());
             let bound = self.calc_bound(&layout);
             self.calc_position(&context.char_width_calcurator, &layout, bound);
@@ -285,6 +285,11 @@ impl Model for TextEdit {
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::MarkAndClick(_, _, _) => todo!(),
+            ModelOperation::ToggleMinBound => {
+                self.config.toggle_min_bound();
+                self.config_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
         }
     }
 

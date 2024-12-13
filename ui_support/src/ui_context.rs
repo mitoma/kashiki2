@@ -225,6 +225,9 @@ pub struct TextContext {
     pub(crate) hyde_caret: bool,
 }
 
+const TEXT_CONTEXT_ZERO_BOUND: Point2<f32> = Point2::new(0.0, 0.0);
+const TEXT_CONTEXT_DEFAULT_BOUND: Point2<f32> = Point2::new(10.0, 5.0);
+
 impl Default for TextContext {
     fn default() -> Self {
         // 読みやすい文章の目安として一行日本語30文字程度、
@@ -281,6 +284,14 @@ impl TextContext {
         match self.direction {
             Direction::Horizontal => [self.col_scale, self.row_scale],
             Direction::Vertical => [self.row_scale, self.col_scale],
+        }
+    }
+
+    pub fn toggle_min_bound(&mut self) {
+        if self.min_bound == TEXT_CONTEXT_ZERO_BOUND {
+            self.min_bound = TEXT_CONTEXT_DEFAULT_BOUND;
+        } else {
+            self.min_bound = TEXT_CONTEXT_ZERO_BOUND;
         }
     }
 }

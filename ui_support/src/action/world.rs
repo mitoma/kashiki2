@@ -178,6 +178,11 @@ fn decrease_row_scale(_arg: &ActionArgument, _context: &StateContext, world: &mu
     world.model_operation(&ModelOperation::DecreaseRowScale);
 }
 
+world_processor!(WorldToggleMinBound, "toggle-min-bound", toggle_min_bound);
+fn toggle_min_bound(_arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+    world.model_operation(&ModelOperation::ToggleMinBound);
+}
+
 world_processor!(
     WorldTogglePsychedelic,
     "toggle-psychedelic",
