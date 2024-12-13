@@ -4,6 +4,21 @@ pub enum ColorTheme {
     SolarizedLight,
     SolarizedDark,
     SolarizedBlackback,
+    Custom {
+        text: Color,
+        text_comment: Color,
+        text_emphasized: Color,
+        background: Color,
+        background_highlights: Color,
+        yellow: Color,
+        orange: Color,
+        red: Color,
+        magenta: Color,
+        violet: Color,
+        blue: Color,
+        cyan: Color,
+        green: Color,
+    },
 }
 
 impl From<SolarizedColor> for wgpu::Color {
@@ -18,82 +33,158 @@ impl From<SolarizedColor> for wgpu::Color {
     }
 }
 
-#[allow(dead_code)]
-impl ColorTheme {
-    pub fn text(&self) -> SolarizedColor {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base00,
-            ColorTheme::SolarizedDark => SolarizedColor::Base0,
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base0,
-        }
-    }
-
-    pub fn text_comment(&self) -> SolarizedColor {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base1,
-            ColorTheme::SolarizedDark => SolarizedColor::Base01,
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base01,
-        }
-    }
-
-    pub fn text_emphasized(&self) -> SolarizedColor {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base01,
-            ColorTheme::SolarizedDark => SolarizedColor::Base1,
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base1,
-        }
-    }
-
-    pub fn background(&self) -> SolarizedColor {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base3,
-            ColorTheme::SolarizedDark => SolarizedColor::Base03,
-            ColorTheme::SolarizedBlackback => SolarizedColor::Black,
-        }
-    }
-
-    pub fn background_highlights(&self) -> SolarizedColor {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base2,
-            ColorTheme::SolarizedDark => SolarizedColor::Base02,
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base02,
-        }
-    }
-
-    pub fn yellow(&self) -> SolarizedColor {
-        SolarizedColor::Yellow
-    }
-
-    pub fn orange(&self) -> SolarizedColor {
-        SolarizedColor::Orange
-    }
-
-    pub fn red(&self) -> SolarizedColor {
-        SolarizedColor::Red
-    }
-
-    pub fn magenta(&self) -> SolarizedColor {
-        SolarizedColor::Magenta
-    }
-
-    pub fn violet(&self) -> SolarizedColor {
-        SolarizedColor::Violet
-    }
-
-    pub fn blue(&self) -> SolarizedColor {
-        SolarizedColor::Blue
-    }
-
-    pub fn cyan(&self) -> SolarizedColor {
-        SolarizedColor::Cyan
-    }
-
-    pub fn green(&self) -> SolarizedColor {
-        SolarizedColor::Green
+impl From<SolarizedColor> for Color {
+    fn from(value: SolarizedColor) -> Self {
+        Self::Solarized(value)
     }
 }
 
 #[allow(dead_code)]
+impl ColorTheme {
+    pub fn text(&self) -> Color {
+        match self {
+            ColorTheme::SolarizedLight => SolarizedColor::Base00.into(),
+            ColorTheme::SolarizedDark => SolarizedColor::Base0.into(),
+            ColorTheme::SolarizedBlackback => SolarizedColor::Base0.into(),
+            ColorTheme::Custom { text, .. } => *text,
+        }
+    }
+
+    pub fn text_comment(&self) -> Color {
+        match self {
+            ColorTheme::SolarizedLight => SolarizedColor::Base1.into(),
+            ColorTheme::SolarizedDark => SolarizedColor::Base01.into(),
+            ColorTheme::SolarizedBlackback => SolarizedColor::Base01.into(),
+            ColorTheme::Custom { text_comment, .. } => *text_comment,
+        }
+    }
+
+    pub fn text_emphasized(&self) -> Color {
+        match self {
+            ColorTheme::SolarizedLight => SolarizedColor::Base01.into(),
+            ColorTheme::SolarizedDark => SolarizedColor::Base1.into(),
+            ColorTheme::SolarizedBlackback => SolarizedColor::Base1.into(),
+            ColorTheme::Custom {
+                text_emphasized, ..
+            } => *text_emphasized,
+        }
+    }
+
+    pub fn background(&self) -> Color {
+        match self {
+            ColorTheme::SolarizedLight => SolarizedColor::Base3.into(),
+            ColorTheme::SolarizedDark => SolarizedColor::Base03.into(),
+            ColorTheme::SolarizedBlackback => SolarizedColor::Black.into(),
+            ColorTheme::Custom { background, .. } => *background,
+        }
+    }
+
+    pub fn background_highlights(&self) -> Color {
+        match self {
+            ColorTheme::SolarizedLight => SolarizedColor::Base2.into(),
+            ColorTheme::SolarizedDark => SolarizedColor::Base02.into(),
+            ColorTheme::SolarizedBlackback => SolarizedColor::Base02.into(),
+            ColorTheme::Custom {
+                background_highlights,
+                ..
+            } => *background_highlights,
+        }
+    }
+
+    pub fn yellow(&self) -> Color {
+        match self {
+            ColorTheme::Custom { yellow, .. } => *yellow,
+            _ => SolarizedColor::Yellow.into(),
+        }
+    }
+
+    pub fn orange(&self) -> Color {
+        match self {
+            ColorTheme::Custom { orange, .. } => *orange,
+            _ => SolarizedColor::Orange.into(),
+        }
+    }
+
+    pub fn red(&self) -> Color {
+        match self {
+            ColorTheme::Custom { red, .. } => *red,
+            _ => SolarizedColor::Red.into(),
+        }
+    }
+
+    pub fn magenta(&self) -> Color {
+        match self {
+            ColorTheme::Custom { magenta, .. } => *magenta,
+            _ => SolarizedColor::Magenta.into(),
+        }
+    }
+
+    pub fn violet(&self) -> Color {
+        match self {
+            ColorTheme::Custom { violet, .. } => *violet,
+            _ => SolarizedColor::Violet.into(),
+        }
+    }
+
+    pub fn blue(&self) -> Color {
+        match self {
+            ColorTheme::Custom { blue, .. } => *blue,
+            _ => SolarizedColor::Blue.into(),
+        }
+    }
+
+    pub fn cyan(&self) -> Color {
+        match self {
+            ColorTheme::Custom { cyan, .. } => *cyan,
+            _ => SolarizedColor::Cyan.into(),
+        }
+    }
+
+    pub fn green(&self) -> Color {
+        match self {
+            ColorTheme::Custom { green, .. } => *green,
+            _ => SolarizedColor::Green.into(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+
+pub enum Color {
+    Solarized(SolarizedColor),
+    Custom { r: u8, g: u8, b: u8 },
+}
+
+impl From<Color> for wgpu::Color {
+    fn from(value: Color) -> Self {
+        match value {
+            Color::Solarized(color) => color.into(),
+            Color::Custom { r, g, b } => Self {
+                r: r as f64 / 255.0,
+                g: g as f64 / 255.0,
+                b: b as f64 / 255.0,
+                a: 1.0,
+            },
+        }
+    }
+}
+
+impl Color {
+    pub fn get_color(&self) -> [f32; 3] {
+        match self {
+            Color::Solarized(color) => color.get_color(),
+            Color::Custom { r, g, b } => {
+                let r = *r as f32 / 255.0;
+                let g = *g as f32 / 255.0;
+                let b = *b as f32 / 255.0;
+                [r, g, b]
+            }
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SolarizedColor {
     Base03,
     Base02,
