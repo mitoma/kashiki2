@@ -10,7 +10,10 @@ use font_rasterizer::{
 };
 use image::{ImageBuffer, Rgba};
 
-use crate::{metrics_counter::record_start_of_phase, InputResult, SimpleStateCallback};
+use crate::{
+    easing_value::EasingPointN, metrics_counter::record_start_of_phase, InputResult,
+    SimpleStateCallback,
+};
 
 use stroke_parser::Action;
 use wgpu::InstanceDescriptor;
@@ -166,6 +169,8 @@ pub(crate) struct RenderState {
 
     simple_state_callback: Box<dyn SimpleStateCallback>,
 
+    background_color: EasingPointN<3>,
+
     pub(crate) ui_string_receiver: Receiver<String>,
     pub(crate) action_queue_receiver: Receiver<Action>,
     pub(crate) post_action_queue_receiver: Receiver<Action>,
@@ -312,6 +317,8 @@ impl RenderState {
         let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
         let (post_action_queue_sender, post_action_queue_receiver) = std::sync::mpsc::channel();
 
+        let background_color = EasingPointN::new(color_theme.background().get_color());
+
         let context = StateContext {
             device,
             queue,
@@ -338,6 +345,8 @@ impl RenderState {
             glyph_vertex_buffer,
             simple_state_callback,
 
+            background_color,
+
             ui_string_receiver,
             action_queue_receiver,
             post_action_queue_receiver,
@@ -350,8 +359,8 @@ impl RenderState {
 
     pub(crate) fn change_color_theme(&mut self, color_theme: ColorTheme) {
         self.context.color_theme = color_theme;
-        // カラーテーマ変更時にはパイプラインの色も同時に変更する
-        self.rasterizer_pipeline.bg_color = self.context.color_theme.background().into();
+        self.background_color
+            .update(self.context.color_theme.background().get_color());
     }
 
     pub(crate) fn resize(&mut self, new_size: WindowSize) {
@@ -397,6 +406,15 @@ impl RenderState {
 
     pub(crate) fn update(&mut self) {
         self.simple_state_callback.update(&self.context);
+        if self.background_color.in_animation() {
+            let [r, g, b] = self.background_color.current();
+            self.rasterizer_pipeline.bg_color = wgpu::Color {
+                r: r as f64,
+                g: g as f64,
+                b: b as f64,
+                a: 1.0,
+            };
+        }
     }
 
     pub(crate) fn render(&mut self) -> Result<RenderTargetResponse, wgpu::SurfaceError> {
