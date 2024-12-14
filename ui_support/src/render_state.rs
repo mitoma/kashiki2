@@ -461,6 +461,7 @@ impl RenderState {
             ),
             &glyph_instances,
             screen_view,
+            None,
         );
 
         record_start_of_phase("render 5: submit");

@@ -1,4 +1,4 @@
-use crate::screen_texture::ScreenTexture;
+use crate::screen_texture::{BackgroundImageTexture, ScreenTexture};
 
 /// Screen用の BindGroup。
 /// Outline の Texture をアンチエイリアスする
@@ -60,6 +60,27 @@ impl ScreenBindGroup {
                 },
             ],
             label: Some("Outline Bind Group"),
+        })
+    }
+
+    pub fn to_background_bind_group(
+        &self,
+        device: &wgpu::Device,
+        background_image_texture: &BackgroundImageTexture,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&background_image_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&background_image_texture.sampler),
+                },
+            ],
+            label: Some("Background Image Bind Group"),
         })
     }
 }

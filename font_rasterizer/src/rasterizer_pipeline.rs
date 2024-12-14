@@ -8,7 +8,7 @@ use crate::{
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_bind_group::ScreenBindGroup,
-    screen_texture::{self, ScreenTexture},
+    screen_texture::{self, BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
 };
 
@@ -327,11 +327,22 @@ impl RasterizerPipeline {
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
         instances: &[&GlyphInstances],
         screen_view: wgpu::TextureView,
+        background_image_texture: Option<&BackgroundImageTexture>,
     ) {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_vertex_buffer, instances);
         self.outline_stage(encoder, device);
+
+        if let Some(background_image_texture) = background_image_texture {
+            self.screen_background_image_stage(
+                encoder,
+                device,
+                &screen_view,
+                background_image_texture,
+            );
+        }
+
         self.screen_stage(encoder, device, screen_view);
     }
 
@@ -446,6 +457,48 @@ impl RasterizerPipeline {
                 0,
                 0..1,
             );
+        }
+    }
+
+    pub(crate) fn screen_background_image_stage(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        device: &wgpu::Device,
+        screen_view: &wgpu::TextureView,
+        background_image_texture: &BackgroundImageTexture,
+    ) {
+        let screen_bind_group = &self
+            .screen_bind_group
+            .to_background_bind_group(device, background_image_texture);
+        {
+            let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Screen Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: screen_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            screen_render_pass.set_pipeline(&self.screen_render_pipeline);
+            screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
+            screen_render_pass
+                .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
+            screen_render_pass.set_index_buffer(
+                self.screen_vertex_buffer.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
         }
     }
 

@@ -947,6 +947,7 @@ dependencies = [
  "font_collector",
  "fs_extra",
  "glob",
+ "image",
  "instant",
  "log",
  "rand",
