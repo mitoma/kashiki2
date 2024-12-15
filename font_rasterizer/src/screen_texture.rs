@@ -66,7 +66,7 @@ impl BackgroundImageTexture {
         let (width, height) = image.dimensions();
         let diffuse_rgba = image.to_rgba8();
 
-        let texture_format = wgpu::TextureFormat::Bgra8UnormSrgb;
+        let texture_format = wgpu::TextureFormat::Rgba8UnormSrgb;
         let size = wgpu::Extent3d {
             width,
             height,

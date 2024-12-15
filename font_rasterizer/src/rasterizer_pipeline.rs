@@ -67,6 +67,9 @@ pub struct RasterizerPipeline {
     // 2 ステージ目のアウトプット(≒ 3 ステージ目のインプット)
     pub(crate) outline_texture: ScreenTexture,
 
+    // バックグラウンド用のテクスチャ
+    pub(crate) background_image_texture: Option<BackgroundImageTexture>,
+
     // 画面に表示する用のパイプライン
     pub(crate) screen_bind_group: ScreenBindGroup,
     pub(crate) screen_render_pipeline: wgpu::RenderPipeline,
@@ -267,7 +270,7 @@ impl RasterizerPipeline {
                             color: wgpu::BlendComponent::REPLACE,
                             alpha: wgpu::BlendComponent::REPLACE,
                         }),
-                        write_mask: wgpu::ColorWrites::ALL,
+                        write_mask: wgpu::ColorWrites::ALPHA,
                     })],
                     compilation_options: Default::default(),
                 }),
@@ -310,6 +313,9 @@ impl RasterizerPipeline {
             outline_vertex_buffer,
             bg_color,
 
+            // バックグラウンドは最初はない
+            background_image_texture: None,
+
             // default
             screen_render_pipeline,
             screen_bind_group,
@@ -327,21 +333,13 @@ impl RasterizerPipeline {
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
         instances: &[&GlyphInstances],
         screen_view: wgpu::TextureView,
-        background_image_texture: Option<&BackgroundImageTexture>,
     ) {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_vertex_buffer, instances);
         self.outline_stage(encoder, device);
 
-        if let Some(background_image_texture) = background_image_texture {
-            self.screen_background_image_stage(
-                encoder,
-                device,
-                &screen_view,
-                background_image_texture,
-            );
-        }
+        self.screen_background_image_stage(encoder, device, &screen_view);
 
         self.screen_stage(encoder, device, screen_view);
     }
@@ -465,8 +463,10 @@ impl RasterizerPipeline {
         encoder: &mut wgpu::CommandEncoder,
         device: &wgpu::Device,
         screen_view: &wgpu::TextureView,
-        background_image_texture: &BackgroundImageTexture,
     ) {
+        let Some(background_image_texture) = self.background_image_texture.as_ref() else {
+            return;
+        };
         let screen_bind_group = &self
             .screen_bind_group
             .to_background_bind_group(device, background_image_texture);
@@ -518,12 +518,7 @@ impl RasterizerPipeline {
                     view: &screen_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 0.0,
-                        }),
+                        load: wgpu::LoadOp::Load,
                         store: wgpu::StoreOp::Store,
                     },
                 })],
@@ -541,5 +536,16 @@ impl RasterizerPipeline {
             );
             screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
         }
+    }
+
+    pub fn set_background_image(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        background_image: Option<image::DynamicImage>,
+    ) {
+        self.background_image_texture = background_image.map(|image| {
+            BackgroundImageTexture::new(device, queue, image, Some("Background Image Texture"))
+        });
     }
 }
