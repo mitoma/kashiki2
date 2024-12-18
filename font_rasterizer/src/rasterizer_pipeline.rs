@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use wgpu::include_wgsl;
 
 use crate::{
+    background_bind_group::BackgroundImageBindGroup,
     font_buffer::GlyphVertexBuffer,
     instances::{GlyphInstances, InstanceRaw},
     outline_bind_group::OutlineBindGroup,
@@ -17,6 +18,9 @@ const OVERLAP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
 const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
     include_wgsl!("shader/outline_shader.wgsl");
 const SCREEN_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
+    include_wgsl!("shader/screen_shader.wgsl");
+const BACKGROUND_IMAGE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
+    // include_wgsl!("shader/background_image_shader.wgsl");
     include_wgsl!("shader/screen_shader.wgsl");
 
 #[derive(Clone, Copy)]
@@ -69,6 +73,8 @@ pub struct RasterizerPipeline {
 
     // バックグラウンド用のテクスチャ
     pub(crate) background_image_texture: Option<BackgroundImageTexture>,
+    pub(crate) background_image_bind_group: BackgroundImageBindGroup,
+    pub(crate) background_image_render_pipeline: wgpu::RenderPipeline,
 
     // 画面に表示する用のパイプライン
     pub(crate) screen_bind_group: ScreenBindGroup,
@@ -246,6 +252,55 @@ impl RasterizerPipeline {
             });
         let outline_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
+        let background_image_shader =
+            device.create_shader_module(BACKGROUND_IMAGE_SHADER_DESCRIPTOR);
+        let background_image_bind_group = BackgroundImageBindGroup::new(device);
+        let background_image_render_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Default Screen Render Pipeline"),
+                layout: Some(&outline_render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &background_image_shader,
+                    entry_point: Some("vs_main"),
+                    buffers: &[ScreenVertexBuffer::desc()],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &background_image_shader,
+                    entry_point: Some("fs_main"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: screen_texture_format,
+                        blend: Some(wgpu::BlendState::REPLACE),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
+                    // or Features::POLYGON_MODE_POINT
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    // Requires Features::DEPTH_CLIP_CONTROL
+                    unclipped_depth: false,
+                    // Requires Features::CONSERVATIVE_RASTERIZATION
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                // If the pipeline will be used with a multiview render pass, this
+                // indicates how many array layers the attachments will have.
+                multiview: None,
+                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
+                cache: None,
+            });
+
         // default screen render pipeline
         let screen_shader = device.create_shader_module(SCREEN_SHADER_DESCRIPTOR);
 
@@ -266,11 +321,8 @@ impl RasterizerPipeline {
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: screen_texture_format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent::REPLACE,
-                        }),
-                        write_mask: wgpu::ColorWrites::ALPHA,
+                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                        write_mask: wgpu::ColorWrites::ALL,
                     })],
                     compilation_options: Default::default(),
                 }),
@@ -313,8 +365,10 @@ impl RasterizerPipeline {
             outline_vertex_buffer,
             bg_color,
 
-            // バックグラウンドは最初はない
+            // バックグラウンド
             background_image_texture: None,
+            background_image_bind_group,
+            background_image_render_pipeline,
 
             // default
             screen_render_pipeline,
@@ -468,8 +522,8 @@ impl RasterizerPipeline {
             return;
         };
         let screen_bind_group = &self
-            .screen_bind_group
-            .to_background_bind_group(device, background_image_texture);
+            .background_image_bind_group
+            .to_bind_group(device, background_image_texture);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
@@ -490,7 +544,7 @@ impl RasterizerPipeline {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            screen_render_pass.set_pipeline(&self.screen_render_pipeline);
+            screen_render_pass.set_pipeline(&self.background_image_render_pipeline);
             screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
             screen_render_pass
                 .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));

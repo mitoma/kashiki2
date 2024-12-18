@@ -1,12 +1,12 @@
-use crate::screen_texture::ScreenTexture;
+use crate::screen_texture::BackgroundImageTexture;
 
 /// Screen用の BindGroup。
 /// Outline の Texture をアンチエイリアスする
-pub struct ScreenBindGroup {
+pub struct BackgroundImageBindGroup {
     pub(crate) layout: wgpu::BindGroupLayout,
 }
 
-impl ScreenBindGroup {
+impl BackgroundImageBindGroup {
     pub(crate) fn new(device: &wgpu::Device) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
@@ -27,7 +27,7 @@ impl ScreenBindGroup {
                     count: None,
                 },
             ],
-            label: Some("Outline Bind Group Layout"),
+            label: Some("Background Image Bind Group Layout"),
         });
         Self { layout }
     }
@@ -35,31 +35,21 @@ impl ScreenBindGroup {
     pub fn to_bind_group(
         &self,
         device: &wgpu::Device,
-        overlap_texture: &ScreenTexture,
+        background_image_texture: &BackgroundImageTexture,
     ) -> wgpu::BindGroup {
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
-            ..Default::default()
-        });
-
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&overlap_texture.view),
+                    resource: wgpu::BindingResource::TextureView(&background_image_texture.view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
+                    resource: wgpu::BindingResource::Sampler(&background_image_texture.sampler),
                 },
             ],
-            label: Some("Outline Bind Group"),
+            label: Some("Background Image Bind Group"),
         })
     }
 }
