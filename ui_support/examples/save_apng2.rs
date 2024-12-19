@@ -32,12 +32,11 @@ pub fn main() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let font_collector = FontCollector::default();
-    //font_collector.add_system_fonts();
+    let mut font_collector = FontCollector::default();
+    font_collector.add_system_fonts();
     let mut font_repository = FontRepository::new(font_collector);
 
     font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N-R");
-    //font_repository.add_fallback_font_from_system("Segoe UI Emoji");
 
     let window_size = WindowSize::new(512, 512);
     let callback = SingleCharCallback::new(window_size);
