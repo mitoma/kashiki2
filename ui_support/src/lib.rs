@@ -32,7 +32,7 @@ use crate::{
 
 use bitflags::bitflags;
 use font_collector::FontRepository;
-use image::{ImageBuffer, Rgba};
+use image::{DynamicImage, ImageBuffer, Rgba};
 use instant::Duration;
 
 use stroke_parser::Action;
@@ -176,6 +176,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                         InputResult::ChangeColorTheme(color_theme) => {
                             state.change_color_theme(color_theme);
                         }
+                        InputResult::ChangeBackgroundImage(dynamic_image) => {
+                            state.change_background_image(dynamic_image);
+                        }
                         InputResult::ChangeFont(font_name) => {
                             state.change_font(font_name);
                         }
@@ -313,6 +316,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                     InputResult::ChangeColorTheme(color_theme) => {
                         state.change_color_theme(color_theme);
                     }
+                    InputResult::ChangeBackgroundImage(dynamic_image) => {
+                        state.change_background_image(dynamic_image);
+                    }
                     InputResult::ChangeFont(font_name) => {
                         state.change_font(font_name);
                     }
@@ -336,12 +342,40 @@ pub async fn run_support(support: SimpleStateSupport) {
         .unwrap();
 }
 
+fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> Option<InputResult> {
+    match input_result {
+        InputResult::ChangeColorTheme(color_theme) => {
+            state.change_color_theme(color_theme);
+            None
+        }
+        InputResult::ChangeBackgroundImage(dynamic_image) => {
+            state.change_background_image(dynamic_image);
+            None
+        }
+        InputResult::ChangeFont(font_name) => {
+            state.change_font(font_name);
+            None
+        }
+        InputResult::ChangeGlobalDirection(direction) => {
+            state.context.global_direction = direction;
+            None
+        }
+        InputResult::SendExit => Some(input_result),
+        InputResult::ToggleFullScreen => Some(input_result),
+        InputResult::ToggleDecorations => Some(input_result),
+        InputResult::ChangeWindowSize(_) => Some(input_result),
+        InputResult::InputConsumed => None,
+        InputResult::Noop => None,
+    }
+}
+
 #[derive(PartialEq)]
 pub enum InputResult {
     InputConsumed,
     ToggleFullScreen,
     ToggleDecorations,
     ChangeColorTheme(ColorTheme),
+    ChangeBackgroundImage(Option<DynamicImage>),
     ChangeGlobalDirection(Direction),
     ChangeWindowSize(WindowSize),
     ChangeFont(String),
@@ -422,8 +456,7 @@ pub async fn generate_image_iter(
 
     (0..num_of_frame).map(move |frame| {
         while let Ok(action) = state.action_queue_receiver.try_recv() {
-            // この時の InputResult は処理不要のものを返す想定なのでハンドリングしない
-            let _ = state.action(action);
+            let _ = handle_action_result(state.action(action), &mut state);
         }
 
         state.update();
@@ -435,8 +468,7 @@ pub async fn generate_image_iter(
         increment_fixed_clock(frame_gain);
 
         while let Ok(action) = state.post_action_queue_receiver.try_recv() {
-            // この時の InputResult は処理不要のものを返す想定なのでハンドリングしない
-            let _ = state.action(action);
+            let _ = handle_action_result(state.action(action), &mut state);
         }
 
         (image, frame)
