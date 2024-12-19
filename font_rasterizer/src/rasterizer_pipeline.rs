@@ -257,7 +257,7 @@ impl RasterizerPipeline {
         let background_image_bind_group = BackgroundImageBindGroup::new(device);
         let background_image_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Default Screen Render Pipeline"),
+                label: Some("Default Background Image Render Pipeline"),
                 layout: Some(&outline_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &background_image_shader,
