@@ -16,6 +16,7 @@ wgpu = { workspace = true }
 winit = { workspace = true }
 bitflags = { workspace = true }
 rand = { workspace = true }
+image ={ workspace = true}
 
 rustybuzz.workspace = true
 cgmath.workspace = true

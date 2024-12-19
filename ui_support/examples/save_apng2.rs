@@ -1,7 +1,5 @@
-use std::fs::File;
-
+use apng::{load_dynamic_image, Frame, ParallelEncoder};
 use font_collector::{FontCollector, FontRepository};
-use image::{codecs::gif::GifEncoder, Delay, Frame};
 use instant::Duration;
 
 use font_rasterizer::{
@@ -39,7 +37,6 @@ pub async fn run() {
     let mut font_repository = FontRepository::new(font_collector);
 
     font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N-R");
-    font_repository.add_fallback_font_from_system("Segoe UI Emoji");
 
     let window_size = WindowSize::new(512, 512);
     let callback = SingleCharCallback::new(window_size);
@@ -60,30 +57,37 @@ pub async fn run() {
 
     info!("start apng encode");
 
-    let path = std::path::Path::new("test-animation.gif");
-    let writer = File::create(path).unwrap();
+    let path = std::path::Path::new("test-animation2.png");
+    let frame = Frame {
+        delay_num: Some(1),
+        delay_den: Some(50),
+        ..Default::default()
+    };
 
-    let image_iter = generate_image_iter(support, num_of_frame, Duration::from_millis(20))
+    let mut image_iter = generate_image_iter(support, num_of_frame, Duration::from_millis(20))
         .await
         .map(|(image, index)| {
-            let frame = Frame::from_parts(
-                image,
-                0,
-                0,
-                Delay::from_saturating_duration(Duration::from_millis(20)),
-            );
-
-            (frame, index)
+            let dynimage = image::DynamicImage::ImageRgba8(image);
+            let png_image = load_dynamic_image(dynimage).unwrap();
+            (png_image, index)
         });
-    //let (image, _idx) = image_iter.next().unwrap();
+    let (image, _idx) = image_iter.next().unwrap();
 
-    let mut encoder = GifEncoder::new(writer);
-    let _ = encoder.set_repeat(image::codecs::gif::Repeat::Infinite);
-    for (img_frame, idx) in image_iter {
+    let encoder = ParallelEncoder::new(
+        path.to_path_buf(),
+        image,
+        Some(frame),
+        num_of_frame,
+        None,
+        Some(64),
+    )
+    .unwrap();
+    for (png_image, idx) in image_iter {
         info!("send image to encoder. frame: {}", idx);
-        let _ = encoder.encode_frame(img_frame);
+        encoder.send(png_image);
         info!("sended image to encoder. frame: {}", idx);
     }
+    encoder.finalize();
     info!("finish!");
 }
 

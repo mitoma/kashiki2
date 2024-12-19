@@ -16,6 +16,11 @@
     },
     {
         "namespace": "system",
+        "name": "change-background-image",
+        "description": "背景画像の変更"
+    },
+    {
+        "namespace": "system",
         "name": "change-font-ui",
         "description": "フォントの変更"
     },

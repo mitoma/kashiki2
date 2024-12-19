@@ -130,6 +130,13 @@ impl SimpleStateCallback for SingleCharCallback {
         let mut instances = GlyphInstances::new('あ', &context.device);
         instances.push(value);
         self.glyphs.push(instances);
+        context
+            .post_action_queue_sender
+            .send(stroke_parser::Action::new_command(
+                "system",
+                "change-background-image",
+            ))
+            .unwrap();
         debug!("init!");
     }
 

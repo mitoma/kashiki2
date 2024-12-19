@@ -1,3 +1,4 @@
+mod background_bind_group;
 pub mod char_width_calcurator;
 pub mod color_theme;
 pub mod context;
