@@ -512,6 +512,42 @@ impl RasterizerPipeline {
         }
     }
 
+    pub(crate) fn screen_stage(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        device: &wgpu::Device,
+        screen_view: wgpu::TextureView,
+    ) {
+        let screen_bind_group = &self
+            .screen_bind_group
+            .to_bind_group(device, &self.outline_texture);
+        {
+            let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Screen Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &screen_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            screen_render_pass.set_pipeline(&self.screen_render_pipeline);
+            screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
+            screen_render_pass
+                .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
+            screen_render_pass.set_index_buffer(
+                self.screen_vertex_buffer.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
+        }
+    }
+
     pub(crate) fn screen_background_image_stage(
         &self,
         encoder: &mut wgpu::CommandEncoder,
@@ -545,42 +581,6 @@ impl RasterizerPipeline {
                 occlusion_query_set: None,
             });
             screen_render_pass.set_pipeline(&self.background_image_render_pipeline);
-            screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
-            screen_render_pass
-                .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
-            screen_render_pass.set_index_buffer(
-                self.screen_vertex_buffer.index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-            screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
-        }
-    }
-
-    pub(crate) fn screen_stage(
-        &self,
-        encoder: &mut wgpu::CommandEncoder,
-        device: &wgpu::Device,
-        screen_view: wgpu::TextureView,
-    ) {
-        let screen_bind_group = &self
-            .screen_bind_group
-            .to_bind_group(device, &self.outline_texture);
-        {
-            let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Screen Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &screen_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-            screen_render_pass.set_pipeline(&self.screen_render_pipeline);
             screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
             screen_render_pass
                 .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
