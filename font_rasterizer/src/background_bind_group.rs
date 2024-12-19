@@ -1,7 +1,6 @@
 use crate::screen_texture::BackgroundImageTexture;
 
-/// Screen用の BindGroup。
-/// Outline の Texture をアンチエイリアスする
+/// BackgroundImage用の BindGroup。
 pub struct BackgroundImageBindGroup {
     pub(crate) layout: wgpu::BindGroupLayout,
 }
