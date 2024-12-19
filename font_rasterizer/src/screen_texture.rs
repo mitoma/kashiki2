@@ -50,10 +50,10 @@ impl ScreenTexture {
 }
 
 pub struct BackgroundImageTexture {
-    pub texture: wgpu::Texture,
+    pub _texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
-    pub texture_format: wgpu::TextureFormat,
+    pub _texture_format: wgpu::TextureFormat,
 }
 
 impl BackgroundImageTexture {
@@ -112,10 +112,10 @@ impl BackgroundImageTexture {
         });
 
         Self {
-            texture,
+            _texture: texture,
             view,
             sampler,
-            texture_format,
+            _texture_format: texture_format,
         }
     }
 }

@@ -131,9 +131,8 @@ impl SimpleStateCallback for SingleCharCallback {
             ))
             .unwrap();
         self.world.editor_operation(&EditorOperation::InsertEnter);
-        self.world.editor_operation(&EditorOperation::InsertString(
-            "ほげほげ".to_string(),
-        ));
+        self.world
+            .editor_operation(&EditorOperation::InsertString("ほげほげ".to_string()));
     }
 
     fn update(&mut self, context: &StateContext) {
