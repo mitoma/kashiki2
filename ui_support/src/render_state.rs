@@ -505,8 +505,15 @@ impl RenderState {
         self.simple_state_callback.shutdown();
     }
 
-    pub(crate) fn change_font(&mut self, font_name: String) {
-        self.context.font_repository.set_primary_font(&font_name);
+    pub(crate) fn change_font(&mut self, font_name: Option<String>) {
+        match font_name {
+            Some(font_name) => {
+                self.context.font_repository.set_primary_font(&font_name);
+            }
+            None => {
+                self.context.font_repository.clear_primary_font();
+            }
+        }
         let font_binaries = self.context.font_repository.get_fonts();
         let font_binaries = Arc::new(font_binaries);
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));

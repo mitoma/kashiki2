@@ -46,6 +46,10 @@ impl FontRepository {
         }
     }
 
+    pub fn clear_primary_font(&mut self) {
+        self.primary_font = None;
+    }
+
     pub fn add_fallback_font_from_system(&mut self, font_name: &str) {
         if let Some(font_data) = self.font_collector.load_font(font_name) {
             self.fallback_fonts.push(font_data);

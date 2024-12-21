@@ -302,17 +302,22 @@ impl ActionProcessor for SystemChangeFontUi {
         context: &StateContext,
         world: &mut dyn World,
     ) -> InputResult {
-        let options = context
-            .font_repository
-            .list_font_names()
-            .iter()
-            .map(|name| {
-                SelectOption::new(
-                    name.clone(),
-                    Action::new_command_with_argument("system", "change-font", name),
-                )
-            })
-            .collect::<Vec<SelectOption>>();
+        let mut options = vec![SelectOption::new(
+            "デフォルトフォント".to_string(),
+            Action::new_command("system", "change-font"),
+        )];
+        options.extend(
+            context
+                .font_repository
+                .list_font_names()
+                .iter()
+                .map(|name| {
+                    SelectOption::new(
+                        name.clone(),
+                        Action::new_command_with_argument("system", "change-font", name),
+                    )
+                }),
+        );
 
         let model = SelectBox::new_without_action_name(
             context,
@@ -351,9 +356,9 @@ impl ActionProcessor for SystemChangeFont {
         _world: &mut dyn World,
     ) -> InputResult {
         if let ActionArgument::String(font_name) = arg {
-            InputResult::ChangeFont(font_name.clone())
+            InputResult::ChangeFont(Some(font_name.clone()))
         } else {
-            InputResult::Noop
+            InputResult::ChangeFont(None)
         }
     }
 }

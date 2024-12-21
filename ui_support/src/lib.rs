@@ -378,7 +378,7 @@ pub enum InputResult {
     ChangeBackgroundImage(Option<DynamicImage>),
     ChangeGlobalDirection(Direction),
     ChangeWindowSize(WindowSize),
-    ChangeFont(String),
+    ChangeFont(Option<String>),
     SendExit,
     Noop,
 }
