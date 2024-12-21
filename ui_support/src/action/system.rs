@@ -1,3 +1,4 @@
+use log::info;
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
 use font_rasterizer::{
@@ -354,5 +355,30 @@ impl ActionProcessor for SystemChangeFont {
         } else {
             InputResult::Noop
         }
+    }
+}
+
+pub struct SystemChangeBackgroundImage;
+impl ActionProcessor for SystemChangeBackgroundImage {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-background-image".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        _context: &StateContext,
+        _world: &mut dyn World,
+    ) -> InputResult {
+        let image = image::load_from_memory(include_bytes!(
+            "../../../kashikishi/asset/image/wallpaper.jpg"
+        ))
+        .unwrap();
+        info!("image loaded");
+        InputResult::ChangeBackgroundImage(Some(image))
     }
 }

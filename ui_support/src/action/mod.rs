@@ -33,6 +33,9 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(SystemChangeFont));
         self.add_processor(Box::new(SystemChangeWindowSizeUi));
         self.add_processor(Box::new(SystemChangeWindowSize));
+
+        // FIXME
+        self.add_processor(Box::new(SystemChangeBackgroundImage));
     }
 
     pub fn add_default_edit_processors(&mut self) {

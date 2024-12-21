@@ -8,7 +8,8 @@ use font_rasterizer::{
     font_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
 };
-use image::{ImageBuffer, Rgba};
+use image::{DynamicImage, ImageBuffer, Rgba};
+use log::info;
 
 use crate::{
     easing_value::EasingPointN, metrics_counter::record_start_of_phase, InputResult,
@@ -169,7 +170,8 @@ pub(crate) struct RenderState {
 
     simple_state_callback: Box<dyn SimpleStateCallback>,
 
-    background_color: EasingPointN<3>,
+    background_color: EasingPointN<4>,
+    background_image: Option<DynamicImage>,
 
     pub(crate) ui_string_receiver: Receiver<String>,
     pub(crate) action_queue_receiver: Receiver<Action>,
@@ -317,7 +319,8 @@ impl RenderState {
         let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
         let (post_action_queue_sender, post_action_queue_receiver) = std::sync::mpsc::channel();
 
-        let background_color = EasingPointN::new(color_theme.background().get_color());
+        let [r, g, b] = color_theme.background().get_color();
+        let background_color = EasingPointN::new([r, g, b, 1.0]);
 
         let context = StateContext {
             device,
@@ -346,6 +349,7 @@ impl RenderState {
             simple_state_callback,
 
             background_color,
+            background_image: None,
 
             ui_string_receiver,
             action_queue_receiver,
@@ -359,8 +363,25 @@ impl RenderState {
 
     pub(crate) fn change_color_theme(&mut self, color_theme: ColorTheme) {
         self.context.color_theme = color_theme;
-        self.background_color
-            .update(self.context.color_theme.background().get_color());
+        let [r, g, b] = self.context.color_theme.background().get_color();
+        self.background_color.update([r, g, b, 1.0]);
+    }
+
+    pub(crate) fn change_background_image(&mut self, background_image: Option<DynamicImage>) {
+        let [r, g, b] = self.context.color_theme.background().get_color();
+        let color = match background_image {
+            Some(_) => [r, g, b, 0.9],
+            None => [r, g, b, 1.0],
+        };
+        info!("change_background_image, color: {:?}", color);
+        self.background_color.update(color);
+        self.background_image = background_image;
+
+        self.rasterizer_pipeline.set_background_image(
+            &self.context.device,
+            &self.context.queue,
+            self.background_image.as_ref(),
+        );
     }
 
     pub(crate) fn resize(&mut self, new_size: WindowSize) {
@@ -384,6 +405,7 @@ impl RenderState {
 
             self.simple_state_callback.resize(new_size);
 
+            let bg_color = self.rasterizer_pipeline.bg_color;
             // サイズ変更時にはパイプラインを作り直す
             self.rasterizer_pipeline = RasterizerPipeline::new(
                 &self.context.device,
@@ -391,8 +413,13 @@ impl RenderState {
                 new_size.height,
                 self.render_target.format(),
                 self.quarity,
-                self.context.color_theme.background().into(),
-            )
+                bg_color,
+            );
+            self.rasterizer_pipeline.set_background_image(
+                &self.context.device,
+                &self.context.queue,
+                self.background_image.as_ref(),
+            );
         }
     }
 
@@ -407,12 +434,12 @@ impl RenderState {
     pub(crate) fn update(&mut self) {
         self.simple_state_callback.update(&self.context);
         if self.background_color.in_animation() {
-            let [r, g, b] = self.background_color.current();
+            let [r, g, b, a] = self.background_color.current();
             self.rasterizer_pipeline.bg_color = wgpu::Color {
                 r: r as f64,
                 g: g as f64,
                 b: b as f64,
-                a: 1.0,
+                a: a as f64,
             };
         }
     }
