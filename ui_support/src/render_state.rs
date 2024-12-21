@@ -171,6 +171,7 @@ pub(crate) struct RenderState {
     simple_state_callback: Box<dyn SimpleStateCallback>,
 
     background_color: EasingPointN<4>,
+    background_image: Option<DynamicImage>,
 
     pub(crate) ui_string_receiver: Receiver<String>,
     pub(crate) action_queue_receiver: Receiver<Action>,
@@ -348,6 +349,7 @@ impl RenderState {
             simple_state_callback,
 
             background_color,
+            background_image: None,
 
             ui_string_receiver,
             action_queue_receiver,
@@ -366,20 +368,19 @@ impl RenderState {
     }
 
     pub(crate) fn change_background_image(&mut self, background_image: Option<DynamicImage>) {
+        let [r, g, b] = self.context.color_theme.background().get_color();
         let color = match background_image {
-            Some(_) => [0.0, 0.0, 0.0, 0.0],
-            None => {
-                let [r, g, b] = self.context.color_theme.background().get_color();
-                [r, g, b, 1.0]
-            }
+            Some(_) => [r, g, b, 0.9],
+            None => [r, g, b, 1.0],
         };
         info!("change_background_image, color: {:?}", color);
         self.background_color.update(color);
+        self.background_image = background_image;
 
         self.rasterizer_pipeline.set_background_image(
             &self.context.device,
             &self.context.queue,
-            background_image,
+            self.background_image.as_ref(),
         );
     }
 
@@ -404,6 +405,7 @@ impl RenderState {
 
             self.simple_state_callback.resize(new_size);
 
+            let bg_color = self.rasterizer_pipeline.bg_color;
             // サイズ変更時にはパイプラインを作り直す
             self.rasterizer_pipeline = RasterizerPipeline::new(
                 &self.context.device,
@@ -411,8 +413,13 @@ impl RenderState {
                 new_size.height,
                 self.render_target.format(),
                 self.quarity,
-                self.context.color_theme.background().into(),
-            )
+                bg_color,
+            );
+            self.rasterizer_pipeline.set_background_image(
+                &self.context.device,
+                &self.context.queue,
+                self.background_image.as_ref(),
+            );
         }
     }
 

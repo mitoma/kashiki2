@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use image::DynamicImage;
 use wgpu::include_wgsl;
 
 use crate::{
@@ -596,7 +597,7 @@ impl RasterizerPipeline {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        background_image: Option<image::DynamicImage>,
+        background_image: Option<&DynamicImage>,
     ) {
         self.background_image_texture = background_image.map(|image| {
             BackgroundImageTexture::new(device, queue, image, Some("Background Image Texture"))

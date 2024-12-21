@@ -374,7 +374,10 @@ impl ActionProcessor for SystemChangeBackgroundImage {
         _context: &StateContext,
         _world: &mut dyn World,
     ) -> InputResult {
-        let image = image::load_from_memory(include_bytes!("../../../fonts/family.jpg")).unwrap();
+        let image = image::load_from_memory(include_bytes!(
+            "../../../kashikishi/asset/image/wallpaper.jpg"
+        ))
+        .unwrap();
         info!("image loaded");
         InputResult::ChangeBackgroundImage(Some(image))
     }

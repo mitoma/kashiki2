@@ -60,7 +60,7 @@ impl BackgroundImageTexture {
     pub fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        image: DynamicImage,
+        image: &DynamicImage,
         label: Option<&str>,
     ) -> Self {
         let (width, height) = image.dimensions();
