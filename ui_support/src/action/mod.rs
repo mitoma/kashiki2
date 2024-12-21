@@ -34,7 +34,7 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(SystemChangeWindowSizeUi));
         self.add_processor(Box::new(SystemChangeWindowSize));
 
-        // FIXME
+        self.add_processor(Box::new(SystemSelectBackgroundImageUi));
         self.add_processor(Box::new(SystemChangeBackgroundImage));
     }
 

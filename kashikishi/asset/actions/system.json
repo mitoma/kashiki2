@@ -16,7 +16,7 @@
     },
     {
         "namespace": "system",
-        "name": "change-background-image",
+        "name": "select-background-image-ui",
         "description": "背景画像の変更"
     },
     {

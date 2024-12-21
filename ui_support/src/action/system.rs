@@ -1,3 +1,8 @@
+use std::{
+    io::{BufRead, BufReader},
+    path::PathBuf,
+};
+
 use log::info;
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
@@ -363,6 +368,106 @@ impl ActionProcessor for SystemChangeFont {
     }
 }
 
+pub struct SystemSelectBackgroundImageUi;
+impl ActionProcessor for SystemSelectBackgroundImageUi {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "select-background-image-ui".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        context: &StateContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let mut options = Vec::new();
+
+        let current_dir = if let ActionArgument::String(path) = arg {
+            PathBuf::from(path)
+        } else {
+            std::env::current_dir().unwrap()
+        };
+
+        if let Some(parent_dir) = current_dir.parent() {
+            options.push(SelectOption::new(
+                "📁 ../".to_string(),
+                Action::new_command_with_argument(
+                    "system",
+                    "select-background-image-ui",
+                    parent_dir.to_str().unwrap(),
+                ),
+            ));
+        }
+
+        for entry in std::fs::read_dir(current_dir).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if path.is_dir() {
+                options.push(SelectOption::new(
+                    format!("📁 {}", path.file_name().unwrap().to_str().unwrap()),
+                    Action::new_command_with_argument(
+                        "system",
+                        "select-background-image-ui",
+                        path.to_str().unwrap(),
+                    ),
+                ));
+            } else if path.is_file() {
+                info!("path: {:?}", path);
+
+                let is_image_file = std::fs::File::open(&path)
+                    .map(|f| {
+                        let mut buf_reader = BufReader::new(f);
+                        let buf = buf_reader.fill_buf().unwrap();
+                        let format = image::guess_format(buf);
+                        info!("format: {:?}", format);
+                        format.is_ok()
+                    })
+                    .unwrap_or(false);
+                if !is_image_file {
+                    continue;
+                }
+                options.push(SelectOption::new(
+                    format!("🖼️ {}", path.file_name().unwrap().to_str().unwrap()),
+                    Action::new_command_with_argument(
+                        "system",
+                        "change-background-image",
+                        path.to_str().unwrap(),
+                    ),
+                ));
+            }
+        }
+
+        options.push(SelectOption::new(
+            "🚫 背景画像を使わない".to_string(),
+            Action::new_command("system", "change-background-image"),
+        ));
+
+        let model = SelectBox::new_without_action_name(
+            context,
+            "背景画像を選択する".to_string(),
+            options,
+            None,
+        );
+        let model_string = model.to_string();
+        context.ui_string_sender.send(model_string).unwrap();
+
+        world.add_next(Box::new(model));
+        world.re_layout();
+        let adjustment = if context.global_direction == Direction::Horizontal {
+            CameraAdjustment::FitWidth
+        } else {
+            CameraAdjustment::FitHeight
+        };
+        world.look_next(adjustment);
+
+        InputResult::InputConsumed
+    }
+}
+
 pub struct SystemChangeBackgroundImage;
 impl ActionProcessor for SystemChangeBackgroundImage {
     fn namespace(&self) -> CommandNamespace {
@@ -375,15 +480,16 @@ impl ActionProcessor for SystemChangeBackgroundImage {
 
     fn process(
         &self,
-        _arg: &ActionArgument,
+        arg: &ActionArgument,
         _context: &StateContext,
         _world: &mut dyn World,
     ) -> InputResult {
-        let image = image::load_from_memory(include_bytes!(
-            "../../../kashikishi/asset/image/wallpaper.jpg"
-        ))
-        .unwrap();
-        info!("image loaded");
-        InputResult::ChangeBackgroundImage(Some(image))
+        match arg {
+            ActionArgument::String(path) => {
+                let image = image::open(path).unwrap();
+                InputResult::ChangeBackgroundImage(Some(image))
+            }
+            _ => InputResult::Noop,
+        }
     }
 }
