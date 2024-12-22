@@ -125,9 +125,10 @@ impl SimpleStateCallback for SingleCharCallback {
             .unwrap();
         context
             .post_action_queue_sender
-            .send(stroke_parser::Action::new_command(
+            .send(stroke_parser::Action::new_command_with_argument(
                 "system",
                 "change-background-image",
+                "kashikishi/asset/image/wallpaper.jpg",
             ))
             .unwrap();
         self.world.editor_operation(&EditorOperation::InsertEnter);
