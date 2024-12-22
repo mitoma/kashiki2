@@ -1,4 +1,4 @@
-//#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 /* ↑は Windows で実行する時にコマンドプロンプトが開かないようにするためのもの。 */
 mod action_repository;
 mod categorized_memos;
@@ -53,7 +53,7 @@ pub fn main() {
     //std::env::set_var("RUST_LOG", "font_rasterizer::ui::textedit=info");
     //std::env::set_var("RUST_LOG", "font_rasterizer::ui::view_element_state=debug");
     //std::env::set_var("RUST_LOG", "font_rasterizer::layout_engine=info");
-    std::env::set_var("RUST_LOG", "ui_support::action::system=debug");
+    //std::env::set_var("RUST_LOG", "ui_support::action::system=debug");
     //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
     let args = Args::parse();
     pollster::block_on(run(args));
