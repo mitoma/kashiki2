@@ -403,7 +403,12 @@ impl ActionProcessor for SystemSelectBackgroundImageUi {
             ));
         }
 
-        for entry in std::fs::read_dir(current_dir).unwrap() {
+        let Ok(dir) = std::fs::read_dir(current_dir) else {
+            // TODO ここで UI にエラーを表示できるといいな。world にエラーを表示するメソッドを追加する？
+            return InputResult::Noop;
+        };
+
+        for entry in dir {
             let entry = entry.unwrap();
             let path = entry.path();
             if path.is_dir() {
@@ -431,7 +436,7 @@ impl ActionProcessor for SystemSelectBackgroundImageUi {
                     continue;
                 }
                 options.push(SelectOption::new(
-                    format!("🖼️ {}", path.file_name().unwrap().to_str().unwrap()),
+                    format!("🖼 {}", path.file_name().unwrap().to_str().unwrap()),
                     Action::new_command_with_argument(
                         "system",
                         "change-background-image",
@@ -486,10 +491,10 @@ impl ActionProcessor for SystemChangeBackgroundImage {
     ) -> InputResult {
         match arg {
             ActionArgument::String(path) => {
-                let image = image::open(path).unwrap();
+                let image = image::open(path).expect(&format!("Failed to open image: {}", path));
                 InputResult::ChangeBackgroundImage(Some(image))
             }
-            _ => InputResult::Noop,
+            _ => InputResult::ChangeBackgroundImage(None),
         }
     }
 }
