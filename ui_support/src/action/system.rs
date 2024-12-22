@@ -491,7 +491,8 @@ impl ActionProcessor for SystemChangeBackgroundImage {
     ) -> InputResult {
         match arg {
             ActionArgument::String(path) => {
-                let image = image::open(path).expect(&format!("Failed to open image: {}", path));
+                let image =
+                    image::open(path).unwrap_or_else(|_| panic!("Failed to open image: {}", path));
                 InputResult::ChangeBackgroundImage(Some(image))
             }
             _ => InputResult::ChangeBackgroundImage(None),
