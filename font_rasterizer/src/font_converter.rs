@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use anyhow::Context;
 use bezier_converter::CubicBezier;
 use font_collector::FontData;
 use log::debug;
@@ -10,7 +9,9 @@ use rustybuzz::{
     Direction, Face, UnicodeBuffer,
 };
 
-use crate::{char_width_calcurator::CharWidth, debug_mode::DEBUG_FLAGS};
+use crate::{
+    char_width_calcurator::CharWidth, debug_mode::DEBUG_FLAGS, errors::FontRasterizerError,
+};
 
 pub(crate) struct FontVertexConverter {
     fonts: Arc<Vec<FontData>>,
@@ -28,7 +29,7 @@ impl FontVertexConverter {
             .collect::<Vec<Face>>()
     }
 
-    fn get_face_and_glyph_ids(&self, c: char) -> anyhow::Result<(Face, CharGlyphIds)> {
+    fn get_face_and_glyph_ids(&self, c: char) -> Result<(Face, CharGlyphIds), FontRasterizerError> {
         let mut buf = UnicodeBuffer::new();
         buf.set_direction(Direction::TopToBottom);
         buf.add(c, 0);
@@ -51,10 +52,14 @@ impl FontVertexConverter {
                 ));
             }
         }
-        anyhow::bail!("no glyph. char:{}", c)
+        Err(FontRasterizerError::GlyphNotFound(c))
     }
 
-    pub(crate) fn convert(&self, c: char, width: CharWidth) -> anyhow::Result<GlyphVertex> {
+    pub(crate) fn convert(
+        &self,
+        c: char,
+        width: CharWidth,
+    ) -> Result<GlyphVertex, FontRasterizerError> {
         let (
             face,
             CharGlyphIds {
@@ -169,10 +174,10 @@ impl GlyphVertexBuilder {
         glyph_id: GlyphId,
         width: CharWidth,
         face: &Face,
-    ) -> anyhow::Result<GlyphVertexData> {
+    ) -> Result<GlyphVertexData, FontRasterizerError> {
         let rect = face
             .outline_glyph(glyph_id, &mut self)
-            .with_context(|| format!("ougline glyph is afiled. glyph_id:{:?}", glyph_id))?;
+            .ok_or(FontRasterizerError::NoOutlineGlyph(glyph_id))?;
 
         let global = face.global_bounding_box();
         let global_width = global.width() as f32;

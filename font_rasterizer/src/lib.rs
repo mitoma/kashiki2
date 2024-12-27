@@ -3,6 +3,7 @@ pub mod char_width_calcurator;
 pub mod color_theme;
 pub mod context;
 mod debug_mode;
+pub mod errors;
 pub mod font_buffer;
 pub mod font_converter;
 pub mod instances;

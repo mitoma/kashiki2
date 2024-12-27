@@ -940,7 +940,6 @@ dependencies = [
 name = "font_rasterizer"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "bezier_converter",
  "bitflags 2.6.0",
  "bytemuck",
@@ -960,6 +959,7 @@ dependencies = [
  "rustybuzz",
  "stroke_parser",
  "text_buffer",
+ "thiserror 2.0.9",
  "unicode-width 0.2.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",

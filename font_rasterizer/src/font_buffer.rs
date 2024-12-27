@@ -4,8 +4,6 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Context;
-
 use font_collector::FontData;
 use log::{debug, info};
 use text_buffer::editor::CharWidthResolver;
@@ -13,6 +11,7 @@ use wgpu::BufferUsages;
 
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
+    errors::{BufferKind, FontRasterizerError},
     font_converter::{FontVertexConverter, GlyphVertex, GlyphVertexData, Vertex},
 };
 
@@ -151,11 +150,15 @@ impl GlyphVertexBuffer {
         }
     }
 
-    pub(crate) fn draw_info(&self, c: &char, direction: &Direction) -> anyhow::Result<DrawInfo> {
+    pub(crate) fn draw_info(
+        &self,
+        c: &char,
+        direction: &Direction,
+    ) -> Result<DrawInfo, FontRasterizerError> {
         let index = &self
             .buffer_index
             .get(c)
-            .with_context(|| format!("get char from buffer index. c:{}", c))?
+            .ok_or(FontRasterizerError::GlyphIndexNotFound)?
             .get_entry(direction);
 
         let vertex_buffer = &self.vertex_buffers[index.vertex_buffer_index];
@@ -199,7 +202,7 @@ impl GlyphVertexBuffer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         chars: HashSet<char>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), FontRasterizerError> {
         // 既にバッファに登録済みの char は除外する。
         let chars = chars
             .into_iter()
@@ -253,16 +256,20 @@ impl GlyphVertexBuffer {
         queue: &wgpu::Queue,
         c: char,
         glyph_data: GlyphVertexData,
-    ) -> anyhow::Result<BufferIndex> {
+    ) -> Result<BufferIndex, FontRasterizerError> {
         self.ensure_buffer_capacity(device, queue, &glyph_data);
 
         let vertex_buffer_index = self
             .appendable_vertex_buffer_index(glyph_data.vertex_size())
-            .with_context(|| "fail ensure vertex_buffer")?;
+            .ok_or(FontRasterizerError::BufferAllocationFailed(
+                BufferKind::Vertex,
+            ))?;
 
         let index_buffer_index = self
             .appendable_index_buffer_index(glyph_data.index_size())
-            .with_context(|| "fail ensure index_buffer")?;
+            .ok_or(FontRasterizerError::BufferAllocationFailed(
+                BufferKind::Index,
+            ))?;
 
         // buffer に書き込むキューを登録する
         let vertex_buffer = self.vertex_buffers.get_mut(vertex_buffer_index).unwrap();
