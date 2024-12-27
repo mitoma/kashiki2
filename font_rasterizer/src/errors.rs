@@ -7,9 +7,8 @@ pub enum FontRasterizerError {
     GlyphNotFound(char),
     #[error("glyph index not found")]
     GlyphIndexNotFound,
-    // バッファの確保に失敗しているエラー
-    #[error("Failed to allocate buffer. kind: {0:?}")]
-    BufferAllocationFailed(BufferKind),
+    #[error("ensure buffer capacity failed. kind:{0:?}")]
+    EnsureBufferCapacityFailed(BufferKind),
     #[error("outline glyph is failed. glyph_id:{0:?}")]
     NoOutlineGlyph(GlyphId),
 }

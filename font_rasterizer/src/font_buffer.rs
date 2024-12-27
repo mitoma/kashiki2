@@ -261,13 +261,13 @@ impl GlyphVertexBuffer {
 
         let vertex_buffer_index = self
             .appendable_vertex_buffer_index(glyph_data.vertex_size())
-            .ok_or(FontRasterizerError::BufferAllocationFailed(
+            .ok_or(FontRasterizerError::EnsureBufferCapacityFailed(
                 BufferKind::Vertex,
             ))?;
 
         let index_buffer_index = self
             .appendable_index_buffer_index(glyph_data.index_size())
-            .ok_or(FontRasterizerError::BufferAllocationFailed(
+            .ok_or(FontRasterizerError::EnsureBufferCapacityFailed(
                 BufferKind::Index,
             ))?;
 
