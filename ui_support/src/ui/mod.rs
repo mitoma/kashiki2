@@ -163,13 +163,13 @@ impl PlaneTextReader {
         &self,
         line_num: usize,
         char_width_calcurator: &CharWidthCalculator,
-    ) -> anyhow::Result<(cgmath::Point3<f32>, cgmath::Point3<f32>, usize)> {
+    ) -> (cgmath::Point3<f32>, cgmath::Point3<f32>, usize) {
         let line_num = (line_num as f32).min(self.calc_bound(char_width_calcurator).1);
-        Ok((
+        (
             (0.0, -line_num, 0.0).into(),
             (0.0, -line_num, 50.0).into(),
             line_num.to_usize().unwrap_or_default(),
-        ))
+        )
     }
 
     pub fn new(value: String) -> Self {
