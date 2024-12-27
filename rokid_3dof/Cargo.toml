@@ -16,7 +16,6 @@ font_rasterizer = { path = "../font_rasterizer" }
 font_collector = { path = "../font_collector" }
 stroke_parser = { path = "../stroke_parser" }
 ui_support = { path = "../ui_support" }
-anyhow.workspace = true
 log.workspace = true
 instant.workspace = true
 winit.workspace = true
