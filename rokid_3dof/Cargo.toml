@@ -5,7 +5,7 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-anyhow.workspace = true
+thiserror.workspace = true
 bytemuck.workspace = true
 cgmath.workspace = true
 hidapi = "2.6.1"
@@ -16,6 +16,7 @@ font_rasterizer = { path = "../font_rasterizer" }
 font_collector = { path = "../font_collector" }
 stroke_parser = { path = "../stroke_parser" }
 ui_support = { path = "../ui_support" }
+anyhow.workspace = true
 log.workspace = true
 instant.workspace = true
 winit.workspace = true

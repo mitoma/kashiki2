@@ -24,8 +24,10 @@ impl RokidMaxAction {
         }
     }
 
-    pub fn reset(&mut self) {
-        let _ = self.rokid_max.as_mut().and_then(|r| r.reset().ok());
+    pub fn reset(&self) {
+        if let Some(max) = self.rokid_max.as_ref() {
+            max.reset()
+        };
     }
 
     pub fn quaternion(&self) -> Option<Quaternion<f32>> {
@@ -55,12 +57,12 @@ impl NamespaceActionProcessors for RokidMaxAction {
         match command_name.as_str() {
             "reset" => {
                 if let Some(rokid_max) = self.rokid_max.as_mut() {
-                    let _ = rokid_max.reset();
+                    rokid_max.reset();
                 }
             }
             "toggle-mode" => {
                 if let Some(rokid_max) = self.rokid_max.as_mut() {
-                    let _ = rokid_max.reset();
+                    rokid_max.reset();
                     world.camera_operation(CameraOperation::UpdateEyeQuaternion(Some(
                         rokid_max.quaternion(),
                     )));

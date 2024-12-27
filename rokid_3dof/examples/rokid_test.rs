@@ -139,7 +139,7 @@ impl SimpleStateCallback for SingleCharCallback {
                 button: MouseButton::Right,
                 ..
             } => {
-                self.rokid_max.reset().unwrap();
+                self.rokid_max.reset();
                 InputResult::InputConsumed
             }
             WindowEvent::MouseInput {

@@ -13,6 +13,7 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
+thiserror = "2.0"
 anyhow = "1.0"
 wgpu = "23.0.0"
 # fork元は winit = "0.29.x" ブランチ。いくつかのパッチを当てたものを使っている。
