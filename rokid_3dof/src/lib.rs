@@ -3,9 +3,9 @@ use std::{
     thread,
 };
 
-use anyhow::Ok;
-use cgmath::{Quaternion, Rotation};
+use cgmath::{Quaternion, Rotation, Zero};
 use hidapi::HidApi;
+use thiserror::Error;
 use vqf_rs::VQF;
 
 const ROKID_VENDOR_ID: u16 = 0x04D2;
@@ -16,36 +16,47 @@ pub struct RokidMax {
 }
 
 impl RokidMax {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new() -> Result<Self, RokidMaxError> {
+        //let hid_api = HidApi::new().map_err(RokidMaxError::HidError)?;
         let hid_api = HidApi::new()?;
-        let device = hid_api.open(ROKID_VENDOR_ID, ROKID_MAX_PRODUCT_ID)?;
-        let mut result = Self {
+        let device = hid_api
+            .open(ROKID_VENDOR_ID, ROKID_MAX_PRODUCT_ID)
+            .map_err(RokidMaxError::HidError)?;
+        let result = Self {
             ahrs: Arc::new(Mutex::new(new_vqf())),
         };
-        result.reset()?;
+        result.reset();
         let ahrs = result.ahrs.clone();
         let _thread = thread::spawn(move || loop {
-            let packet = read_packet(&device).unwrap();
+            thread::sleep(std::time::Duration::from_millis(10));
+            let Ok(packet) = read_packet(&device) else {
+                continue;
+            };
             match packet {
                 RokidMaxPacket::Combined(packet) => {
-                    let mut vqf = ahrs.lock().unwrap();
-                    update_vqf(&mut vqf, packet);
+                    if let Ok(mut vqf) = ahrs.lock() {
+                        update_vqf(&mut vqf, packet);
+                    }
                 }
                 _ => { /* noop */ }
             }
-            thread::sleep(std::time::Duration::from_millis(10));
         });
         Ok(result)
     }
 
-    pub fn reset(&mut self) -> anyhow::Result<()> {
-        self.ahrs.lock().unwrap().reset_state();
-        Ok(())
+    pub fn reset(&self) {
+        if let Ok(mut vqf) = self.ahrs.lock() {
+            vqf.reset_state();
+        }
     }
 
     pub fn quaternion(&self) -> Quaternion<f32> {
-        let quat_vec = self.ahrs.lock().unwrap().quat_3d();
-        Quaternion::new(quat_vec.0, quat_vec.1, quat_vec.2, quat_vec.3).invert()
+        if let Ok(vqf) = self.ahrs.lock() {
+            let quat_vec = vqf.quat_3d();
+            Quaternion::new(quat_vec.0, quat_vec.1, quat_vec.2, quat_vec.3).invert()
+        } else {
+            Quaternion::zero()
+        }
     }
 }
 
@@ -57,7 +68,7 @@ fn update_vqf(vqf: &mut VQF, packet: CombinedPacket) {
     );
 }
 
-fn read_packet(device: &hidapi::HidDevice) -> anyhow::Result<RokidMaxPacket> {
+fn read_packet(device: &hidapi::HidDevice) -> Result<RokidMaxPacket, RokidMaxError> {
     let mut buffer: [u8; 128] = [0; 128];
     let size = device.read(&mut buffer)?;
     let buffer = &buffer[0..size];
@@ -69,7 +80,7 @@ fn new_vqf() -> VQF {
     VQF::new(1.0 / 100.0, None, None, None)
 }
 
-fn buffer_to_packet(buffer: &[u8]) -> anyhow::Result<RokidMaxPacket> {
+fn buffer_to_packet(buffer: &[u8]) -> Result<RokidMaxPacket, RokidMaxError> {
     let packet_type = buffer[0];
     let packet = match packet_type {
         2 => {
@@ -85,7 +96,7 @@ fn buffer_to_packet(buffer: &[u8]) -> anyhow::Result<RokidMaxPacket> {
             RokidMaxPacket::Combined(packet.to_owned())
         }
         _ => {
-            anyhow::bail!("Unknown packet type: {}", packet_type);
+            return Err(RokidMaxError::UnknownPacketTypeError(packet_type));
         }
     };
     Ok(packet)
@@ -180,4 +191,13 @@ impl CombinedPacket {
     pub fn magnetometer(&self) -> [f32; 3] {
         self.magnetometer
     }
+}
+
+#[derive(Error, Debug)]
+pub enum RokidMaxError {
+    #[error("HID error: {0}")]
+    HidError(#[from] hidapi::HidError),
+
+    #[error("Unknown packet type: {0}")]
+    UnknownPacketTypeError(u8),
 }

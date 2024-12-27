@@ -216,7 +216,7 @@ impl KashikishiCallback {
                 let _ = self
                     .rokid_max_action
                     .lock()
-                    .map(|mut rokid_max_action| rokid_max_action.reset());
+                    .map(|rokid_max_action| rokid_max_action.reset());
                 world.look_current(CameraAdjustment::FitBothAndCentering)
             }
             _ => {}
