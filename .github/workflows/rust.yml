@@ -48,7 +48,7 @@ jobs:
           phase: check-${{ matrix.job.target }}
           command: |
             cargo fmt --all -- --check
-            cargo clippy -- -D warnings
+            cargo clippy --tests --examples -- -D clippy::all
             cargo build
             cargo test
           cache_save_enable: true
