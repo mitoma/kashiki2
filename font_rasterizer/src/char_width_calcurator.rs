@@ -112,6 +112,15 @@ impl CharWidth {
     }
 }
 
+impl CharWidthResolver for CharWidthCalculator {
+    fn resolve_width(&self, c: char) -> usize {
+        match self.get_width(c) {
+            CharWidth::Regular => 1,
+            CharWidth::Wide => 2,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
@@ -171,15 +180,6 @@ mod test {
         for (c, expected) in cases {
             let actual = converter.get_width(c);
             assert_eq!(actual, expected, "char:{}", c);
-        }
-    }
-}
-
-impl CharWidthResolver for CharWidthCalculator {
-    fn resolve_width(&self, c: char) -> usize {
-        match self.get_width(c) {
-            CharWidth::Regular => 1,
-            CharWidth::Wide => 2,
         }
     }
 }

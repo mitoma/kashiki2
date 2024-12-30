@@ -51,7 +51,7 @@ struct SingleCharCallback {
 impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
         let start = Instant::now();
-        let _char_ranges = [
+        [
             'a'..='z',
             'A'..='Z',
             '0'..='9',
@@ -62,7 +62,7 @@ impl SimpleStateCallback for SingleCharCallback {
             '㐀'..='䶿',
         ]
         .iter()
-        .map(|char_range| char_range.clone().into_iter().collect::<String>())
+        .map(|char_range| char_range.clone().collect::<String>())
         .for_each(|c| {
             let start = Instant::now();
             println!("c len: {}", c.len());

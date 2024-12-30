@@ -154,7 +154,7 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        (&self.world.camera(), self.world.glyph_instances())
+        (self.world.camera(), self.world.glyph_instances())
     }
 
     fn shutdown(&mut self) {}

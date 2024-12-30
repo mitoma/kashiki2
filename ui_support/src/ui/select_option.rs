@@ -80,19 +80,19 @@ mod test {
     fn test_contains_all() {
         let option =
             SelectOption::new("test".to_string(), Action::new_command("namespace", "name"));
-        assert_eq!(option.contains_all(&["test"]), true);
-        assert_eq!(option.contains_all(&["test", "test2"]), false);
-        assert_eq!(option.contains_all(&["namespace:name"]), true);
-        assert_eq!(option.contains_all(&["name"]), true);
+        assert!(option.contains_all(&["test"]));
+        assert!(!option.contains_all(&["test", "test2"]));
+        assert!(option.contains_all(&["namespace:name"]));
+        assert!(option.contains_all(&["name"]));
     }
 
     #[test]
     fn test_contains_all_for_short() {
         let option =
             SelectOption::new("test".to_string(), Action::new_command("namespace", "name"));
-        assert_eq!(option.contains_all_for_short(&["test"]), true);
-        assert_eq!(option.contains_all_for_short(&["test", "test2"]), false);
-        assert_eq!(option.contains_all_for_short(&["namespace:name"]), false);
-        assert_eq!(option.contains_all_for_short(&["name"]), false);
+        assert!(option.contains_all_for_short(&["test"]));
+        assert!(!option.contains_all_for_short(&["test", "test2"]));
+        assert!(!option.contains_all_for_short(&["namespace:name"]));
+        assert!(!option.contains_all_for_short(&["name"]));
     }
 }

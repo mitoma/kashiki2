@@ -849,19 +849,17 @@ mod tests {
             assert_eq!(result.to_line_string(), "風月");
             sut.join(result, &tx);
         } else {
-            assert!(false);
+            unreachable!()
         }
         assert_eq!(sut.to_line_string(), "花鳥風月");
         if let Some(result) = sut.insert_enter(4) {
             assert_eq!(sut.to_line_string(), "花鳥風月");
             assert_eq!(result.to_line_string(), "");
         } else {
-            assert!(false);
+            unreachable!()
         }
         if sut.insert_enter(5).is_some() {
-            assert!(false);
-        } else {
-            assert!(true);
+            unreachable!()
         }
     }
 
@@ -1255,7 +1253,7 @@ mod tests {
             start_position: CellPosition,
             moved_positions: Vec<CellPosition>,
         }
-        let cases = vec![
+        let cases = [
             TestCase {
                 test_string: indoc::indoc! {r#"
                     My name is nes.
@@ -1309,7 +1307,7 @@ mod tests {
             start_position: CellPosition,
             moved_positions: Vec<CellPosition>,
         }
-        let cases = vec![
+        let cases = [
             TestCase {
                 test_string: indoc::indoc! {r#"
                     My name is nes.

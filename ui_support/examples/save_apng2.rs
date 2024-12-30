@@ -9,7 +9,7 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
 };
 use log::info;
-use stroke_parser::{Action, ActionArgument};
+use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 use ui_support::{
     action::ActionProcessorStore,
@@ -158,7 +158,7 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        (&self.world.camera(), self.world.glyph_instances())
+        (self.world.camera(), self.world.glyph_instances())
     }
 
     fn shutdown(&mut self) {}
