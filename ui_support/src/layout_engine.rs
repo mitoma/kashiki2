@@ -470,6 +470,14 @@ pub enum ModelMode {
     Modal,
 }
 
+#[derive(Default, Clone, Copy, PartialEq)]
+pub enum ModelBorder {
+    #[default]
+    None,
+    Square,
+    Rounded,
+}
+
 pub trait Model {
     // モデルの位置を設定する
     fn set_position(&mut self, position: Point3<f32>);
@@ -491,6 +499,8 @@ pub trait Model {
     fn to_string(&self) -> String;
     fn model_mode(&self) -> ModelMode;
     fn in_animation(&self) -> bool;
+    fn set_border(&mut self, border: ModelBorder);
+    fn border(&self) -> ModelBorder;
 }
 
 pub enum ModelOperation {

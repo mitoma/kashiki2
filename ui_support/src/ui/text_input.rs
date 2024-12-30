@@ -6,7 +6,7 @@ use text_buffer::action::EditorOperation;
 use font_rasterizer::{context::StateContext, font_buffer::Direction, instances::GlyphInstances};
 
 use crate::{
-    layout_engine::{Model, ModelMode},
+    layout_engine::{Model, ModelBorder, ModelMode},
     ui_context::{CharEasings, TextContext},
 };
 
@@ -18,6 +18,7 @@ pub struct TextInput {
     input_text_edit: TextEdit,
     action_queue_sender: Sender<Action>,
     default_input: Option<String>,
+    border: ModelBorder,
 }
 
 impl TextInput {
@@ -58,6 +59,7 @@ impl TextInput {
             input_text_edit,
             action_queue_sender: context.action_queue_sender.clone(),
             default_input,
+            border: ModelBorder::default(),
         }
     }
 }
@@ -178,5 +180,13 @@ impl Model for TextInput {
 
     fn in_animation(&self) -> bool {
         self.title_text_edit.in_animation() || self.input_text_edit.in_animation()
+    }
+
+    fn set_border(&mut self, border: ModelBorder) {
+        self.border = border;
+    }
+
+    fn border(&self) -> ModelBorder {
+        self.border
     }
 }

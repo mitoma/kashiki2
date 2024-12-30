@@ -32,7 +32,7 @@ use font_rasterizer::{
     time::now_millis,
 };
 
-use crate::layout_engine::{Model, ModelMode, ModelOperation, ModelOperationResult};
+use crate::layout_engine::{Model, ModelBorder, ModelMode, ModelOperation, ModelOperationResult};
 
 pub struct PlaneTextReader {
     pub value: String,
@@ -130,6 +130,12 @@ impl Model for PlaneTextReader {
 
     fn in_animation(&self) -> bool {
         false
+    }
+
+    fn set_border(&mut self, _border: ModelBorder) {}
+
+    fn border(&self) -> ModelBorder {
+        Default::default()
     }
 }
 

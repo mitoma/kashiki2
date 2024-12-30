@@ -11,7 +11,7 @@ use font_rasterizer::{
 };
 
 use crate::{
-    layout_engine::{Model, ModelMode},
+    layout_engine::{Model, ModelBorder, ModelMode},
     ui_context::{CharEasings, GpuEasingConfig, TextContext},
 };
 
@@ -27,6 +27,7 @@ pub struct SelectBox {
     char_width_calcurator: Arc<CharWidthCalculator>,
     show_action_name: bool,
     cancellable: bool,
+    border: ModelBorder,
 }
 
 impl SelectBox {
@@ -121,6 +122,7 @@ impl SelectBox {
             char_width_calcurator: context.char_width_calcurator.clone(),
             show_action_name,
             cancellable,
+            border: ModelBorder::default(),
         };
         result.update_select_items_text_edit();
         result.update_current_selection();
@@ -431,5 +433,13 @@ impl Model for SelectBox {
         self.title_text_edit.in_animation()
             || self.search_text_edit.in_animation()
             || self.select_items_text_edit.in_animation()
+    }
+
+    fn set_border(&mut self, border: ModelBorder) {
+        self.border = border;
+    }
+
+    fn border(&self) -> ModelBorder {
+        self.border
     }
 }
