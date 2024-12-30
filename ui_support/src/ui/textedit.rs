@@ -25,7 +25,9 @@ use font_rasterizer::{
 
 use crate::{
     easing_value::EasingPointN,
-    layout_engine::{Model, ModelAttributes, ModelMode, ModelOperation, ModelOperationResult},
+    layout_engine::{
+        Model, ModelAttributes, ModelBorder, ModelMode, ModelOperation, ModelOperationResult,
+    },
     ui_context::TextContext,
 };
 
@@ -54,6 +56,8 @@ pub struct TextEdit {
     world_scale: [f32; 2],
 
     bound: EasingPointN<2>,
+
+    border: ModelBorder,
 }
 
 impl Default for TextEdit {
@@ -87,6 +91,7 @@ impl Default for TextEdit {
             rotation,
             world_scale: [1.0, 1.0],
             bound,
+            border: ModelBorder::default(),
         }
     }
 }
@@ -303,6 +308,14 @@ impl Model for TextEdit {
 
     fn in_animation(&self) -> bool {
         self.position.in_animation() || self.bound.in_animation() || self.rotation.in_animation()
+    }
+
+    fn set_border(&mut self, border: ModelBorder) {
+        self.border = border;
+    }
+
+    fn border(&self) -> ModelBorder {
+        self.border
     }
 }
 
