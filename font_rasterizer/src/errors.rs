@@ -11,6 +11,9 @@ pub enum FontRasterizerError {
     EnsureBufferCapacityFailed(BufferKind),
     #[error("outline glyph is failed. glyph_id:{0:?}")]
     NoOutlineGlyph(GlyphId),
+
+    #[error("vector index not found")]
+    VectorIndexNotFound,
 }
 
 #[derive(Debug)]
