@@ -12,7 +12,8 @@ use wgpu::BufferUsages;
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     errors::{BufferKind, FontRasterizerError},
-    font_converter::{FontVertexConverter, GlyphVertex, GlyphVertexData, Vertex},
+    font_converter::{FontVertexConverter, GlyphVertex, Vertex},
+    vector_vertex::VectorVertex,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -255,7 +256,7 @@ impl GlyphVertexBuffer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         c: char,
-        glyph_data: GlyphVertexData,
+        glyph_data: VectorVertex,
     ) -> Result<BufferIndex, FontRasterizerError> {
         self.ensure_buffer_capacity(device, queue, &glyph_data);
 
@@ -329,7 +330,7 @@ impl GlyphVertexBuffer {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        glyph: &GlyphVertexData,
+        glyph: &VectorVertex,
     ) {
         let vertex_size = glyph.vertex_size();
         let index_size = glyph.index_size();
