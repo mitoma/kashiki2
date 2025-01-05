@@ -6,7 +6,7 @@ use instant::Duration;
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     context::StateContext,
-    instances::{GlyphInstance, GlyphInstances},
+    instances::{GlyphInstances, InstanceAttributes},
     motion::MotionFlags,
     time::now_millis,
 };
@@ -104,7 +104,7 @@ impl SingleLine {
                 .entry(c)
                 .or_insert_with(|| GlyphInstances::new(c, &context.device));
             let instance = self.instances.get_mut(&c).unwrap();
-            let i = GlyphInstance::new(
+            let i = InstanceAttributes::new(
                 cgmath::Vector3 {
                     x: x * 0.7,
                     y: y_pos,

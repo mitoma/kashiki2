@@ -8,7 +8,7 @@ use cgmath::Rotation3;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    instances::{GlyphInstance, GlyphInstances},
+    instances::{GlyphInstances, InstanceAttributes},
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,
@@ -96,7 +96,7 @@ impl SingleCharCallback {
 
 impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
-        let value = GlyphInstance {
+        let value = InstanceAttributes {
             color: context.color_theme.cyan().get_color(),
             motion: self.motion.motion_flags(),
             gain: 2.0,
@@ -128,7 +128,7 @@ impl SimpleStateCallback for SingleCharCallback {
                 self.glyphs.iter_mut().for_each(|i| {
                     if i.c == 'あ' {
                         i.clear();
-                        i.push(GlyphInstance::new(
+                        i.push(InstanceAttributes::new(
                             (0.0, 0.0, 0.0).into(),
                             cgmath::Quaternion::from_axis_angle(
                                 cgmath::Vector3::unit_z(),

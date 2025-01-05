@@ -13,7 +13,7 @@ use font_rasterizer::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
     font_buffer::Direction,
-    instances::GlyphInstance,
+    instances::InstanceAttributes,
     motion::MotionFlags,
     time::now_millis,
 };
@@ -67,7 +67,7 @@ impl CharStates {
     fn get_mut_char_and_instances(
         &mut self,
         c: &BufferChar,
-    ) -> Option<(&mut ViewElementState, &mut GlyphInstance)> {
+    ) -> Option<(&mut ViewElementState, &mut InstanceAttributes)> {
         self.chars.get_mut(c).and_then(|state| {
             self.instances
                 .get_mut(&(*c).into())
@@ -114,12 +114,12 @@ impl CharStates {
             motion_gain: easing_motion_gain,
         };
         self.chars.insert(c, state);
-        let instance = GlyphInstance {
+        let instance = InstanceAttributes {
             color,
             start_time: now_millis() + counter,
             motion: text_context.char_easings.add_char.motion,
             duration: text_context.char_easings.add_char.duration,
-            ..GlyphInstance::default()
+            ..InstanceAttributes::default()
         };
         self.instances.add(c.into(), instance, device);
     }
@@ -353,7 +353,7 @@ impl CharStates {
     fn apply_gpu_easing_config(
         gpu_easing_config: &GpuEasingConfig,
         state: &mut ViewElementState,
-        instance: &mut GlyphInstance,
+        instance: &mut InstanceAttributes,
     ) {
         state.motion_gain.update([gpu_easing_config.gain]);
         instance.motion = gpu_easing_config.motion;
@@ -438,10 +438,10 @@ impl CaretStates {
             self.mark.replace((c, state));
         }
 
-        let caret_instance = GlyphInstance {
+        let caret_instance = InstanceAttributes {
             color,
             motion: self.default_motion,
-            ..GlyphInstance::default()
+            ..InstanceAttributes::default()
         };
         self.instances.add(c.into(), caret_instance, device);
     }
@@ -566,7 +566,7 @@ impl CaretStates {
 
 #[inline]
 fn update_instance(
-    instance: &mut GlyphInstance,
+    instance: &mut InstanceAttributes,
     view_char_state: &mut ViewElementState,
     model_attribuetes: &ModelAttributes,
     char_rotation: Option<Quaternion<f32>>,

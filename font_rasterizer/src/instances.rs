@@ -9,7 +9,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug)]
-pub struct GlyphInstance {
+pub struct InstanceAttributes {
     pub position: cgmath::Vector3<f32>,
     pub rotation: cgmath::Quaternion<f32>,
     pub world_scale: [f32; 2],
@@ -22,7 +22,7 @@ pub struct GlyphInstance {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl GlyphInstance {
+impl InstanceAttributes {
     pub fn new(
         position: cgmath::Vector3<f32>,
         rotation: cgmath::Quaternion<f32>,
@@ -48,7 +48,7 @@ impl GlyphInstance {
     }
 }
 
-impl Default for GlyphInstance {
+impl Default for InstanceAttributes {
     fn default() -> Self {
         Self {
             position: [10.0, 0.0, 0.0].into(),
@@ -67,7 +67,7 @@ impl Default for GlyphInstance {
     }
 }
 
-impl GlyphInstance {
+impl InstanceAttributes {
     pub fn random_motion(&mut self) {
         self.start_time = now_millis();
         self.duration = Duration::from_millis(1000);
@@ -100,7 +100,7 @@ impl GlyphInstance {
 pub struct GlyphInstances {
     pub c: char,
     pub direction: Direction,
-    values: BTreeMap<InstanceKey, GlyphInstance>,
+    values: BTreeMap<InstanceKey, InstanceAttributes>,
     buffer_size: u64,
     buffer: wgpu::Buffer,
     updated: bool,
@@ -154,11 +154,11 @@ impl GlyphInstances {
         self.values.len()
     }
 
-    pub fn first(&self) -> Option<&GlyphInstance> {
+    pub fn first(&self) -> Option<&InstanceAttributes> {
         self.values.values().next()
     }
 
-    pub fn get_mut(&mut self, key: &InstanceKey) -> Option<&mut GlyphInstance> {
+    pub fn get_mut(&mut self, key: &InstanceKey) -> Option<&mut InstanceAttributes> {
         self.updated = true;
         self.values.get_mut(key)
     }
@@ -167,19 +167,19 @@ impl GlyphInstances {
         self.values.is_empty()
     }
 
-    pub fn push(&mut self, instance: GlyphInstance) {
+    pub fn push(&mut self, instance: InstanceAttributes) {
         self.updated = true;
         self.values
             .insert(InstanceKey::Monotonic(self.monotonic_key), instance);
         self.monotonic_key += 1;
     }
 
-    pub fn insert(&mut self, key: InstanceKey, instance: GlyphInstance) {
+    pub fn insert(&mut self, key: InstanceKey, instance: InstanceAttributes) {
         self.updated = true;
         self.values.insert(key, instance);
     }
 
-    pub fn remove(&mut self, key: &InstanceKey) -> Option<GlyphInstance> {
+    pub fn remove(&mut self, key: &InstanceKey) -> Option<InstanceAttributes> {
         if let Some(instance) = self.values.remove(key) {
             self.updated = true;
             Some(instance)
