@@ -27,7 +27,7 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::StateContext,
     font_buffer::Direction,
-    instances::{GlyphInstance, GlyphInstances},
+    instances::{GlyphInstances, InstanceAttributes},
     motion::MotionFlags,
     time::now_millis,
 };
@@ -261,7 +261,7 @@ impl PlaneTextReader {
                         z: 0.0,
                     });
                 let w = pos.w;
-                let i = GlyphInstance::new(
+                let i = InstanceAttributes::new(
                     cgmath::Vector3 {
                         x: w.x + self.position.x,
                         y: w.y + self.position.y,

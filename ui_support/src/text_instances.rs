@@ -8,7 +8,7 @@ use wgpu::{Device, Queue};
 
 use font_rasterizer::{
     font_buffer::Direction,
-    instances::{GlyphInstance, GlyphInstances, InstanceKey},
+    instances::{GlyphInstances, InstanceAttributes, InstanceKey},
 };
 
 use crate::ui::caret_char;
@@ -53,7 +53,12 @@ pub(crate) struct TextInstances {
 }
 
 impl TextInstances {
-    pub(crate) fn add(&mut self, key: TextInstancesKey, instance: GlyphInstance, device: &Device) {
+    pub(crate) fn add(
+        &mut self,
+        key: TextInstancesKey,
+        instance: InstanceAttributes,
+        device: &Device,
+    ) {
         let instances = self.glyph_instances.entry(key.c).or_insert_with(|| {
             let mut instances = GlyphInstances::new(key.c, device);
             instances.set_direction(&self.direction);
@@ -62,7 +67,7 @@ impl TextInstances {
         instances.insert(key.to_instance_key(), instance)
     }
 
-    pub(crate) fn get_mut(&mut self, key: &TextInstancesKey) -> Option<&mut GlyphInstance> {
+    pub(crate) fn get_mut(&mut self, key: &TextInstancesKey) -> Option<&mut InstanceAttributes> {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
             instances.get_mut(&key.to_instance_key())
         } else {
@@ -70,7 +75,7 @@ impl TextInstances {
         }
     }
 
-    pub(crate) fn remove(&mut self, key: &TextInstancesKey) -> Option<GlyphInstance> {
+    pub(crate) fn remove(&mut self, key: &TextInstancesKey) -> Option<InstanceAttributes> {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
             instances.remove(&key.to_instance_key())
         } else {
@@ -89,7 +94,7 @@ impl TextInstances {
     pub(crate) fn get_mut_from_dustbox(
         &mut self,
         key: &TextInstancesKey,
-    ) -> Option<&mut GlyphInstance> {
+    ) -> Option<&mut InstanceAttributes> {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
             instances.get_mut(&key.to_pre_remove_instance_key())
         } else {
@@ -97,7 +102,10 @@ impl TextInstances {
         }
     }
 
-    pub(crate) fn remove_from_dustbox(&mut self, key: &TextInstancesKey) -> Option<GlyphInstance> {
+    pub(crate) fn remove_from_dustbox(
+        &mut self,
+        key: &TextInstancesKey,
+    ) -> Option<InstanceAttributes> {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
             instances.remove(&key.to_pre_remove_instance_key())
         } else {
