@@ -1,12 +1,13 @@
 use bezier_converter::CubicBezier;
 use log::debug;
+use rustybuzz::ttf_parser::OutlineBuilder;
 
 pub(crate) struct VectorVertexBuilder {
     vertex: Vec<InternalVertex>,
     index: Vec<u32>,
     current_index: u32,
     vertex_swap: FlipFlop,
-    builder_options: BuilderOptions,
+    builder_options: VertexBuilderOptions,
 }
 
 impl VectorVertexBuilder {
@@ -16,11 +17,11 @@ impl VectorVertexBuilder {
             index: Vec::new(),
             current_index: 0,
             vertex_swap: FlipFlop::Flip,
-            builder_options: BuilderOptions::default(),
+            builder_options: VertexBuilderOptions::default(),
         }
     }
 
-    pub fn with_options(self, builder_options: BuilderOptions) -> Self {
+    pub fn with_options(self, builder_options: VertexBuilderOptions) -> Self {
         Self {
             vertex: self.vertex,
             index: self.index,
@@ -58,12 +59,8 @@ impl VectorVertexBuilder {
     }
 
     pub fn move_to(&mut self, x: f32, y: f32) {
-        self.vertex.push(InternalVertex {
-            x,
-            y,
-            wait: self.vertex_swap.next(),
-        });
-        self.index.push(self.current_index);
+        let wait = self.next_wait();
+        self.vertex.push(InternalVertex { x, y, wait });
         self.current_index += 1;
     }
 
@@ -122,12 +119,34 @@ impl VectorVertexBuilder {
     }
 }
 
-pub(crate) struct BuilderOptions {
+impl OutlineBuilder for VectorVertexBuilder {
+    fn move_to(&mut self, x: f32, y: f32) {
+        self.move_to(x, y);
+    }
+
+    fn line_to(&mut self, x: f32, y: f32) {
+        self.line_to(x, y);
+    }
+
+    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        self.quad_to(x1, y1, x, y);
+    }
+
+    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+        self.curve_to(x1, y1, x2, y2, x, y);
+    }
+
+    fn close(&mut self) {
+        self.close();
+    }
+}
+
+pub(crate) struct VertexBuilderOptions {
     center: [f32; 2],
     unit_em: f32,
 }
 
-impl Default for BuilderOptions {
+impl Default for VertexBuilderOptions {
     fn default() -> Self {
         Self {
             center: [0.0, 0.0],
@@ -136,7 +155,7 @@ impl Default for BuilderOptions {
     }
 }
 
-impl BuilderOptions {
+impl VertexBuilderOptions {
     pub fn new(center: [f32; 2], unit_em: f32) -> Self {
         Self { center, unit_em }
     }
