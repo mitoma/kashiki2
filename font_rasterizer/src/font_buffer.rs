@@ -138,6 +138,7 @@ pub struct GlyphVertexBuffer {
     font_vertex_converter: FontVertexConverter,
     char_width_calculator: Arc<CharWidthCalculator>,
 
+    registerd_chars: HashSet<char>,
     vector_vertex_buffer: VectorVertexBuffer<(char, Direction)>,
 }
 
@@ -150,6 +151,7 @@ impl GlyphVertexBuffer {
         GlyphVertexBuffer {
             font_vertex_converter,
             char_width_calculator,
+            registerd_chars: HashSet::new(),
             vector_vertex_buffer: VectorVertexBuffer::new(),
         }
     }
@@ -176,11 +178,7 @@ impl GlyphVertexBuffer {
     }
 
     pub fn registerd_chars(&self) -> HashSet<char> {
-        self.vector_vertex_buffer
-            .keys()
-            .iter()
-            .map(|(c, _)| *c)
-            .collect()
+        self.registerd_chars.clone()
     }
 
     pub fn append_glyph(
@@ -189,18 +187,16 @@ impl GlyphVertexBuffer {
         queue: &wgpu::Queue,
         chars: HashSet<char>,
     ) -> Result<(), FontRasterizerError> {
-        let registered_chars = self.registerd_chars();
-
         // 既にバッファに登録済みの char は除外する。
         let chars = chars
             .into_iter()
-            .filter(|c| !registered_chars.contains(c))
+            .filter(|c| !self.registerd_chars.contains(c))
             .collect::<HashSet<_>>();
         if chars.is_empty() {
             return Ok(());
         }
 
-        debug!("registerd_chars:{:?}", registered_chars);
+        debug!("registerd_chars:{:?}", self.registerd_chars);
         debug!("chars:{:?}", chars);
 
         // char を全て Glyph 情報に変換する
@@ -229,6 +225,7 @@ impl GlyphVertexBuffer {
                     .append(device, queue, (c, Direction::Vertical), v_vertex)
                     .ok()
             });
+            self.registerd_chars.insert(c);
         }
         Ok(())
     }
@@ -263,10 +260,6 @@ where
             vertex_buffers: Vec::new(),
             index_buffers: Vec::new(),
         }
-    }
-
-    fn keys(&self) -> Vec<&T> {
-        self.buffer_index.keys().collect()
     }
 
     fn draw_info(&self, key: &T) -> Result<DrawInfo, FontRasterizerError> {
