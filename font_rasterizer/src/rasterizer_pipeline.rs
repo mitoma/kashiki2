@@ -12,6 +12,7 @@ use crate::{
     screen_bind_group::ScreenBindGroup,
     screen_texture::{self, BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
+    vector_vertex::Vertex,
 };
 
 const OVERLAP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
@@ -147,7 +148,7 @@ impl RasterizerPipeline {
                 vertex: wgpu::VertexState {
                     module: &overlap_shader,
                     entry_point: Some("vs_main"),
-                    buffers: &[GlyphVertexBuffer::desc(), InstanceRaw::desc()],
+                    buffers: &[Vertex::desc(), InstanceRaw::desc()],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {

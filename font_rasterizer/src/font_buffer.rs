@@ -8,7 +8,7 @@ use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     errors::FontRasterizerError,
     font_converter::{FontVertexConverter, GlyphVertex},
-    vector_vertex_buffer::{DrawInfo, VectorVertexBuffer, LAYOUT},
+    vector_vertex_buffer::{DrawInfo, VectorVertexBuffer},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -64,10 +64,6 @@ impl GlyphVertexBuffer {
         }
         self.vector_vertex_buffer
             .draw_info(&(*c, Direction::Horizontal))
-    }
-
-    pub(crate) fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        LAYOUT
     }
 
     pub fn registerd_chars(&self) -> HashSet<char> {
