@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt::Debug};
 
 use cgmath::{num_traits::ToPrimitive, Rotation3};
 use instant::Duration;
@@ -300,5 +300,112 @@ impl InstanceRaw {
                 },
             ],
         }
+    }
+}
+
+pub struct VectorInstances<T> {
+    key: T,
+    values: BTreeMap<InstanceKey, InstanceAttributes>,
+    buffer_size: u64,
+    buffer: wgpu::Buffer,
+    updated: bool,
+    monotonic_key: usize,
+}
+
+impl<T> VectorInstances<T>
+where
+    T: Ord + Debug,
+{
+    pub fn new(key: T, device: &wgpu::Device) -> Self {
+        let values = BTreeMap::new();
+        let buffer_size = (values.len() as u64 / DEFAULT_BUFFER_UNIT) + 1;
+
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some(&format!("Instances Buffer. char:{:?}", key)),
+            size: std::mem::size_of::<InstanceRaw>() as u64 * buffer_size * DEFAULT_BUFFER_UNIT,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        Self {
+            key,
+            values,
+            buffer_size,
+            buffer,
+            updated: false,
+            monotonic_key: 0,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn first(&self) -> Option<&InstanceAttributes> {
+        self.values.values().next()
+    }
+
+    pub fn get_mut(&mut self, key: &InstanceKey) -> Option<&mut InstanceAttributes> {
+        self.updated = true;
+        self.values.get_mut(key)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
+    pub fn push(&mut self, instance: InstanceAttributes) {
+        self.updated = true;
+        self.values
+            .insert(InstanceKey::Monotonic(self.monotonic_key), instance);
+        self.monotonic_key += 1;
+    }
+
+    pub fn insert(&mut self, key: InstanceKey, instance: InstanceAttributes) {
+        self.updated = true;
+        self.values.insert(key, instance);
+    }
+
+    pub fn remove(&mut self, key: &InstanceKey) -> Option<InstanceAttributes> {
+        if let Some(instance) = self.values.remove(key) {
+            self.updated = true;
+            Some(instance)
+        } else {
+            None
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.updated = true;
+        self.values.clear();
+        self.monotonic_key = 0;
+    }
+
+    pub fn update_buffer(&mut self, device: &wgpu::Device, queue: &wgpu::Queue) {
+        if self.updated {
+            let value_raws: Vec<InstanceRaw> = self.values.values().map(|v| v.as_raw()).collect();
+
+            // バッファサイズが既存のバッファを上回る場合はバッファを作り直す。
+            let buffer_size = (self.values.len() as u64 / DEFAULT_BUFFER_UNIT) + 1;
+            if self.buffer_size < buffer_size {
+                info!("buffer recreate. char={:?}, size={}", self.key, buffer_size);
+                self.buffer.destroy();
+                self.buffer_size = buffer_size;
+                self.buffer = device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some(&format!("Instances Buffer. char:{:?}", self.key)),
+                    size: std::mem::size_of::<InstanceRaw>() as u64
+                        * buffer_size
+                        * DEFAULT_BUFFER_UNIT,
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    mapped_at_creation: false,
+                });
+            }
+            queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(value_raws.as_slice()));
+
+            self.updated = false;
+        }
+    }
+
+    pub fn to_wgpu_buffer(&self) -> &wgpu::Buffer {
+        &self.buffer
     }
 }
