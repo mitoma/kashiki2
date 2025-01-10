@@ -185,6 +185,30 @@ pub(crate) struct Vertex {
     pub(crate) wait: [f32; 2],
 }
 
+impl Vertex {
+    pub(crate) fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                // 文字情報なので xy の座標だけでよい
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+                // ベジエか直線かの情報が必要なので [f32; 2] を使っている。
+                // 本質的には 2 bit でいいはずなので調整余地あり
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x2,
+                },
+            ],
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 enum FlipFlop {
     Flip,

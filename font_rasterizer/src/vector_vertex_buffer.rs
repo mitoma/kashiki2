@@ -5,8 +5,7 @@ use wgpu::BufferUsages;
 
 use crate::{
     errors::{BufferKind, FontRasterizerError},
-    font_converter::Vertex,
-    vector_vertex::VectorVertex,
+    vector_vertex::{VectorVertex, Vertex},
 };
 
 // バッファに登録された文字のインデックス情報
@@ -90,26 +89,6 @@ pub(crate) struct DrawInfo<'a> {
     pub(crate) index_range: &'a Range<u32>,
 }
 
-pub(crate) const LAYOUT: wgpu::VertexBufferLayout = wgpu::VertexBufferLayout {
-    array_stride: std::mem::size_of::<Vertex>() as wgpu::BufferAddress,
-    step_mode: wgpu::VertexStepMode::Vertex,
-    attributes: &[
-        // 文字情報なので xy の座標だけでよい
-        wgpu::VertexAttribute {
-            offset: 0,
-            shader_location: 0,
-            format: wgpu::VertexFormat::Float32x2,
-        },
-        // ベジエか直線かの情報が必要なので [f32; 2] を使っている。
-        // 本質的には 2 bit でいいはずなので調整余地あり
-        wgpu::VertexAttribute {
-            offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
-            shader_location: 1,
-            format: wgpu::VertexFormat::Float32x2,
-        },
-    ],
-};
-
 pub(crate) struct VectorVertexBuffer<T> {
     buffer_index: BTreeMap<T, BufferIndex>,
     vertex_buffers: Vec<VertexBuffer>,
@@ -142,11 +121,6 @@ where
             index_range: &index.index_buffer_range,
         };
         Ok(draw_info)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        LAYOUT
     }
 
     pub(crate) fn append(
