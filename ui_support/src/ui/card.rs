@@ -1,7 +1,7 @@
 use cgmath::Point2;
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::{context::StateContext, instances::GlyphInstances};
+use font_rasterizer::{context::StateContext, glyph_instances::GlyphInstances};
 
 use crate::{
     layout_engine::Model,

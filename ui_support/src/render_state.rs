@@ -5,7 +5,7 @@ use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::{Direction, GlyphVertexBuffer},
+    glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
 };
 use image::{DynamicImage, ImageBuffer, Rgba};
@@ -450,7 +450,7 @@ impl RenderState {
             .try_recv()
             .into_iter()
             .for_each(|s| {
-                let _ = self.glyph_vertex_buffer.append_glyph(
+                let _ = self.glyph_vertex_buffer.append_chars(
                     &self.context.device,
                     &self.context.queue,
                     s.chars().collect(),
@@ -521,7 +521,7 @@ impl RenderState {
         let registerd_chars = self.glyph_vertex_buffer.registerd_chars();
         self.glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
-        let _ = self.glyph_vertex_buffer.append_glyph(
+        let _ = self.glyph_vertex_buffer.append_chars(
             &self.context.device,
             &self.context.queue,
             registerd_chars,

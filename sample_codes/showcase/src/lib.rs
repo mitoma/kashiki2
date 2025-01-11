@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::*;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    instances::GlyphInstances,
+    glyph_instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
 };
 use ui_support::{

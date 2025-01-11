@@ -1,5 +1,5 @@
 use crate::{
-    font_buffer::Direction,
+    glyph_vertex_buffer::Direction,
     vector_instances::{InstanceAttributes, InstanceKey, VectorInstances},
 };
 

@@ -12,7 +12,7 @@ use wgpu::Device;
 use font_rasterizer::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
-    font_buffer::Direction,
+    glyph_vertex_buffer::Direction,
     motion::MotionFlags,
     time::now_millis,
     vector_instances::InstanceAttributes,

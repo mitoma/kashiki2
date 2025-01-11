@@ -24,8 +24,8 @@ use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld}
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::Direction,
-    instances::GlyphInstances,
+    glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
     time::set_clock_mode,
 };

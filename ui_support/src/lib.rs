@@ -18,8 +18,8 @@ use camera::Camera;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::Direction,
-    instances::GlyphInstances,
+    glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
     time::{increment_fixed_clock, set_clock_mode, ClockMode},
 };

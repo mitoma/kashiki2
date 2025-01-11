@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use font_rasterizer::{
     context::{StateContext, WindowSize},
-    font_buffer::Direction,
+    glyph_vertex_buffer::Direction,
 };
 use ui_support::{
     camera::CameraAdjustment,

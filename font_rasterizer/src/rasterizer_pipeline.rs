@@ -5,8 +5,8 @@ use wgpu::include_wgsl;
 
 use crate::{
     background_bind_group::BackgroundImageBindGroup,
-    font_buffer::GlyphVertexBuffer,
-    instances::GlyphInstances,
+    glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::GlyphVertexBuffer,
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_bind_group::ScreenBindGroup,

@@ -6,8 +6,8 @@ use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
-    char_width_calcurator::CharWidthCalculator, context::StateContext, font_buffer::Direction,
-    instances::GlyphInstances,
+    char_width_calcurator::CharWidthCalculator, context::StateContext,
+    glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
 };
 
 use crate::{

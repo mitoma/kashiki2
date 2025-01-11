@@ -7,8 +7,8 @@ use text_buffer::{
 use wgpu::{Device, Queue};
 
 use font_rasterizer::{
-    font_buffer::Direction,
-    instances::GlyphInstances,
+    glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::Direction,
     vector_instances::{InstanceAttributes, InstanceKey},
 };
 
