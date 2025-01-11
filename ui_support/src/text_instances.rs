@@ -8,7 +8,8 @@ use wgpu::{Device, Queue};
 
 use font_rasterizer::{
     font_buffer::Direction,
-    instances::{GlyphInstances, InstanceAttributes, InstanceKey},
+    instances::GlyphInstances,
+    vector_instances::{InstanceAttributes, InstanceKey},
 };
 
 use crate::ui::caret_char;

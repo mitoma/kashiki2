@@ -13,9 +13,9 @@ use font_rasterizer::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
     font_buffer::Direction,
-    instances::InstanceAttributes,
     motion::MotionFlags,
     time::now_millis,
+    vector_instances::InstanceAttributes,
 };
 
 use crate::{
