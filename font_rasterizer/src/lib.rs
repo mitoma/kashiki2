@@ -15,5 +15,6 @@ mod screen_bind_group;
 mod screen_texture;
 mod screen_vertex_buffer;
 pub mod time;
+pub mod vector_instances;
 mod vector_vertex;
 mod vector_vertex_buffer;

@@ -6,12 +6,13 @@ use wgpu::include_wgsl;
 use crate::{
     background_bind_group::BackgroundImageBindGroup,
     font_buffer::GlyphVertexBuffer,
-    instances::{GlyphInstances, InstanceRaw},
+    instances::GlyphInstances,
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_bind_group::ScreenBindGroup,
     screen_texture::{self, BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
+    vector_instances::InstanceRaw,
     vector_vertex::Vertex,
 };
 

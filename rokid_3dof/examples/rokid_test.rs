@@ -8,10 +8,11 @@ use cgmath::Rotation3;
 use font_rasterizer::{
     color_theme::ColorTheme::{self, SolarizedDark},
     context::{StateContext, WindowSize},
-    instances::{GlyphInstances, InstanceAttributes},
+    instances::GlyphInstances,
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,
+    vector_instances::InstanceAttributes,
 };
 use ui_support::{
     camera::{Camera, CameraController},
