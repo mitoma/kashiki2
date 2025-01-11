@@ -11,7 +11,7 @@ use cgmath::Rotation3;
 use font_rasterizer::{
     color_theme::ColorTheme::{self, SolarizedDark},
     context::{StateContext, WindowSize},
-    instances::GlyphInstances,
+    glyph_instances::GlyphInstances,
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,

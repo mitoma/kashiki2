@@ -10,8 +10,8 @@ use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 
 use font_rasterizer::{
     context::{StateContext, WindowSize},
-    font_buffer::Direction,
-    instances::GlyphInstances,
+    glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::Direction,
 };
 
 use crate::camera::{Camera, CameraAdjustment, CameraController, CameraOperation};

@@ -3,7 +3,7 @@ use std::time::Duration;
 use cgmath::Point2;
 use font_rasterizer::{
     color_theme::ColorTheme,
-    font_buffer::Direction,
+    glyph_vertex_buffer::Direction,
     motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
 };
 use text_buffer::editor::LineBoundaryProhibitedChars;

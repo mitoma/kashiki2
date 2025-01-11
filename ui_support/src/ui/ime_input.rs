@@ -3,7 +3,9 @@ use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::{color_theme::ThemedColor, context::StateContext, instances::GlyphInstances};
+use font_rasterizer::{
+    color_theme::ThemedColor, context::StateContext, glyph_instances::GlyphInstances,
+};
 
 use crate::{
     layout_engine::Model,

@@ -70,7 +70,7 @@ impl GlyphVertexBuffer {
         self.registerd_chars.clone()
     }
 
-    pub fn append_glyph(
+    pub fn append_chars(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,

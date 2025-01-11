@@ -19,8 +19,8 @@ use font_rasterizer::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
     context::StateContext,
-    font_buffer::Direction,
-    instances::GlyphInstances,
+    glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::Direction,
 };
 
 use crate::{

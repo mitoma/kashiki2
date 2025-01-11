@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use font_rasterizer::{
     context::{StateContext, WindowSize},
-    font_buffer::Direction,
+    glyph_vertex_buffer::Direction,
 };
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;

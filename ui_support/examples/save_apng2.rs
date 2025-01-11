@@ -5,7 +5,7 @@ use instant::Duration;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    instances::GlyphInstances,
+    glyph_instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
 };
 use log::info;

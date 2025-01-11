@@ -5,7 +5,8 @@ use stroke_parser::Action;
 use winit::dpi::PhysicalSize;
 
 use crate::{
-    char_width_calcurator::CharWidthCalculator, color_theme::ColorTheme, font_buffer::Direction,
+    char_width_calcurator::CharWidthCalculator, color_theme::ColorTheme,
+    glyph_vertex_buffer::Direction,
 };
 
 pub struct StateContext {

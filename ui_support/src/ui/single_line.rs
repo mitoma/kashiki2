@@ -4,8 +4,9 @@ use cgmath::Rotation3;
 use instant::Duration;
 
 use font_rasterizer::{
-    char_width_calcurator::CharWidthCalculator, context::StateContext, instances::GlyphInstances,
-    motion::MotionFlags, time::now_millis, vector_instances::InstanceAttributes,
+    char_width_calcurator::CharWidthCalculator, context::StateContext,
+    glyph_instances::GlyphInstances, motion::MotionFlags, time::now_millis,
+    vector_instances::InstanceAttributes,
 };
 
 use super::get_color;

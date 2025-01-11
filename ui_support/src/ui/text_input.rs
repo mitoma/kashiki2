@@ -3,7 +3,9 @@ use std::sync::mpsc::Sender;
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::{context::StateContext, font_buffer::Direction, instances::GlyphInstances};
+use font_rasterizer::{
+    context::StateContext, glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
+};
 
 use crate::{
     layout_engine::{Model, ModelBorder, ModelMode},

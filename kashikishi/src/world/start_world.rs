@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use font_rasterizer::{context::StateContext, font_buffer::Direction};
+use font_rasterizer::{context::StateContext, glyph_vertex_buffer::Direction};
 use ui_support::{
     camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, World},

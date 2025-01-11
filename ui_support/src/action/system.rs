@@ -9,7 +9,7 @@ use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    font_buffer::Direction,
+    glyph_vertex_buffer::Direction,
 };
 
 use crate::{

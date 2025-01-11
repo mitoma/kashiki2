@@ -1,7 +1,7 @@
 use stroke_parser::{ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::{context::StateContext, font_buffer::Direction};
+use font_rasterizer::{context::StateContext, glyph_vertex_buffer::Direction};
 
 use crate::{
     camera::{CameraAdjustment, CameraOperation},
