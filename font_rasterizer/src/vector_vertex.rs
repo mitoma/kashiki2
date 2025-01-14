@@ -161,6 +161,7 @@ impl VertexBuilderOptions {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct VectorVertex {
     pub(crate) vertex: Vec<Vertex>,
     pub(crate) index: Vec<u32>,
