@@ -14,6 +14,12 @@ pub enum FontRasterizerError {
 
     #[error("vector index not found")]
     VectorIndexNotFound,
+
+    #[error("invalid svg format")]
+    SvgParseError,
+
+    #[error("svg parser error. message:{0}")]
+    SvgParserError(#[from] svg::parser::Error),
 }
 
 #[derive(Debug)]
