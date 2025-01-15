@@ -78,7 +78,15 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
             }
         }
 
-        println!("{:?}", event);
+        fn trim_unit(str: &str) -> &str {
+            let units = ["em", "px"];
+            for unit in units.iter() {
+                if str.ends_with(unit) {
+                    return &str[..str.len() - unit.len()];
+                }
+            }
+            str
+        }
 
         match event {
             Event::Tag(SVG, Type::Start, attributes) => {
@@ -88,10 +96,10 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                 let height = attributes
                     .get("height")
                     .ok_or(FontRasterizerError::SvgParseError)?;
-                let width = width
+                let width = trim_unit(width)
                     .parse::<f32>()
                     .map_err(|_| FontRasterizerError::SvgParseError)?;
-                let height = height
+                let height = trim_unit(height)
                     .parse::<f32>()
                     .map_err(|_| FontRasterizerError::SvgParseError)?;
                 let ratio = if width > height { width } else { height };
@@ -99,17 +107,14 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                 let center = [width / 2.0, height / 2.0];
                 builder = builder.with_options(VertexBuilderOptions::new(center, unit_em));
             }
-            Event::Tag(Path, _, attributes) => {
+            Event::Tag(Path, t, attributes) if t != Type::End => {
                 let data = attributes
                     .get("d")
                     .ok_or(FontRasterizerError::SvgParseError)?;
-                println!("raw data : {:?}", data);
                 let data = Data::parse(data)?;
-                println!("parsed data : {:?}", data);
                 let mut current_position = (0.0, 0.0);
                 let mut start_position: Option<(f32, f32)> = None;
                 for command in data.iter() {
-                    println!("{:?}", command);
                     match command {
                         Command::Move(position, parameters) => {
                             let (to_x, to_y) = abs_position(
@@ -191,23 +196,18 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                             current_position = (to_x, to_y);
                         }
                         Command::SmoothCubicCurve(position, parameters) => {
-                            // FIXME: SmoothCubicCurve としての処理は行わず、CubicCurve として処理する
+                            // FIXME: SmoothCubicCurve としての処理は行わず、QuadraticCurve として処理する
                             let (to_x1, to_y1) = abs_position(
                                 position,
                                 current_position,
                                 (parameters[0], parameters[1]),
                             );
-                            let (to_x2, to_y2) = abs_position(
+                            let (to_x, to_y) = abs_position(
                                 position,
                                 current_position,
                                 (parameters[2], parameters[3]),
                             );
-                            let (to_x, to_y) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[4], parameters[5]),
-                            );
-                            builder.curve_to(to_x1, to_y1, to_x2, to_y2, to_x, to_y);
+                            builder.quad_to(to_x1, to_y1, to_x, to_y);
                             current_position = (to_x, to_y);
                         }
                         Command::EllipticalArc(position, parameters) => {
@@ -229,21 +229,24 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                     }
                 }
             }
-            Event::Tag(Polygon, _, attributes) => {
+            Event::Tag(Polygon, t, attributes) if t != Type::End => {
                 let points = attributes
                     .get("points")
                     .ok_or(FontRasterizerError::SvgParseError)?;
                 let points = points
+                    .trim()
                     .split(' ')
                     .map(|point| {
                         let mut point = point.split(',');
                         let x = point
                             .next()
+                            .map(str::trim)
                             .ok_or(FontRasterizerError::SvgParseError)?
                             .parse::<f32>()
                             .map_err(|_| FontRasterizerError::SvgParseError)?;
                         let y = point
                             .next()
+                            .map(str::trim)
                             .ok_or(FontRasterizerError::SvgParseError)?
                             .parse::<f32>()
                             .map_err(|_| FontRasterizerError::SvgParseError)?;
@@ -281,6 +284,16 @@ mod tests {
             </svg>
         "#;
         let result = svg_to_vector_vertex(svg);
+        assert!(result.is_ok());
+        println!("{:?}", result);
+    }
+
+    #[test]
+    fn test_svg_buffers2() {
+        env_logger::builder().is_test(true).try_init().ok();
+        let svg = include_str!("../data/rice.svg");
+        let result = svg_to_vector_vertex(svg);
+        println!("{:?}", result);
         assert!(result.is_ok());
         println!("{:?}", result);
     }
