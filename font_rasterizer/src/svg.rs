@@ -16,9 +16,15 @@ use crate::{
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
-struct SvgBuffers {
+pub struct SvgBuffers {
     vertex_buffer: VectorVertexBuffer<String>,
     instances: BTreeMap<String, VectorInstances<String>>,
+}
+
+impl Default for SvgBuffers {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SvgBuffers {
@@ -81,8 +87,8 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
         fn trim_unit(str: &str) -> &str {
             let units = ["em", "px"];
             for unit in units.iter() {
-                if str.ends_with(unit) {
-                    return &str[..str.len() - unit.len()];
+                if let Some(stripped) = str.strip_suffix(unit) {
+                    return stripped;
                 }
             }
             str

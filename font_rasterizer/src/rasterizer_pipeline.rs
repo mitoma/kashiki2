@@ -12,8 +12,9 @@ use crate::{
     screen_bind_group::ScreenBindGroup,
     screen_texture::{self, BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
-    vector_instances::InstanceRaw,
+    vector_instances::{InstanceRaw, VectorInstances},
     vector_vertex::Vertex,
+    vector_vertex_buffer::VectorVertexBuffer,
 };
 
 const OVERLAP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
@@ -393,7 +394,7 @@ impl RasterizerPipeline {
     ) {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
-        self.overlap_stage(encoder, glyph_vertex_buffer, instances);
+        self.overlap_stage(encoder, Some((glyph_vertex_buffer, instances)), None);
         self.outline_stage(encoder, device);
 
         self.screen_background_image_stage(encoder, device, &screen_view);
@@ -404,42 +405,42 @@ impl RasterizerPipeline {
     pub(crate) fn overlap_stage(
         &self,
         encoder: &mut wgpu::CommandEncoder,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
-        instances: &[&GlyphInstances],
+        glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
+        _vector_buffers: Option<(&VectorVertexBuffer<&str>, &[&VectorInstances<&str>])>,
     ) {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
+        let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Overlap Render Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &self.overlap_texture.view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.0,
+                        g: 0.0,
+                        b: 0.0,
+                        a: 0.0,
+                    }),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
 
-        let mut instance_buffers = BTreeMap::new();
-        for instance in instances.iter() {
-            let instances = instance_buffers
-                .entry((instance.c, instance.direction))
-                .or_insert_with(Vec::new);
-            instances.push((instance.len(), instance.to_wgpu_buffer()));
-        }
+        overlay_render_pass.set_pipeline(&self.overlap_render_pipeline);
+        overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
 
-        {
-            let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Overlap Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &self.overlap_texture.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 0.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+        if let Some((glyph_vertex_buffer, glyph_instance_buffers)) = glyph_buffers {
+            let mut instance_buffers = BTreeMap::new();
+            for instance in glyph_instance_buffers {
+                let instances = instance_buffers
+                    .entry((instance.c, instance.direction))
+                    .or_insert_with(Vec::new);
+                instances.push((instance.len(), instance.to_wgpu_buffer()));
+            }
 
-            overlay_render_pass.set_pipeline(&self.overlap_render_pipeline);
-            overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
             // vertex_buffer と index_buffer はほとんどの場合同一の buffer に収まると
             // 考えられるので ID を保持しておいて切り替え不要な場合には切り替えない。
             // 涙ぐましい最適化だがあまり効果がなさそうな気もするのでできればバッサリ消したい。
