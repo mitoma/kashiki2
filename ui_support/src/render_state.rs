@@ -481,12 +481,12 @@ impl RenderState {
             &mut encoder,
             &self.context.device,
             &self.context.queue,
-            &self.glyph_vertex_buffer,
             (
                 camera.build_view_projection_matrix().into(),
                 camera.build_default_view_projection_matrix().into(),
             ),
-            &glyph_instances,
+            Some((&self.glyph_vertex_buffer, &glyph_instances)),
+            None,
             screen_view,
         );
 

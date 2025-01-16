@@ -387,14 +387,14 @@ impl RasterizerPipeline {
         encoder: &mut wgpu::CommandEncoder,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        glyph_vertex_buffer: &GlyphVertexBuffer,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
-        instances: &[&GlyphInstances],
+        glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
+        vector_buffers: Option<(&VectorVertexBuffer<&str>, &[&VectorInstances<&str>])>,
         screen_view: wgpu::TextureView,
     ) {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
-        self.overlap_stage(encoder, Some((glyph_vertex_buffer, instances)), None);
+        self.overlap_stage(encoder, glyph_buffers, vector_buffers);
         self.outline_stage(encoder, device);
 
         self.screen_background_image_stage(encoder, device, &screen_view);
@@ -406,7 +406,7 @@ impl RasterizerPipeline {
         &self,
         encoder: &mut wgpu::CommandEncoder,
         glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
-        _vector_buffers: Option<(&VectorVertexBuffer<&str>, &[&VectorInstances<&str>])>,
+        vector_buffers: Option<(&VectorVertexBuffer<&str>, &[&VectorInstances<&str>])>,
     ) {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
         let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -471,6 +471,20 @@ impl RasterizerPipeline {
                             0..*len as _,
                         );
                     }
+                }
+            }
+        }
+
+        // 文字以外のベクター画像の描画。文字のようにインスタンスが多い訳ではない(多くの場合は 1 つ)ので、それほど効率化はしていない。
+        if let Some((vector_vertex_buffer, vector_instance_buffers)) = vector_buffers {
+            for instance in vector_instance_buffers {
+                let instances = instance.to_wgpu_buffer();
+                if let Ok(draw_info) = vector_vertex_buffer.draw_info(&instance.key) {
+                    overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
+                    overlay_render_pass
+                        .set_index_buffer(draw_info.index.slice(..), wgpu::IndexFormat::Uint32);
+                    overlay_render_pass.set_vertex_buffer(1, instances.slice(..));
+                    overlay_render_pass.draw_indexed(draw_info.index_range.clone(), 0, 0..1);
                 }
             }
         }

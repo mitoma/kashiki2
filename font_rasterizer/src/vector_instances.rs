@@ -194,7 +194,7 @@ impl InstanceRaw {
 }
 
 pub struct VectorInstances<T> {
-    key: T,
+    pub key: T,
     values: BTreeMap<InstanceKey, InstanceAttributes>,
     buffer_size: u64,
     buffer: wgpu::Buffer,
