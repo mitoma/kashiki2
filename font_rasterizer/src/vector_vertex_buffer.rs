@@ -89,7 +89,7 @@ pub(crate) struct DrawInfo<'a> {
     pub(crate) index_range: &'a Range<u32>,
 }
 
-pub(crate) struct VectorVertexBuffer<T> {
+pub struct VectorVertexBuffer<T> {
     buffer_index: BTreeMap<T, BufferIndex>,
     vertex_buffers: Vec<VertexBuffer>,
     index_buffers: Vec<IndexBuffer>,
