@@ -116,7 +116,7 @@ impl ActionProcessor for SystemChangeThemeUi {
             options,
             None,
         );
-        context.ui_string_sender.send(model.to_string()).unwrap();
+        context.register_string(model.to_string());
         world.add_next(Box::new(model));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
@@ -252,7 +252,7 @@ impl ActionProcessor for SystemChangeWindowSizeUi {
             options,
             None,
         );
-        context.ui_string_sender.send(model.to_string()).unwrap();
+        context.register_string(model.to_string());
         world.add_next(Box::new(model));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
@@ -330,7 +330,7 @@ impl ActionProcessor for SystemChangeFontUi {
             options,
             None,
         );
-        context.ui_string_sender.send(model.to_string()).unwrap();
+        context.register_string(model.to_string());
         world.add_next(Box::new(model));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
@@ -458,7 +458,7 @@ impl ActionProcessor for SystemSelectBackgroundImageUi {
             None,
         );
         let model_string = model.to_string();
-        context.ui_string_sender.send(model_string).unwrap();
+        context.register_string(model_string);
 
         world.add_next(Box::new(model));
         world.re_layout();

@@ -66,7 +66,7 @@ impl SimpleStateCallback for SingleCharCallback {
         .for_each(|c| {
             let start = Instant::now();
             println!("c len: {}", c.len());
-            context.ui_string_sender.send(c).unwrap();
+            context.register_string(c);
             let end = Instant::now();
             println!("init: {:?}", end - start);
         });

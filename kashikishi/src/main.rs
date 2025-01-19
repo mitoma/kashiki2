@@ -98,7 +98,7 @@ impl ActionProcessor for SystemCommandPalette {
             _ => None,
         };
         let modal = command_palette_select(context, narrow);
-        context.ui_string_sender.send(modal.to_string()).unwrap();
+        context.register_string(modal.to_string());
         world.add_next(Box::new(modal));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
@@ -236,16 +236,10 @@ impl SimpleStateCallback for KashikishiCallback {
         chars.insert(caret_char(text_buffer::caret::CaretType::Mark));
         // IME のグリフを追加する
         chars.extend(ime_chars());
-        context
-            .ui_string_sender
-            .send(chars.into_iter().collect::<String>())
-            .unwrap();
+        context.register_string(chars.into_iter().collect::<String>());
 
         // カメラを初期化する
-        context
-            .post_action_queue_sender
-            .send(Action::new_command("world", "fit-by-direction"))
-            .unwrap();
+        context.register_post_action(Action::new_command("world", "fit-by-direction"));
     }
 
     fn resize(&mut self, window_size: WindowSize) {
@@ -304,14 +298,9 @@ impl SimpleStateCallback for KashikishiCallback {
                     if let Some(world) = world {
                         self.world.graceful_exit();
                         self.world = world;
+                        context.register_string(self.world.world_chars().into_iter().collect());
                         context
-                            .ui_string_sender
-                            .send(self.world.world_chars().into_iter().collect())
-                            .unwrap();
-                        context
-                            .post_action_queue_sender
-                            .send(Action::new_command("world", "fit-by-direction"))
-                            .unwrap();
+                            .register_post_action(Action::new_command("world", "fit-by-direction"));
                     }
                     InputResult::InputConsumed
                 }
@@ -319,21 +308,18 @@ impl SimpleStateCallback for KashikishiCallback {
                     let (result, chars) = self
                         .world
                         .apply_action(context, Action::Command(category, name, argument));
-                    context
-                        .ui_string_sender
-                        .send(chars.into_iter().collect())
-                        .unwrap();
+                    context.register_string(chars.into_iter().collect());
                     result
                 }
             },
             Action::Keytype(c) => {
-                context.ui_string_sender.send(c.to_string()).unwrap();
+                context.register_string(c.to_string());
                 let action = EditorOperation::InsertChar(c);
                 self.world.get_mut().editor_operation(&action);
                 InputResult::InputConsumed
             }
             Action::ImeInput(value) => {
-                context.ui_string_sender.send(value.clone()).unwrap();
+                context.register_string(value.clone());
                 self.ime
                     .apply_ime_event(&Action::ImeInput(value.clone()), context);
                 self.world
@@ -342,7 +328,7 @@ impl SimpleStateCallback for KashikishiCallback {
                 InputResult::InputConsumed
             }
             Action::ImePreedit(value, position) => {
-                context.ui_string_sender.send(value.clone()).unwrap();
+                context.register_string(value.clone());
                 self.ime
                     .apply_ime_event(&Action::ImePreedit(value, position), context);
                 InputResult::InputConsumed

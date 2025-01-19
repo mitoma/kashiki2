@@ -59,7 +59,7 @@ impl TextInput {
             action,
             title_text_edit,
             input_text_edit,
-            action_queue_sender: context.action_queue_sender.clone(),
+            action_queue_sender: context.action_sender(),
             default_input,
             border: ModelBorder::default(),
         }

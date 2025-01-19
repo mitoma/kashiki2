@@ -4,7 +4,7 @@ use font_collector::FontRepository;
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
+    context::{Senders, StateContext, WindowSize},
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
 };
@@ -322,18 +322,20 @@ impl RenderState {
         let [r, g, b] = color_theme.background().get_color();
         let background_color = EasingPointN::new([r, g, b, 1.0]);
 
-        let context = StateContext {
+        let context = StateContext::new(
             device,
             queue,
             char_width_calcurator,
             color_theme,
             window_size,
-            ui_string_sender,
-            action_queue_sender,
-            post_action_queue_sender,
-            global_direction: Direction::Horizontal,
+            Direction::Horizontal,
             font_repository,
-        };
+            Senders::new(
+                ui_string_sender,
+                action_queue_sender,
+                post_action_queue_sender,
+            ),
+        );
 
         simple_state_callback.init(&context);
 

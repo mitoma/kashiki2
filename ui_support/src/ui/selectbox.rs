@@ -118,7 +118,7 @@ impl SelectBox {
             title_text_edit,
             search_text_edit,
             select_items_text_edit,
-            action_queue_sender: context.action_queue_sender.clone(),
+            action_queue_sender: context.action_sender(),
             char_width_calcurator: context.char_width_calcurator.clone(),
             show_action_name,
             cancellable,

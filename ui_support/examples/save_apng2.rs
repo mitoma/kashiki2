@@ -113,28 +113,19 @@ impl SingleCharCallback {
 impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
         self.world.add(Box::new(TextEdit::default()));
-        context
-            .ui_string_sender
-            .send("エディタの文字をアニメーションGifにほげ".to_string())
-            .unwrap();
+        context.register_string("エディタの文字をアニメーションGifにほげ".to_string());
         self.world.editor_operation(&EditorOperation::InsertString(
             "エディタの文字をアニメーションGifに".to_string(),
         ));
         self.world
             .model_operation(&ModelOperation::ChangeDirection(None));
         self.world.look_at(0, CameraAdjustment::FitBoth);
-        context
-            .post_action_queue_sender
-            .send(Action::new_command("world", "reset-zoom"))
-            .unwrap();
-        context
-            .post_action_queue_sender
-            .send(stroke_parser::Action::new_command_with_argument(
-                "system",
-                "change-background-image",
-                "kashikishi/asset/image/wallpaper.jpg",
-            ))
-            .unwrap();
+        context.register_post_action(Action::new_command("world", "reset-zoom"));
+        context.register_post_action(stroke_parser::Action::new_command_with_argument(
+            "system",
+            "change-background-image",
+            "kashikishi/asset/image/wallpaper.jpg",
+        ));
         self.world.editor_operation(&EditorOperation::InsertEnter);
         self.world
             .editor_operation(&EditorOperation::InsertString("ほげほげ".to_string()));

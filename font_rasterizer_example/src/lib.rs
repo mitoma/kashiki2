@@ -108,7 +108,7 @@ impl SimpleStateCallback for SingleCharCallback {
         instance.push(value);
         self.glyphs.push(instance);
         let chars = vec!['あ'].into_iter().collect();
-        context.ui_string_sender.send(chars).unwrap();
+        context.register_string(chars);
     }
 
     fn update(&mut self, context: &StateContext) {

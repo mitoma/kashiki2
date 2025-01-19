@@ -125,7 +125,7 @@ impl ActionRecorder {
                         ));
                     }
                 }
-                other => context.action_queue_sender.send(other).unwrap(),
+                other => context.register_action(other),
             }
         } else {
             self.mode = RecorderMode::None;

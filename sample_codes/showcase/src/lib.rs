@@ -156,20 +156,11 @@ impl SingleCharCallback {
 
 impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
-        set_action_sender(context.action_queue_sender.clone());
+        set_action_sender(context.action_sender());
 
-        context
-            .ui_string_sender
-            .send(caret_char(text_buffer::caret::CaretType::Primary).to_string())
-            .unwrap();
-        context
-            .ui_string_sender
-            .send(caret_char(text_buffer::caret::CaretType::Mark).to_string())
-            .unwrap();
-        context
-            .ui_string_sender
-            .send(self.world.chars().into_iter().collect::<String>())
-            .unwrap();
+        context.register_string(caret_char(text_buffer::caret::CaretType::Primary).to_string());
+        context.register_string(caret_char(text_buffer::caret::CaretType::Mark).to_string());
+        context.register_string(self.world.chars().into_iter().collect::<String>());
         [
             Action::new_command_with_argument("system", "change-theme", "light"),
             Action::new_command("edit", "buffer-head"),
@@ -178,7 +169,7 @@ impl SimpleStateCallback for SingleCharCallback {
         ]
         .into_iter()
         .for_each(|action| {
-            context.action_queue_sender.send(action).unwrap();
+            context.register_action(action);
         });
     }
 
@@ -215,13 +206,13 @@ impl SimpleStateCallback for SingleCharCallback {
                 _ => InputResult::Noop,
             },
             Action::Keytype(c) => {
-                context.ui_string_sender.send(c.to_string()).unwrap();
+                context.register_string(c.to_string());
                 let action = EditorOperation::InsertChar(c);
                 self.world.editor_operation(&action);
                 InputResult::InputConsumed
             }
             Action::ImeInput(value) => {
-                context.ui_string_sender.send(value.clone()).unwrap();
+                context.register_string(value.clone());
                 self.ime
                     .apply_ime_event(&Action::ImeInput(value.clone()), context);
                 self.world
@@ -229,7 +220,7 @@ impl SimpleStateCallback for SingleCharCallback {
                 InputResult::InputConsumed
             }
             Action::ImePreedit(value, position) => {
-                context.ui_string_sender.send(value.clone()).unwrap();
+                context.register_string(value.clone());
                 self.ime
                     .apply_ime_event(&Action::ImePreedit(value, position), context);
                 InputResult::InputConsumed

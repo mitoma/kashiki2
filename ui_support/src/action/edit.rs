@@ -112,7 +112,7 @@ impl ActionProcessor for EditPaste {
             } else {
                 match arboard::Clipboard::new().and_then(|mut context| context.get_text()) {
                     Ok(text) => {
-                        context.ui_string_sender.send(text.clone()).unwrap();
+                        context.register_string(text.clone());
                         world.editor_operation(&EditorOperation::InsertString(text));
                     }
                     Err(_) => return InputResult::Noop,
@@ -177,10 +177,7 @@ impl ActionProcessor for EditHighlightUi {
             None,
             Action::new_command("edit", "highlight"),
         );
-        context
-            .ui_string_sender
-            .send("キーワード検索".to_string())
-            .unwrap();
+        context.register_string("キーワード検索".to_string());
         world.add_next(Box::new(model));
         world.re_layout();
         world.look_next(crate::camera::CameraAdjustment::NoCare);

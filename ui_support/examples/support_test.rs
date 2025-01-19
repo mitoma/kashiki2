@@ -115,7 +115,7 @@ impl SimpleStateCallback for SingleCharCallback {
         let mut instance = GlyphInstances::new('あ', &context.device);
         instance.push(value);
         self.glyphs.push(instance);
-        context.ui_string_sender.send("あ".to_string()).unwrap();
+        context.register_string("あ".to_string());
     }
 
     fn update(&mut self, context: &StateContext) {

@@ -169,10 +169,7 @@ impl ModalWorld for CategorizedMemosWorld {
                         }
                         self.memos
                             .add_memo(Some(&category), self.world.current_string());
-                        context
-                            .action_queue_sender
-                            .send(Action::new_command("world", "remove-current"))
-                            .unwrap();
+                        context.register_action(Action::new_command("world", "remove-current"));
                     }
                     _ => { /* noop */ }
                 }

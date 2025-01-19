@@ -111,7 +111,7 @@ impl SingleCharCallback {
 
 impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
-        context.ui_string_sender.send("あ".to_string()).unwrap();
+        context.register_string("あ".to_string());
         let value = InstanceAttributes::new(
             (0.0, 0.0, 0.0).into(),
             cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
@@ -131,13 +131,10 @@ impl SimpleStateCallback for SingleCharCallback {
         let mut instances = GlyphInstances::new('あ', &context.device);
         instances.push(value);
         self.glyphs.push(instances);
-        context
-            .post_action_queue_sender
-            .send(stroke_parser::Action::new_command(
-                "system",
-                "change-background-image",
-            ))
-            .unwrap();
+        context.register_post_action(stroke_parser::Action::new_command(
+            "system",
+            "change-background-image",
+        ));
         debug!("init!");
     }
 
