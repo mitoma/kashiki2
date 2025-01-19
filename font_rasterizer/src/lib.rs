@@ -18,4 +18,4 @@ pub mod svg;
 pub mod time;
 pub mod vector_instances;
 mod vector_vertex;
-mod vector_vertex_buffer;
+pub mod vector_vertex_buffer;

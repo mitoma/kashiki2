@@ -389,7 +389,7 @@ impl RasterizerPipeline {
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
         glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
-        vector_buffers: Option<(&VectorVertexBuffer<&str>, &[&VectorInstances<&str>])>,
+        vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
         screen_view: wgpu::TextureView,
     ) {
         self.overlap_bind_group.update(view_proj);
@@ -406,7 +406,7 @@ impl RasterizerPipeline {
         &self,
         encoder: &mut wgpu::CommandEncoder,
         glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
-        vector_buffers: Option<(&VectorVertexBuffer<&str>, &[&VectorInstances<&str>])>,
+        vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
     ) {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
         let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
