@@ -130,7 +130,7 @@ fn score_encoding(
     preferred_language: Option<PreferredLanguage>,
 ) -> Option<(usize, NameEncoding)> {
     fn match_language_id(language_id: u16, preferred_language: Option<PreferredLanguage>) -> bool {
-        preferred_language.map_or(false, |lang| lang.windows_lang_id() == language_id)
+        preferred_language.is_some_and(|lang| lang.windows_lang_id() == language_id)
     }
     let platform_id = name.platform_id;
     let encoding_id = name.encoding_id;
