@@ -58,6 +58,14 @@ impl SvgBuffers {
             .or_insert_with(|| VectorInstances::new(key.to_string(), device))
             .push(instance)
     }
+
+    pub fn vector_vertex_buffer(&self) -> &VectorVertexBuffer<String> {
+        &self.vertex_buffer
+    }
+
+    pub fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
+        self.instances.values().collect()
+    }
 }
 
 #[allow(non_upper_case_globals)]
