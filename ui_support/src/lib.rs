@@ -74,6 +74,13 @@ pub async fn run_support(support: SimpleStateSupport) {
             console_log::init_with_level(log::Level::Warn).expect("Could't initialize logger");
         } else {
             env_logger::try_init().unwrap_or_default();
+            use std::io::Write;
+            let default_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |info| {
+                let mut file = std::fs::File::create("kashikishi.panic.log").expect("Could not create log file");
+                writeln!(file, "{}", info).expect("Could not write to log file");
+                default_hook(info);
+            }));
         }
     }
     record_start_of_phase("initialize");
