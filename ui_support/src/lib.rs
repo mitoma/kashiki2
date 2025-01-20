@@ -278,6 +278,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                                         Err(wgpu::SurfaceError::Timeout) => {
                                             log::warn!("Surface timeout")
                                         }
+                                        Err(wgpu::SurfaceError::Other) => {
+                                            log::warn!("Surface Other error")
+                                        }
                                     }
                                     // 1 フレームごとに時計を更新する(時計のモードが StepByStep の場合のみ意味がある)
                                     increment_fixed_clock(Duration::ZERO);

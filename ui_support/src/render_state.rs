@@ -96,15 +96,15 @@ impl RenderTarget {
                 let size = context.window_size;
                 let u32_size = std::mem::size_of::<u32>() as u32;
                 encoder.copy_texture_to_buffer(
-                    wgpu::ImageCopyTexture {
+                    wgpu::TexelCopyTextureInfo {
                         aspect: wgpu::TextureAspect::All,
                         texture: surface_texture,
                         mip_level: 0,
                         origin: wgpu::Origin3d::ZERO,
                     },
-                    wgpu::ImageCopyBuffer {
+                    wgpu::TexelCopyBufferInfo {
                         buffer: output_buffer,
-                        layout: wgpu::ImageDataLayout {
+                        layout: wgpu::TexelCopyBufferLayout {
                             offset: 0,
                             bytes_per_row: Some(u32_size * size.width),
                             rows_per_image: Some(size.height),
@@ -191,7 +191,7 @@ impl RenderState {
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(InstanceDescriptor::default());
+        let instance = wgpu::Instance::new(&InstanceDescriptor::default());
 
         let surface = match &render_target_request {
             RenderTargetRequest::Window { window } => {
