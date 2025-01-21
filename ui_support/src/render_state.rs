@@ -17,7 +17,7 @@ use crate::{
 };
 
 use stroke_parser::Action;
-use wgpu::InstanceDescriptor;
+use wgpu::{InstanceDescriptor, SurfaceError};
 use winit::{event::WindowEvent, window::Window};
 
 // レンダリング対象を表す。
@@ -64,23 +64,23 @@ impl RenderTarget {
         }
     }
 
-    fn get_screen_view(&mut self) -> wgpu::TextureView {
+    fn get_screen_view(&mut self) -> Result<wgpu::TextureView, SurfaceError> {
         match self {
             RenderTarget::Window {
                 surface,
                 surface_texture,
                 ..
             } => {
-                let st = surface.get_current_texture().unwrap();
+                let st = surface.get_current_texture()?;
                 let texture_view = st
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
                 surface_texture.replace(st);
-                texture_view
+                Ok(texture_view)
             }
             RenderTarget::Image {
                 surface_texture, ..
-            } => surface_texture.create_view(&wgpu::TextureViewDescriptor::default()),
+            } => Ok(surface_texture.create_view(&wgpu::TextureViewDescriptor::default())),
         }
     }
 
@@ -473,7 +473,7 @@ impl RenderState {
             .overlap_bind_group
             .update_buffer(&self.context.queue);
         record_start_of_phase("render 2-2: create texture");
-        let screen_view = self.render_target.get_screen_view();
+        let screen_view = self.render_target.get_screen_view()?;
 
         record_start_of_phase("render 3: callback render");
         let (camera, glyph_instances) = self.simple_state_callback.render();
