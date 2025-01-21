@@ -36,11 +36,11 @@ rustybuzz = "0.20.0"
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 cgmath = "0.18"
 bytemuck = { version = "1.18", features = ["derive"] }
-bitflags = "2.7"
+bitflags = "2.8.0"
 rand = "0.8"
 cfg-if = "1.0"
 arboard = "3.4.0"
-dirs = "5.0.1"
+dirs = "6.0.0"
 
 [profile.release-optimized]
 inherits = "release"
