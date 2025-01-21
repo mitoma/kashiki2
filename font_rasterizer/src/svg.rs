@@ -69,7 +69,7 @@ impl SvgBuffers {
 }
 
 #[allow(non_upper_case_globals)]
-fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> {
+pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> {
     let Ok(parser) = svg::read(svg) else {
         debug!("Failed to parse SVG: {}", svg);
         return Err(FontRasterizerError::SvgParseError);
