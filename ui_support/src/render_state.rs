@@ -5,13 +5,15 @@ use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     context::{Senders, StateContext, WindowSize},
+    glyph_instances::GlyphInstances,
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
     svg::svg_to_vector_vertex,
+    vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
 use image::{DynamicImage, ImageBuffer, Rgba};
-use log::info;
+use log::{info, warn};
 
 use crate::{
     easing_value::EasingPointN, metrics_counter::record_start_of_phase, InputResult,
@@ -473,6 +475,8 @@ impl RenderState {
             .into_iter()
             .for_each(|(id, svg)| {
                 if self.vector_vertex_buffer.has_key(&id) {
+                    // 既に同じキーで svg が登録されている場合は何もしない
+                    warn!("svg key is already registered: {}", id);
                     return;
                 }
                 let svg = svg_to_vector_vertex(&svg).unwrap();
@@ -501,9 +505,21 @@ impl RenderState {
         let screen_view = self.render_target.get_screen_view()?;
 
         record_start_of_phase("render 3: callback render");
-        let (camera, glyph_instances) = self.simple_state_callback.render();
+        let (camera, glyph_instances, vector_instances) = self.simple_state_callback.render();
 
         record_start_of_phase("render 4: run all stage");
+        let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
+            if glyph_instances.is_empty() {
+                None
+            } else {
+                Some((&self.glyph_vertex_buffer, &glyph_instances))
+            };
+        let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
+            if vector_instances.is_empty() {
+                None
+            } else {
+                Some((&self.vector_vertex_buffer, &vector_instances))
+            };
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.context.device,
@@ -512,8 +528,8 @@ impl RenderState {
                 camera.build_view_projection_matrix().into(),
                 camera.build_default_view_projection_matrix().into(),
             ),
-            Some((&self.glyph_vertex_buffer, &glyph_instances)),
-            None,
+            glyph_buffers,
+            vector_buffers,
             screen_view,
         );
 

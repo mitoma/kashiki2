@@ -7,6 +7,7 @@ use font_rasterizer::{
     context::{StateContext, WindowSize},
     glyph_instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
+    vector_instances::VectorInstances,
 };
 use log::info;
 use stroke_parser::Action;
@@ -148,8 +149,8 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        (self.world.camera(), self.world.glyph_instances())
+    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
+        (self.world.camera(), self.world.glyph_instances(), vec![])
     }
 
     fn shutdown(&mut self) {}

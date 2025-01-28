@@ -12,7 +12,7 @@ use font_rasterizer::{
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,
-    vector_instances::InstanceAttributes,
+    vector_instances::{InstanceAttributes, VectorInstances},
 };
 use log::info;
 use ui_support::{
@@ -160,8 +160,8 @@ impl SimpleStateCallback for SingleCharCallback {
             .update_camera_aspect(&mut self.camera, size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        (&self.camera, self.glyphs.iter().collect())
+    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
+        (&self.camera, self.glyphs.iter().collect(), vec![])
     }
 
     fn shutdown(&mut self) {}

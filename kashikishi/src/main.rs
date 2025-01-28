@@ -28,6 +28,7 @@ use font_rasterizer::{
     glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
     time::set_clock_mode,
+    vector_instances::VectorInstances,
 };
 use log::info;
 use ui_support::{
@@ -338,11 +339,11 @@ impl SimpleStateCallback for KashikishiCallback {
         }
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
+    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
         let mut world_instances = self.world.get().glyph_instances();
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);
-        (self.world.get().camera(), world_instances)
+        (self.world.get().camera(), world_instances, vec![])
     }
 
     fn shutdown(&mut self) {

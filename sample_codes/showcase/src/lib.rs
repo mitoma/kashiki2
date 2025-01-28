@@ -11,6 +11,7 @@ use font_rasterizer::{
     context::{StateContext, WindowSize},
     glyph_instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
+    vector_instances::VectorInstances,
 };
 use ui_support::{
     action::ActionProcessorStore,
@@ -233,11 +234,11 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
+    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
         let mut world_instances = self.world.glyph_instances();
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);
-        (self.world.camera(), world_instances)
+        (self.world.camera(), world_instances, vec![])
     }
 
     fn shutdown(&mut self) {}
