@@ -7,16 +7,14 @@ use instant::Duration;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    glyph_instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
-    vector_instances::VectorInstances,
 };
 use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 use ui_support::{
     action::ActionProcessorStore,
-    camera::{Camera, CameraAdjustment},
+    camera::CameraAdjustment,
     generate_image_iter,
     layout_engine::{DefaultWorld, ModelOperation, World},
     ui::TextEdit,

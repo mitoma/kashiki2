@@ -15,7 +15,7 @@ use font_rasterizer::{
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,
-    vector_instances::{InstanceAttributes, VectorInstances},
+    vector_instances::InstanceAttributes,
 };
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};
