@@ -12,12 +12,12 @@ use font_rasterizer::{
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,
-    vector_instances::{InstanceAttributes, VectorInstances},
+    vector_instances::InstanceAttributes,
 };
 use log::info;
 use ui_support::{
     camera::{Camera, CameraController},
-    run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    run_support, Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
 };
 use winit::event::{ElementState, MouseButton, WindowEvent};
 
@@ -160,8 +160,12 @@ impl SimpleStateCallback for SingleCharCallback {
             .update_camera_aspect(&mut self.camera, size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
-        (&self.camera, self.glyphs.iter().collect(), vec![])
+    fn render(&mut self) -> RenderData {
+        RenderData {
+            camera: &self.camera,
+            glyph_instances: self.glyphs.iter().collect(),
+            vector_instances: vec![],
+        }
     }
 
     fn shutdown(&mut self) {}

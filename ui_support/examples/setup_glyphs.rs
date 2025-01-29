@@ -8,7 +8,8 @@ use font_rasterizer::{
 };
 use instant::Instant;
 use ui_support::{
-    camera::Camera, run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    camera::Camera, run_support, Flags, InputResult, RenderData, SimpleStateCallback,
+    SimpleStateSupport,
 };
 use winit::event::WindowEvent;
 
@@ -87,8 +88,12 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn resize(&mut self, _window_size: WindowSize) {}
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
-        (&self.camera, vec![], vec![])
+    fn render(&mut self) -> RenderData {
+        RenderData {
+            camera: &self.camera,
+            glyph_instances: vec![],
+            vector_instances: vec![],
+        }
     }
 
     fn shutdown(&mut self) {}

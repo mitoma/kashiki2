@@ -16,7 +16,7 @@ use image::{DynamicImage, ImageBuffer, Rgba};
 use log::{info, warn};
 
 use crate::{
-    easing_value::EasingPointN, metrics_counter::record_start_of_phase, InputResult,
+    easing_value::EasingPointN, metrics_counter::record_start_of_phase, InputResult, RenderData,
     SimpleStateCallback,
 };
 
@@ -505,7 +505,11 @@ impl RenderState {
         let screen_view = self.render_target.get_screen_view()?;
 
         record_start_of_phase("render 3: callback render");
-        let (camera, glyph_instances, vector_instances) = self.simple_state_callback.render();
+        let RenderData {
+            camera,
+            glyph_instances,
+            vector_instances,
+        } = self.simple_state_callback.render();
 
         record_start_of_phase("render 4: run all stage");
         let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =

@@ -400,8 +400,14 @@ pub trait SimpleStateCallback {
     fn update(&mut self, context: &StateContext);
     fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>);
+    fn render(&mut self) -> RenderData;
     fn shutdown(&mut self);
+}
+
+pub struct RenderData<'a> {
+    pub camera: &'a Camera,
+    pub glyph_instances: Vec<&'a GlyphInstances>,
+    pub vector_instances: Vec<&'a VectorInstances<String>>,
 }
 
 pub async fn generate_images<F>(

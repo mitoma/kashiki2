@@ -24,21 +24,19 @@ use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld}
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
     time::set_clock_mode,
-    vector_instances::VectorInstances,
 };
 use log::info;
 use ui_support::{
     action::{ActionProcessor, ActionProcessorStore},
     action_recorder::{ActionRecorder, InMemoryActionRecordRepository},
-    camera::{Camera, CameraAdjustment, CameraOperation},
+    camera::{CameraAdjustment, CameraOperation},
     layout_engine::{Model, ModelOperation, World},
     run_support,
     ui::{caret_char, ime_chars, ImeInput},
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
 };
 use winit::event::WindowEvent;
 
@@ -339,11 +337,15 @@ impl SimpleStateCallback for KashikishiCallback {
         }
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
+    fn render(&mut self) -> RenderData<'_> {
         let mut world_instances = self.world.get().glyph_instances();
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);
-        (self.world.get().camera(), world_instances, vec![])
+        RenderData {
+            camera: self.world.get().camera(),
+            glyph_instances: world_instances,
+            vector_instances: vec![],
+        }
     }
 
     fn shutdown(&mut self) {

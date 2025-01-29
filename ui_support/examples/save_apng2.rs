@@ -18,7 +18,7 @@ use ui_support::{
     generate_image_iter,
     layout_engine::{DefaultWorld, ModelOperation, World},
     ui::TextEdit,
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
 };
 use winit::event::WindowEvent;
 
@@ -149,8 +149,12 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
-        (self.world.camera(), self.world.glyph_instances(), vec![])
+    fn render(&mut self) -> RenderData {
+        RenderData {
+            camera: self.world.camera(),
+            glyph_instances: self.world.glyph_instances(),
+            vector_instances: vec![],
+        }
     }
 
     fn shutdown(&mut self) {}
