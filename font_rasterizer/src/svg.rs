@@ -102,8 +102,28 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
             str
         }
 
+        debug!("event: {:?}", event);
         match event {
-            Event::Tag(SVG, Type::Start, attributes) => {
+            Event::Tag(SVG, Type::Start, attributes) => 'svg: {
+                // viewBox があればそれを基準にする
+                if let Some(view_box) = attributes.get("viewBox") {
+                    let mut view_box = view_box.split(' ');
+                    let _x = view_box.next().unwrap_or("0");
+                    let _y = view_box.next().unwrap_or("0");
+                    let width = view_box.next().unwrap_or("0");
+                    let height = view_box.next().unwrap_or("0");
+                    let width = trim_unit(width)
+                        .parse::<f32>()
+                        .map_err(|_| FontRasterizerError::SvgParseError)?;
+                    let height = trim_unit(height)
+                        .parse::<f32>()
+                        .map_err(|_| FontRasterizerError::SvgParseError)?;
+                    let ratio = if width > height { width } else { height };
+                    let unit_em = ratio;
+                    let center = [width / 2.0, height / 2.0];
+                    builder = builder.with_options(VertexBuilderOptions::new(center, unit_em));
+                    break 'svg;
+                }
                 let width = attributes
                     .get("width")
                     .ok_or(FontRasterizerError::SvgParseError)?;
