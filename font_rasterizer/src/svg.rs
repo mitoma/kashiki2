@@ -102,6 +102,33 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
             str
         }
 
+        struct PathState {
+            current_position: (f32, f32),
+            // 二次ベジエ曲線の制御点
+            pre_quadratic_smooth_control_point: Option<(f32, f32)>,
+            // 三次ベジエ曲線の制御点
+            pre_cubic_smooth_control_point: Option<(f32, f32)>,
+            start_position: Option<(f32, f32)>,
+        }
+
+        impl PathState {
+            fn new() -> PathState {
+                PathState {
+                    current_position: (0.0, 0.0),
+                    pre_quadratic_smooth_control_point: None,
+                    pre_cubic_smooth_control_point: None,
+                    start_position: None,
+                }
+            }
+
+            fn reset_pre_control_points(&mut self) {
+                self.pre_quadratic_smooth_control_point = None;
+                self.pre_cubic_smooth_control_point = None;
+            }
+        }
+
+        let mut path_state = PathState::new();
+
         debug!("event: {:?}", event);
         match event {
             Event::Tag(SVG, Type::Start, attributes) => 'svg: {
@@ -146,118 +173,165 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
                     .get("d")
                     .ok_or(FontRasterizerError::SvgParseError)?;
                 let data = Data::parse(data)?;
-                let mut current_position = (0.0, 0.0);
-                let mut start_position: Option<(f32, f32)> = None;
                 for command in data.iter() {
+                    log::info!("command: {:?}", command);
                     match command {
                         Command::Move(position, parameters) => {
                             let (to_x, to_y) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[0], parameters[1]),
                             );
                             builder.move_to(to_x, to_y);
-                            current_position = (to_x, to_y);
-                            start_position = Some(current_position);
+
+                            path_state.current_position = (to_x, to_y);
+                            path_state.start_position = Some((to_x, to_y));
+                            path_state.reset_pre_control_points();
                         }
                         Command::Line(position, parameters) => {
                             let (to_x, to_y) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[0], parameters[1]),
                             );
                             builder.line_to(to_x, to_y);
-                            current_position = (to_x, to_y);
+
+                            path_state.current_position = (to_x, to_y);
+                            path_state.reset_pre_control_points();
                         }
                         Command::HorizontalLine(position, parameters) => {
-                            let (to_x, _) =
-                                abs_position(position, current_position, (parameters[0], 0.0));
-                            builder.line_to(to_x, current_position.1);
-                            current_position = (to_x, current_position.1);
+                            let (to_x, _) = abs_position(
+                                position,
+                                path_state.current_position,
+                                (parameters[0], 0.0),
+                            );
+                            builder.line_to(to_x, path_state.current_position.1);
+
+                            path_state.current_position = (to_x, path_state.current_position.1);
+                            path_state.reset_pre_control_points();
                         }
                         Command::VerticalLine(position, parameters) => {
-                            let (_, to_y) =
-                                abs_position(position, current_position, (0.0, parameters[0]));
-                            builder.line_to(current_position.0, to_y);
-                            current_position = (current_position.0, to_y);
+                            let (_, to_y) = abs_position(
+                                position,
+                                path_state.current_position,
+                                (0.0, parameters[0]),
+                            );
+                            builder.line_to(path_state.current_position.0, to_y);
+
+                            path_state.current_position = (path_state.current_position.0, to_y);
+                            path_state.reset_pre_control_points();
                         }
                         Command::QuadraticCurve(position, parameters) => {
                             let (to_x1, to_y1) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[0], parameters[1]),
                             );
                             let (to_x, to_y) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[0], parameters[1]),
                             );
                             builder.quad_to(to_x1, to_y1, to_x, to_y);
-                            current_position = (to_x, to_y);
+
+                            path_state.current_position = (to_x, to_y);
+                            path_state.reset_pre_control_points();
+                            path_state.pre_quadratic_smooth_control_point = Some((to_x1, to_y1));
                         }
                         Command::SmoothQuadraticCurve(position, parameters) => {
-                            // FIXME: SmoothQuadraticCurve としての処理は行わず、QuadraticCurve として処理する
-                            let (to_x1, to_y1) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[0], parameters[1]),
-                            );
+                            let (to_x1, to_y1) =
+                                if path_state.pre_quadratic_smooth_control_point.is_some() {
+                                    let (current_x, current_y) = path_state.current_position;
+                                    let (pre_x, pre_y) =
+                                        path_state.pre_quadratic_smooth_control_point.unwrap();
+                                    (
+                                        current_x + (current_x - pre_x),
+                                        current_y + (current_y - pre_y),
+                                    )
+                                } else {
+                                    path_state.current_position
+                                };
                             let (to_x, to_y) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[0], parameters[1]),
                             );
                             builder.quad_to(to_x1, to_y1, to_x, to_y);
-                            current_position = (to_x, to_y);
+
+                            path_state.current_position = (to_x, to_y);
+                            path_state.reset_pre_control_points();
+                            path_state.pre_quadratic_smooth_control_point = Some((to_x1, to_y1));
                         }
                         Command::CubicCurve(position, parameters) => {
                             let (to_x1, to_y1) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[0], parameters[1]),
                             );
                             let (to_x2, to_y2) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[2], parameters[3]),
                             );
                             let (to_x, to_y) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[4], parameters[5]),
                             );
                             builder.curve_to(to_x1, to_y1, to_x2, to_y2, to_x, to_y);
-                            current_position = (to_x, to_y);
+
+                            path_state.current_position = (to_x, to_y);
+                            path_state.reset_pre_control_points();
+                            path_state.pre_cubic_smooth_control_point = Some((to_x2, to_y2));
                         }
                         Command::SmoothCubicCurve(position, parameters) => {
-                            // FIXME: SmoothCubicCurve としての処理は行わず、QuadraticCurve として処理する
-                            let (to_x1, to_y1) = abs_position(
+                            let (to_x1, to_y1) =
+                                if path_state.pre_cubic_smooth_control_point.is_some() {
+                                    let (current_x, current_y) = path_state.current_position;
+                                    let (pre_x, pre_y) =
+                                        path_state.pre_cubic_smooth_control_point.unwrap();
+                                    (
+                                        current_x + (current_x - pre_x),
+                                        current_y + (current_y - pre_y),
+                                    )
+                                } else {
+                                    path_state.current_position
+                                };
+                            let (to_x2, to_y2) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[0], parameters[1]),
                             );
                             let (to_x, to_y) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[2], parameters[3]),
                             );
-                            builder.quad_to(to_x1, to_y1, to_x, to_y);
-                            current_position = (to_x, to_y);
+                            builder.curve_to(to_x1, to_y1, to_x2, to_y2, to_x, to_y);
+
+                            path_state.current_position = (to_x, to_y);
+                            path_state.reset_pre_control_points();
+                            path_state.pre_cubic_smooth_control_point = Some((to_x2, to_y2));
                         }
                         Command::EllipticalArc(position, parameters) => {
                             // FIXME: EllipticalArc は未対応。単に Line として処理する
                             let (to_x, to_y) = abs_position(
                                 position,
-                                current_position,
+                                path_state.current_position,
                                 (parameters[2], parameters[3]),
                             );
                             builder.line_to(to_x, to_y);
-                            current_position = (to_x, to_y);
+
+                            path_state.current_position = (to_x, to_y);
+                            path_state.reset_pre_control_points();
                         }
                         Command::Close => {
-                            if let Some(start_position) = start_position {
+                            if let Some(start_position) = path_state.start_position {
                                 builder.line_to(start_position.0, start_position.1);
-                                current_position = start_position;
+
+                                path_state.current_position = start_position;
+                                path_state.start_position = None;
+                                path_state.reset_pre_control_points();
                             }
                         }
                     }

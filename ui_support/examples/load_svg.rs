@@ -33,7 +33,7 @@ pub fn main() {
 pub async fn run() {
     let font_repository = FontRepository::default();
 
-    let window_size = WindowSize::new(512, 512);
+    let window_size = WindowSize::new(256, 256);
     let callback = SingleCharCallback::new(window_size);
     let support = SimpleStateSupport {
         window_icon: None,
@@ -98,7 +98,9 @@ impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
         context.register_svg(
             "rice".to_string(),
-            include_str!("../../font_rasterizer/data/rice.svg").to_string(),
+            //include_str!("../../font_rasterizer/data/sample.svg").to_string(),
+            //include_str!("../../font_rasterizer/data/rice.svg").to_string(),
+            include_str!("../../font_rasterizer/data/stg.svg").to_string(),
         );
 
         let value = InstanceAttributes::new(
