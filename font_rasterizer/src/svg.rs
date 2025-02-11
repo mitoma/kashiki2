@@ -140,6 +140,16 @@ mod tests {
     }
 
     #[test]
+    fn test_svg_buffers3() {
+        env_logger::builder().is_test(true).try_init().ok();
+        let svg = include_str!("../data/sample.svg");
+        let result = svg_to_vector_vertex(svg);
+        println!("{:?}", result);
+        assert!(result.is_ok());
+        println!("{:?}", result);
+    }
+
+    #[test]
     fn test_svg_buffers2() {
         env_logger::builder().is_test(true).try_init().ok();
         let svg = include_str!("../data/rice.svg");
