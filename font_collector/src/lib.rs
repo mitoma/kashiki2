@@ -240,18 +240,47 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_list_fonts() {
+    fn test_list_font_names() {
         let mut collector = FontCollector::default();
         collector.add_system_fonts();
-        collector.list_font_names().iter().for_each(|name| {
-            println!("font_name:{:?}", name,);
-        });
+        let font_names = collector.list_font_names();
+        assert!(!font_names.is_empty(), "Font names should not be empty");
+        for name in font_names {
+            println!("font_name: {}", name);
+        }
     }
 
     #[test]
-    fn test_list_fonts2() {
+    fn test_add_custom_font_path() {
         let mut collector = FontCollector::default();
         collector.add_font_path(PathBuf::from("../fonts"));
-        assert_eq!(collector.list_font_names().len(), 2);
+        let font_names = collector.list_font_names();
+        assert_eq!(
+            font_names.len(),
+            2,
+            "There should be 2 fonts in the custom path"
+        );
+    }
+
+    #[test]
+    fn test_no_fonts_found() {
+        let collector = FontCollector::default();
+        let font_names = collector.list_font_names();
+        assert!(
+            font_names.is_empty(),
+            "Font names should be empty when no fonts are found"
+        );
+    }
+
+    #[test]
+    fn test_missing_font_directories() {
+        let mut collector = FontCollector::default();
+        // Add a non-existent path
+        collector.add_font_path(PathBuf::from("../non_existent_fonts"));
+        let font_names = collector.list_font_names();
+        assert!(
+            font_names.is_empty(),
+            "Font names should be empty when font directories are missing"
+        );
     }
 }
