@@ -1,5 +1,6 @@
 pub mod convert_text;
 
+use std::env::consts::OS;
 use std::path::PathBuf;
 
 use convert_text::PreferredLanguage;
@@ -172,7 +173,12 @@ impl FontCollector {
 }
 
 fn system_font_dir() -> PathBuf {
-    PathBuf::from("C:\\Windows\\Fonts")
+    match OS {
+        "windows" => PathBuf::from("C:\\Windows\\Fonts"),
+        "macos" => PathBuf::from("/Library/Fonts"),
+        "linux" => PathBuf::from("/usr/share/fonts"),
+        _ => PathBuf::new(),
+    }
 }
 
 fn user_font_dir() -> Option<PathBuf> {
