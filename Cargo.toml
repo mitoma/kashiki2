@@ -8,7 +8,7 @@ members = [
     "ui_support",
     "font_rasterizer_example",
     "sample_codes/*",
-    "kashikishi",
+    "kashikishi", "ttf-overlap-remover",
 ]
 resolver = "2"
 
