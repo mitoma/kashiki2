@@ -20,8 +20,21 @@ enum PathSegment {
 
 fn cross_point(a: PathSegment, b: PathSegment) -> Vec<Point> {
     match (a, b) {
-        (PathSegment::Line { .. }, PathSegment::Line { .. }) => {
-            todo!()
+        (PathSegment::Line { from: p1, to: p2 }, PathSegment::Line { from: p3, to: p4 }) => {
+            // 直線同士の交点を求める
+            let denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+            if denom == 0.0 {
+                return vec![]; // 平行な場合は交点なし
+            }
+            let ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
+            let ub = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
+            if ua >= 0.0 && ua <= 1.0 && ub >= 0.0 && ub <= 1.0 {
+                let x = p1.x + ua * (p2.x - p1.x);
+                let y = p1.y + ua * (p2.y - p1.y);
+                vec![Point::from_xy(x, y)]
+            } else {
+                vec![] // 線分上に交点がない場合
+            }
         }
         // 他のセグメントの組み合わせについては未実装
         _ => vec![],
