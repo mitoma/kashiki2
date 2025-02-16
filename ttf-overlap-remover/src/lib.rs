@@ -53,18 +53,25 @@ impl PathSegment {
         }
     }
 
+    /// position で指定された位置でセグメントを分割する
+    /// position は 0.0 から 1.0 の範囲で指定する
     fn chop(&self, position: f32) -> (PathSegment, PathSegment) {
         match self {
-            PathSegment::Line { from, to } => (
-                PathSegment::Line {
-                    from: *from,
-                    to: *to,
-                },
-                PathSegment::Line {
-                    from: *from,
-                    to: *to,
-                },
-            ),
+            PathSegment::Line { from, to } => {
+                let new_x = from.x + position * (to.x - from.x);
+                let new_y = from.y + position * (to.y - from.y);
+                let mid_point = Point::from_xy(new_x, new_y);
+                (
+                    PathSegment::Line {
+                        from: *from,
+                        to: mid_point,
+                    },
+                    PathSegment::Line {
+                        from: mid_point,
+                        to: *to,
+                    },
+                )
+            }
             PathSegment::Quadratic { from, to, control } => {
                 let mut result = [Point::default(); 5];
                 let center = NormalizedF32Exclusive::new_bounded(position);
@@ -342,19 +349,24 @@ mod tests {
 
     #[test]
     fn test_chop2() {
+        let p1 = Point::from_xy(1.0, 0.0);
+        let p2 = Point::from_xy(0.0, 2.0);
+        let line_seg = PathSegment::Line { from: p1, to: p2 };
+        let (line1, line2) = line_seg.chop(0.3);
+
         let q1 = Point::from_xy(0.0, 0.0);
         let q2 = Point::from_xy(2.0, 2.0);
         let control = Point::from_xy(1.0, 3.0);
 
-        let segment = PathSegment::Quadratic {
+        let quad_seg = PathSegment::Quadratic {
             from: q1,
             to: q2,
             control,
         };
 
-        let (pre, post) = segment.chop(0.5);
+        let (quad1, quad2) = quad_seg.chop(0.5);
 
-        path_segments_to_image(vec![&pre, &post]);
+        path_segments_to_image(vec![&line1, &line2, &quad1, &quad2]);
     }
 
     fn path_segments_to_image(segments: Vec<&PathSegment>) {
