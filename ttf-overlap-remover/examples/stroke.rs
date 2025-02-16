@@ -1,9 +1,6 @@
 use tiny_skia::{Paint, PathBuilder, PathStroker, Pixmap, Stroke, Transform};
 
 fn main() {
-    let mut paint = Paint::default();
-    paint.set_color_rgba8(0, 127, 0, 255);
-    paint.anti_alias = false;
 
     let path = {
         let mut pb = PathBuilder::new();
@@ -19,18 +16,13 @@ fn main() {
         pb.finish().unwrap()
     };
 
-    let mut stroke = Stroke::default();
-    stroke.width = 10.0;
-
-    print!("{:?}\n", path);
-
-    let mut stroker = PathStroker::new();
-    let path = stroker.stroke(&path, &stroke, 1.0).unwrap();
-
-    print!("{:?}\n", path);
-
-    let stroke = Stroke::default();
+    let  stroke = Stroke::default();
     let mut pixmap = Pixmap::new(500, 500).unwrap();
+
+    let mut paint = Paint::default();
+    paint.set_color_rgba8(0, 127, 0, 255);
+    paint.anti_alias = false;
+
     pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
     pixmap.save_png("image.png").unwrap();
 }

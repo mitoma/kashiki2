@@ -2784,6 +2784,7 @@ version = "0.1.0"
 dependencies = [
  "font_collector",
  "tiny-skia",
+ "tiny-skia-path",
 ]
 
 [[package]]

@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 font_collector = { path = "../font_collector" }
 tiny-skia = "0.11.4"
+tiny-skia-path ="0.11.4"
