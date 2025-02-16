@@ -1,7 +1,4 @@
-use std::collections::BTreeSet;
-
-use tiny_skia::{Path, Point, Rect};
-use tiny_skia_path::{path_geometry, NormalizedF32Exclusive};
+use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Point, Rect};
 
 enum PathSegment {
     Line {
@@ -51,6 +48,10 @@ impl PathSegment {
                 Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
             }
         }
+    }
+
+    fn chop_harf(&self) -> (PathSegment, PathSegment) {
+        self.chop(0.5)
     }
 
     /// position で指定された位置でセグメントを分割する
@@ -369,13 +370,29 @@ mod tests {
         path_segments_to_image(vec![&line1, &line2, &quad1, &quad2]);
     }
 
+    #[test]
+    fn test_cubic() {
+        let p1 = Point::from_xy(0.0, 1.0);
+        let p2 = Point::from_xy(2.0, 1.0);
+        let c1 = Point::from_xy(0.5, 0.0);
+        let c2 = Point::from_xy(1.7, 2.0);
+        let line_seg = PathSegment::Cubic {
+            from: p1,
+            to: p2,
+            control1: c1,
+            control2: c2,
+        };
+        let (line1, line2) = line_seg.chop(0.3);
+        path_segments_to_image(vec![&line1, &line2]);
+    }
+
     fn path_segments_to_image(segments: Vec<&PathSegment>) {
         let mut paint = Paint::default();
         let mut pixmap = Pixmap::new(500, 500).unwrap();
         let mut stroke = Stroke::default();
         stroke.width = 0.01;
         paint.set_color_rgba8(0, 127, 0, 255);
-        paint.anti_alias = false;
+        paint.anti_alias = true;
 
         for segment in segments {
             let path = {
