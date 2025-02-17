@@ -280,10 +280,12 @@ fn quadratic_bezier(p0: Point, p1: Point, p2: Point, t: f32) -> Point {
 mod tests {
     use std::vec;
 
-    use tiny_skia::{Paint, PathBuilder, Pixmap, Point, Stroke, Transform};
-    use tiny_skia_path::{path_geometry, NormalizedF32Exclusive};
+    use tiny_skia::{Paint, Pixmap};
+    use tiny_skia_path::{
+        path_geometry, NormalizedF32Exclusive, PathBuilder, Point, Stroke, Transform,
+    };
 
-    use crate::{cross_point, PathSegment};
+    use crate::{cross_point, Cubic, Line, PathSegment, Quadratic};
 
     #[test]
     fn test_cross_point_lines_intersect() {
@@ -292,8 +294,8 @@ mod tests {
         let p3 = Point::from_xy(0.0, 2.0);
         let p4 = Point::from_xy(2.0, 0.0);
 
-        let segment1 = PathSegment::Line { from: p1, to: p2 };
-        let segment2 = PathSegment::Line { from: p3, to: p4 };
+        let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
+        let segment2 = PathSegment::Line(Line { from: p3, to: p4 });
 
         let result = cross_point(segment1, segment2);
         assert_eq!(result.len(), 1);
@@ -307,8 +309,8 @@ mod tests {
         let p3 = Point::from_xy(0.0, 1.0);
         let p4 = Point::from_xy(2.0, 3.0);
 
-        let segment1 = PathSegment::Line { from: p1, to: p2 };
-        let segment2 = PathSegment::Line { from: p3, to: p4 };
+        let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
+        let segment2 = PathSegment::Line(Line { from: p3, to: p4 });
 
         let result = cross_point(segment1, segment2);
         assert_eq!(result.len(), 0);
@@ -321,8 +323,8 @@ mod tests {
         let p3 = Point::from_xy(2.0, 2.0);
         let p4 = Point::from_xy(3.0, 3.0);
 
-        let segment1 = PathSegment::Line { from: p1, to: p2 };
-        let segment2 = PathSegment::Line { from: p3, to: p4 };
+        let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
+        let segment2 = PathSegment::Line(Line { from: p3, to: p4 });
 
         let result = cross_point(segment1, segment2);
         assert_eq!(result.len(), 0);
@@ -336,12 +338,12 @@ mod tests {
         let q2 = Point::from_xy(2.0, 0.0);
         let control = Point::from_xy(1.0, 3.0);
 
-        let segment1 = PathSegment::Line { from: p1, to: p2 };
-        let segment2 = PathSegment::Quadratic {
+        let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
+        let segment2 = PathSegment::Quadratic(Quadratic {
             from: q1,
             to: q2,
             control,
-        };
+        });
 
         let result = cross_point(segment1, segment2);
         assert!(!result.is_empty());
@@ -355,12 +357,12 @@ mod tests {
         let q2 = Point::from_xy(2.0, 0.0);
         let control = Point::from_xy(1.0, 1.0);
 
-        let segment1 = PathSegment::Line { from: p1, to: p2 };
-        let segment2 = PathSegment::Quadratic {
+        let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
+        let segment2 = PathSegment::Quadratic(Quadratic {
             from: q1,
             to: q2,
             control,
-        };
+        });
 
         path_segments_to_image(vec![&segment1, &segment2]);
 
@@ -380,12 +382,12 @@ mod tests {
         let q2 = Point::from_xy(2.0, 2.0);
         let control = Point::from_xy(1.0, 3.0);
 
-        let segment1 = PathSegment::Line { from: p1, to: p2 };
-        let segment2 = PathSegment::Quadratic {
+        let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
+        let segment2 = PathSegment::Quadratic(Quadratic {
             from: q1,
             to: q2,
             control,
-        };
+        });
 
         path_segments_to_image(vec![&segment1, &segment2]);
 
@@ -402,27 +404,27 @@ mod tests {
         let q2 = Point::from_xy(2.0, 2.0);
         let control = Point::from_xy(1.0, 3.0);
 
-        let segment = PathSegment::Quadratic {
+        let segment = PathSegment::Quadratic(Quadratic {
             from: q1,
             to: q2,
             control,
-        };
+        });
 
         let arg = [q1, control, q2];
         let mut result: [Point; 5] = Default::default();
         let center = NormalizedF32Exclusive::new_bounded(0.5);
 
         let _ = path_geometry::chop_quad_at(&arg, center, &mut result);
-        let pre = PathSegment::Quadratic {
+        let pre = PathSegment::Quadratic(Quadratic {
             from: result[0],
             to: result[2],
             control: result[1],
-        };
-        let post = PathSegment::Quadratic {
+        });
+        let post = PathSegment::Quadratic(Quadratic {
             from: result[2],
             to: result[4],
             control: result[3],
-        };
+        });
 
         path_segments_to_image(vec![&segment, &pre, &post]);
     }
@@ -431,18 +433,18 @@ mod tests {
     fn test_chop2() {
         let p1 = Point::from_xy(1.0, 0.0);
         let p2 = Point::from_xy(0.0, 2.0);
-        let line_seg = PathSegment::Line { from: p1, to: p2 };
+        let line_seg = PathSegment::Line(Line { from: p1, to: p2 });
         let (line1, line2) = line_seg.chop(0.3);
 
         let q1 = Point::from_xy(0.0, 0.0);
         let q2 = Point::from_xy(2.0, 2.0);
         let control = Point::from_xy(1.0, 3.0);
 
-        let quad_seg = PathSegment::Quadratic {
+        let quad_seg = PathSegment::Quadratic(Quadratic {
             from: q1,
             to: q2,
             control,
-        };
+        });
 
         let (quad1, quad2) = quad_seg.chop(0.5);
 
@@ -455,12 +457,12 @@ mod tests {
         let p2 = Point::from_xy(2.0, 1.0);
         let c1 = Point::from_xy(0.5, 0.0);
         let c2 = Point::from_xy(1.7, 2.0);
-        let line_seg = PathSegment::Cubic {
+        let line_seg = PathSegment::Cubic(Cubic {
             from: p1,
             to: p2,
             control1: c1,
             control2: c2,
-        };
+        });
         let (line1, line2) = line_seg.chop(0.3);
         path_segments_to_image(vec![&line1, &line2]);
     }
@@ -477,20 +479,20 @@ mod tests {
             let path = {
                 let mut pb = PathBuilder::new();
                 match segment {
-                    PathSegment::Line { from, to } => {
+                    PathSegment::Line(Line { from, to }) => {
                         pb.move_to(from.x, from.y);
                         pb.line_to(to.x, to.y);
                     }
-                    PathSegment::Quadratic { from, to, control } => {
+                    PathSegment::Quadratic(Quadratic { from, to, control }) => {
                         pb.move_to(from.x, from.y);
                         pb.quad_to(control.x, control.y, to.x, to.y);
                     }
-                    PathSegment::Cubic {
+                    PathSegment::Cubic(Cubic {
                         from,
                         to,
                         control1,
                         control2,
-                    } => {
+                    }) => {
                         pb.move_to(from.x, from.y);
                         pb.cubic_to(control1.x, control1.y, control2.x, control2.y, to.x, to.y);
                     }
