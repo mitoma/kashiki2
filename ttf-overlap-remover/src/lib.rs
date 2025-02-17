@@ -1,52 +1,174 @@
 use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Point, Rect};
 
+trait SegmentTrait
+where
+    Self: Sized,
+{
+    fn rect(&self) -> Rect;
+    fn chop_harf(&self) -> (Self, Self);
+    fn chop(&self, position: f32) -> (Self, Self);
+    fn to_path_segment(self) -> PathSegment;
+}
+
+struct Line {
+    from: Point,
+    to: Point,
+}
+
+impl SegmentTrait for Line {
+    fn rect(&self) -> Rect {
+        let min_x = self.from.x.min(self.to.x);
+        let min_y = self.from.y.min(self.to.y);
+        let max_x = self.from.x.max(self.to.x);
+        let max_y = self.from.y.max(self.to.y);
+        Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
+    }
+
+    fn chop_harf(&self) -> (Line, Line) {
+        self.chop(0.5)
+    }
+
+    fn chop(&self, position: f32) -> (Line, Line) {
+        let new_x = self.from.x + position * (self.to.x - self.from.x);
+        let new_y = self.from.y + position * (self.to.y - self.from.y);
+        let mid_point = Point::from_xy(new_x, new_y);
+        (
+            Line {
+                from: self.from,
+                to: mid_point,
+            },
+            Line {
+                from: mid_point,
+                to: self.to,
+            },
+        )
+    }
+
+    fn to_path_segment(self) -> PathSegment {
+        PathSegment::Line(self)
+    }
+}
+
+struct Quadratic {
+    from: Point,
+    to: Point,
+    control: Point,
+}
+
+impl SegmentTrait for Quadratic {
+    fn rect(&self) -> Rect {
+        let min_x = self.from.x.min(self.to.x).min(self.control.x);
+        let min_y = self.from.y.min(self.to.y).min(self.control.y);
+        let max_x = self.from.x.max(self.to.x).max(self.control.x);
+        let max_y = self.from.y.max(self.to.y).max(self.control.y);
+        Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
+    }
+
+    fn chop_harf(&self) -> (Quadratic, Quadratic) {
+        self.chop(0.5)
+    }
+
+    fn chop(&self, position: f32) -> (Quadratic, Quadratic) {
+        let mut result = [Point::default(); 5];
+        let center = NormalizedF32Exclusive::new_bounded(position);
+        let arg = [self.from, self.control, self.to];
+        let _ = path_geometry::chop_quad_at(&arg, center, &mut result);
+        (
+            Quadratic {
+                from: result[0],
+                to: result[2],
+                control: result[1],
+            },
+            Quadratic {
+                from: result[2],
+                to: result[4],
+                control: result[3],
+            },
+        )
+    }
+
+    fn to_path_segment(self) -> PathSegment {
+        PathSegment::Quadratic(self)
+    }
+}
+struct Cubic {
+    from: Point,
+    to: Point,
+    control1: Point,
+    control2: Point,
+}
+
+impl SegmentTrait for Cubic {
+    fn rect(&self) -> Rect {
+        let min_x = self
+            .from
+            .x
+            .min(self.to.x)
+            .min(self.control1.x)
+            .min(self.control2.x);
+        let min_y = self
+            .from
+            .y
+            .min(self.to.y)
+            .min(self.control1.y)
+            .min(self.control2.y);
+        let max_x = self
+            .from
+            .x
+            .max(self.to.x)
+            .max(self.control1.x)
+            .max(self.control2.x);
+        let max_y = self
+            .from
+            .y
+            .max(self.to.y)
+            .max(self.control1.y)
+            .max(self.control2.y);
+        Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
+    }
+
+    fn chop_harf(&self) -> (Cubic, Cubic) {
+        self.chop(0.5)
+    }
+
+    fn chop(&self, position: f32) -> (Cubic, Cubic) {
+        let mut result = [Point::default(); 7];
+        let center = NormalizedF32Exclusive::new_bounded(position);
+        let arg = [self.from, self.control1, self.control2, self.to];
+        let _ = path_geometry::chop_cubic_at2(&arg, center, &mut result);
+        (
+            Cubic {
+                from: result[0],
+                to: result[3],
+                control1: result[1],
+                control2: result[2],
+            },
+            Cubic {
+                from: result[3],
+                to: result[6],
+                control1: result[4],
+                control2: result[5],
+            },
+        )
+    }
+
+    fn to_path_segment(self) -> PathSegment {
+        PathSegment::Cubic(self)
+    }
+}
+
 enum PathSegment {
-    Line {
-        from: Point,
-        to: Point,
-    },
-    Quadratic {
-        from: Point,
-        to: Point,
-        control: Point,
-    },
-    Cubic {
-        from: Point,
-        to: Point,
-        control1: Point,
-        control2: Point,
-    },
+    Line(Line),
+    Quadratic(Quadratic),
+    Cubic(Cubic),
 }
 
 impl PathSegment {
     fn rect(&self) -> Rect {
         match self {
-            PathSegment::Line { from, to } => {
-                let min_x = from.x.min(to.x);
-                let min_y = from.y.min(to.y);
-                let max_x = from.x.max(to.x);
-                let max_y = from.y.max(to.y);
-                Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
-            }
-            PathSegment::Quadratic { from, to, control } => {
-                let min_x = from.x.min(to.x).min(control.x);
-                let min_y = from.y.min(to.y).min(control.y);
-                let max_x = from.x.max(to.x).max(control.x);
-                let max_y = from.y.max(to.y).max(control.y);
-                Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
-            }
-            PathSegment::Cubic {
-                from,
-                to,
-                control1,
-                control2,
-            } => {
-                let min_x = from.x.min(to.x).min(control1.x).min(control2.x);
-                let min_y = from.y.min(to.y).min(control1.y).min(control2.y);
-                let max_x = from.x.max(to.x).max(control1.x).max(control2.x);
-                let max_y = from.y.max(to.y).max(control1.y).max(control2.y);
-                Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
-            }
+            PathSegment::Line(line) => line.rect(),
+            PathSegment::Quadratic(quad) => quad.rect(),
+            PathSegment::Cubic(cubic) => cubic.rect(),
         }
     }
 
@@ -58,63 +180,17 @@ impl PathSegment {
     /// position は 0.0 から 1.0 の範囲で指定する
     fn chop(&self, position: f32) -> (PathSegment, PathSegment) {
         match self {
-            PathSegment::Line { from, to } => {
-                let new_x = from.x + position * (to.x - from.x);
-                let new_y = from.y + position * (to.y - from.y);
-                let mid_point = Point::from_xy(new_x, new_y);
-                (
-                    PathSegment::Line {
-                        from: *from,
-                        to: mid_point,
-                    },
-                    PathSegment::Line {
-                        from: mid_point,
-                        to: *to,
-                    },
-                )
+            PathSegment::Line(line) => {
+                let (line1, line2) = line.chop(position);
+                (PathSegment::Line(line1), PathSegment::Line(line2))
             }
-            PathSegment::Quadratic { from, to, control } => {
-                let mut result = [Point::default(); 5];
-                let center = NormalizedF32Exclusive::new_bounded(position);
-                let arg = [*from, *control, *to];
-                let _ = path_geometry::chop_quad_at(&arg, center, &mut result);
-                (
-                    PathSegment::Quadratic {
-                        from: result[0],
-                        to: result[2],
-                        control: result[1],
-                    },
-                    PathSegment::Quadratic {
-                        from: result[2],
-                        to: result[4],
-                        control: result[3],
-                    },
-                )
+            PathSegment::Quadratic(quad) => {
+                let (quad1, quad2) = quad.chop(position);
+                (PathSegment::Quadratic(quad1), PathSegment::Quadratic(quad2))
             }
-            PathSegment::Cubic {
-                from,
-                to,
-                control1,
-                control2,
-            } => {
-                let mut result = [Point::default(); 7];
-                let center = NormalizedF32Exclusive::new_bounded(position);
-                let arg = [*from, *control1, *control2, *to];
-                let _ = path_geometry::chop_cubic_at2(&arg, center, &mut result);
-                (
-                    PathSegment::Cubic {
-                        from: result[0],
-                        to: result[3],
-                        control1: result[1],
-                        control2: result[2],
-                    },
-                    PathSegment::Cubic {
-                        from: result[3],
-                        to: result[6],
-                        control1: result[4],
-                        control2: result[5],
-                    },
-                )
+            PathSegment::Cubic(cubic) => {
+                let (cubic1, cubic2) = cubic.chop(position);
+                (PathSegment::Cubic(cubic1), PathSegment::Cubic(cubic2))
             }
         }
     }
@@ -129,7 +205,10 @@ fn cross_point(a: PathSegment, b: PathSegment) -> Vec<Point> {
         return vec![];
     };
     match (a, b) {
-        (PathSegment::Line { from: p1, to: p2 }, PathSegment::Line { from: p3, to: p4 }) => {
+        (
+            PathSegment::Line(Line { from: p1, to: p2 }),
+            PathSegment::Line(Line { from: p3, to: p4 }),
+        ) => {
             // 直線同士の交点を求める
             let denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
             if denom == 0.0 {
@@ -145,44 +224,44 @@ fn cross_point(a: PathSegment, b: PathSegment) -> Vec<Point> {
                 vec![] // 線分上に交点がない場合
             }
         }
-        (
-            PathSegment::Line { from: p1, to: p2 },
-            PathSegment::Quadratic {
-                from: q1,
-                to: q2,
-                control,
-            },
-        )
-        | (
-            PathSegment::Quadratic {
-                from: q1,
-                to: q2,
-                control,
-            },
-            PathSegment::Line { from: p1, to: p2 },
-        ) => {
+        (PathSegment::Line(line), PathSegment::Quadratic(quad))
+        | (PathSegment::Quadratic(quad), PathSegment::Line(line)) => {
             if intersect.width() < EPSILON && intersect.height() < EPSILON {
                 // 重なる矩形が十分小さい場合は二次ベジェ曲線は直線とみなして交点を求める
                 return cross_point(
-                    PathSegment::Line { from: p1, to: p2 },
-                    PathSegment::Line { from: q1, to: q2 },
+                    PathSegment::Line(Line {
+                        from: line.from,
+                        to: line.to,
+                    }),
+                    PathSegment::Line(Line {
+                        from: quad.from,
+                        to: quad.to,
+                    }),
                 );
             }
             // 直線と二次ベジェ曲線の交点を近似して求める
             let mut points = Vec::new();
 
-            let steps = 100; // 近似のためのステップ数
-            for i in 0..steps {
-                let t1 = i as f32 / steps as f32;
-                let t2 = (i + 1) as f32 / steps as f32;
-                let q_start = quadratic_bezier(q1, control, q2, t1);
-                let q_end = quadratic_bezier(q1, control, q2, t2);
-                let segment = PathSegment::Line {
-                    from: q_start,
-                    to: q_end,
-                };
-                points.extend(cross_point(PathSegment::Line { from: p1, to: p2 }, segment));
-            }
+            let (line1, line2) = line.chop_harf();
+            let (quad1, quad2) = quad.chop_harf();
+            points.append(&mut cross_point(
+                line1.to_path_segment(),
+                quad1.to_path_segment(),
+            ));
+            points.append(&mut cross_point(
+                line2.to_path_segment(),
+                quad2.to_path_segment(),
+            ));
+            let (line1, line2) = line.chop_harf();
+            let (quad1, quad2) = quad.chop_harf();
+            points.append(&mut cross_point(
+                line1.to_path_segment(),
+                quad2.to_path_segment(),
+            ));
+            points.append(&mut cross_point(
+                line2.to_path_segment(),
+                quad1.to_path_segment(),
+            ));
             points.dedup();
             points
         }
