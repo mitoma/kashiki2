@@ -270,15 +270,9 @@ fn cross_point(a: PathSegment, b: PathSegment) -> Vec<Point> {
     }
 }
 
-fn quadratic_bezier(p0: Point, p1: Point, p2: Point, t: f32) -> Point {
-    let x = (1.0 - t).powi(2) * p0.x + 2.0 * (1.0 - t) * t * p1.x + t.powi(2) * p2.x;
-    let y = (1.0 - t).powi(2) * p0.y + 2.0 * (1.0 - t) * t * p1.y + t.powi(2) * p2.y;
-    Point::from_xy(x, y)
-}
-
 #[cfg(test)]
 mod tests {
-    use std::vec;
+    use std::{f32, vec};
 
     use tiny_skia::{Paint, Pixmap};
     use tiny_skia_path::{
@@ -375,6 +369,28 @@ mod tests {
     }
 
     #[test]
+    fn test_cross_point_line_quadratic_two_intersection() {
+        let p1 = Point::from_xy(0.0, 1.0);
+        let p2 = Point::from_xy(2.0, 1.5);
+        let q1 = Point::from_xy(0.0, 2.0);
+        let q2 = Point::from_xy(2.0, 2.0);
+        let control = Point::from_xy(1.0, 0.0);
+
+        let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
+        let segment2 = PathSegment::Quadratic(Quadratic {
+            from: q1,
+            to: q2,
+            control,
+        });
+
+        path_segments_to_image(vec![&segment1, &segment2]);
+
+        let result = cross_point(segment1, segment2);
+        println!("{:?}", result);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
     fn test_cross_point_line_quadratic_two_intersections() {
         let p1 = Point::from_xy(0.0, 1.0);
         let p2 = Point::from_xy(2.0, 1.0);
@@ -396,6 +412,28 @@ mod tests {
         let intersection = Point::from_xy(0.5, 1.0);
         assert!((result[0] - intersection).x < 0.01);
         assert!((result[0] - intersection).y < 0.01);
+    }
+
+    #[test]
+    fn test_cross_point_line_cubic() {
+        let l1 = Point::from_xy(0.0, 0.8);
+        let l2 = Point::from_xy(2.0, 1.2);
+        let line_seg = PathSegment::Line(Line { from: l1, to: l2 });
+
+        let p1 = Point::from_xy(0.0, 1.0);
+        let p2 = Point::from_xy(2.0, 1.0);
+        let c1 = Point::from_xy(0.5, 0.0);
+        let c2 = Point::from_xy(1.7, 2.0);
+        let cubic_seg = PathSegment::Cubic(Cubic {
+            from: p1,
+            to: p2,
+            control1: c1,
+            control2: c2,
+        });
+        path_segments_to_image(vec![&line_seg, &cubic_seg]);
+
+        let result = cross_point(line_seg, cubic_seg);
+        assert_eq!(result.len(), 3);
     }
 
     #[test]
@@ -472,18 +510,26 @@ mod tests {
         let mut pixmap = Pixmap::new(500, 500).unwrap();
         let mut stroke = Stroke::default();
         stroke.width = 0.01;
-        paint.set_color_rgba8(0, 127, 0, 255);
         paint.anti_alias = true;
 
+        let mut dot_stroke = Stroke::default();
+        dot_stroke.width = 0.05;
+        dot_stroke.line_cap = tiny_skia::LineCap::Round;
+
         for segment in segments {
-            let path = {
+            let (path, dot) = {
+                let mut dot = PathBuilder::new();
                 let mut pb = PathBuilder::new();
                 match segment {
                     PathSegment::Line(Line { from, to }) => {
+                        dot.move_to(from.x, from.y);
+                        dot.line_to(from.x + f32::EPSILON, from.y + f32::EPSILON);
                         pb.move_to(from.x, from.y);
                         pb.line_to(to.x, to.y);
                     }
                     PathSegment::Quadratic(Quadratic { from, to, control }) => {
+                        dot.move_to(from.x, from.y);
+                        dot.line_to(from.x + f32::EPSILON, from.y + f32::EPSILON);
                         pb.move_to(from.x, from.y);
                         pb.quad_to(control.x, control.y, to.x, to.y);
                     }
@@ -493,16 +539,30 @@ mod tests {
                         control1,
                         control2,
                     }) => {
+                        dot.move_to(from.x, from.y);
+                        dot.line_to(from.x + f32::EPSILON, from.y + f32::EPSILON);
                         pb.move_to(from.x, from.y);
                         pb.cubic_to(control1.x, control1.y, control2.x, control2.y, to.x, to.y);
                     }
                 }
-                pb.finish().unwrap()
+                (pb.finish().unwrap(), dot.finish().unwrap())
             };
+
+            paint.set_color_rgba8(0, 127, 0, 255);
             pixmap.stroke_path(
                 &path,
                 &paint,
                 &stroke,
+                Transform::identity()
+                    .pre_translate(1.0, 1.0)
+                    .post_scale(100.0, 100.0),
+                None,
+            );
+            paint.set_color_rgba8(255, 0, 0, 255);
+            pixmap.stroke_path(
+                &dot,
+                &paint,
+                &dot_stroke,
                 Transform::identity()
                     .pre_translate(1.0, 1.0)
                     .post_scale(100.0, 100.0),
