@@ -1,9 +1,21 @@
 use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Point, Rect};
 
+fn point_to_dot(point: Point) -> PathSegment {
+    let (x, y) = (point.x, point.y);
+    PathSegment::Line(Line {
+        from: point,
+        to: Point {
+            x: x + f32::EPSILON,
+            y: y + f32::EPSILON,
+        },
+    })
+}
+
 trait SegmentTrait
 where
     Self: Sized,
 {
+    fn from_to(&self) -> (Point, Point);
     fn rect(&self) -> Rect;
     fn chop_harf(&self) -> (Self, Self);
     fn chop(&self, position: f32) -> (Self, Self);
@@ -16,6 +28,10 @@ struct Line {
 }
 
 impl SegmentTrait for Line {
+    fn from_to(&self) -> (Point, Point) {
+        (self.from, self.to)
+    }
+
     fn rect(&self) -> Rect {
         let min_x = self.from.x.min(self.to.x);
         let min_y = self.from.y.min(self.to.y);
@@ -56,6 +72,10 @@ struct Quadratic {
 }
 
 impl SegmentTrait for Quadratic {
+    fn from_to(&self) -> (Point, Point) {
+        (self.from, self.to)
+    }
+
     fn rect(&self) -> Rect {
         let min_x = self.from.x.min(self.to.x).min(self.control.x);
         let min_y = self.from.y.min(self.to.y).min(self.control.y);
@@ -99,6 +119,10 @@ struct Cubic {
 }
 
 impl SegmentTrait for Cubic {
+    fn from_to(&self) -> (Point, Point) {
+        (self.from, self.to)
+    }
+
     fn rect(&self) -> Rect {
         let min_x = self
             .from
@@ -164,6 +188,14 @@ enum PathSegment {
 }
 
 impl PathSegment {
+    fn from_to(&self) -> (Point, Point) {
+        match self {
+            PathSegment::Line(line) => line.from_to(),
+            PathSegment::Quadratic(quad) => quad.from_to(),
+            PathSegment::Cubic(cubic) => cubic.from_to(),
+        }
+    }
+
     fn rect(&self) -> Rect {
         match self {
             PathSegment::Line(line) => line.rect(),
@@ -517,19 +549,28 @@ mod tests {
         dot_stroke.line_cap = tiny_skia::LineCap::Round;
 
         for segment in segments {
-            let (path, dot) = {
-                let mut dot = PathBuilder::new();
+            let (from, to) = segment.from_to();
+            let from_dot = {
+                let mut from_dot = PathBuilder::new();
+                from_dot.move_to(from.x, from.y);
+                from_dot.line_to(from.x + f32::EPSILON, from.y + f32::EPSILON);
+                from_dot.finish().unwrap()
+            };
+            let to_dot = {
+                let mut to_dot = PathBuilder::new();
+                to_dot.move_to(to.x, to.y);
+                to_dot.line_to(to.x + f32::EPSILON, to.y + f32::EPSILON);
+                to_dot.finish().unwrap()
+            };
+
+            let path = {
                 let mut pb = PathBuilder::new();
                 match segment {
                     PathSegment::Line(Line { from, to }) => {
-                        dot.move_to(from.x, from.y);
-                        dot.line_to(from.x + f32::EPSILON, from.y + f32::EPSILON);
                         pb.move_to(from.x, from.y);
                         pb.line_to(to.x, to.y);
                     }
                     PathSegment::Quadratic(Quadratic { from, to, control }) => {
-                        dot.move_to(from.x, from.y);
-                        dot.line_to(from.x + f32::EPSILON, from.y + f32::EPSILON);
                         pb.move_to(from.x, from.y);
                         pb.quad_to(control.x, control.y, to.x, to.y);
                     }
@@ -539,13 +580,11 @@ mod tests {
                         control1,
                         control2,
                     }) => {
-                        dot.move_to(from.x, from.y);
-                        dot.line_to(from.x + f32::EPSILON, from.y + f32::EPSILON);
                         pb.move_to(from.x, from.y);
                         pb.cubic_to(control1.x, control1.y, control2.x, control2.y, to.x, to.y);
                     }
                 }
-                (pb.finish().unwrap(), dot.finish().unwrap())
+                pb.finish().unwrap()
             };
 
             paint.set_color_rgba8(0, 127, 0, 255);
@@ -558,9 +597,19 @@ mod tests {
                     .post_scale(100.0, 100.0),
                 None,
             );
-            paint.set_color_rgba8(255, 0, 0, 255);
+            paint.set_color_rgba8(255, 0, 0, 120);
             pixmap.stroke_path(
-                &dot,
+                &from_dot,
+                &paint,
+                &dot_stroke,
+                Transform::identity()
+                    .pre_translate(1.0, 1.0)
+                    .post_scale(100.0, 100.0),
+                None,
+            );
+            paint.set_color_rgba8(0, 255, 0, 120);
+            pixmap.stroke_path(
+                &to_dot,
                 &paint,
                 &dot_stroke,
                 Transform::identity()
