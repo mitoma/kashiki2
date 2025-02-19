@@ -1,7 +1,6 @@
 use tiny_skia::{Paint, PathBuilder, PathStroker, Pixmap, Stroke, Transform};
 
 fn main() {
-
     let path = {
         let mut pb = PathBuilder::new();
 
@@ -16,7 +15,7 @@ fn main() {
         pb.finish().unwrap()
     };
 
-    let  stroke = Stroke::default();
+    let stroke = Stroke::default();
     let mut pixmap = Pixmap::new(500, 500).unwrap();
 
     let mut paint = Paint::default();

@@ -15,7 +15,7 @@ trait SegmentTrait
 where
     Self: Sized,
 {
-    fn from_to(&self) -> (Point, Point);
+    fn endpoints(&self) -> (Point, Point);
     fn rect(&self) -> Rect;
     fn chop_harf(&self) -> (Self, Self);
     fn chop(&self, position: f32) -> (Self, Self);
@@ -28,7 +28,7 @@ struct Line {
 }
 
 impl SegmentTrait for Line {
-    fn from_to(&self) -> (Point, Point) {
+    fn endpoints(&self) -> (Point, Point) {
         (self.from, self.to)
     }
 
@@ -72,7 +72,7 @@ struct Quadratic {
 }
 
 impl SegmentTrait for Quadratic {
-    fn from_to(&self) -> (Point, Point) {
+    fn endpoints(&self) -> (Point, Point) {
         (self.from, self.to)
     }
 
@@ -92,7 +92,7 @@ impl SegmentTrait for Quadratic {
         let mut result = [Point::default(); 5];
         let center = NormalizedF32Exclusive::new_bounded(position);
         let arg = [self.from, self.control, self.to];
-        let _ = path_geometry::chop_quad_at(&arg, center, &mut result);
+        path_geometry::chop_quad_at(&arg, center, &mut result);
         (
             Quadratic {
                 from: result[0],
@@ -119,7 +119,7 @@ struct Cubic {
 }
 
 impl SegmentTrait for Cubic {
-    fn from_to(&self) -> (Point, Point) {
+    fn endpoints(&self) -> (Point, Point) {
         (self.from, self.to)
     }
 
@@ -159,7 +159,7 @@ impl SegmentTrait for Cubic {
         let mut result = [Point::default(); 7];
         let center = NormalizedF32Exclusive::new_bounded(position);
         let arg = [self.from, self.control1, self.control2, self.to];
-        let _ = path_geometry::chop_cubic_at2(&arg, center, &mut result);
+        path_geometry::chop_cubic_at2(&arg, center, &mut result);
         (
             Cubic {
                 from: result[0],
@@ -188,11 +188,11 @@ enum PathSegment {
 }
 
 impl PathSegment {
-    fn from_to(&self) -> (Point, Point) {
+    fn endpoints(&self) -> (Point, Point) {
         match self {
-            PathSegment::Line(line) => line.from_to(),
-            PathSegment::Quadratic(quad) => quad.from_to(),
-            PathSegment::Cubic(cubic) => cubic.from_to(),
+            PathSegment::Line(line) => line.endpoints(),
+            PathSegment::Quadratic(quad) => quad.endpoints(),
+            PathSegment::Cubic(cubic) => cubic.endpoints(),
         }
     }
 
@@ -229,7 +229,7 @@ impl PathSegment {
 }
 
 const EPSILON: f32 = 0.0001;
-fn cross_point(a: PathSegment, b: PathSegment) -> Vec<Point> {
+fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
     // 二つのセグメントが交差しているかどうかを矩形で判定
     let a_rect = a.rect();
     let b_rect = b.rect();
@@ -248,7 +248,7 @@ fn cross_point(a: PathSegment, b: PathSegment) -> Vec<Point> {
             }
             let ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
             let ub = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
-            if ua >= 0.0 && ua <= 1.0 && ub >= 0.0 && ub <= 1.0 {
+            if (0.0..=1.0).contains(&ua) && (0.0..=1.0).contains(&ub) {
                 let x = p1.x + ua * (p2.x - p1.x);
                 let y = p1.y + ua * (p2.y - p1.y);
                 vec![Point::from_xy(x, y)]
@@ -261,11 +261,11 @@ fn cross_point(a: PathSegment, b: PathSegment) -> Vec<Point> {
             if intersect.width() < EPSILON && intersect.height() < EPSILON {
                 // 重なる矩形が十分小さい場合は二次ベジェ曲線は直線とみなして交点を求める
                 return cross_point(
-                    PathSegment::Line(Line {
+                    &PathSegment::Line(Line {
                         from: line.from,
                         to: line.to,
                     }),
-                    PathSegment::Line(Line {
+                    &PathSegment::Line(Line {
                         from: quad.from,
                         to: quad.to,
                     }),
@@ -277,22 +277,22 @@ fn cross_point(a: PathSegment, b: PathSegment) -> Vec<Point> {
             let (line1, line2) = line.chop_harf();
             let (quad1, quad2) = quad.chop_harf();
             points.append(&mut cross_point(
-                line1.to_path_segment(),
-                quad1.to_path_segment(),
+                &line1.to_path_segment(),
+                &quad1.to_path_segment(),
             ));
             points.append(&mut cross_point(
-                line2.to_path_segment(),
-                quad2.to_path_segment(),
+                &line2.to_path_segment(),
+                &quad2.to_path_segment(),
             ));
             let (line1, line2) = line.chop_harf();
             let (quad1, quad2) = quad.chop_harf();
             points.append(&mut cross_point(
-                line1.to_path_segment(),
-                quad2.to_path_segment(),
+                &line1.to_path_segment(),
+                &quad2.to_path_segment(),
             ));
             points.append(&mut cross_point(
-                line2.to_path_segment(),
-                quad1.to_path_segment(),
+                &line2.to_path_segment(),
+                &quad1.to_path_segment(),
             ));
             points.dedup();
             points
@@ -311,7 +311,7 @@ mod tests {
         path_geometry, NormalizedF32Exclusive, PathBuilder, Point, Stroke, Transform,
     };
 
-    use crate::{cross_point, Cubic, Line, PathSegment, Quadratic};
+    use crate::{cross_point, point_to_dot, Cubic, Line, PathSegment, Quadratic};
 
     #[test]
     fn test_cross_point_lines_intersect() {
@@ -323,7 +323,7 @@ mod tests {
         let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
         let segment2 = PathSegment::Line(Line { from: p3, to: p4 });
 
-        let result = cross_point(segment1, segment2);
+        let result = cross_point(&segment1, &segment2);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], Point::from_xy(1.0, 1.0));
     }
@@ -338,7 +338,7 @@ mod tests {
         let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
         let segment2 = PathSegment::Line(Line { from: p3, to: p4 });
 
-        let result = cross_point(segment1, segment2);
+        let result = cross_point(&segment1, &segment2);
         assert_eq!(result.len(), 0);
     }
 
@@ -352,7 +352,7 @@ mod tests {
         let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
         let segment2 = PathSegment::Line(Line { from: p3, to: p4 });
 
-        let result = cross_point(segment1, segment2);
+        let result = cross_point(&segment1, &segment2);
         assert_eq!(result.len(), 0);
     }
 
@@ -371,7 +371,7 @@ mod tests {
             control,
         });
 
-        let result = cross_point(segment1, segment2);
+        let result = cross_point(&segment1, &segment2);
         assert!(!result.is_empty());
     }
 
@@ -390,9 +390,9 @@ mod tests {
             control,
         });
 
-        path_segments_to_image(vec![&segment1, &segment2]);
+        path_segments_to_image(vec![&segment1, &segment2], vec![]);
 
-        let result = cross_point(segment1, segment2);
+        let result = cross_point(&segment1, &segment2);
         println!("{:?}", result);
         assert_eq!(result.len(), 1);
         let intersection = Point::from_xy(1.0, 1.0);
@@ -415,9 +415,9 @@ mod tests {
             control,
         });
 
-        path_segments_to_image(vec![&segment1, &segment2]);
+        path_segments_to_image(vec![&segment1, &segment2], vec![]);
 
-        let result = cross_point(segment1, segment2);
+        let result = cross_point(&segment1, &segment2);
         println!("{:?}", result);
         assert_eq!(result.len(), 2);
     }
@@ -437,9 +437,8 @@ mod tests {
             control,
         });
 
-        path_segments_to_image(vec![&segment1, &segment2]);
-
-        let result = cross_point(segment1, segment2);
+        let result = cross_point(&segment1, &segment2);
+        path_segments_to_image(vec![&segment1, &segment2], result.iter().collect());
         assert_eq!(result.len(), 1);
         let intersection = Point::from_xy(0.5, 1.0);
         assert!((result[0] - intersection).x < 0.01);
@@ -462,9 +461,9 @@ mod tests {
             control1: c1,
             control2: c2,
         });
-        path_segments_to_image(vec![&line_seg, &cubic_seg]);
 
-        let result = cross_point(line_seg, cubic_seg);
+        let result = cross_point(&line_seg, &cubic_seg);
+        path_segments_to_image(vec![&line_seg, &cubic_seg], result.iter().collect());
         assert_eq!(result.len(), 3);
     }
 
@@ -496,7 +495,7 @@ mod tests {
             control: result[3],
         });
 
-        path_segments_to_image(vec![&segment, &pre, &post]);
+        path_segments_to_image(vec![&segment, &pre, &post], vec![]);
     }
 
     #[test]
@@ -518,7 +517,7 @@ mod tests {
 
         let (quad1, quad2) = quad_seg.chop(0.5);
 
-        path_segments_to_image(vec![&line1, &line2, &quad1, &quad2]);
+        path_segments_to_image(vec![&line1, &line2, &quad1, &quad2], vec![]);
     }
 
     #[test]
@@ -534,10 +533,10 @@ mod tests {
             control2: c2,
         });
         let (line1, line2) = line_seg.chop(0.3);
-        path_segments_to_image(vec![&line1, &line2]);
+        path_segments_to_image(vec![&line1, &line2], vec![]);
     }
 
-    fn path_segments_to_image(segments: Vec<&PathSegment>) {
+    fn path_segments_to_image(segments: Vec<&PathSegment>, dots: Vec<&Point>) {
         let mut paint = Paint::default();
         let mut pixmap = Pixmap::new(500, 500).unwrap();
         let mut stroke = Stroke::default();
@@ -549,7 +548,7 @@ mod tests {
         dot_stroke.line_cap = tiny_skia::LineCap::Round;
 
         for segment in segments {
-            let (from, to) = segment.from_to();
+            let (from, to) = segment.endpoints();
             let from_dot = {
                 let mut from_dot = PathBuilder::new();
                 from_dot.move_to(from.x, from.y);
@@ -618,6 +617,24 @@ mod tests {
                 None,
             );
         }
+
+        paint.set_color_rgba8(0, 0, 255, 255);
+        for dot in dots {
+            let mut dot_path = PathBuilder::new();
+            dot_path.move_to(dot.x, dot.y);
+            dot_path.line_to(dot.x + f32::EPSILON, dot.y + f32::EPSILON);
+            let dot_path = dot_path.finish().unwrap();
+            pixmap.stroke_path(
+                &dot_path,
+                &paint,
+                &dot_stroke,
+                Transform::identity()
+                    .pre_translate(1.0, 1.0)
+                    .post_scale(100.0, 100.0),
+                None,
+            );
+        }
+
         pixmap.save_png("image.png").unwrap();
     }
 }
