@@ -258,48 +258,70 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
         }
         (PathSegment::Line(line), PathSegment::Quadratic(quad))
         | (PathSegment::Quadratic(quad), PathSegment::Line(line)) => {
-            if intersect.width() < EPSILON && intersect.height() < EPSILON {
-                // 重なる矩形が十分小さい場合は二次ベジェ曲線は直線とみなして交点を求める
-                return cross_point(
-                    &PathSegment::Line(Line {
-                        from: line.from,
-                        to: line.to,
-                    }),
-                    &PathSegment::Line(Line {
-                        from: quad.from,
-                        to: quad.to,
-                    }),
-                );
-            }
-            // 直線と二次ベジェ曲線の交点を近似して求める
-            let mut points = Vec::new();
-
-            let (line1, line2) = line.chop_harf();
-            let (quad1, quad2) = quad.chop_harf();
-            points.append(&mut cross_point(
-                &line1.to_path_segment(),
-                &quad1.to_path_segment(),
-            ));
-            points.append(&mut cross_point(
-                &line2.to_path_segment(),
-                &quad2.to_path_segment(),
-            ));
-            let (line1, line2) = line.chop_harf();
-            let (quad1, quad2) = quad.chop_harf();
-            points.append(&mut cross_point(
-                &line1.to_path_segment(),
-                &quad2.to_path_segment(),
-            ));
-            points.append(&mut cross_point(
-                &line2.to_path_segment(),
-                &quad1.to_path_segment(),
-            ));
-            points.dedup();
-            points
+            closs_point_inner(&intersect, line, quad)
         }
-        // 他のセグメントの組み合わせについては未実装
-        _ => vec![],
+        (PathSegment::Line(line), PathSegment::Cubic(cubic))
+        | (PathSegment::Cubic(cubic), PathSegment::Line(line)) => {
+            closs_point_inner(&intersect, line, cubic)
+        }
+        (PathSegment::Quadratic(quadratic), PathSegment::Cubic(cubic))
+        | (PathSegment::Cubic(cubic), PathSegment::Quadratic(quadratic)) => {
+            closs_point_inner(&intersect, quadratic, cubic)
+        }
+        (PathSegment::Quadratic(quadratic1), PathSegment::Quadratic(quadratic2)) => {
+            closs_point_inner(&intersect, quadratic1, quadratic2)
+        }
+        (PathSegment::Cubic(cubic1), PathSegment::Cubic(cubic2)) => {
+            closs_point_inner(&intersect, cubic1, cubic2)
+        }
     }
+}
+
+fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(
+    intersect: &Rect,
+    a: &T,
+    b: &U,
+) -> Vec<Point> {
+    if intersect.width() < EPSILON && intersect.height() < EPSILON {
+        // 重なる矩形が十分小さい場合は二次ベジェ曲線は直線とみなして交点を求める
+        let (a_from, a_to) = a.endpoints();
+        let (b_from, b_to) = b.endpoints();
+        return cross_point(
+            &PathSegment::Line(Line {
+                from: a_from,
+                to: a_to,
+            }),
+            &PathSegment::Line(Line {
+                from: b_from,
+                to: b_to,
+            }),
+        );
+    }
+    // 直線と二次ベジェ曲線の交点を近似して求める
+    let mut points = Vec::new();
+
+    let (a1, a2) = a.chop_harf();
+    let (b1, b2) = b.chop_harf();
+    points.append(&mut cross_point(
+        &a1.to_path_segment(),
+        &b1.to_path_segment(),
+    ));
+    points.append(&mut cross_point(
+        &a2.to_path_segment(),
+        &b2.to_path_segment(),
+    ));
+    let (a1, a2) = a.chop_harf();
+    let (b1, b2) = b.chop_harf();
+    points.append(&mut cross_point(
+        &a1.to_path_segment(),
+        &b2.to_path_segment(),
+    ));
+    points.append(&mut cross_point(
+        &a2.to_path_segment(),
+        &b1.to_path_segment(),
+    ));
+    points.dedup();
+    points
 }
 
 #[cfg(test)]
@@ -311,7 +333,7 @@ mod tests {
         path_geometry, NormalizedF32Exclusive, PathBuilder, Point, Stroke, Transform,
     };
 
-    use crate::{cross_point, point_to_dot, Cubic, Line, PathSegment, Quadratic};
+    use crate::{cross_point, Cubic, Line, PathSegment, Quadratic};
 
     #[test]
     fn test_cross_point_lines_intersect() {
@@ -465,6 +487,35 @@ mod tests {
         let result = cross_point(&line_seg, &cubic_seg);
         path_segments_to_image(vec![&line_seg, &cubic_seg], result.iter().collect());
         assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn test_cross_point_cubic_cubic() {
+        let p1 = Point::from_xy(0.0, 2.0);
+        let p2 = Point::from_xy(2.0, 2.0);
+        let c1 = Point::from_xy(0.5, 2.0);
+        let c2 = Point::from_xy(1.7, 0.0);
+        let cubic_seg1 = PathSegment::Cubic(Cubic {
+            from: p1,
+            to: p2,
+            control1: c1,
+            control2: c2,
+        });
+
+        let p1 = Point::from_xy(0.0, 1.0);
+        let p2 = Point::from_xy(2.0, 1.0);
+        let c1 = Point::from_xy(0.5, 0.0);
+        let c2 = Point::from_xy(1.7, 2.0);
+        let cubic_seg2 = PathSegment::Cubic(Cubic {
+            from: p1,
+            to: p2,
+            control1: c1,
+            control2: c2,
+        });
+
+        let result = cross_point(&cubic_seg1, &cubic_seg2);
+        path_segments_to_image(vec![&cubic_seg1, &cubic_seg2], result.iter().collect());
+        assert_eq!(result.len(), 2);
     }
 
     #[test]
