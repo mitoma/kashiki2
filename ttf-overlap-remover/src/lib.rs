@@ -270,6 +270,14 @@ impl PathSegment {
     }
 }
 
+// 二つのセグメントが交差しているかを判定し、交差している場合はその交差点で二つのセグメントとをそれぞれ分割する
+fn split_line_on_cross_point(
+    a: &PathSegment,
+    b: &PathSegment,
+) -> (Vec<PathSegment>, Vec<PathSegment>) {
+    todo!()
+}
+
 const EPSILON: f32 = 0.001;
 fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
     // 二つのセグメントが交差しているかどうかを矩形で判定
@@ -279,7 +287,7 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
     match (a, b) {
         (PathSegment::Line(a), PathSegment::Line(b)) => {
             if let Some(point) = closs_point_line(a, b) {
-                vec![point]
+                vec![point.point]
             } else {
                 vec![]
             }
@@ -301,8 +309,15 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
     }
 }
 
+struct CrossPoint {
+    point: Point,
+    // 交点が線分のどの位置にあるかを示す。0.0 から 1.0 の範囲で示す
+    a_position: f32,
+    b_position: f32,
+}
+
 #[inline]
-fn closs_point_line(a: &Line, b: &Line) -> Option<Point> {
+fn closs_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
     // 直線同士の交点を求める
     let denom =
         (b.to.y - b.from.y) * (a.to.x - a.from.x) - (b.to.x - b.from.x) * (a.to.y - a.from.y);
@@ -315,10 +330,14 @@ fn closs_point_line(a: &Line, b: &Line) -> Option<Point> {
     let ub = ((a.to.x - a.from.x) * (a.from.y - b.from.y)
         - (a.to.y - a.from.y) * (a.from.x - b.from.x))
         / denom;
-    if 0.0 < ua && ua < 1.0 && 0.0 < ub && ub < 1.0 {
+    if 0.0 <= ua && ua < 1.0 && 0.0 <= ub && ub < 1.0 {
         let x = a.from.x + ua * (a.to.x - a.from.x);
         let y = a.from.y + ua * (a.to.y - a.from.y);
-        Some(Point::from_xy(x, y))
+        Some(CrossPoint {
+            point: Point::from_xy(x, y),
+            a_position: ua,
+            b_position: ub,
+        })
     } else {
         None // 線分上に交点がない場合
     }
@@ -345,7 +364,7 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Poin
                         to: b_to,
                     },
                 ) {
-                    points.push(point);
+                    points.push(point.point);
                 }
             } else {
                 let (a1, a2) = a.chop_harf();
