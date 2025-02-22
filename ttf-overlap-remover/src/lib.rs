@@ -265,7 +265,7 @@ impl PathSegment {
     }
 }
 
-const EPSILON: f32 = 0.0001;
+const EPSILON: f32 = 0.01;
 fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
     // 二つのセグメントが交差しているかどうかを矩形で判定
     let a_rect = a.rect();
@@ -278,6 +278,13 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
             PathSegment::Line(Line { from: p1, to: p2 }),
             PathSegment::Line(Line { from: p3, to: p4 }),
         ) => {
+            /*
+            // 一方の始点と一方の終点が同じ場合は交点なしとする
+            if p1 == p4 || p2 == p3 {
+                return vec![];
+            }
+             */
+
             // 直線同士の交点を求める
             let denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
             if denom == 0.0 {
@@ -285,7 +292,7 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
             }
             let ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
             let ub = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
-            if (0.0..=1.0).contains(&ua) && (0.0..=1.0).contains(&ub) {
+            if 0.0 < ua && ua < 1.0 && 0.0 < ub && ub < 1.0 {
                 let x = p1.x + ua * (p2.x - p1.x);
                 let y = p1.y + ua * (p2.y - p1.y);
                 vec![Point::from_xy(x, y)]
@@ -645,7 +652,17 @@ mod tests {
             .map(|segment| println!("{:?}", segment.endpoints()))
             .for_each(drop);
         println!("{:?}", segments.len());
-        path_segments_to_image(segments.iter().collect(), vec![]);
+
+        let mut dots = vec![];
+        for i in 0..segments.len() {
+            for j in i + 1..segments.len() {
+                let result = cross_point(&segments[i], &segments[j]);
+                if !result.is_empty() {
+                    dots.extend(result);
+                }
+            }
+        }
+        path_segments_to_image(segments.iter().collect(), dots.iter().collect());
     }
 
     #[derive(Debug)]
@@ -667,28 +684,29 @@ mod tests {
         }
     }
 
+    // font は y 軸の向きが逆
     impl OutlineBuilder for MyPathBuilder {
         fn move_to(&mut self, x: f32, y: f32) {
             println!("move to");
-            self.builder.as_mut().unwrap().move_to(x, y);
+            self.builder.as_mut().unwrap().move_to(x, -y);
         }
 
         fn line_to(&mut self, x: f32, y: f32) {
             println!("line to");
-            self.builder.as_mut().unwrap().line_to(x, y);
+            self.builder.as_mut().unwrap().line_to(x, -y);
         }
 
-        fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        fn quad_to(&mut self, x: f32, y: f32, x1: f32, y1: f32) {
             println!("quad to");
-            self.builder.as_mut().unwrap().quad_to(x1, y1, x, y);
+            self.builder.as_mut().unwrap().quad_to(x1, -y1, x, -y);
         }
 
-        fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+        fn curve_to(&mut self, x: f32, y: f32, x1: f32, y1: f32, x2: f32, y2: f32) {
             println!("curve to");
             self.builder
                 .as_mut()
                 .unwrap()
-                .cubic_to(x1, y1, x2, y2, x, y);
+                .cubic_to(x1, -y1, x2, -y2, x, -y);
         }
 
         fn close(&mut self) {
@@ -699,19 +717,81 @@ mod tests {
         }
     }
 
+    // segments と dots が Pixmap の中に納まるような transform を計算する
+    fn calc_transform(
+        canvas_size: f32,
+        segments: &Vec<&PathSegment>,
+        dots: &Vec<&Point>,
+    ) -> (Transform, f32) {
+        let mut min_x = f32::MAX;
+        let mut min_y = f32::MAX;
+        let mut max_x = f32::MIN;
+        let mut max_y = f32::MIN;
+
+        for segment in segments {
+            match segment {
+                PathSegment::Line(Line { from, to }) => {
+                    min_x = min_x.min(from.x).min(to.x);
+                    min_y = min_y.min(from.y).min(to.y);
+                    max_x = max_x.max(from.x).max(to.x);
+                    max_y = max_y.max(from.y).max(to.y);
+                }
+                PathSegment::Quadratic(Quadratic { from, to, control }) => {
+                    min_x = min_x.min(from.x).min(to.x).min(control.x);
+                    min_y = min_y.min(from.y).min(to.y).min(control.y);
+                    max_x = max_x.max(from.x).max(to.x).max(control.x);
+                    max_y = max_y.max(from.y).max(to.y).max(control.y);
+                }
+                PathSegment::Cubic(Cubic {
+                    from,
+                    to,
+                    control1,
+                    control2,
+                }) => {
+                    min_x = min_x.min(from.x).min(to.x).min(control1.x).min(control2.x);
+                    min_y = min_y.min(from.y).min(to.y).min(control1.y).min(control2.y);
+                    max_x = max_x.max(from.x).max(to.x).max(control1.x).max(control2.x);
+                    max_y = max_y.max(from.y).max(to.y).max(control1.y).max(control2.y);
+                }
+            }
+        }
+
+        for dot in dots {
+            min_x = min_x.min(dot.x);
+            min_y = min_y.min(dot.y);
+            max_x = max_x.max(dot.x);
+            max_y = max_y.max(dot.y);
+        }
+
+        let width = max_x - min_x;
+        let height = max_y - min_y;
+        let scale = canvas_size / width.max(height);
+
+        let translate_x = -min_x * scale;
+        let translate_y = -min_y * scale;
+
+        (
+            Transform::identity()
+                .post_scale(scale, scale)
+                .post_translate(translate_x, translate_y),
+            scale,
+        )
+    }
+
     fn path_segments_to_image(segments: Vec<&PathSegment>, dots: Vec<&Point>) {
-        let transform = Transform::identity()
-            .pre_translate(1.0, 1.0)
-            .post_scale(100.0, 100.0);
+        let canvas_size = 500.0;
+        let (transform, scale) = calc_transform(canvas_size, &segments, &dots);
+        let scale_unit = 1.0 / scale;
+        println!("scale: {}, scale_unit: {}", scale, scale_unit);
 
         let mut paint = Paint::default();
-        let mut pixmap = Pixmap::new(500, 500).unwrap();
+        let mut pixmap = Pixmap::new(canvas_size as u32, canvas_size as u32).unwrap();
         let mut stroke = Stroke::default();
-        stroke.width = 0.01;
+        stroke.width = scale_unit;
         paint.anti_alias = true;
 
         let mut dot_stroke = Stroke::default();
-        dot_stroke.width = 0.05;
+        dot_stroke.width = scale_unit * 5.0;
         dot_stroke.line_cap = tiny_skia::LineCap::Round;
 
         for segment in segments {
