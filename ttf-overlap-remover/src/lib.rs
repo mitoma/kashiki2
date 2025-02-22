@@ -284,10 +284,10 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
     if a.rect().intersect(&b.rect()).is_none() {
         return vec![];
     };
-    match (a, b) {
+    let result = match (a, b) {
         (PathSegment::Line(a), PathSegment::Line(b)) => {
             if let Some(point) = closs_point_line(a, b) {
-                vec![point.point]
+                vec![point]
             } else {
                 vec![]
             }
@@ -306,7 +306,8 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
         (PathSegment::Cubic(cubic1), PathSegment::Cubic(cubic2)) => {
             closs_point_inner(cubic1, cubic2)
         }
-    }
+    };
+    result.iter().map(|point| point.point).collect()
 }
 
 struct CrossPoint {
@@ -344,14 +345,42 @@ fn closs_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
 }
 
 #[inline]
-fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Point> {
-    let mut stack: Vec<(T, U)> = vec![(a.clone(), b.clone())];
+fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<CrossPoint> {
+    // depth = 0, 0.0 - 1.0 がそのまま反映される
+    // depth = 1, 0.0 - 1.0 が半分になる
+    // depth = 2, 0.0 - 1.0 が 1/4 になる
+    // [from, center] と [center, to] に分割する
+    //
+
+    struct StackItem<T, U> {
+        a: T,
+        a_position: f32,
+        b: U,
+        b_position: f32,
+        depth: u32,
+    }
+
+    let mut stack: Vec<StackItem<T, U>> = vec![StackItem {
+        a: a.clone(),
+        a_position: 0.0,
+        b: b.clone(),
+        b_position: 0.0,
+        depth: 0,
+    }];
     let mut points = Vec::new();
 
-    while let Some((a, b)) = stack.pop() {
+    while let Some(StackItem {
+        a,
+        a_position,
+        b,
+        b_position,
+        depth,
+    }) = stack.pop()
+    {
         let intersect = a.rect().intersect(&b.rect());
         if let Some(intersect) = intersect {
             if intersect.width() < EPSILON && intersect.height() < EPSILON {
+                let gain = 1.0 / (2u32.pow(depth) as f32);
                 let (a_from, a_to) = a.endpoints();
                 let (b_from, b_to) = b.endpoints();
                 if let Some(point) = closs_point_line(
@@ -364,19 +393,48 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Poin
                         to: b_to,
                     },
                 ) {
-                    points.push(point.point);
+                    points.push(CrossPoint {
+                        point: point.point,
+                        a_position: a_position + point.a_position * gain,
+                        b_position: b_position + point.b_position * gain,
+                    });
                 }
             } else {
+                let depth = depth + 1;
+                let gain = 1.0 / (2u32.pow(depth) as f32);
                 let (a1, a2) = a.chop_harf();
                 let (b1, b2) = b.chop_harf();
-                stack.push((a1.clone(), b1.clone()));
-                stack.push((a2.clone(), b2.clone()));
-                stack.push((a1, b2));
-                stack.push((a2, b1));
+                stack.push(StackItem {
+                    a: a1.clone(),
+                    a_position,
+                    b: b1.clone(),
+                    b_position,
+                    depth,
+                });
+                stack.push(StackItem {
+                    a: a1.clone(),
+                    a_position,
+                    b: b2.clone(),
+                    b_position: b_position + gain,
+                    depth,
+                });
+                stack.push(StackItem {
+                    a: a2.clone(),
+                    a_position: a_position + gain,
+                    b: b1.clone(),
+                    b_position,
+                    depth,
+                });
+                stack.push(StackItem {
+                    a: a2.clone(),
+                    a_position: a_position + gain,
+                    b: b2.clone(),
+                    b_position: b_position + gain,
+                    depth,
+                });
             }
         }
     }
-    points.dedup();
     points
 }
 
