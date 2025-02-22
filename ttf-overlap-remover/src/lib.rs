@@ -390,7 +390,10 @@ mod tests {
         path_geometry, NormalizedF32Exclusive, PathBuilder, Point, Stroke, Transform,
     };
 
-    use crate::{cross_point, path_to_path_segments, Cubic, Line, PathSegment, Quadratic};
+    use crate::{
+        closs_point_line, cross_point, path_to_path_segments, Cubic, Line, PathSegment, Quadratic,
+        EPSILON,
+    };
 
     #[test]
     fn test_cross_point_lines_intersect() {
@@ -862,5 +865,61 @@ mod tests {
         }
 
         pixmap.save_png("image.png").unwrap();
+    }
+
+    #[test]
+    fn test_closs_point_line_intersect() {
+        let line1 = Line {
+            from: Point::from_xy(0.0, 0.0),
+            to: Point::from_xy(2.0, 2.0),
+        };
+        let line2 = Line {
+            from: Point::from_xy(1.0, 2.0),
+            to: Point::from_xy(3.0, 0.0),
+        };
+
+        let result = closs_point_line(&line1, &line2);
+
+        assert!(result.is_some());
+        let cross_point = result.unwrap();
+        path_segments_to_image(
+            vec![&PathSegment::Line(line1), &PathSegment::Line(line2)],
+            vec![&cross_point.point],
+        );
+
+        assert!((cross_point.point.x - 1.5).abs() < EPSILON);
+        assert!((cross_point.point.y - 1.5).abs() < EPSILON);
+        assert!((cross_point.a_position - 0.75).abs() < EPSILON);
+        assert!((cross_point.b_position - 0.25).abs() < EPSILON);
+    }
+
+    #[test]
+    fn test_closs_point_line_parallel() {
+        let line1 = Line {
+            from: Point::from_xy(0.0, 0.0),
+            to: Point::from_xy(2.0, 2.0),
+        };
+        let line2 = Line {
+            from: Point::from_xy(0.0, 1.0),
+            to: Point::from_xy(2.0, 3.0),
+        };
+
+        let result = closs_point_line(&line1, &line2);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_closs_point_line_no_intersect() {
+        let line1 = Line {
+            from: Point::from_xy(0.0, 0.0),
+            to: Point::from_xy(1.0, 1.0),
+        };
+        let line2 = Line {
+            from: Point::from_xy(2.0, 2.0),
+            to: Point::from_xy(3.0, 3.0),
+        };
+
+        let result = closs_point_line(&line1, &line2);
+        assert!(result.is_none());
     }
 }
