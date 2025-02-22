@@ -1,4 +1,4 @@
-use std::sync::{mpsc::Receiver, Arc};
+use std::sync::{Arc, mpsc::Receiver};
 
 use font_collector::FontRepository;
 use font_rasterizer::{
@@ -12,8 +12,8 @@ use image::{DynamicImage, ImageBuffer, Rgba};
 use log::info;
 
 use crate::{
-    easing_value::EasingPointN, metrics_counter::record_start_of_phase, InputResult,
-    SimpleStateCallback,
+    InputResult, SimpleStateCallback, easing_value::EasingPointN,
+    metrics_counter::record_start_of_phase,
 };
 
 use stroke_parser::Action;
@@ -85,13 +85,13 @@ impl RenderTarget {
     }
 
     fn pre_submit(&mut self, encoder: &mut wgpu::CommandEncoder, context: &StateContext) {
-        match self {
+        match &self {
             RenderTarget::Window { .. } => {
                 // 何もしない
             }
             RenderTarget::Image {
-                ref surface_texture,
-                ref output_buffer,
+                surface_texture,
+                output_buffer,
             } => {
                 let size = context.window_size;
                 let u32_size = std::mem::size_of::<u32>() as u32;
@@ -128,9 +128,7 @@ impl RenderTarget {
                 surface_texture.take().unwrap().present();
                 RenderTargetResponse::Window
             }
-            RenderTarget::Image {
-                ref output_buffer, ..
-            } => {
+            RenderTarget::Image { output_buffer, .. } => {
                 let size = context.window_size;
                 let buffer = {
                     let buffer_slice = output_buffer.slice(..);

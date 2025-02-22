@@ -15,8 +15,9 @@ use font_rasterizer::{
     vector_instances::InstanceAttributes,
 };
 use ui_support::{
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
-    run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    run_support,
 };
 
 use log::info;
@@ -26,7 +27,6 @@ const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "support_test=debug");
     pollster::block_on(run());
 }
 

@@ -4,7 +4,7 @@ use log::debug;
 use svg::{
     node::element::{
         path::{Command, Data, Position},
-        tag::{Path, Polygon, Type, SVG},
+        tag::{Path, Polygon, SVG, Type},
     },
     parser::Event,
 };

@@ -16,8 +16,9 @@ use font_rasterizer::{
 };
 use log::info;
 use ui_support::{
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
-    run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    run_support,
 };
 use winit::event::{ElementState, MouseButton, WindowEvent};
 

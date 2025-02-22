@@ -46,7 +46,7 @@ impl SelectOption {
                             **namespace,
                             **name,
                             padding = " ".repeat(padding)
-                        )
+                        );
                     }
                 }
             }

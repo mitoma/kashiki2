@@ -11,12 +11,12 @@ mod world;
 use std::{rc::Rc, sync::Mutex};
 
 use arboard::Clipboard;
-use clap::{command, Parser};
+use clap::{Parser, command};
 use font_collector::{FontCollector, FontRepository};
 use rokid_max_ext::RokidMaxAction;
 use stroke_parser::{
-    action_store_parser::parse_setting, Action, ActionArgument, ActionStore, CommandName,
-    CommandNamespace,
+    Action, ActionArgument, ActionStore, CommandName, CommandNamespace,
+    action_store_parser::parse_setting,
 };
 use text_buffer::action::EditorOperation;
 use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld};
@@ -31,13 +31,13 @@ use font_rasterizer::{
 };
 use log::info;
 use ui_support::{
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
     action::{ActionProcessor, ActionProcessorStore},
     action_recorder::{ActionRecorder, InMemoryActionRecordRepository},
     camera::{Camera, CameraAdjustment, CameraOperation},
     layout_engine::{Model, ModelOperation, World},
     run_support,
-    ui::{caret_char, ime_chars, ImeInput},
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    ui::{ImeInput, caret_char, ime_chars},
 };
 use winit::event::WindowEvent;
 

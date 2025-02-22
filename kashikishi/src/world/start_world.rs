@@ -2,10 +2,10 @@ use std::collections::HashSet;
 
 use font_rasterizer::{context::StateContext, glyph_vertex_buffer::Direction};
 use ui_support::{
+    InputResult,
     camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, World},
     ui::{SelectBox, SelectOption},
-    InputResult,
 };
 
 use stroke_parser::Action;

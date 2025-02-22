@@ -1,6 +1,9 @@
 use showcase::run;
 
 fn main() {
-    std::env::set_var("RUST_LOG", "support_test=debug");
+    env_logger::builder()
+        .filter_module(module_path!(), log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Warn)
+        .init();
     pollster::block_on(run());
 }

@@ -5,9 +5,9 @@ use font_rasterizer::{
     glyph_vertex_buffer::Direction,
 };
 use ui_support::{
+    InputResult,
     camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, World},
-    InputResult,
 };
 
 use stroke_parser::Action;

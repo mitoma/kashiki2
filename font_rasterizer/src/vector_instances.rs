@@ -3,7 +3,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use cgmath::{num_traits::ToPrimitive, Rotation3};
+use cgmath::{Rotation3, num_traits::ToPrimitive};
 use instant::Duration;
 
 use crate::{color_theme::SolarizedColor, motion::MotionFlags, time::now_millis};

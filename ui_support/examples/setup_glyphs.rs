@@ -7,14 +7,17 @@ use font_rasterizer::{
 };
 use instant::Instant;
 use ui_support::{
-    camera::Camera, run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport, camera::Camera, run_support,
 };
 use winit::event::WindowEvent;
 
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "support_test=debug");
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
+        .init();
     pollster::block_on(run());
 }
 

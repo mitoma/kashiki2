@@ -1,8 +1,8 @@
 use std::{
     ops::Range,
     sync::{
-        mpsc::{Receiver, Sender},
         Arc,
+        mpsc::{Receiver, Sender},
     },
 };
 

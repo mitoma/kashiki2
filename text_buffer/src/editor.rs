@@ -1,6 +1,6 @@
 use std::fmt::Display;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
+use std::sync::mpsc::Sender;
 
 use super::action::*;
 use super::buffer::*;
@@ -381,11 +381,7 @@ mod tests {
     impl CharWidthResolver for TestWidthResolver {
         fn resolve_width(&self, c: char) -> usize {
             // テスト用なので雑に判定
-            if c.is_ascii() {
-                1
-            } else {
-                2
-            }
+            if c.is_ascii() { 1 } else { 2 }
         }
     }
 

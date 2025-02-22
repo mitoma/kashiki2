@@ -1,11 +1,10 @@
 use encoding_rs::{DecoderResult, MACINTOSH, UTF_16BE};
 use rustybuzz::{
-    ttf_parser::{
-        fonts_in_collection,
-        name::{Name, Names},
-        PlatformId,
-    },
     Face,
+    ttf_parser::{
+        PlatformId, fonts_in_collection,
+        name::{Name, Names},
+    },
 };
 
 #[derive(Debug, Clone, Copy)]

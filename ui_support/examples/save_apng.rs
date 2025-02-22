@@ -1,4 +1,4 @@
-use apng::{load_dynamic_image, Frame, ParallelEncoder};
+use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use font_collector::{FontCollector, FontRepository};
 use instant::Duration;
 
@@ -14,8 +14,9 @@ use font_rasterizer::{
 };
 use log::{debug, info};
 use ui_support::{
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
-    generate_image_iter, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    generate_image_iter,
 };
 use winit::event::WindowEvent;
 
@@ -23,11 +24,10 @@ use winit::event::WindowEvent;
 //const EMOJI_FONT_DATA: &[u8] = include_bytes!("font/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
-    //env_logger::init();
     pollster::block_on(run());
 }
 

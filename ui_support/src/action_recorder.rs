@@ -1,10 +1,10 @@
 use std::{collections::VecDeque, io::BufReader, path::Path, sync::LazyLock};
 
 use font_rasterizer::{context::StateContext, time::now_millis};
-use serde_jsonlines::{write_json_lines, BufReadExt};
+use serde_jsonlines::{BufReadExt, write_json_lines};
 use stroke_parser::{Action, ActionArgument, CommandName};
 
-use crate::{action::NamespaceActionProcessors, InputResult};
+use crate::{InputResult, action::NamespaceActionProcessors};
 
 const SCRIPT_NAME: &str = "record.jsonl";
 

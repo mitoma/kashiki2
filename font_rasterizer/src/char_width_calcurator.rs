@@ -134,8 +134,9 @@ mod test {
 
     #[test]
     fn get_width() {
-        std::env::set_var("RUST_LOG", "debug");
-        env_logger::try_init().unwrap_or_default();
+        let _ = env_logger::builder()
+            .filter_level(log::LevelFilter::Debug)
+            .try_init();
 
         let collector = FontCollector::default();
 

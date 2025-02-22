@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, ops::Range};
 
-use cgmath::{num_traits::ToPrimitive, Matrix4, Quaternion, Rotation3};
+use cgmath::{Matrix4, Quaternion, Rotation3, num_traits::ToPrimitive};
 use instant::Duration;
 use rand::Rng;
 use text_buffer::{

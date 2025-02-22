@@ -1,7 +1,7 @@
 use std::fs::File;
 
 use font_collector::{FontCollector, FontRepository};
-use image::{codecs::gif::GifEncoder, Delay, Frame};
+use image::{Delay, Frame, codecs::gif::GifEncoder};
 use instant::Duration;
 
 use font_rasterizer::{
@@ -14,21 +14,20 @@ use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 use ui_support::{
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
     action::ActionProcessorStore,
     camera::{Camera, CameraAdjustment},
     generate_image_iter,
     layout_engine::{DefaultWorld, ModelOperation, World},
     ui::TextEdit,
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
 };
 use winit::event::WindowEvent;
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
-    //env_logger::init();
     pollster::block_on(run());
 }
 

@@ -1,8 +1,9 @@
 use font_collector::FontRepository;
 use instant::Duration;
 use ui_support::{
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
-    run_support, Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    run_support,
 };
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -24,7 +25,10 @@ const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "support_test=debug");
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
+        .init();
     pollster::block_on(run());
 }
 

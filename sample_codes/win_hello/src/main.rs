@@ -8,7 +8,6 @@ fn main() {
 #[cfg(target_os = "windows")]
 mod windows {
     use windows::{
-        core::{factory, h, s, Result},
         Foundation::IAsyncOperation,
         Security::Credentials::{KeyCredentialCreationOption, KeyCredentialManager, UI::*},
         Win32::{
@@ -16,6 +15,7 @@ mod windows {
             System::WinRT::IUserConsentVerifierInterop,
             UI::WindowsAndMessaging::{FindWindowA, SetForegroundWindow},
         },
+        core::{Result, factory, h, s},
     };
     use winit::{
         dpi::PhysicalSize,
