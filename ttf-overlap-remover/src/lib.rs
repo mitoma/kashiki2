@@ -50,7 +50,7 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
 
 trait SegmentTrait
 where
-    Self: Sized,
+    Self: Sized + Clone,
 {
     fn endpoints(&self) -> (Point, Point);
     fn rect(&self) -> Rect;
@@ -59,6 +59,7 @@ where
     fn to_path_segment(self) -> PathSegment;
 }
 
+#[derive(Clone)]
 struct Line {
     from: Point,
     to: Point,
@@ -101,6 +102,8 @@ impl SegmentTrait for Line {
         PathSegment::Line(self)
     }
 }
+
+#[derive(Clone)]
 
 struct Quadratic {
     from: Point,
@@ -148,6 +151,8 @@ impl SegmentTrait for Quadratic {
         PathSegment::Quadratic(self)
     }
 }
+
+#[derive(Clone)]
 struct Cubic {
     from: Point,
     to: Point,
@@ -265,7 +270,7 @@ impl PathSegment {
     }
 }
 
-const EPSILON: f32 = 0.01;
+const EPSILON: f32 = 0.001;
 fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
     // 二つのセグメントが交差しているかどうかを矩形で判定
     let a_rect = a.rect();
@@ -319,53 +324,51 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(
     a: &T,
     b: &U,
 ) -> Vec<Point> {
-    if intersect.width() < EPSILON && intersect.height() < EPSILON {
-        // 重なる矩形が十分小さい場合は二次ベジェ曲線は直線とみなして交点を求める
-        let (a_from, a_to) = a.endpoints();
-        let (b_from, b_to) = b.endpoints();
-        return cross_point(
-            &PathSegment::Line(Line {
-                from: a_from,
-                to: a_to,
-            }),
-            &PathSegment::Line(Line {
-                from: b_from,
-                to: b_to,
-            }),
-        );
-    }
-    // 直線と二次ベジェ曲線の交点を近似して求める
+    let mut stack: Vec<(T, U)> = vec![(a.clone(), b.clone())];
     let mut points = Vec::new();
 
-    let (a1, a2) = a.chop_harf();
-    let (b1, b2) = b.chop_harf();
-    points.append(&mut cross_point(
-        &a1.to_path_segment(),
-        &b1.to_path_segment(),
-    ));
-    points.append(&mut cross_point(
-        &a2.to_path_segment(),
-        &b2.to_path_segment(),
-    ));
-    let (a1, a2) = a.chop_harf();
-    let (b1, b2) = b.chop_harf();
-    points.append(&mut cross_point(
-        &a1.to_path_segment(),
-        &b2.to_path_segment(),
-    ));
-    points.append(&mut cross_point(
-        &a2.to_path_segment(),
-        &b1.to_path_segment(),
-    ));
+    while let Some((a, b)) = stack.pop() {
+        let intersect = a.rect().intersect(&b.rect());
+        if let Some(intersect) = intersect {
+            // 幅もしくは高さが 0 の場合は交点なし
+            /*
+            if intersect.width().is_nearly_zero() || intersect.height().is_nearly_zero() {
+                println!("no intersect");
+                continue;
+            }
+             */
+            if intersect.width() < EPSILON && intersect.height() < EPSILON {
+                let (a_from, a_to) = a.endpoints();
+                let (b_from, b_to) = b.endpoints();
+                points.append(&mut cross_point(
+                    &PathSegment::Line(Line {
+                        from: a_from,
+                        to: a_to,
+                    }),
+                    &PathSegment::Line(Line {
+                        from: b_from,
+                        to: b_to,
+                    }),
+                ));
+            } else {
+                let (a1, a2) = a.chop_harf();
+                let (b1, b2) = b.chop_harf();
+                stack.push((a1.clone(), b1.clone()));
+                stack.push((a2.clone(), b2.clone()));
+                stack.push((a1, b2));
+                stack.push((a2, b1));
+            }
+        }
+    }
+
     points.dedup();
     points
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{f32, sync::Arc, vec};
+    use std::{f32, vec};
 
-    use font_collector::FontCollector;
     use rustybuzz::{ttf_parser::OutlineBuilder, Face};
     use tiny_skia::{Paint, Path, Pixmap};
     use tiny_skia_path::{
