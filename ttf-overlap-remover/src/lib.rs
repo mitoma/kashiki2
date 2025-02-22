@@ -273,9 +273,7 @@ impl PathSegment {
 const EPSILON: f32 = 0.001;
 fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
     // 二つのセグメントが交差しているかどうかを矩形で判定
-    let a_rect = a.rect();
-    let b_rect = b.rect();
-    let Some(intersect) = a_rect.intersect(&b_rect) else {
+    if a.rect().intersect(&b.rect()).is_none() {
         return vec![];
     };
     match (a, b) {
@@ -299,31 +297,23 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
             }
         }
         (PathSegment::Line(line), PathSegment::Quadratic(quad))
-        | (PathSegment::Quadratic(quad), PathSegment::Line(line)) => {
-            closs_point_inner(&intersect, line, quad)
-        }
+        | (PathSegment::Quadratic(quad), PathSegment::Line(line)) => closs_point_inner(line, quad),
         (PathSegment::Line(line), PathSegment::Cubic(cubic))
-        | (PathSegment::Cubic(cubic), PathSegment::Line(line)) => {
-            closs_point_inner(&intersect, line, cubic)
-        }
+        | (PathSegment::Cubic(cubic), PathSegment::Line(line)) => closs_point_inner(line, cubic),
         (PathSegment::Quadratic(quadratic), PathSegment::Cubic(cubic))
         | (PathSegment::Cubic(cubic), PathSegment::Quadratic(quadratic)) => {
-            closs_point_inner(&intersect, quadratic, cubic)
+            closs_point_inner(quadratic, cubic)
         }
         (PathSegment::Quadratic(quadratic1), PathSegment::Quadratic(quadratic2)) => {
-            closs_point_inner(&intersect, quadratic1, quadratic2)
+            closs_point_inner(quadratic1, quadratic2)
         }
         (PathSegment::Cubic(cubic1), PathSegment::Cubic(cubic2)) => {
-            closs_point_inner(&intersect, cubic1, cubic2)
+            closs_point_inner(cubic1, cubic2)
         }
     }
 }
 
-fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(
-    intersect: &Rect,
-    a: &T,
-    b: &U,
-) -> Vec<Point> {
+fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Point> {
     let mut stack: Vec<(T, U)> = vec![(a.clone(), b.clone())];
     let mut points = Vec::new();
 
