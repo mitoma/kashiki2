@@ -277,23 +277,11 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
         return vec![];
     };
     match (a, b) {
-        (
-            PathSegment::Line(Line { from: p1, to: p2 }),
-            PathSegment::Line(Line { from: p3, to: p4 }),
-        ) => {
-            // 直線同士の交点を求める
-            let denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
-            if denom == 0.0 {
-                return vec![]; // 平行な場合は交点なし
-            }
-            let ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
-            let ub = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
-            if 0.0 < ua && ua < 1.0 && 0.0 < ub && ub < 1.0 {
-                let x = p1.x + ua * (p2.x - p1.x);
-                let y = p1.y + ua * (p2.y - p1.y);
-                vec![Point::from_xy(x, y)]
+        (PathSegment::Line(a), PathSegment::Line(b)) => {
+            if let Some(point) = closs_point_line(a, b) {
+                vec![point]
             } else {
-                vec![] // 線分上に交点がない場合
+                vec![]
             }
         }
         (PathSegment::Line(line), PathSegment::Quadratic(quad))
@@ -313,6 +301,30 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
     }
 }
 
+#[inline]
+fn closs_point_line(a: &Line, b: &Line) -> Option<Point> {
+    // 直線同士の交点を求める
+    let denom =
+        (b.to.y - b.from.y) * (a.to.x - a.from.x) - (b.to.x - b.from.x) * (a.to.y - a.from.y);
+    if denom == 0.0 {
+        return None; // 平行な場合は交点なし
+    }
+    let ua = ((b.to.x - b.from.x) * (a.from.y - b.from.y)
+        - (b.to.y - b.from.y) * (a.from.x - b.from.x))
+        / denom;
+    let ub = ((a.to.x - a.from.x) * (a.from.y - b.from.y)
+        - (a.to.y - a.from.y) * (a.from.x - b.from.x))
+        / denom;
+    if 0.0 < ua && ua < 1.0 && 0.0 < ub && ub < 1.0 {
+        let x = a.from.x + ua * (a.to.x - a.from.x);
+        let y = a.from.y + ua * (a.to.y - a.from.y);
+        Some(Point::from_xy(x, y))
+    } else {
+        None // 線分上に交点がない場合
+    }
+}
+
+#[inline]
 fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Point> {
     let mut stack: Vec<(T, U)> = vec![(a.clone(), b.clone())];
     let mut points = Vec::new();
@@ -320,26 +332,21 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Poin
     while let Some((a, b)) = stack.pop() {
         let intersect = a.rect().intersect(&b.rect());
         if let Some(intersect) = intersect {
-            // 幅もしくは高さが 0 の場合は交点なし
-            /*
-            if intersect.width().is_nearly_zero() || intersect.height().is_nearly_zero() {
-                println!("no intersect");
-                continue;
-            }
-             */
             if intersect.width() < EPSILON && intersect.height() < EPSILON {
                 let (a_from, a_to) = a.endpoints();
                 let (b_from, b_to) = b.endpoints();
-                points.append(&mut cross_point(
-                    &PathSegment::Line(Line {
+                if let Some(point) = closs_point_line(
+                    &Line {
                         from: a_from,
                         to: a_to,
-                    }),
-                    &PathSegment::Line(Line {
+                    },
+                    &Line {
                         from: b_from,
                         to: b_to,
-                    }),
-                ));
+                    },
+                ) {
+                    points.push(point);
+                }
             } else {
                 let (a1, a2) = a.chop_harf();
                 let (b1, b2) = b.chop_harf();
@@ -350,7 +357,6 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Poin
             }
         }
     }
-
     points.dedup();
     points
 }
