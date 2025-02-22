@@ -10,6 +10,7 @@ mod text_instances;
 pub mod ui;
 pub mod ui_context;
 
+use log::warn;
 pub use render_state::RenderTargetResponse;
 
 use std::sync::Arc;
@@ -21,7 +22,7 @@ use font_rasterizer::{
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
-    time::{increment_fixed_clock, set_clock_mode, ClockMode},
+    time::{ClockMode, increment_fixed_clock, set_clock_mode},
 };
 use render_state::{RenderState, RenderTargetRequest};
 
@@ -73,7 +74,10 @@ pub async fn run_support(support: SimpleStateSupport) {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
             console_log::init_with_level(log::Level::Warn).expect("Could't initialize logger");
         } else {
-            env_logger::try_init().unwrap_or_default();
+            match env_logger::try_init() {
+                Ok(_) => {},
+                Err(_) => warn!("Logger is already initialized"),
+            }
             use std::io::Write;
             let default_hook = std::panic::take_hook();
             std::panic::set_hook(Box::new(move |info| {

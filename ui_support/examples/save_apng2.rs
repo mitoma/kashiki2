@@ -1,4 +1,4 @@
-use apng::{load_dynamic_image, Frame, ParallelEncoder};
+use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use font_collector::{FontCollector, FontRepository};
 use instant::Duration;
 
@@ -12,21 +12,20 @@ use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 use ui_support::{
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
     action::ActionProcessorStore,
     camera::{Camera, CameraAdjustment},
     generate_image_iter,
     layout_engine::{DefaultWorld, ModelOperation, World},
     ui::TextEdit,
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
 };
 use winit::event::WindowEvent;
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
-    //env_logger::init();
     pollster::block_on(run());
 }
 

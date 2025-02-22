@@ -7,10 +7,10 @@ use font_rasterizer::{
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
 use ui_support::{
+    InputResult,
     camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, ModelOperation, World},
     ui::TextEdit,
-    InputResult,
 };
 
 use crate::{

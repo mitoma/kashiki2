@@ -27,18 +27,20 @@ impl RokidMax {
         };
         result.reset();
         let ahrs = result.ahrs.clone();
-        let _thread = thread::spawn(move || loop {
-            thread::sleep(std::time::Duration::from_millis(10));
-            let Ok(packet) = read_packet(&device) else {
-                continue;
-            };
-            match packet {
-                RokidMaxPacket::Combined(packet) => {
-                    if let Ok(mut vqf) = ahrs.lock() {
-                        update_vqf(&mut vqf, packet);
+        let _thread = thread::spawn(move || {
+            loop {
+                thread::sleep(std::time::Duration::from_millis(10));
+                let Ok(packet) = read_packet(&device) else {
+                    continue;
+                };
+                match packet {
+                    RokidMaxPacket::Combined(packet) => {
+                        if let Ok(mut vqf) = ahrs.lock() {
+                            update_vqf(&mut vqf, packet);
+                        }
                     }
+                    _ => { /* noop */ }
                 }
-                _ => { /* noop */ }
             }
         });
         Ok(result)

@@ -12,8 +12,8 @@ use std::collections::HashSet;
 
 use font_rasterizer::context::StateContext;
 use ui_support::{
-    layout_engine::{Model, World},
     InputResult,
+    layout_engine::{Model, World},
 };
 
 use stroke_parser::Action;

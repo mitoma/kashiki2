@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use font_collector::FontData;
-use rustybuzz::{shape, ttf_parser::GlyphId, Direction, Face, UnicodeBuffer};
+use rustybuzz::{Direction, Face, UnicodeBuffer, shape, ttf_parser::GlyphId};
 
 use crate::{
     char_width_calcurator::CharWidth,

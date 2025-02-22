@@ -1,7 +1,7 @@
-use std::sync::{mpsc::Sender, Arc};
+use std::sync::{Arc, mpsc::Sender};
 
 use log::info;
-use similar::{capture_diff_slices, ChangeTag};
+use similar::{ChangeTag, capture_diff_slices};
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 

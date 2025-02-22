@@ -1,4 +1,4 @@
-use stroke_parser::{action_store_parser, Action, ActionStore};
+use stroke_parser::{Action, ActionStore, action_store_parser};
 use text_buffer::{action::EditorOperation, editor::ChangeEvent};
 use winit::{
     event::{Event, WindowEvent},

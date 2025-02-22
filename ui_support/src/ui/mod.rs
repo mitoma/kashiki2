@@ -17,7 +17,7 @@ pub use textedit::TextEdit;
 
 use std::collections::BTreeMap;
 
-use cgmath::{num_traits::ToPrimitive, Point3, Quaternion, Rotation3};
+use cgmath::{Point3, Quaternion, Rotation3, num_traits::ToPrimitive};
 use instant::Duration;
 use log::info;
 use text_buffer::caret::CaretType;

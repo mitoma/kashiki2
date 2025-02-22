@@ -1,7 +1,7 @@
-use std::sync::{mpsc::Sender, LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, mpsc::Sender};
 
 use font_collector::FontRepository;
-use stroke_parser::{action_store_parser::parse_setting, Action, ActionStore};
+use stroke_parser::{Action, ActionStore, action_store_parser::parse_setting};
 use text_buffer::action::EditorOperation;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -13,13 +13,13 @@ use font_rasterizer::{
     rasterizer_pipeline::Quarity,
 };
 use ui_support::{
+    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
     action::ActionProcessorStore,
     camera::{Camera, CameraAdjustment},
     layout_engine::{DefaultWorld, Model, World},
     run_support,
-    ui::{caret_char, ImeInput, TextEdit},
+    ui::{ImeInput, TextEdit, caret_char},
     ui_context::TextContext,
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
 };
 use winit::event::WindowEvent;
 

@@ -1,4 +1,4 @@
-use crate::{keys, pointing_device, Action, InputWithModifier, KeyBind, Stroke};
+use crate::{Action, InputWithModifier, KeyBind, Stroke, keys, pointing_device};
 
 pub fn parse_setting(setting_string: &str) -> Vec<KeyBind> {
     let mut result: Vec<KeyBind> = Vec::new();

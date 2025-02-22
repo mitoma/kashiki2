@@ -163,7 +163,7 @@ impl FontCollector {
         names
             .into_iter()
             .enumerate()
-            .find(|(_idx, name)| ref_font.map_or(true, |f_name| f_name == name))
+            .find(|(_idx, name)| ref_font.is_none_or(|f_name| f_name == name))
             .map(|(idx, name)| FontData {
                 font_name: name,
                 binary: data,
