@@ -2783,6 +2783,7 @@ name = "ttf-overlap-remover"
 version = "0.1.0"
 dependencies = [
  "font_collector",
+ "rustybuzz",
  "tiny-skia",
  "tiny-skia-path",
 ]

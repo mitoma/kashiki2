@@ -1,4 +1,4 @@
-use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Point, Rect};
+use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Path, Point, Rect};
 
 fn point_to_dot(point: Point) -> PathSegment {
     let (x, y) = (point.x, point.y);
@@ -9,6 +9,43 @@ fn point_to_dot(point: Point) -> PathSegment {
             y: y + f32::EPSILON,
         },
     })
+}
+
+fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
+    let mut results = Vec::new();
+
+    let mut start_point = Point::default();
+    for segment in path.segments() {
+        match segment {
+            tiny_skia_path::PathSegment::MoveTo(point) => start_point = point,
+            tiny_skia_path::PathSegment::LineTo(point) => {
+                results.push(PathSegment::Line(Line {
+                    from: start_point,
+                    to: point,
+                }));
+                start_point = point;
+            }
+            tiny_skia_path::PathSegment::QuadTo(point, point1) => {
+                results.push(PathSegment::Quadratic(Quadratic {
+                    from: start_point,
+                    to: point,
+                    control: point1,
+                }));
+                start_point = point;
+            }
+            tiny_skia_path::PathSegment::CubicTo(point, point1, point2) => {
+                results.push(PathSegment::Cubic(Cubic {
+                    from: start_point,
+                    to: point,
+                    control1: point1,
+                    control2: point2,
+                }));
+                start_point = point;
+            }
+            tiny_skia_path::PathSegment::Close => {}
+        }
+    }
+    results
 }
 
 trait SegmentTrait
@@ -326,14 +363,16 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(
 
 #[cfg(test)]
 mod tests {
-    use std::{f32, vec};
+    use std::{f32, sync::Arc, vec};
 
-    use tiny_skia::{Paint, Pixmap};
+    use font_collector::FontCollector;
+    use rustybuzz::{ttf_parser::OutlineBuilder, Face};
+    use tiny_skia::{Paint, Path, Pixmap};
     use tiny_skia_path::{
         path_geometry, NormalizedF32Exclusive, PathBuilder, Point, Stroke, Transform,
     };
 
-    use crate::{cross_point, Cubic, Line, PathSegment, Quadratic};
+    use crate::{cross_point, path_to_path_segments, Cubic, Line, PathSegment, Quadratic};
 
     #[test]
     fn test_cross_point_lines_intersect() {
@@ -587,7 +626,84 @@ mod tests {
         path_segments_to_image(vec![&line1, &line2], vec![]);
     }
 
+    #[test]
+    fn test_font() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index('🐢').unwrap();
+        let mut path_builder = MyPathBuilder::new();
+        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+        let paths = path_builder.paths();
+
+        let segments: Vec<PathSegment> = paths
+            .iter()
+            .map(|path| path_to_path_segments(path.clone()))
+            .flatten()
+            .collect();
+        segments
+            .iter()
+            .map(|segment| println!("{:?}", segment.endpoints()))
+            .for_each(drop);
+        println!("{:?}", segments.len());
+        path_segments_to_image(segments.iter().collect(), vec![]);
+    }
+
+    #[derive(Debug)]
+    struct MyPathBuilder {
+        builder: Option<PathBuilder>,
+        paths: Vec<Path>,
+    }
+
+    impl MyPathBuilder {
+        fn new() -> Self {
+            Self {
+                builder: Some(PathBuilder::new()),
+                paths: Vec::new(),
+            }
+        }
+
+        fn paths(self) -> Vec<Path> {
+            self.paths
+        }
+    }
+
+    impl OutlineBuilder for MyPathBuilder {
+        fn move_to(&mut self, x: f32, y: f32) {
+            println!("move to");
+            self.builder.as_mut().unwrap().move_to(x, y);
+        }
+
+        fn line_to(&mut self, x: f32, y: f32) {
+            println!("line to");
+            self.builder.as_mut().unwrap().line_to(x, y);
+        }
+
+        fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+            println!("quad to");
+            self.builder.as_mut().unwrap().quad_to(x1, y1, x, y);
+        }
+
+        fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+            println!("curve to");
+            self.builder
+                .as_mut()
+                .unwrap()
+                .cubic_to(x1, y1, x2, y2, x, y);
+        }
+
+        fn close(&mut self) {
+            println!("close");
+            let mut builder = self.builder.replace(PathBuilder::new()).unwrap();
+            builder.close();
+            self.paths.push(builder.finish().unwrap());
+        }
+    }
+
     fn path_segments_to_image(segments: Vec<&PathSegment>, dots: Vec<&Point>) {
+        let transform = Transform::identity()
+            .pre_translate(1.0, 1.0)
+            .post_scale(100.0, 100.0);
+
         let mut paint = Paint::default();
         let mut pixmap = Pixmap::new(500, 500).unwrap();
         let mut stroke = Stroke::default();
@@ -638,35 +754,11 @@ mod tests {
             };
 
             paint.set_color_rgba8(0, 127, 0, 255);
-            pixmap.stroke_path(
-                &path,
-                &paint,
-                &stroke,
-                Transform::identity()
-                    .pre_translate(1.0, 1.0)
-                    .post_scale(100.0, 100.0),
-                None,
-            );
+            pixmap.stroke_path(&path, &paint, &stroke, transform, None);
             paint.set_color_rgba8(255, 0, 0, 120);
-            pixmap.stroke_path(
-                &from_dot,
-                &paint,
-                &dot_stroke,
-                Transform::identity()
-                    .pre_translate(1.0, 1.0)
-                    .post_scale(100.0, 100.0),
-                None,
-            );
+            pixmap.stroke_path(&from_dot, &paint, &dot_stroke, transform, None);
             paint.set_color_rgba8(0, 255, 0, 120);
-            pixmap.stroke_path(
-                &to_dot,
-                &paint,
-                &dot_stroke,
-                Transform::identity()
-                    .pre_translate(1.0, 1.0)
-                    .post_scale(100.0, 100.0),
-                None,
-            );
+            pixmap.stroke_path(&to_dot, &paint, &dot_stroke, transform, None);
         }
 
         paint.set_color_rgba8(0, 0, 255, 255);
@@ -675,15 +767,7 @@ mod tests {
             dot_path.move_to(dot.x, dot.y);
             dot_path.line_to(dot.x + f32::EPSILON, dot.y + f32::EPSILON);
             let dot_path = dot_path.finish().unwrap();
-            pixmap.stroke_path(
-                &dot_path,
-                &paint,
-                &dot_stroke,
-                Transform::identity()
-                    .pre_translate(1.0, 1.0)
-                    .post_scale(100.0, 100.0),
-                None,
-            );
+            pixmap.stroke_path(&dot_path, &paint, &dot_stroke, transform, None);
         }
 
         pixmap.save_png("image.png").unwrap();
