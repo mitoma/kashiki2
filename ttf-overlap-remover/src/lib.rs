@@ -278,13 +278,6 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
             PathSegment::Line(Line { from: p1, to: p2 }),
             PathSegment::Line(Line { from: p3, to: p4 }),
         ) => {
-            /*
-            // 一方の始点と一方の終点が同じ場合は交点なしとする
-            if p1 == p4 || p2 == p3 {
-                return vec![];
-            }
-             */
-
             // 直線同士の交点を求める
             let denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
             if denom == 0.0 {
