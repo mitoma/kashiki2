@@ -52,6 +52,8 @@ trait SegmentTrait
 where
     Self: Sized + Clone,
 {
+    fn set_from(&mut self, point: Point);
+    fn set_to(&mut self, point: Point);
     fn endpoints(&self) -> (Point, Point);
     fn rect(&self) -> Rect;
     fn chop_harf(&self) -> (Self, Self);
@@ -59,13 +61,21 @@ where
     fn to_path_segment(self) -> PathSegment;
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Line {
     from: Point,
     to: Point,
 }
 
 impl SegmentTrait for Line {
+    fn set_from(&mut self, point: Point) {
+        self.from = point;
+    }
+
+    fn set_to(&mut self, point: Point) {
+        self.to = point;
+    }
+
     fn endpoints(&self) -> (Point, Point) {
         (self.from, self.to)
     }
@@ -103,7 +113,7 @@ impl SegmentTrait for Line {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 
 struct Quadratic {
     from: Point,
@@ -112,6 +122,14 @@ struct Quadratic {
 }
 
 impl SegmentTrait for Quadratic {
+    fn set_from(&mut self, point: Point) {
+        self.from = point;
+    }
+
+    fn set_to(&mut self, point: Point) {
+        self.to = point;
+    }
+
     fn endpoints(&self) -> (Point, Point) {
         (self.from, self.to)
     }
@@ -152,7 +170,7 @@ impl SegmentTrait for Quadratic {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct Cubic {
     from: Point,
     to: Point,
@@ -161,6 +179,14 @@ struct Cubic {
 }
 
 impl SegmentTrait for Cubic {
+    fn set_from(&mut self, point: Point) {
+        self.from = point;
+    }
+
+    fn set_to(&mut self, point: Point) {
+        self.to = point;
+    }
+
     fn endpoints(&self) -> (Point, Point) {
         (self.from, self.to)
     }
@@ -223,6 +249,7 @@ impl SegmentTrait for Cubic {
     }
 }
 
+#[derive(Debug, Clone)]
 enum PathSegment {
     Line(Line),
     Quadratic(Quadratic),
@@ -230,6 +257,22 @@ enum PathSegment {
 }
 
 impl PathSegment {
+    fn set_from(&mut self, point: Point) {
+        match self {
+            PathSegment::Line(line) => line.set_from(point),
+            PathSegment::Quadratic(quad) => quad.set_from(point),
+            PathSegment::Cubic(cubic) => cubic.set_from(point),
+        }
+    }
+
+    fn set_to(&mut self, point: Point) {
+        match self {
+            PathSegment::Line(line) => line.set_to(point),
+            PathSegment::Quadratic(quad) => quad.set_to(point),
+            PathSegment::Cubic(cubic) => cubic.set_to(point),
+        }
+    }
+
     fn endpoints(&self) -> (Point, Point) {
         match self {
             PathSegment::Line(line) => line.endpoints(),
@@ -275,18 +318,51 @@ fn split_line_on_cross_point(
     a: &PathSegment,
     b: &PathSegment,
 ) -> (Vec<PathSegment>, Vec<PathSegment>) {
-    todo!()
+    let cross_points = cross_point(a, b);
+    let mut a_sorted = cross_points.clone();
+    a_sorted.sort_by(|l, r| l.a_position.partial_cmp(&r.a_position).unwrap());
+    let (_, a_result, _) = a_sorted.iter().fold(
+        (a.clone(), vec![], 0.0f32),
+        |(target_path, mut result, consumed), cp| {
+            let length = 1.0 - consumed;
+            let next_gain = cp.a_position - consumed;
+            let chop_point = next_gain / length;
+            let (mut pre, mut post) = target_path.chop(chop_point);
+            // 単に chop しただけだと誤差の都合で導出した交点と一致しない場合があるので、導出した交点に置き換える
+            pre.set_to(cp.point);
+            post.set_from(cp.point);
+            result.push(pre);
+            (post, result, consumed + cp.a_position)
+        },
+    );
+    let mut b_sorted = cross_points.clone();
+    b_sorted.sort_by(|l, r| l.b_position.partial_cmp(&r.b_position).unwrap());
+    let (_, b_result, _) = b_sorted.iter().fold(
+        (b.clone(), vec![], 0.0f32),
+        |(target_path, mut result, consumed), cp| {
+            let length = 1.0 - consumed;
+            let next_gain = cp.b_position - consumed;
+            let chop_point = next_gain / length;
+            let (mut pre, mut post) = target_path.chop(chop_point);
+            // 単に chop しただけだと誤差の都合で導出した交点と一致しない場合があるので、導出した交点に置き換える
+            pre.set_to(cp.point);
+            post.set_from(cp.point);
+            result.push(pre);
+            (post, result, consumed + cp.b_position)
+        },
+    );
+    (a_result, b_result)
 }
 
 const EPSILON: f32 = 0.001;
-fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
+fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<CrossPoint> {
     // 二つのセグメントが交差しているかどうかを矩形で判定
     if a.rect().intersect(&b.rect()).is_none() {
         return vec![];
     };
     let result = match (a, b) {
         (PathSegment::Line(a), PathSegment::Line(b)) => {
-            if let Some(point) = closs_point_line(a, b) {
+            if let Some(point) = cross_point_line(a, b) {
                 vec![point]
             } else {
                 vec![]
@@ -307,9 +383,10 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<Point> {
             closs_point_inner(cubic1, cubic2)
         }
     };
-    result.iter().map(|point| point.point).collect()
+    result
 }
 
+#[derive(Debug, Clone)]
 struct CrossPoint {
     point: Point,
     // 交点が線分のどの位置にあるかを示す。0.0 から 1.0 の範囲で示す
@@ -318,7 +395,7 @@ struct CrossPoint {
 }
 
 #[inline]
-fn closs_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
+fn cross_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
     // 直線同士の交点を求める
     let denom =
         (b.to.y - b.from.y) * (a.to.x - a.from.x) - (b.to.x - b.from.x) * (a.to.y - a.from.y);
@@ -346,12 +423,6 @@ fn closs_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
 
 #[inline]
 fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<CrossPoint> {
-    // depth = 0, 0.0 - 1.0 がそのまま反映される
-    // depth = 1, 0.0 - 1.0 が半分になる
-    // depth = 2, 0.0 - 1.0 が 1/4 になる
-    // [from, center] と [center, to] に分割する
-    //
-
     struct StackItem<T, U> {
         a: T,
         a_position: f32,
@@ -383,7 +454,7 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Cros
                 let gain = 1.0 / (2u32.pow(depth) as f32);
                 let (a_from, a_to) = a.endpoints();
                 let (b_from, b_to) = b.endpoints();
-                if let Some(point) = closs_point_line(
+                if let Some(point) = cross_point_line(
                     &Line {
                         from: a_from,
                         to: a_to,
@@ -449,8 +520,8 @@ mod tests {
     };
 
     use crate::{
-        closs_point_line, cross_point, path_to_path_segments, Cubic, Line, PathSegment, Quadratic,
-        EPSILON,
+        cross_point, cross_point_line, path_to_path_segments, split_line_on_cross_point, Cubic,
+        Line, PathSegment, Quadratic, EPSILON,
     };
 
     #[test]
@@ -465,7 +536,7 @@ mod tests {
 
         let result = cross_point(&segment1, &segment2);
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0], Point::from_xy(1.0, 1.0));
+        assert_eq!(result[0].point, Point::from_xy(1.0, 1.0));
     }
 
     #[test]
@@ -536,8 +607,8 @@ mod tests {
         println!("{:?}", result);
         assert_eq!(result.len(), 1);
         let intersection = Point::from_xy(1.0, 1.0);
-        assert!((result[0].x - intersection.x).abs() < 0.01);
-        assert!((result[0].y - intersection.y).abs() < 0.01);
+        assert!((result[0].point.x - intersection.x).abs() < 0.01);
+        assert!((result[0].point.y - intersection.y).abs() < 0.01);
     }
 
     #[test]
@@ -578,11 +649,14 @@ mod tests {
         });
 
         let result = cross_point(&segment1, &segment2);
-        path_segments_to_image(vec![&segment1, &segment2], result.iter().collect());
+        path_segments_to_image(
+            vec![&segment1, &segment2],
+            result.iter().map(|cp| &cp.point).collect(),
+        );
         assert_eq!(result.len(), 1);
         let intersection = Point::from_xy(0.5, 1.0);
-        assert!((result[0] - intersection).x < 0.01);
-        assert!((result[0] - intersection).y < 0.01);
+        assert!((result[0].point - intersection).x < 0.01);
+        assert!((result[0].point - intersection).y < 0.01);
     }
 
     #[test]
@@ -603,7 +677,10 @@ mod tests {
         });
 
         let result = cross_point(&line_seg, &cubic_seg);
-        path_segments_to_image(vec![&line_seg, &cubic_seg], result.iter().collect());
+        path_segments_to_image(
+            vec![&line_seg, &cubic_seg],
+            result.iter().map(|cp| &cp.point).collect(),
+        );
         assert_eq!(result.len(), 3);
     }
 
@@ -632,7 +709,10 @@ mod tests {
         });
 
         let result = cross_point(&cubic_seg1, &cubic_seg2);
-        path_segments_to_image(vec![&cubic_seg1, &cubic_seg2], result.iter().collect());
+        path_segments_to_image(
+            vec![&cubic_seg1, &cubic_seg2],
+            result.iter().map(|cp| &cp.point).collect(),
+        );
         assert_eq!(result.len(), 2);
     }
 
@@ -734,7 +814,36 @@ mod tests {
                 }
             }
         }
-        path_segments_to_image(segments.iter().collect(), dots.iter().collect());
+        path_segments_to_image(
+            segments.iter().collect(),
+            dots.iter().map(|cp| &cp.point).collect(),
+        );
+    }
+
+    #[test]
+    fn test_quad_quad() {
+        let quad_seg1 = PathSegment::Quadratic(Quadratic {
+            from: Point::from_xy(0.0, 0.0),
+            to: Point::from_xy(2.0, 2.0),
+            control: Point::from_xy(1.5, 2.0),
+        });
+
+        let quad_seg2 = PathSegment::Quadratic(Quadratic {
+            from: Point::from_xy(0.0, 2.0),
+            to: Point::from_xy(2.0, 0.0),
+            control: Point::from_xy(0.5, 0.0),
+        });
+
+        path_segments_to_image(vec![&quad_seg1, &quad_seg2], vec![]);
+        let (split1, split2) = split_line_on_cross_point(&quad_seg1, &quad_seg2);
+        let mut result_seg = vec![];
+        result_seg.extend(split1.iter());
+        result_seg.extend(split2.iter());
+        path_segments_to_image(result_seg, vec![]);
+        println!("{:?}", split1);
+        println!("{:?}", split2);
+        assert_eq!(split1.len(), 2);
+        assert_eq!(split2.len(), 2);
     }
 
     #[derive(Debug)]
@@ -936,7 +1045,7 @@ mod tests {
             to: Point::from_xy(3.0, 0.0),
         };
 
-        let result = closs_point_line(&line1, &line2);
+        let result = cross_point_line(&line1, &line2);
 
         assert!(result.is_some());
         let cross_point = result.unwrap();
@@ -962,7 +1071,7 @@ mod tests {
             to: Point::from_xy(2.0, 3.0),
         };
 
-        let result = closs_point_line(&line1, &line2);
+        let result = cross_point_line(&line1, &line2);
         assert!(result.is_none());
     }
 
@@ -977,7 +1086,7 @@ mod tests {
             to: Point::from_xy(3.0, 3.0),
         };
 
-        let result = closs_point_line(&line1, &line2);
+        let result = cross_point_line(&line1, &line2);
         assert!(result.is_none());
     }
 }
