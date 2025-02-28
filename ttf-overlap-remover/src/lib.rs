@@ -346,12 +346,21 @@ impl PathSegment {
     }
 }
 
+// TODO
+fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
+    todo!()
+}
+
 // 二つのセグメントが交差しているかを判定し、交差している場合はその交差点で二つのセグメントとをそれぞれ分割する
 fn split_line_on_cross_point(
     a: &PathSegment,
     b: &PathSegment,
-) -> (Vec<PathSegment>, Vec<PathSegment>) {
+) -> Option<(Vec<PathSegment>, Vec<PathSegment>)> {
     let cross_points = cross_point(a, b);
+    if cross_points.is_empty() {
+        return None;
+    }
+
     let mut a_sorted = cross_points.clone();
     a_sorted.sort_by(|l, r| l.a_position.partial_cmp(&r.a_position).unwrap());
     let (mut a_result, last, _) = a_sorted.iter().fold(
@@ -387,7 +396,7 @@ fn split_line_on_cross_point(
     );
     b_result.push(last);
 
-    (a_result, b_result)
+    Some((a_result, b_result))
 }
 
 const EPSILON: f32 = 0.001;
@@ -547,7 +556,7 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Cros
 
 #[cfg(test)]
 mod tests {
-    use std::{f32, vec};
+    use std::{collections::HashSet, f32, vec};
 
     use rustybuzz::{ttf_parser::OutlineBuilder, Face};
     use tiny_skia::{Paint, Path, Pixmap};
@@ -872,7 +881,7 @@ mod tests {
             control: Point::from_xy(0.5, 0.0),
         });
 
-        let (split1, split2) = split_line_on_cross_point(&quad_seg1, &quad_seg2);
+        let (split1, split2) = split_line_on_cross_point(&quad_seg1, &quad_seg2).unwrap();
         let mut result_seg = vec![];
         result_seg.extend(split1.iter());
         result_seg.extend(split2.iter());
@@ -915,7 +924,7 @@ mod tests {
             control2: c2,
         });
 
-        let (split1, split2) = split_line_on_cross_point(&cubic_seg1, &cubic_seg2);
+        let (split1, split2) = split_line_on_cross_point(&cubic_seg1, &cubic_seg2).unwrap();
         let mut result_seg = vec![];
         result_seg.extend(split1.iter());
         result_seg.extend(split2.iter());
