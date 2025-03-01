@@ -63,6 +63,8 @@ where
     fn chop_harf(&self) -> (Self, Self);
     fn chop(&self, position: f32) -> (Self, Self);
     fn to_path_segment(self) -> PathSegment;
+    fn reverse(&self) -> Self;
+    fn is_same_or_reversed(&self, other: Self) -> bool;
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -121,6 +123,17 @@ impl SegmentTrait for Line {
 
     fn to_path_segment(self) -> PathSegment {
         PathSegment::Line(self)
+    }
+
+    fn reverse(&self) -> Self {
+        Line {
+            from: self.to,
+            to: self.from,
+        }
+    }
+
+    fn is_same_or_reversed(&self, other: Self) -> bool {
+        self == &other || self == &other.reverse()
     }
 }
 
@@ -186,6 +199,18 @@ impl SegmentTrait for Quadratic {
 
     fn to_path_segment(self) -> PathSegment {
         PathSegment::Quadratic(self)
+    }
+
+    fn reverse(&self) -> Self {
+        Quadratic {
+            from: self.to,
+            to: self.from,
+            control: self.control,
+        }
+    }
+
+    fn is_same_or_reversed(&self, other: Self) -> bool {
+        self == &other || self == &other.reverse()
     }
 }
 
@@ -275,6 +300,19 @@ impl SegmentTrait for Cubic {
     fn to_path_segment(self) -> PathSegment {
         PathSegment::Cubic(self)
     }
+
+    fn reverse(&self) -> Self {
+        Cubic {
+            from: self.to,
+            to: self.from,
+            control1: self.control2,
+            control2: self.control1,
+        }
+    }
+
+    fn is_same_or_reversed(&self, other: Self) -> bool {
+        self == &other || self == &other.reverse()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -345,6 +383,31 @@ impl PathSegment {
                 let (cubic1, cubic2) = cubic.chop(position);
                 (PathSegment::Cubic(cubic1), PathSegment::Cubic(cubic2))
             }
+        }
+    }
+
+    fn reverse(&self) -> Self {
+        match self {
+            PathSegment::Line(line) => PathSegment::Line(line.reverse()),
+            PathSegment::Quadratic(quad) => PathSegment::Quadratic(quad.reverse()),
+            PathSegment::Cubic(cubic) => PathSegment::Cubic(cubic.reverse()),
+        }
+    }
+
+    fn is_same_or_reversed(&self, other: Self) -> bool {
+        match self {
+            PathSegment::Line(line) => line.is_same_or_reversed(match other {
+                PathSegment::Line(line) => line,
+                _ => return false,
+            }),
+            PathSegment::Quadratic(quad) => quad.is_same_or_reversed(match other {
+                PathSegment::Quadratic(quad) => quad,
+                _ => return false,
+            }),
+            PathSegment::Cubic(cubic) => cubic.is_same_or_reversed(match other {
+                PathSegment::Cubic(cubic) => cubic,
+                _ => return false,
+            }),
         }
     }
 }
