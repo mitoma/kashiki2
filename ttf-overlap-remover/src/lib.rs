@@ -53,7 +53,7 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
 // PathSegment に備わっていてほしい共通操作を集めた trait
 trait SegmentTrait
 where
-    Self: Sized + Clone,
+    Self: Sized + PartialEq + Clone,
 {
     fn move_to(&self, point: Point) -> Self;
     fn set_from(&mut self, point: Point);
@@ -65,7 +65,7 @@ where
     fn to_path_segment(self) -> PathSegment;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct Line {
     from: Point,
     to: Point,
@@ -124,7 +124,7 @@ impl SegmentTrait for Line {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 
 struct Quadratic {
     from: Point,
@@ -189,7 +189,7 @@ impl SegmentTrait for Quadratic {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct Cubic {
     from: Point,
     to: Point,
@@ -277,7 +277,7 @@ impl SegmentTrait for Cubic {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum PathSegment {
     Line(Line),
     Quadratic(Quadratic),
@@ -349,10 +349,90 @@ impl PathSegment {
     }
 }
 
+/// overlap が含まれる path を受け取り、overlap を除去した path を返す
+pub fn remove_overlap(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
+    // Path を全て PathFlagment に分解し、交差部分でセグメントを分割する
+    let path_segments = paths
+        .iter()
+        .map(|path| path_to_path_segments(path.clone()))
+        .flatten();
+    let path_segments = split_all_paths(path_segments.collect());
+    println!("最初のセグメント数: {:?}", path_segments.len());
+
+    // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
+    let mut result_paths: Vec<Vec<PathSegment>> = Vec::new();
+    for segment in path_segments.clone() {
+        // 既にパス候補に含まれているセグメントであればスキップ
+        for result_segment in result_paths.iter().flatten() {
+            if result_segment == &segment {
+                continue;
+            }
+        }
+
+        let mut current_segment = segment.clone();
+        let mut current_path = Vec::new();
+        current_path.push(current_segment.clone());
+        loop {
+            // 次のパスになりうるセグメントを探す(current の to が next の from と一致するセグメント)
+            let mut nexts: Vec<PathSegment> = path_segments
+                .iter()
+                .filter(|s| *s != &current_segment)
+                .filter(|s| {
+                    let (_, current_to) = current_segment.endpoints();
+                    let (next_from, _) = s.endpoints();
+                    current_to == next_from
+                })
+                .cloned()
+                .collect();
+            if nexts.is_empty() {
+                // 次のパスになりうるセグメントが見つからない場合、閉じていない Path だった可能性もあるのでまぁいいかという感じで次のセグメントに進む
+                continue;
+            }
+
+            // 現在のセグメントの進行方向から、最も左向きのベクトルを持つセグメントを次のセグメントとして選択する
+            // current のベクトルと次の候補ベクトルの外積を計算し、最も小さい値を持つベクトルを選択する
+            nexts.sort_by(|l, r| {
+                let (current_from, current_to) = segment.endpoints();
+                let (next_from1, next_to1) = l.endpoints();
+                let (next_from2, next_to2) = r.endpoints();
+                // current のベクトルは接する向きが逆なので、逆ベクトルを計算する
+                let v1 = current_from - current_to;
+                let v2 = next_to1 - next_from1;
+                let v3 = next_to2 - next_from2;
+                // v1 と v2 の外積を計算する
+                let cross1 = v1.cross(v2);
+                let cross2 = v1.cross(v3);
+                cross1.partial_cmp(&cross2).unwrap()
+            });
+            current_segment = nexts.first().unwrap().clone();
+            current_path.push(current_segment.clone());
+            if let Some(path_closed_num) = current_path
+                .iter()
+                .position(|s| s.endpoints().0 == current_segment.endpoints().1)
+            {
+                result_paths.push(current_path.split_off(path_closed_num));
+                current_path = Vec::new();
+                break;
+            }
+        }
+    }
+    result_paths
+}
+
+/// 末尾にループが発生している時にループの開始位置を返す関数。
+fn has_vector_tail_loop<T: PartialEq>(value: &Vec<T>) -> Option<usize> {
+    let len = value.len();
+    for i in 1..len {
+        if value[len - i..] == value[..i] {
+            return Some(len - i);
+        }
+    }
+    None
+}
+
 fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
     let mut paths = paths.clone();
     let mut result = Vec::new();
-    let mut debug_counter = 0;
 
     let mut has_cross = true;
     while has_cross {
@@ -603,8 +683,7 @@ mod tests {
     };
 
     use crate::{
-        cross_point, cross_point_line, path_to_path_segments, split_all_paths,
-        split_line_on_cross_point, Cubic, Line, PathSegment, Quadratic, EPSILON,
+        cross_point, cross_point_line, has_vector_tail_loop, path_to_path_segments, remove_overlap, split_all_paths, split_line_on_cross_point, Cubic, Line, PathSegment, Quadratic, EPSILON
     };
 
     #[test]
@@ -911,21 +990,9 @@ mod tests {
         let mut path_builder = MyPathBuilder::new();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
+        let segments: Vec<PathSegment> = remove_overlap(paths).into_iter().flatten().collect();
 
-        let segments: Vec<PathSegment> = paths
-            .iter()
-            .map(|path| path_to_path_segments(path.clone()))
-            .flatten()
-            .collect();
-
-        let splitted_paths = split_all_paths(segments);
-        let splitted_paths: Vec<_> = splitted_paths
-            .iter()
-            .enumerate()
-            .map(|(i, segment)| segment.move_to(Point::from_xy(0.0, i as f32 * 1.0)))
-            .collect();
-
-        path_segments_to_image(splitted_paths.iter().collect(), vec![]);
+        path_segments_to_image(segments.iter().collect(), vec![]);
     }
 
     // split のテスト
@@ -1381,5 +1448,21 @@ mod tests {
 
         let result = cross_point_line(&line1, &line2);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_has_vector_tail_loop() {
+        // 例) vec![1,2,3,4,5] の場合ループが発生していないため None を返す。
+        {
+            let sut = vec![1, 2, 3, 4, 5];
+            let result = has_vector_tail_loop(&sut);
+            assert_eq!(result, None);
+        }
+        // 例) vec![1,2,3,4,5,6,4,5,6] の場合、末尾からみてループの開始場所のインデックス Some(6) を返す。
+        {
+            let sut = vec![1, 2, 3, 4, 5, 6, 4, 5, 6];
+            let result = has_vector_tail_loop(&sut);
+            assert_eq!(result, Some(6));
+        }
     }
 }
