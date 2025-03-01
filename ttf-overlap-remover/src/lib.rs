@@ -363,10 +363,8 @@ pub fn remove_overlap(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
     let mut result_paths: Vec<Vec<PathSegment>> = Vec::new();
     for segment in path_segments.clone() {
         // 既にパス候補に含まれているセグメントであればスキップ
-        for result_segment in result_paths.iter().flatten() {
-            if result_segment == &segment {
-                continue;
-            }
+        if result_paths.iter().flatten().any(|s| s == &segment) {
+            continue;
         }
 
         let mut current_segment = segment.clone();
@@ -396,22 +394,24 @@ pub fn remove_overlap(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
                 let (next_from1, next_to1) = l.endpoints();
                 let (next_from2, next_to2) = r.endpoints();
                 // current のベクトルは接する向きが逆なので、逆ベクトルを計算する
-                let v1 = current_from - current_to;
-                let v2 = next_to1 - next_from1;
-                let v3 = next_to2 - next_from2;
+                let mut v1 = current_from - current_to;
+                let mut v2 = next_to1 - next_from1;
+                let mut v3 = next_to2 - next_from2;
+                v1.normalize();
+                v2.normalize();
+                v3.normalize();
                 // v1 と v2 の外積を計算する
                 let cross1 = v1.cross(v2);
                 let cross2 = v1.cross(v3);
                 cross1.partial_cmp(&cross2).unwrap()
             });
-            current_segment = nexts.first().unwrap().clone();
+            current_segment = nexts.last().unwrap().clone();
             current_path.push(current_segment.clone());
-            if let Some(path_closed_num) = current_path
-                .iter()
-                .position(|s| s.endpoints().0 == current_segment.endpoints().1)
-            {
-                result_paths.push(current_path.split_off(path_closed_num));
-                current_path = Vec::new();
+            if let Some(loop_position) = has_vector_tail_loop(&current_path) {
+                // 既にパス候補に含まれているセグメントであればスキップ
+                if result_paths.iter().flatten().all(|s| s != &current_segment) {
+                    result_paths.push(current_path.split_off(loop_position));
+                }
                 break;
             }
         }
@@ -994,9 +994,12 @@ mod tests {
         let mut path_builder = MyPathBuilder::new();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
-        let segments: Vec<PathSegment> = remove_overlap(paths).into_iter().flatten().collect();
+        let segments = remove_overlap(paths);
 
-        path_segments_to_image(segments.iter().collect(), vec![]);
+        path_segments_to_images(999, segments.iter().flatten().collect(), vec![]);
+        segments.into_iter().enumerate().for_each(|(i, segments)| {
+            path_segments_to_images(i, segments.iter().collect(), vec![]);
+        });
     }
 
     // split のテスト
@@ -1324,6 +1327,10 @@ mod tests {
     }
 
     fn path_segments_to_image(segments: Vec<&PathSegment>, dots: Vec<&Point>) {
+        path_segments_to_images(0, segments, dots);
+    }
+
+    fn path_segments_to_images(i: usize, segments: Vec<&PathSegment>, dots: Vec<&Point>) {
         let canvas_size = 500.0;
         let (transform, scale) = calc_transform(canvas_size, &segments, &dots);
         let scale_unit = 1.0 / scale;
@@ -1395,7 +1402,7 @@ mod tests {
             pixmap.stroke_path(&dot_path, &paint, &dot_stroke, transform, None);
         }
 
-        pixmap.save_png("image.png").unwrap();
+        pixmap.save_png(format!("image/image_{}.png", i)).unwrap();
     }
 
     #[test]
