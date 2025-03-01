@@ -1,5 +1,6 @@
 use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Path, Point, Rect};
 
+/// Point を PathSegment に変換する
 fn point_to_dot(point: Point) -> PathSegment {
     let (x, y) = (point.x, point.y);
     PathSegment::Line(Line {
@@ -11,6 +12,7 @@ fn point_to_dot(point: Point) -> PathSegment {
     })
 }
 
+/// Path を PathSegment に変換する
 fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
     let mut results = Vec::new();
 
@@ -48,6 +50,7 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
     results
 }
 
+// PathSegment に備わっていてほしい共通操作を集めた trait
 trait SegmentTrait
 where
     Self: Sized + Clone,
@@ -346,9 +349,36 @@ impl PathSegment {
     }
 }
 
-// TODO
 fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
-    todo!()
+    let mut paths = paths.clone();
+    let mut result = Vec::new();
+    let mut debug_counter = 0;
+
+    let mut has_cross = true;
+    while has_cross {
+        'outer: {
+            for i in 0..paths.len() {
+                for j in i + 1..paths.len() {
+                    println!("{} {}", i, j);
+                    if let Some((a, b)) = split_line_on_cross_point(&paths[i], &paths[j]) {
+                        has_cross = true;
+                        result.extend(a);
+                        result.extend(b);
+                        if i + 1 != j {
+                            result.extend_from_slice(paths[i + 1..j].as_ref());
+                        }
+                        result.extend_from_slice(paths[j + 1..].as_ref());
+                        paths = result;
+                        result = Vec::new();
+                        break 'outer;
+                    }
+                }
+                result.push(paths[i].clone());
+            }
+            has_cross = false;
+        }
+    }
+    result
 }
 
 // 二つのセグメントが交差しているかを判定し、交差している場合はその交差点で二つのセグメントとをそれぞれ分割する
@@ -356,7 +386,14 @@ fn split_line_on_cross_point(
     a: &PathSegment,
     b: &PathSegment,
 ) -> Option<(Vec<PathSegment>, Vec<PathSegment>)> {
-    let cross_points = cross_point(a, b);
+    let cross_points = cross_point(a, b)
+        .into_iter()
+        // 端点同士が交点となる場合は分割対象外
+        .filter(|cp| {
+            !([0.0, 1.0].contains(&cp.a_position.abs())
+                && [0.0, 1.0].contains(&cp.b_position.abs()))
+        })
+        .collect::<Vec<_>>();
     if cross_points.is_empty() {
         return None;
     }
@@ -369,6 +406,7 @@ fn split_line_on_cross_point(
             let length = 1.0 - consumed;
             let next_gain = cp.a_position - consumed;
             let chop_point = next_gain / length;
+            println!("chop_point: {}", chop_point);
             let (mut pre, mut post) = target_path.chop(chop_point);
             // 単に chop しただけだと誤差の都合で導出した交点と一致しない場合があるので、導出した交点に置き換える
             pre.set_to(cp.point);
@@ -413,13 +451,15 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<CrossPoint> {
                 vec![]
             }
         }
-        (PathSegment::Line(line), PathSegment::Quadratic(quad))
-        | (PathSegment::Quadratic(quad), PathSegment::Line(line)) => closs_point_inner(line, quad),
-        (PathSegment::Line(line), PathSegment::Cubic(cubic))
-        | (PathSegment::Cubic(cubic), PathSegment::Line(line)) => closs_point_inner(line, cubic),
-        (PathSegment::Quadratic(quadratic), PathSegment::Cubic(cubic))
-        | (PathSegment::Cubic(cubic), PathSegment::Quadratic(quadratic)) => {
+        (PathSegment::Line(line), PathSegment::Quadratic(quad)) => closs_point_inner(line, quad),
+        (PathSegment::Quadratic(quad), PathSegment::Line(line)) => closs_point_inner(quad, line),
+        (PathSegment::Line(line), PathSegment::Cubic(cubic)) => closs_point_inner(line, cubic),
+        (PathSegment::Cubic(cubic), PathSegment::Line(line)) => closs_point_inner(cubic, line),
+        (PathSegment::Quadratic(quadratic), PathSegment::Cubic(cubic)) => {
             closs_point_inner(quadratic, cubic)
+        }
+        (PathSegment::Cubic(cubic), PathSegment::Quadratic(quadratic)) => {
+            closs_point_inner(cubic, quadratic)
         }
         (PathSegment::Quadratic(quadratic1), PathSegment::Quadratic(quadratic2)) => {
             closs_point_inner(quadratic1, quadratic2)
@@ -556,7 +596,7 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Cros
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, f32, vec};
+    use std::{f32, vec};
 
     use rustybuzz::{ttf_parser::OutlineBuilder, Face};
     use tiny_skia::{Paint, Path, Pixmap};
@@ -565,8 +605,8 @@ mod tests {
     };
 
     use crate::{
-        cross_point, cross_point_line, path_to_path_segments, split_line_on_cross_point, Cubic,
-        Line, PathSegment, Quadratic, EPSILON,
+        cross_point, cross_point_line, path_to_path_segments, split_all_paths,
+        split_line_on_cross_point, Cubic, Line, PathSegment, Quadratic, EPSILON,
     };
 
     #[test]
@@ -933,13 +973,147 @@ mod tests {
 
         let moved_result: Vec<PathSegment> = result_seg
             .iter()
-            .map(|seg| seg.move_to(Point::from_xy(0.0, 2.0)))
+            .enumerate()
+            .map(|(i, seg)| {
+                seg.move_to(Point::from_xy(
+                    0.0,
+                    2.0 + if i % 2 == 0 { 0.1 } else { 0.0 },
+                ))
+            })
             .collect();
 
         let mut draw_vec = vec![&cubic_seg1, &cubic_seg2];
         draw_vec.extend(moved_result.iter());
 
         path_segments_to_image(draw_vec, vec![]);
+    }
+
+    #[test]
+    fn test_split_cubic_cubic2() {
+        let p1 = Point::from_xy(0.0, 2.0);
+        let p2 = Point::from_xy(2.0, 2.0);
+        let c1 = Point::from_xy(0.5, 2.0);
+        let c2 = Point::from_xy(1.7, 0.0);
+        let cubic_seg1 = PathSegment::Cubic(Cubic {
+            from: p1,
+            to: p2,
+            control1: c1,
+            control2: c2,
+        });
+
+        let p1 = Point::from_xy(0.0, 1.0);
+        let p2 = Point::from_xy(2.0, 1.0);
+        let c1 = Point::from_xy(0.5, 0.0);
+        let c2 = Point::from_xy(1.7, 2.0);
+        let cubic_seg2 = PathSegment::Cubic(Cubic {
+            from: p1,
+            to: p2,
+            control1: c1,
+            control2: c2,
+        });
+
+        let (split1, split2) = split_line_on_cross_point(&cubic_seg1, &cubic_seg2).unwrap();
+        let mut result_seg = vec![];
+        result_seg.extend(split1.iter());
+        result_seg.extend(split2.iter());
+        assert_eq!(result_seg.len(), 6);
+
+        for i in 0..result_seg.len() {
+            for j in i + 1..result_seg.len() {
+                let result = cross_point(&result_seg[i], &result_seg[j]);
+
+                result.iter().for_each(|cp| {
+                    println!("{:?}", cp);
+                });
+            }
+        }
+    }
+
+    #[test]
+    fn test_split_all_paths() {
+        env_logger::builder().is_test(true).try_init().unwrap();
+        let p1 = Point::from_xy(0.0, 2.0);
+        let p2 = Point::from_xy(2.0, 2.0);
+        let c1 = Point::from_xy(0.5, 2.0);
+        let c2 = Point::from_xy(1.7, 0.0);
+        let cubic_seg1 = PathSegment::Cubic(Cubic {
+            from: p1,
+            to: p2,
+            control1: c1,
+            control2: c2,
+        });
+
+        let p1 = Point::from_xy(0.0, 1.0);
+        let p2 = Point::from_xy(2.0, 1.0);
+        let c1 = Point::from_xy(0.5, 0.0);
+        let c2 = Point::from_xy(1.7, 2.0);
+        let cubic_seg2 = PathSegment::Cubic(Cubic {
+            from: p1,
+            to: p2,
+            control1: c1,
+            control2: c2,
+        });
+
+        let line_seg1 = PathSegment::Line(Line {
+            from: Point::from_xy(0.0, 0.0),
+            to: Point::from_xy(2.0, 2.0),
+        });
+
+        let mut draw_seg = vec![];
+        let segments = vec![cubic_seg1, cubic_seg2, line_seg1];
+
+        draw_seg.extend(segments.iter());
+        let result = split_all_paths(segments.clone());
+
+        let moved_result: Vec<PathSegment> = result
+            .iter()
+            .enumerate()
+            .map(|(i, seg)| seg.move_to(Point::from_xy(0.0, 3.0)))
+            .collect();
+
+        draw_seg.extend(moved_result.iter());
+
+        path_segments_to_image(draw_seg, vec![]);
+        assert_eq!(result.len(), 11);
+    }
+
+    #[test]
+    fn test_split_all_paths2() {
+        let line_seg1 = PathSegment::Line(Line {
+            from: Point::from_xy(1.0, 0.0),
+            to: Point::from_xy(1.0, 4.0),
+        });
+        let line_seg2 = PathSegment::Line(Line {
+            from: Point::from_xy(3.0, 0.0),
+            to: Point::from_xy(3.0, 4.0),
+        });
+        let line_seg3 = PathSegment::Cubic(Cubic {
+            from: Point::from_xy(0.0, 1.0),
+            to: Point::from_xy(4.0, 1.0),
+            control1: Point::from_xy(1.0, 0.0),
+            control2: Point::from_xy(3.0, 10.0),
+        });
+        let line_seg4 = PathSegment::Line(Line {
+            from: Point::from_xy(0.0, 3.0),
+            to: Point::from_xy(4.0, 3.0),
+        });
+
+        let mut draw_seg = vec![];
+        let segments = vec![line_seg3, line_seg1, line_seg2, line_seg4];
+
+        draw_seg.extend(segments.iter());
+        let result = split_all_paths(segments.clone());
+
+        let moved_result: Vec<PathSegment> = result
+            .iter()
+            .enumerate()
+            .map(|(i, seg)| seg.move_to(Point::from_xy(0.0, 5.0)))
+            .collect();
+
+        draw_seg.extend(moved_result.iter());
+
+        path_segments_to_image(draw_seg, vec![]);
+        assert_eq!(result.len(), 12);
     }
 
     #[derive(Debug)]

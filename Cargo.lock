@@ -2782,7 +2782,9 @@ checksum = "e672c95779cf947c5311f83787af4fa8fffd12fb27e4993211a84bdfd9610f9c"
 name = "ttf-overlap-remover"
 version = "0.1.0"
 dependencies = [
+ "env_logger",
  "font_collector",
+ "log",
  "rustybuzz",
  "tiny-skia",
  "tiny-skia-path",
