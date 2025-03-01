@@ -359,7 +359,6 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
         'outer: {
             for i in 0..paths.len() {
                 for j in i + 1..paths.len() {
-                    println!("{} {}", i, j);
                     if let Some((a, b)) = split_line_on_cross_point(&paths[i], &paths[j]) {
                         has_cross = true;
                         result.extend(a);
@@ -406,7 +405,6 @@ fn split_line_on_cross_point(
             let length = 1.0 - consumed;
             let next_gain = cp.a_position - consumed;
             let chop_point = next_gain / length;
-            println!("chop_point: {}", chop_point);
             let (mut pre, mut post) = target_path.chop(chop_point);
             // 単に chop しただけだと誤差の都合で導出した交点と一致しない場合があるので、導出した交点に置き換える
             pre.set_to(cp.point);
@@ -903,6 +901,31 @@ mod tests {
             segments.iter().collect(),
             dots.iter().map(|cp| &cp.point).collect(),
         );
+    }
+
+    #[test]
+    fn test_font2() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index('🐢').unwrap();
+        let mut path_builder = MyPathBuilder::new();
+        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+        let paths = path_builder.paths();
+
+        let segments: Vec<PathSegment> = paths
+            .iter()
+            .map(|path| path_to_path_segments(path.clone()))
+            .flatten()
+            .collect();
+
+        let splitted_paths = split_all_paths(segments);
+        let splitted_paths: Vec<_> = splitted_paths
+            .iter()
+            .enumerate()
+            .map(|(i, segment)| segment.move_to(Point::from_xy(0.0, i as f32 * 1.0)))
+            .collect();
+
+        path_segments_to_image(splitted_paths.iter().collect(), vec![]);
     }
 
     // split のテスト
