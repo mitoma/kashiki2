@@ -423,8 +423,11 @@ pub fn remove_overlap(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
 fn has_vector_tail_loop<T: PartialEq>(value: &Vec<T>) -> Option<usize> {
     let len = value.len();
     for i in 1..len {
-        if value[len - i..] == value[..i] {
-            return Some(len - i);
+        if len < (1 + i) * 2 {
+            break;
+        }
+        if value[len - 1 - i..] == value[len - ((1 + i) * 2)..(len - (1 + i))] {
+            return Some(len - 1 - i);
         }
     }
     None
@@ -683,7 +686,8 @@ mod tests {
     };
 
     use crate::{
-        cross_point, cross_point_line, has_vector_tail_loop, path_to_path_segments, remove_overlap, split_all_paths, split_line_on_cross_point, Cubic, Line, PathSegment, Quadratic, EPSILON
+        cross_point, cross_point_line, has_vector_tail_loop, path_to_path_segments, remove_overlap,
+        split_all_paths, split_line_on_cross_point, Cubic, Line, PathSegment, Quadratic, EPSILON,
     };
 
     #[test]
@@ -1463,6 +1467,11 @@ mod tests {
             let sut = vec![1, 2, 3, 4, 5, 6, 4, 5, 6];
             let result = has_vector_tail_loop(&sut);
             assert_eq!(result, Some(6));
+        }
+        {
+            let sut = vec!['h', 'o', 'g', 'e', 'o', 'g', 'e'];
+            let result = has_vector_tail_loop(&sut);
+            assert_eq!(result, Some(4));
         }
     }
 }
