@@ -437,8 +437,7 @@ pub fn remove_overlap(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
     // Path を全て PathFlagment に分解し、交差部分でセグメントを分割する
     let path_segments = paths
         .iter()
-        .map(|path| path_to_path_segments(path.clone()))
-        .flatten();
+        .flat_map(|path| path_to_path_segments(path.clone()));
     let path_segments = split_all_paths(path_segments.collect());
     println!("最初のセグメント数: {:?}", path_segments.len());
     remove_overlap_inner(path_segments)
@@ -448,8 +447,7 @@ pub fn remove_overlap_rev(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
     // Path を全て PathFlagment に分解し、交差部分でセグメントを分割する
     let path_segments = paths
         .iter()
-        .map(|path| path_to_path_segments(path.clone()))
-        .flatten()
+        .flat_map(|path| path_to_path_segments(path.clone()))
         //.map(|s| s.reverse())
         .rev();
     let path_segments = split_all_paths(path_segments.collect());
@@ -658,7 +656,8 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<CrossPoint> {
     if a.rect().intersect(&b.rect()).is_none() {
         return vec![];
     };
-    let result = match (a, b) {
+    
+    match (a, b) {
         (PathSegment::Line(a), PathSegment::Line(b)) => {
             if let Some(point) = cross_point_line(a, b) {
                 vec![point]
@@ -682,8 +681,7 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<CrossPoint> {
         (PathSegment::Cubic(cubic1), PathSegment::Cubic(cubic2)) => {
             closs_point_inner(cubic1, cubic2)
         }
-    };
-    result
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -708,7 +706,7 @@ fn cross_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
     let ub = ((a.to.x - a.from.x) * (a.from.y - b.from.y)
         - (a.to.y - a.from.y) * (a.from.x - b.from.x))
         / denom;
-    if 0.0 <= ua && ua < 1.0 && 0.0 <= ub && ub < 1.0 {
+    if (0.0..1.0).contains(&ua) && (0.0..1.0).contains(&ub) {
         let x = a.from.x + ua * (a.to.x - a.from.x);
         let y = a.from.y + ua * (a.to.y - a.from.y);
         Some(CrossPoint {
@@ -1030,7 +1028,7 @@ mod tests {
         let mut result: [Point; 5] = Default::default();
         let center = NormalizedF32Exclusive::new_bounded(0.5);
 
-        let _ = path_geometry::chop_quad_at(&arg, center, &mut result);
+        path_geometry::chop_quad_at(&arg, center, &mut result);
         let pre = PathSegment::Quadratic(Quadratic {
             from: result[0],
             to: result[2],
@@ -1094,8 +1092,7 @@ mod tests {
 
         let segments: Vec<PathSegment> = paths
             .iter()
-            .map(|path| path_to_path_segments(path.clone()))
-            .flatten()
+            .flat_map(|path| path_to_path_segments(path.clone()))
             .collect();
         segments
             .iter()
@@ -1131,8 +1128,7 @@ mod tests {
             // オリジナル
             let segments: Vec<PathSegment> = paths
                 .iter()
-                .map(|p| path_to_path_segments(p.clone()))
-                .flatten()
+                .flat_map(|p| path_to_path_segments(p.clone()))
                 .collect();
             path_segments_to_images(10000, segments.iter().collect(), vec![]);
         }
@@ -1268,7 +1264,7 @@ mod tests {
 
         for i in 0..result_seg.len() {
             for j in i + 1..result_seg.len() {
-                let result = cross_point(&result_seg[i], &result_seg[j]);
+                let result = cross_point(result_seg[i], result_seg[j]);
 
                 result.iter().for_each(|cp| {
                     println!("{:?}", cp);

@@ -1,4 +1,4 @@
-use tiny_skia::{Paint, PathBuilder, PathStroker, Pixmap, Stroke, Transform};
+use tiny_skia::{Paint, PathBuilder, Pixmap, Stroke, Transform};
 
 fn main() {
     let path = {
