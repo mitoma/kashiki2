@@ -412,6 +412,24 @@ impl PathSegment {
     }
 }
 
+fn is_closed(segments: &Vec<PathSegment>) -> bool {
+    if segments.is_empty() {
+        return false;
+    }
+    let first = segments.first().unwrap().endpoints().0;
+    let last = segments.last().unwrap().endpoints().1;
+    first == last
+}
+
+fn is_clockwise(segments: &Vec<PathSegment>) -> bool {
+    let mut sum = 0.0;
+    for segment in segments {
+        let (from, to) = segment.endpoints();
+        sum += (to.x - from.x) * (to.y + from.y);
+    }
+    sum > 0.0
+}
+
 pub fn remove_overlap(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
     // Path を全て PathFlagment に分解し、交差部分でセグメントを分割する
     let path_segments = paths
@@ -429,7 +447,7 @@ pub fn remove_overlap_rev(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
         .iter()
         .map(|path| path_to_path_segments(path.clone()))
         .flatten()
-        .map(|s| s.reverse())
+        //.map(|s| s.reverse())
         .rev();
     let path_segments = split_all_paths(path_segments.collect());
     println!("最初のセグメント数: {:?}", path_segments.len());
@@ -1108,12 +1126,31 @@ mod tests {
         let mut path_builder = MyPathBuilder::new();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
-        let segments = remove_overlap(paths);
 
-        path_segments_to_images(999, segments.iter().flatten().collect(), vec![]);
-        segments.into_iter().enumerate().for_each(|(i, segments)| {
-            path_segments_to_images(i, segments.iter().collect(), vec![]);
-        });
+        {
+            // オリジナル
+            let segments: Vec<PathSegment> = paths
+                .iter()
+                .map(|p| path_to_path_segments(p.clone()))
+                .flatten()
+                .collect();
+            path_segments_to_images(10000, segments.iter().collect(), vec![]);
+        }
+        {
+            let segments = remove_overlap(paths.clone());
+            path_segments_to_images(9998, segments.iter().flatten().collect(), vec![]);
+            segments.into_iter().enumerate().for_each(|(i, segments)| {
+                path_segments_to_images(i, segments.iter().collect(), vec![]);
+            });
+        }
+        {
+            let segments = remove_overlap_rev(paths.clone());
+
+            path_segments_to_images(9999, segments.iter().flatten().collect(), vec![]);
+            segments.into_iter().enumerate().for_each(|(i, segments)| {
+                path_segments_to_images(i + 1000, segments.iter().collect(), vec![]);
+            });
+        }
     }
 
     // split のテスト
