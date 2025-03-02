@@ -135,9 +135,11 @@ pub(crate) fn path_segments_to_images(i: usize, segments: Vec<&PathSegment>, dot
     stroke.width = scale_unit;
     paint.anti_alias = true;
 
-    let mut dot_stroke = Stroke::default();
-    dot_stroke.width = scale_unit * 5.0;
-    dot_stroke.line_cap = tiny_skia::LineCap::Round;
+    let dot_stroke = Stroke {
+        width: scale_unit * 5.0,
+        line_cap: tiny_skia::LineCap::Round,
+        ..Default::default()
+    };
 
     for segment in segments {
         let (from, to) = segment.endpoints();
