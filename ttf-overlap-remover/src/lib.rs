@@ -584,10 +584,9 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
         }
     }
 
-    result_paths
+    //result_paths
     // TODO おそらくここで、右回転のパスなのに関わらず左回転のパスと接しているパスを除外するとよい
-    /*
-    let clickwise: Vec<Vec<PathSegment>> = result_paths
+    let clockwise: Vec<Vec<PathSegment>> = result_paths
         .iter()
         .cloned()
         .filter(|segments| is_clockwise(segments))
@@ -597,8 +596,56 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
         .cloned()
         .filter(|segments| !is_clockwise(segments))
         .collect();
-    filtered
-     */
+
+    let clockwise_points = clockwise
+        .iter()
+        .flat_map(|segments| {
+            segments
+                .iter()
+                .flat_map(|segment| {
+                    let (f, t) = segment.endpoints();
+                    [f]
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let counter_clockwise_points = counter_clockwise
+        .iter()
+        .flat_map(|segments| {
+            segments
+                .iter()
+                .flat_map(|segment| {
+                    let (f, t) = segment.endpoints();
+                    [f]
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let mut filterd_clockwise: Vec<Vec<PathSegment>> = clockwise
+        .iter()
+        .cloned()
+        .filter(|segments| {
+            segments.iter().all(|segment| {
+                let (f, t) = segment.endpoints();
+                !counter_clockwise_points.contains(&f) && !counter_clockwise_points.contains(&t)
+            })
+        })
+        .collect();
+    let filterd_counter_clockwise: Vec<Vec<PathSegment>> = counter_clockwise
+        .iter()
+        .cloned()
+        .filter(|segments| {
+            segments.iter().all(|segment| {
+                let (f, t) = segment.endpoints();
+                !clockwise_points.contains(&f) && !clockwise_points.contains(&t)
+            })
+        })
+        .collect();
+
+    filterd_clockwise.extend(counter_clockwise);
+    filterd_clockwise
 }
 
 /// 末尾にループが発生している時にループの開始位置を返す関数。
@@ -1192,15 +1239,6 @@ mod tests {
                 //println!("{:?}", segments);
                 //}
                 path_segments_to_images(i, segments.iter().collect(), vec![]);
-            });
-        }
-
-        {
-            let segments = remove_overlap_rev(paths.clone());
-
-            path_segments_to_images(9999, segments.iter().flatten().collect(), vec![]);
-            segments.into_iter().enumerate().for_each(|(i, segments)| {
-                path_segments_to_images(i + 1000, segments.iter().collect(), vec![]);
             });
         }
     }
