@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Path, Point, Rect};
 
 /// Point を PathSegment に変換する
