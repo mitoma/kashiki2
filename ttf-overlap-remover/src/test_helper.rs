@@ -127,7 +127,7 @@ pub(crate) fn path_segments_to_images(i: usize, segments: Vec<&PathSegment>, dot
     let canvas_size = 500.0;
     let (transform, scale) = calc_transform(canvas_size, &segments, &dots);
     let scale_unit = 1.0 / scale;
-    println!("scale: {}, scale_unit: {}", scale, scale_unit);
+    //println!("scale: {}, scale_unit: {}", scale, scale_unit);
 
     let mut paint = Paint::default();
     let mut pixmap = Pixmap::new(canvas_size as u32, canvas_size as u32).unwrap();

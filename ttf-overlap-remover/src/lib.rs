@@ -1,9 +1,11 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::collections::HashMap;
 
 use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Path, Point, Rect};
+use util::cmp_clockwise;
 
 #[cfg(test)]
 mod test_helper;
+mod util;
 
 /// Point を PathSegment に変換する
 fn point_to_dot(point: Point) -> PathSegment {
@@ -70,6 +72,8 @@ where
     fn to_path_segment(self) -> PathSegment;
     fn reverse(&self) -> Self;
     fn is_same_or_reversed(&self, other: &Self) -> bool;
+    fn from_vector(&self) -> Point;
+    fn to_vector(&self) -> Point;
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -139,6 +143,14 @@ impl SegmentTrait for Line {
 
     fn is_same_or_reversed(&self, other: &Self) -> bool {
         self == other || self == &other.reverse()
+    }
+
+    fn from_vector(&self) -> Point {
+        self.to - self.from
+    }
+
+    fn to_vector(&self) -> Point {
+        self.to - self.from
     }
 }
 
@@ -216,6 +228,14 @@ impl SegmentTrait for Quadratic {
 
     fn is_same_or_reversed(&self, other: &Self) -> bool {
         self == other || self == &other.reverse()
+    }
+
+    fn from_vector(&self) -> Point {
+        self.control - self.from
+    }
+
+    fn to_vector(&self) -> Point {
+        self.to - self.control
     }
 }
 
@@ -318,6 +338,14 @@ impl SegmentTrait for Cubic {
     fn is_same_or_reversed(&self, other: &Self) -> bool {
         self == other || self == &other.reverse()
     }
+
+    fn from_vector(&self) -> Point {
+        self.control1 - self.from
+    }
+
+    fn to_vector(&self) -> Point {
+        self.to - self.control2
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -415,15 +443,40 @@ impl PathSegment {
             }),
         }
     }
+
+    fn from_vector(&self) -> Point {
+        match self {
+            PathSegment::Line(line) => line.from_vector(),
+            PathSegment::Quadratic(quad) => quad.from_vector(),
+            PathSegment::Cubic(cubic) => cubic.from_vector(),
+        }
+    }
+    fn to_vector(&self) -> Point {
+        match self {
+            PathSegment::Line(line) => line.to_vector(),
+            PathSegment::Quadratic(quad) => quad.to_vector(),
+            PathSegment::Cubic(cubic) => cubic.to_vector(),
+        }
+    }
 }
 
+#[inline]
 fn is_closed(segments: &Vec<PathSegment>) -> bool {
     if segments.is_empty() {
         return false;
     }
-    let first = segments.first().unwrap().endpoints().0;
-    let last = segments.last().unwrap().endpoints().1;
-    first == last
+
+    if !segments.windows(2).all(|segs| {
+        let (_, first_to) = segs[0].endpoints();
+        let (last_from, _) = segs[1].endpoints();
+        first_to == last_from
+    }) {
+        return false;
+    }
+
+    let (first_from, _) = segments.first().unwrap().endpoints();
+    let (_, last_to) = segments.last().unwrap().endpoints();
+    first_from == last_to
 }
 
 fn is_clockwise(segments: &Vec<PathSegment>) -> bool {
@@ -477,8 +530,7 @@ pub fn remove_overlap_rev(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
     remove_overlap_inner(path_segments)
 }
 
-/// overlap が含まれる path を受け取り、overlap を除去した path を返す
-pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegment>> {
+fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Vec<PathSegment>> {
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
     let mut result_paths: Vec<Vec<PathSegment>> = Vec::new();
     for segment in path_segments.clone() {
@@ -498,56 +550,44 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
             // 次のパスになりうるセグメントを探す(current の to が next の from または to と一致するセグメント)
             let mut nexts: Vec<PathSegment> = path_segments
                 .iter()
+                // 今のセグメントと同一または逆向きのセグメントは除外
                 .filter(|s| !s.is_same_or_reversed(&current_segment))
-                .filter(|s| {
+                // 今のセグメントと繋がるパスを絞り込む
+                .flat_map(|s| {
                     let (_, current_to) = current_segment.endpoints();
                     let (next_from, next_to) = s.endpoints();
-                    current_to == next_from // || current_to == next_to
-                })
-                .cloned()
-                .map(|s| {
-                    let (_, current_to) = current_segment.endpoints();
-                    let (next_from, _) = s.endpoints();
                     if current_to == next_from {
-                        s
+                        Some(s.clone())
+                    } else if current_to == next_to {
+                        Some(s.reverse())
                     } else {
-                        s.reverse()
+                        None
                     }
+                })
+                // 今のパスに含まれている逆向きのセグメントは除外
+                .filter(|s| {
+                    let rev = s.reverse();
+                    current_path.iter().all(|cs| cs != &rev)
                 })
                 .collect();
             if nexts.is_empty() {
                 // 次のパスになりうるセグメントが見つからない場合、閉じていない Path だった可能性もあるのでまぁいいかという感じで次のセグメントに進む
-                continue;
+                break;
             }
 
             // 現在のセグメントの進行方向から、最も左向きのベクトルを持つセグメントを次のセグメントとして選択する
-            // current のベクトルと次の候補ベクトルの外積を計算し、最も小さい値を持つベクトルを選択する
             nexts.sort_by(|l, r| {
-                let (current_from, current_to) = segment.endpoints();
-                let (next_from1, next_to1) = l.endpoints();
-                let (next_from2, next_to2) = r.endpoints();
-                let v1 = current_from - current_to;
-                let v2 = next_to1 - next_from1;
-                let v3 = next_to2 - next_from2;
-                // v1 と v2 の外積を計算する
-                let cross1 = v1.cross(v2);
-                let cross2 = v1.cross(v3);
-                let dot1 = v1.dot(v2);
-                let dot2 = v1.dot(v3);
-                if dot1 >= 0.0 && dot2 >= 0.0 {
-                    cross1.partial_cmp(&cross2).unwrap()
-                } else if dot1 < 0.0 && dot2 < 0.0 {
-                    cross2.partial_cmp(&cross1).unwrap()
-                } else if dot1 < 0.0 {
-                    Ordering::Less
-                } else if dot2 < 0.0 {
-                    Ordering::Greater
-                } else {
-                    Ordering::Equal
-                }
+                let v1 = -segment.to_vector();
+                let v2 = l.from_vector();
+                let v3 = r.from_vector();
+                cmp_clockwise(&v1, &v2, &v3)
             });
-            current_segment = nexts.first().unwrap().clone();
-            //current_segment = nexts.last().unwrap().clone();
+            if clock_wise {
+                current_segment = nexts.first().unwrap().clone();
+            } else {
+                current_segment = nexts.last().unwrap().clone();
+            }
+
             current_path.push(current_segment.clone());
             if let Some(loop_position) = has_vector_tail_loop(&current_path) {
                 let created_path = current_path.split_off(loop_position);
@@ -567,23 +607,18 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
                     println!("同じパスが既に存在しているのでスキップ");
                     break;
                 }
-
-                // 既にパス候補に含まれているエンドポイントであればスキップ
-                /*if !created_path.iter().any(|cs| {
-                    result_paths.iter().flatten().any(|s| {
-                        let (from, to) = s.endpoints();
-                        let (cs_from, cs_to) = cs.endpoints();
-                        [from, to].contains(&cs_from) || [from, to].contains(&cs_to)
-                    })
-                })*/
-                {
-                    result_paths.push(created_path);
-                }
-                break;
+                result_paths.push(created_path);
             }
         }
     }
+    result_paths
+}
 
+/// overlap が含まれる path を受け取り、overlap を除去した path を返す
+pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegment>> {
+    // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
+    let mut result_paths = get_loop_segment(reverse(&path_segments), true);
+    //result_paths.extend(get_loop_segment(reverse(&path_segments), false));
     //result_paths
     // TODO おそらくここで、右回転のパスなのに関わらず左回転のパスと接しているパスを除外するとよい
     let clockwise: Vec<Vec<PathSegment>> = result_paths
@@ -596,6 +631,9 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
         .cloned()
         .filter(|segments| !is_clockwise(segments))
         .collect();
+
+    counter_clockwise
+    /*
 
     let clockwise_points = clockwise
         .iter()
@@ -644,8 +682,9 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
         })
         .collect();
 
-    filterd_clockwise.extend(counter_clockwise);
+    filterd_clockwise.extend(filterd_counter_clockwise);
     filterd_clockwise
+     */
 }
 
 /// 末尾にループが発生している時にループの開始位置を返す関数。
@@ -907,14 +946,15 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Cros
 #[cfg(test)]
 mod tests {
 
-    use std::f32::consts::PI;
+    use std::{cmp::Ordering, f32::consts::PI};
 
     use rustybuzz::Face;
     use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Point};
 
     use crate::{
-        cross_point, cross_point_line, has_vector_tail_loop, path_to_path_segments, remove_overlap,
-        remove_overlap_rev, split_all_paths, split_line_on_cross_point,
+        cross_point, cross_point_line, has_vector_tail_loop, is_clockwise, is_closed,
+        path_to_path_segments, remove_overlap, remove_overlap_rev, reverse, same_path,
+        split_all_paths, split_line_on_cross_point,
         test_helper::{path_segments_to_image, path_segments_to_images, TestPathBuilder},
         Cubic, Line, PathSegment, Quadratic, EPSILON,
     };
@@ -1235,9 +1275,13 @@ mod tests {
             let segments = remove_overlap(paths.clone());
             path_segments_to_images(9998, segments.iter().flatten().collect(), vec![]);
             segments.into_iter().enumerate().for_each(|(i, segments)| {
-                //if [0, 7].contains(&i) {
-                //println!("{:?}", segments);
-                //}
+                println!(
+                    "num:{}, clockwise:{}, is_clsed:{}, len:{}",
+                    i,
+                    is_clockwise(&segments),
+                    is_closed(&segments),
+                    segments.len()
+                );
                 path_segments_to_images(i, segments.iter().collect(), vec![]);
             });
         }
@@ -1536,20 +1580,6 @@ mod tests {
         let span = 20;
         {
             let p1: Point = (1.0, 0.0).into();
-            for i in 0..span {
-                let step = 2.0 * PI * i as f32 / span as f32;
-                let mut p2: Point = (step.cos(), step.sin()).into();
-                println!(
-                    "外積: {:+.3},\t内積: {:+.3}, {:?}",
-                    p1.cross(p2),
-                    p1.dot(p2),
-                    p2
-                );
-            }
-        }
-        println!("-------------------");
-        {
-            let p1: Point = (0.0, 1.0).into();
             for i in 0..span {
                 let step = 2.0 * PI * i as f32 / span as f32;
                 let mut p2: Point = (step.cos(), step.sin()).into();

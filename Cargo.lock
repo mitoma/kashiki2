@@ -2785,6 +2785,7 @@ dependencies = [
  "env_logger",
  "font_collector",
  "log",
+ "rand",
  "rustybuzz",
  "tiny-skia",
  "tiny-skia-path",
