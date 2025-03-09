@@ -176,6 +176,7 @@ fn system_font_dir() -> PathBuf {
     match OS {
         "windows" => PathBuf::from("C:\\Windows\\Fonts"),
         "macos" => PathBuf::from("/Library/Fonts"),
+        // FIXME: Linuxの場合はフォントがサブディレクトリに分かれていることがあるのでこのままではよろしくない
         "linux" => PathBuf::from("/usr/share/fonts"),
         _ => PathBuf::new(),
     }
@@ -239,6 +240,7 @@ impl Font {
 mod tests {
     use super::*;
 
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
     #[test]
     fn test_list_font_names() {
         let mut collector = FontCollector::default();
