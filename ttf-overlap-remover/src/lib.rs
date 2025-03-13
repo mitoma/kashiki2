@@ -57,6 +57,14 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
     results
 }
 
+/// Vec<Path> を PathSegment に変換する
+fn paths_to_path_segments(paths: &Vec<Path>) -> Vec<PathSegment> {
+    paths
+        .iter()
+        .flat_map(|path| path_to_path_segments(path.clone()))
+        .collect()
+}
+
 // PathSegment に備わっていてほしい共通操作を集めた trait
 trait SegmentTrait
 where
@@ -535,14 +543,6 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Ve
     let mut result_paths: Vec<Vec<PathSegment>> = Vec::new();
     for segment in path_segments.clone() {
         // 既にパス候補に含まれているセグメントであればスキップ
-        if result_paths
-            .iter()
-            .flatten()
-            .any(|s| s.is_same_or_reversed(&segment))
-        {
-            //continue;
-        }
-
         let mut current_segment = segment.clone();
         let mut current_path = Vec::new();
         current_path.push(current_segment.clone());
@@ -564,7 +564,7 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Ve
                         None
                     }
                 })
-                // 今のパスに含まれている逆向きのセグメントは除外
+                // 今のパスに含まれているセグメントと逆向きのセグメントは除外
                 .filter(|s| {
                     let rev = s.reverse();
                     current_path.iter().all(|cs| cs != &rev)
@@ -577,7 +577,7 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Ve
 
             // 現在のセグメントの進行方向から、最も左向きのベクトルを持つセグメントを次のセグメントとして選択する
             nexts.sort_by(|l, r| {
-                let v1 = -segment.to_vector();
+                let v1 = -current_segment.to_vector();
                 let v2 = l.from_vector();
                 let v3 = r.from_vector();
                 cmp_clockwise(&v1, &v2, &v3)
@@ -600,14 +600,13 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Ve
                     created_path.len()
                 );
 
-                let has_same_path = result_paths
-                    .iter()
-                    .any(|s| same_path(&created_path, s) || same_path(&reverse(&created_path), s));
+                let has_same_path = result_paths.iter().any(|s| same_path(&created_path, s));
                 if has_same_path {
                     println!("同じパスが既に存在しているのでスキップ");
                     break;
                 }
                 result_paths.push(created_path);
+                break;
             }
         }
     }
@@ -617,23 +616,23 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Ve
 /// overlap が含まれる path を受け取り、overlap を除去した path を返す
 pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegment>> {
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
-    let mut result_paths = get_loop_segment(reverse(&path_segments), true);
+    //let mut result_paths = get_loop_segment(path_segments.clone(), true);
     //result_paths.extend(get_loop_segment(reverse(&path_segments), false));
-    //result_paths
+    let mut result_paths = get_loop_segment(path_segments.clone(), false);
+
     // TODO おそらくここで、右回転のパスなのに関わらず左回転のパスと接しているパスを除外するとよい
-    let clockwise: Vec<Vec<PathSegment>> = result_paths
+    let mut clockwise: Vec<Vec<PathSegment>> = result_paths
         .iter()
         .cloned()
         .filter(|segments| is_clockwise(segments))
         .collect();
-    let counter_clockwise: Vec<Vec<PathSegment>> = result_paths
+    let  rev_clockwise: Vec<Vec<PathSegment>> = result_paths
         .iter()
         .cloned()
         .filter(|segments| !is_clockwise(segments))
         .collect();
-
-    counter_clockwise
-    /*
+    println!("時計回りのパス数: {:?}", clockwise.len());
+    println!("反時計回りのパス数: {:?}", rev_clockwise.len());
 
     let clockwise_points = clockwise
         .iter()
@@ -648,7 +647,7 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
         })
         .collect::<Vec<_>>();
 
-    let counter_clockwise_points = counter_clockwise
+    let rev_clockwise_points = rev_clockwise
         .iter()
         .flat_map(|segments| {
             segments
@@ -667,11 +666,11 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
         .filter(|segments| {
             segments.iter().all(|segment| {
                 let (f, t) = segment.endpoints();
-                !counter_clockwise_points.contains(&f) && !counter_clockwise_points.contains(&t)
+                !rev_clockwise_points.contains(&f) && !rev_clockwise_points.contains(&t)
             })
         })
         .collect();
-    let filterd_counter_clockwise: Vec<Vec<PathSegment>> = counter_clockwise
+    let filterd_counter_clockwise: Vec<Vec<PathSegment>> = rev_clockwise
         .iter()
         .cloned()
         .filter(|segments| {
@@ -682,9 +681,10 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
         })
         .collect();
 
-    filterd_clockwise.extend(filterd_counter_clockwise);
-    filterd_clockwise
-     */
+    clockwise.extend(filterd_counter_clockwise);
+    clockwise
+
+    //filterd_clockwise.extend(filterd_counter_clockwise);
 }
 
 /// 末尾にループが発生している時にループの開始位置を返す関数。
@@ -692,7 +692,7 @@ fn has_vector_tail_loop<T: PartialEq>(value: &Vec<T>) -> Option<usize> {
     let len = value.len();
     for i in 1..len {
         if len < (1 + i) * 2 {
-            break;
+            continue;
         }
         if value[len - 1 - i..] == value[len - ((1 + i) * 2)..(len - (1 + i))] {
             return Some(len - 1 - i);
@@ -946,15 +946,16 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Cros
 #[cfg(test)]
 mod tests {
 
-    use std::{cmp::Ordering, f32::consts::PI};
+    use std::{cmp::Ordering, f32::consts::PI, fs::File};
 
-    use rustybuzz::Face;
+    use rustybuzz::{ttf_parser::OutlineBuilder, Face};
+    use tiny_skia::Path;
     use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Point};
 
     use crate::{
-        cross_point, cross_point_line, has_vector_tail_loop, is_clockwise, is_closed,
-        path_to_path_segments, remove_overlap, remove_overlap_rev, reverse, same_path,
-        split_all_paths, split_line_on_cross_point,
+        cross_point, cross_point_line, get_loop_segment, has_vector_tail_loop, is_clockwise,
+        is_closed, path_to_path_segments, paths_to_path_segments, remove_overlap,
+        remove_overlap_rev, reverse, same_path, split_all_paths, split_line_on_cross_point,
         test_helper::{path_segments_to_image, path_segments_to_images, TestPathBuilder},
         Cubic, Line, PathSegment, Quadratic, EPSILON,
     };
@@ -1255,7 +1256,7 @@ mod tests {
     }
 
     #[test]
-    fn test_font2() {
+    fn test_turtle() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
         let glyph_id = face.glyph_index('🐢').unwrap();
@@ -1263,17 +1264,125 @@ mod tests {
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
 
+        visualize_paths(paths);
+    }
+
+    #[test]
+    fn test_pig() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index('🐖').unwrap();
+        let mut path_builder = TestPathBuilder::new();
+        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+        let paths = path_builder.paths();
+
+        visualize_paths(paths);
+    }
+
+    #[test]
+    fn test_man() {
+        let mut path_builder = TestPathBuilder::new();
+        path_builder.move_to(1.0, 0.0);
+        path_builder.line_to(2.0, 0.0);
+        path_builder.line_to(2.0, 3.0);
+        path_builder.line_to(1.0, 3.0);
+        path_builder.line_to(1.0, 0.0);
+        path_builder.close();
+        path_builder.move_to(0.0, 1.0);
+        path_builder.line_to(0.0, 2.0);
+        path_builder.line_to(3.0, 2.0);
+        path_builder.line_to(3.0, 1.0);
+        path_builder.line_to(0.0, 1.0);
+        path_builder.close();
+
+        let paths = path_builder.paths();
+
+        visualize_paths(paths);
+    }
+
+    fn visualize_paths(paths: Vec<Path>) {
+        let image_dir_path = std::path::Path::new("image");
+        if !image_dir_path.exists() {
+            std::fs::create_dir(image_dir_path).unwrap();
+        }
+        image_dir_path.read_dir().unwrap().for_each(|entry| {
+            if let Ok(entry) = entry {
+                entry
+                    .path()
+                    .extension()
+                    .and_then(|ext| if ext == "png" { Some(entry) } else { None })
+                    .map(|f| {
+                        let _ = std::fs::remove_file(f.path());
+                    });
+            }
+        });
+
+        let segments = paths_to_path_segments(&paths);
+        let segments = split_all_paths(segments);
+
+        let no_zero_segment = segments.iter().all(|seg| {
+            let (f, t) = seg.endpoints();
+            f != t
+        });
+
         {
             // オリジナル
-            let segments: Vec<PathSegment> = paths
-                .iter()
-                .flat_map(|p| path_to_path_segments(p.clone()))
-                .collect();
-            path_segments_to_images(10000, segments.iter().collect(), vec![]);
+            path_segments_to_images("origin", segments.iter().collect(), vec![]);
         }
         {
+            // 時計回りでループを取得
+            let clockwise = get_loop_segment(segments.clone(), true);
+            clockwise.into_iter().enumerate().for_each(|(i, segments)| {
+                path_segments_to_images(
+                    &format!("clockwise_{}_{}", i, is_clockwise(&segments)),
+                    segments.iter().collect(),
+                    vec![],
+                );
+            });
+
+            // 反時計回りでループを取得
+            let counter_clockwise = get_loop_segment(segments.clone(), false);
+            counter_clockwise
+                .into_iter()
+                .enumerate()
+                .for_each(|(i, segments)| {
+                    path_segments_to_images(
+                        &format!("counter_clockwise_{}_{}", i, is_clockwise(&segments)),
+                        segments.iter().collect(),
+                        vec![],
+                    );
+                });
+        }
+
+        {
+            let segments = reverse(&segments);
+            // 時計回りでループを取得
+            let clockwise = get_loop_segment(segments.clone(), true);
+            clockwise.into_iter().enumerate().for_each(|(i, segments)| {
+                path_segments_to_images(
+                    &format!("rev_clockwise_{}", i),
+                    segments.iter().collect(),
+                    vec![],
+                );
+            });
+
+            // 反時計回りでループを取得
+            let counter_clockwise = get_loop_segment(segments.clone(), false);
+            counter_clockwise
+                .into_iter()
+                .enumerate()
+                .for_each(|(i, segments)| {
+                    path_segments_to_images(
+                        &format!("rev_counter_clockwise_{}", i),
+                        segments.iter().collect(),
+                        vec![],
+                    );
+                });
+        }
+
+        {
             let segments = remove_overlap(paths.clone());
-            path_segments_to_images(9998, segments.iter().flatten().collect(), vec![]);
+            path_segments_to_images("generated", segments.iter().flatten().collect(), vec![]);
             segments.into_iter().enumerate().for_each(|(i, segments)| {
                 println!(
                     "num:{}, clockwise:{}, is_clsed:{}, len:{}",
@@ -1282,9 +1391,14 @@ mod tests {
                     is_closed(&segments),
                     segments.len()
                 );
-                path_segments_to_images(i, segments.iter().collect(), vec![]);
+                path_segments_to_images(
+                    &format!("remove_overlap_{}_{}", i, is_clockwise(&segments)),
+                    segments.iter().collect(),
+                    vec![],
+                );
             });
         }
+        println!("no_zero_segment: {}", no_zero_segment);
     }
 
     // split のテスト

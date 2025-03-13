@@ -120,10 +120,10 @@ fn calc_transform(
 }
 
 pub(crate) fn path_segments_to_image(segments: Vec<&PathSegment>, dots: Vec<&Point>) {
-    path_segments_to_images(0, segments, dots);
+    path_segments_to_images("default", segments, dots);
 }
 
-pub(crate) fn path_segments_to_images(i: usize, segments: Vec<&PathSegment>, dots: Vec<&Point>) {
+pub(crate) fn path_segments_to_images(name: &str, segments: Vec<&PathSegment>, dots: Vec<&Point>) {
     let canvas_size = 500.0;
     let (transform, scale) = calc_transform(canvas_size, &segments, &dots);
     let scale_unit = 1.0 / scale;
@@ -197,5 +197,7 @@ pub(crate) fn path_segments_to_images(i: usize, segments: Vec<&PathSegment>, dot
         pixmap.stroke_path(&dot_path, &paint, &dot_stroke, transform, None);
     }
 
-    pixmap.save_png(format!("image/image_{}.png", i)).unwrap();
+    pixmap
+        .save_png(format!("image/image_{}.png", name))
+        .unwrap();
 }
