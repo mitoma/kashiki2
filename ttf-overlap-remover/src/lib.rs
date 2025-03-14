@@ -541,7 +541,8 @@ pub fn remove_overlap_rev(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
 fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Vec<PathSegment>> {
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
     let mut result_paths: Vec<Vec<PathSegment>> = Vec::new();
-    for segment in path_segments.clone() {
+
+    for segment in path_segments.iter().flat_map(|p| [p.clone(), p.reverse()]) {
         // 既にパス候補に含まれているセグメントであればスキップ
         let mut current_segment = segment.clone();
         let mut current_path = Vec::new();
@@ -616,9 +617,7 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Ve
 /// overlap が含まれる path を受け取り、overlap を除去した path を返す
 pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegment>> {
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
-    //let mut result_paths = get_loop_segment(path_segments.clone(), true);
-    //result_paths.extend(get_loop_segment(reverse(&path_segments), false));
-    let mut result_paths = get_loop_segment(path_segments.clone(), false);
+    let result_paths = get_loop_segment(path_segments.clone(), false);
 
     // TODO おそらくここで、右回転のパスなのに関わらず左回転のパスと接しているパスを除外するとよい
     let mut clockwise: Vec<Vec<PathSegment>> = result_paths
@@ -626,7 +625,7 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
         .cloned()
         .filter(|segments| is_clockwise(segments))
         .collect();
-    let  rev_clockwise: Vec<Vec<PathSegment>> = result_paths
+    let rev_clockwise: Vec<Vec<PathSegment>> = result_paths
         .iter()
         .cloned()
         .filter(|segments| !is_clockwise(segments))
@@ -1272,6 +1271,18 @@ mod tests {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
         let glyph_id = face.glyph_index('🐖').unwrap();
+        let mut path_builder = TestPathBuilder::new();
+        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+        let paths = path_builder.paths();
+
+        visualize_paths(paths);
+    }
+
+    #[test]
+    fn test_duck() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index('🐦').unwrap();
         let mut path_builder = TestPathBuilder::new();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
