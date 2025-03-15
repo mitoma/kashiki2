@@ -6,8 +6,7 @@ use tiny_skia_path::Point;
 fn angle(v1: &Point, v2: &Point) -> f32 {
     let dot_product = v1.dot(*v2);
     let cross_product = v1.cross(*v2);
-    let angle = cross_product.atan2(dot_product);
-    angle
+    cross_product.atan2(dot_product)
 }
 
 /// base ベクトルを基準として、時計回りに l と r のいずれが先にあるかを判定する

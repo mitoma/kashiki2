@@ -10,6 +10,7 @@ mod test_helper;
 mod util;
 
 /// Point を PathSegment に変換する
+#[allow(dead_code)]
 fn point_to_dot(point: Point) -> PathSegment {
     let (x, y) = (point.x, point.y);
     PathSegment::Line(Line {
@@ -60,15 +61,18 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
 }
 
 /// Vec<Path> を PathSegment に変換する
-fn paths_to_path_segments(paths: &Vec<Path>) -> Vec<PathSegment> {
+#[allow(dead_code)]
+#[inline]
+fn paths_to_path_segments(paths: &[Path]) -> Vec<PathSegment> {
     paths
         .iter()
         .flat_map(|path| path_to_path_segments(path.clone()))
         .collect()
 }
 
+#[allow(dead_code)]
 #[inline]
-fn is_closed(segments: &Vec<PathSegment>) -> bool {
+fn is_closed(segments: &[PathSegment]) -> bool {
     if segments.is_empty() {
         return false;
     }
@@ -96,11 +100,12 @@ fn is_clockwise(segments: &Vec<PathSegment>) -> bool {
     sum > 0.0
 }
 
-fn reverse(segments: &Vec<PathSegment>) -> Vec<PathSegment> {
+#[allow(dead_code)]
+fn reverse(segments: &[PathSegment]) -> Vec<PathSegment> {
     segments.iter().map(|s| s.reverse()).rev().collect()
 }
 
-fn same_path(segments1: &Vec<PathSegment>, segments2: &Vec<PathSegment>) -> bool {
+fn same_path(segments1: &[PathSegment], segments2: &[PathSegment]) -> bool {
     if segments1.len() != segments2.len() {
         return false;
     }
@@ -115,23 +120,12 @@ fn same_path(segments1: &Vec<PathSegment>, segments2: &Vec<PathSegment>) -> bool
     segment1_map == segment2_map
 }
 
-pub fn remove_overlap(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
+#[allow(dead_code)]
+pub(crate) fn remove_overlap(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
     // Path を全て PathFlagment に分解し、交差部分でセグメントを分割する
     let path_segments = paths
         .iter()
         .flat_map(|path| path_to_path_segments(path.clone()));
-    let path_segments = split_all_paths(path_segments.collect());
-    println!("最初のセグメント数: {:?}", path_segments.len());
-    remove_overlap_inner(path_segments)
-}
-
-pub fn remove_overlap_rev(paths: Vec<Path>) -> Vec<Vec<PathSegment>> {
-    // Path を全て PathFlagment に分解し、交差部分でセグメントを分割する
-    let path_segments = paths
-        .iter()
-        .flat_map(|path| path_to_path_segments(path.clone()))
-        //.map(|s| s.reverse())
-        .rev();
     let path_segments = split_all_paths(path_segments.collect());
     println!("最初のセグメント数: {:?}", path_segments.len());
     remove_overlap_inner(path_segments)
@@ -214,20 +208,20 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Ve
 }
 
 /// overlap が含まれる path を受け取り、overlap を除去した path を返す
-pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegment>> {
+fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegment>> {
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
     let result_paths = get_loop_segment(path_segments.clone(), false);
 
     // TODO おそらくここで、右回転のパスなのに関わらず左回転のパスと接しているパスを除外するとよい
     let mut clockwise: Vec<Vec<PathSegment>> = result_paths
         .iter()
-        .cloned()
         .filter(|segments| is_clockwise(segments))
+        .cloned()
         .collect();
     let rev_clockwise: Vec<Vec<PathSegment>> = result_paths
         .iter()
-        .cloned()
         .filter(|segments| !is_clockwise(segments))
+        .cloned()
         .collect();
     println!("時計回りのパス数: {:?}", clockwise.len());
     println!("反時計回りのパス数: {:?}", rev_clockwise.len());
@@ -238,7 +232,7 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
             segments
                 .iter()
                 .flat_map(|segment| {
-                    let (f, t) = segment.endpoints();
+                    let (f, _t) = segment.endpoints();
                     [f]
                 })
                 .collect::<Vec<_>>()
@@ -251,32 +245,32 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
             segments
                 .iter()
                 .flat_map(|segment| {
-                    let (f, t) = segment.endpoints();
+                    let (f, _t) = segment.endpoints();
                     [f]
                 })
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
 
-    let mut filterd_clockwise: Vec<Vec<PathSegment>> = clockwise
+    let _filterd_clockwise: Vec<Vec<PathSegment>> = clockwise
         .iter()
-        .cloned()
         .filter(|segments| {
             segments.iter().all(|segment| {
                 let (f, t) = segment.endpoints();
                 !rev_clockwise_points.contains(&f) && !rev_clockwise_points.contains(&t)
             })
         })
+        .cloned()
         .collect();
     let filterd_counter_clockwise: Vec<Vec<PathSegment>> = rev_clockwise
         .iter()
-        .cloned()
         .filter(|segments| {
             segments.iter().all(|segment| {
                 let (f, t) = segment.endpoints();
                 !clockwise_points.contains(&f) && !clockwise_points.contains(&t)
             })
         })
+        .cloned()
         .collect();
 
     clockwise.extend(filterd_counter_clockwise);
@@ -286,7 +280,7 @@ pub fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<Vec<PathSegm
 }
 
 /// 末尾にループが発生している時にループの開始位置を返す関数。
-fn has_vector_tail_loop<T: PartialEq>(value: &Vec<T>) -> Option<usize> {
+fn has_vector_tail_loop<T: PartialEq>(value: &[T]) -> Option<usize> {
     let len = value.len();
     for i in 1..len {
         if len < (1 + i) * 2 {
@@ -306,7 +300,8 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
     let mut i_min = 0;
     while has_cross {
         'outer: {
-            for i in i_min..paths.len() {
+            let i_start = i_min;
+            for i in i_start..paths.len() {
                 for j in i + 1..paths.len() {
                     if let Some((mut a, mut b)) = split_line_on_cross_point(&paths[i], &paths[j]) {
                         println!("i: {:?}, j: {:?}", i, j);
@@ -601,7 +596,7 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Cros
 #[cfg(test)]
 mod tests {
 
-    use std::{cmp::Ordering, f32::consts::PI, fs::File};
+    use std::f32::consts::PI;
 
     use rustybuzz::{Face, ttf_parser::OutlineBuilder};
     use tiny_skia::Path;
@@ -610,8 +605,7 @@ mod tests {
     use crate::{
         Cubic, EPSILON, Line, PathSegment, Quadratic, cross_point, cross_point_line,
         get_loop_segment, has_vector_tail_loop, is_clockwise, is_closed, path_to_path_segments,
-        paths_to_path_segments, remove_overlap, remove_overlap_rev, reverse, same_path,
-        split_all_paths, split_line_on_cross_point,
+        paths_to_path_segments, remove_overlap, split_all_paths, split_line_on_cross_point,
         test_helper::{TestPathBuilder, path_segments_to_image, path_segments_to_images},
     };
 
@@ -998,13 +992,13 @@ mod tests {
         }
         image_dir_path.read_dir().unwrap().for_each(|entry| {
             if let Ok(entry) = entry {
-                entry
+                if let Some(f) = entry
                     .path()
                     .extension()
                     .and_then(|ext| if ext == "png" { Some(entry) } else { None })
-                    .map(|f| {
-                        let _ = std::fs::remove_file(f.path());
-                    });
+                {
+                    let _ = std::fs::remove_file(f.path());
+                }
             }
         });
 
@@ -1228,8 +1222,7 @@ mod tests {
 
         let moved_result: Vec<PathSegment> = result
             .iter()
-            .enumerate()
-            .map(|(i, seg)| seg.move_to(Point::from_xy(0.0, 3.0)))
+            .map(|seg| seg.move_to(Point::from_xy(0.0, 3.0)))
             .collect();
 
         draw_seg.extend(moved_result.iter());
@@ -1267,8 +1260,7 @@ mod tests {
 
         let moved_result: Vec<PathSegment> = result
             .iter()
-            .enumerate()
-            .map(|(i, seg)| seg.move_to(Point::from_xy(0.0, 5.0)))
+            .map(|seg| seg.move_to(Point::from_xy(0.0, 5.0)))
             .collect();
 
         draw_seg.extend(moved_result.iter());
@@ -1361,7 +1353,7 @@ mod tests {
             let p1: Point = (1.0, 0.0).into();
             for i in 0..span {
                 let step = 2.0 * PI * i as f32 / span as f32;
-                let mut p2: Point = (step.cos(), step.sin()).into();
+                let p2: Point = (step.cos(), step.sin()).into();
                 println!(
                     "外積: {:+.3},\t内積: {:+.3}, {:?}",
                     p1.cross(p2),

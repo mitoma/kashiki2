@@ -131,8 +131,10 @@ pub(crate) fn path_segments_to_images(name: &str, segments: Vec<&PathSegment>, d
 
     let mut paint = Paint::default();
     let mut pixmap = Pixmap::new(canvas_size as u32, canvas_size as u32).unwrap();
-    let mut stroke = Stroke::default();
-    stroke.width = scale_unit;
+    let stroke = Stroke {
+        width: scale_unit,
+        ..Default::default()
+    };
     paint.anti_alias = true;
 
     let dot_stroke = Stroke {
