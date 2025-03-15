@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Path, Point, Rect};
+use tiny_skia_path::{NormalizedF32Exclusive, Path, Point, Rect, path_geometry};
 use util::cmp_clockwise;
 
 #[cfg(test)]
@@ -702,32 +702,39 @@ fn has_vector_tail_loop<T: PartialEq>(value: &Vec<T>) -> Option<usize> {
 
 fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
     let mut paths = paths.clone();
-    let mut result = Vec::new();
 
     let mut has_cross = true;
+    let mut i_min = 0;
     while has_cross {
         'outer: {
-            for i in 0..paths.len() {
+            for i in i_min..paths.len() {
                 for j in i + 1..paths.len() {
-                    if let Some((a, b)) = split_line_on_cross_point(&paths[i], &paths[j]) {
+                    if let Some((mut a, mut b)) = split_line_on_cross_point(&paths[i], &paths[j]) {
+                        println!("i: {:?}, j: {:?}", i, j);
+                        println!("path_i: {:?}, path_j: {:?}", &paths[i], &paths[j]);
+                        println!("a: {:?}, b: {:?}", a, b);
+
                         has_cross = true;
-                        result.extend(a);
-                        result.extend(b);
+                        let mut result = Vec::new();
+
+                        result.append(&mut paths.clone()[0..i].to_vec());
+
+                        result.append(&mut a);
+                        result.append(&mut b);
                         if i + 1 != j {
-                            result.extend_from_slice(paths[i + 1..j].as_ref());
+                            result.append(&mut paths.clone()[i + 1..j].to_vec());
                         }
-                        result.extend_from_slice(paths[j + 1..].as_ref());
+                        result.append(&mut paths.clone()[j + 1..].to_vec());
                         paths = result;
-                        result = Vec::new();
                         break 'outer;
                     }
                 }
-                result.push(paths[i].clone());
+                i_min = i;
             }
             has_cross = false;
         }
     }
-    result
+    paths
 }
 
 // 二つのセグメントが交差しているかを判定し、交差している場合はその交差点で二つのセグメントとをそれぞれ分割する
@@ -819,7 +826,7 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<CrossPoint> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct CrossPoint {
     point: Point,
     // 交点が線分のどの位置にあるかを示す。0.0 から 1.0 の範囲で示す
@@ -873,6 +880,36 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Cros
     }];
     let mut points = Vec::new();
 
+    // 端点が交点となる場合は先に交点として追加しておく
+    if a.endpoints().0 == b.endpoints().0 {
+        points.push(CrossPoint {
+            point: a.endpoints().0,
+            a_position: 0.0,
+            b_position: 0.0,
+        });
+    }
+    if a.endpoints().0 == b.endpoints().1 {
+        points.push(CrossPoint {
+            point: a.endpoints().0,
+            a_position: 0.0,
+            b_position: 1.0,
+        });
+    }
+    if a.endpoints().1 == b.endpoints().0 {
+        points.push(CrossPoint {
+            point: a.endpoints().1,
+            a_position: 1.0,
+            b_position: 0.0,
+        });
+    }
+    if a.endpoints().1 == b.endpoints().1 {
+        points.push(CrossPoint {
+            point: a.endpoints().1,
+            a_position: 1.0,
+            b_position: 1.0,
+        });
+    }
+
     while let Some(StackItem {
         a,
         a_position,
@@ -897,11 +934,31 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Cros
                         to: b_to,
                     },
                 ) {
-                    points.push(CrossPoint {
+                    // 交点が線分の端点に近い場合は端点として扱う
+                    fn normalize(value: f32) -> f32 {
+                        const NORMALIZE_EPSILON: f32 = 0.01;
+                        if 0.0 < value && value < NORMALIZE_EPSILON {
+                            0.0
+                        } else if 1.0 - NORMALIZE_EPSILON < value && value < 1.0 {
+                            1.0
+                        } else {
+                            value
+                        }
+                    }
+
+                    let cp = CrossPoint {
                         point: point.point,
-                        a_position: a_position + point.a_position * gain,
-                        b_position: b_position + point.b_position * gain,
-                    });
+                        a_position: normalize(a_position + point.a_position * gain),
+                        b_position: normalize(b_position + point.b_position * gain),
+                    };
+
+                    if !points.contains(&cp) {
+                        points.push(CrossPoint {
+                            point: point.point,
+                            a_position: normalize(a_position + point.a_position * gain),
+                            b_position: normalize(b_position + point.b_position * gain),
+                        })
+                    }
                 }
             } else {
                 let depth = depth + 1;
@@ -947,16 +1004,16 @@ mod tests {
 
     use std::{cmp::Ordering, f32::consts::PI, fs::File};
 
-    use rustybuzz::{ttf_parser::OutlineBuilder, Face};
+    use rustybuzz::{Face, ttf_parser::OutlineBuilder};
     use tiny_skia::Path;
-    use tiny_skia_path::{path_geometry, NormalizedF32Exclusive, Point};
+    use tiny_skia_path::{NormalizedF32Exclusive, Point, path_geometry};
 
     use crate::{
-        cross_point, cross_point_line, get_loop_segment, has_vector_tail_loop, is_clockwise,
-        is_closed, path_to_path_segments, paths_to_path_segments, remove_overlap,
-        remove_overlap_rev, reverse, same_path, split_all_paths, split_line_on_cross_point,
-        test_helper::{path_segments_to_image, path_segments_to_images, TestPathBuilder},
-        Cubic, Line, PathSegment, Quadratic, EPSILON,
+        Cubic, EPSILON, Line, PathSegment, Quadratic, cross_point, cross_point_line,
+        get_loop_segment, has_vector_tail_loop, is_clockwise, is_closed, path_to_path_segments,
+        paths_to_path_segments, remove_overlap, remove_overlap_rev, reverse, same_path,
+        split_all_paths, split_line_on_cross_point,
+        test_helper::{TestPathBuilder, path_segments_to_image, path_segments_to_images},
     };
 
     #[test]
@@ -1291,6 +1348,30 @@ mod tests {
     }
 
     #[test]
+    fn test_kadomatsu() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index('🎍').unwrap();
+        let mut path_builder = TestPathBuilder::new();
+        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+        let paths = path_builder.paths();
+
+        visualize_paths(paths);
+    }
+
+    #[test]
+    fn test_hinode() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index('🌅').unwrap();
+        let mut path_builder = TestPathBuilder::new();
+        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+        let paths = path_builder.paths();
+
+        visualize_paths(paths);
+    }
+
+    #[test]
     fn test_man() {
         let mut path_builder = TestPathBuilder::new();
         path_builder.move_to(1.0, 0.0);
@@ -1359,32 +1440,6 @@ mod tests {
                 .for_each(|(i, segments)| {
                     path_segments_to_images(
                         &format!("counter_clockwise_{}_{}", i, is_clockwise(&segments)),
-                        segments.iter().collect(),
-                        vec![],
-                    );
-                });
-        }
-
-        {
-            let segments = reverse(&segments);
-            // 時計回りでループを取得
-            let clockwise = get_loop_segment(segments.clone(), true);
-            clockwise.into_iter().enumerate().for_each(|(i, segments)| {
-                path_segments_to_images(
-                    &format!("rev_clockwise_{}", i),
-                    segments.iter().collect(),
-                    vec![],
-                );
-            });
-
-            // 反時計回りでループを取得
-            let counter_clockwise = get_loop_segment(segments.clone(), false);
-            counter_clockwise
-                .into_iter()
-                .enumerate()
-                .for_each(|(i, segments)| {
-                    path_segments_to_images(
-                        &format!("rev_counter_clockwise_{}", i),
                         segments.iter().collect(),
                         vec![],
                     );
@@ -1716,5 +1771,34 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_cross_point_line_quadratic2() {
+        //path_i: Line(Line { from: Point { x: 1345.0, y: -990.9708 }, to: Point { x: 1345.0, y: -395.37598 } }),
+        //path_j: Quadratic(Quadratic { from: Point { x: 1345.0, y: -990.9708 }, to: Point { x: 1320.0, y: -894.0 }, control: Point { x: 1342.2715, y: -933.8578 } })
+
+        let p1 = Point::from_xy(1345.0, -990.9708);
+        let p2 = Point::from_xy(1345.0, -395.37598);
+        let q1 = Point::from_xy(1345.0, -990.9708);
+        let q2 = Point::from_xy(1320.0, -894.0);
+        let control = Point::from_xy(1342.2715, -933.8578);
+
+        let segment1 = PathSegment::Line(Line { from: p1, to: p2 });
+        let segment2 = PathSegment::Quadratic(Quadratic {
+            from: q1,
+            to: q2,
+            control,
+        });
+
+        let result = cross_point(&segment1, &segment2);
+
+        println!("{:?}", result);
+        path_segments_to_images(
+            "hogepoge",
+            vec![&segment1, &segment2],
+            result.iter().map(|cp| &cp.point).collect(),
+        );
+        assert!(!result.is_empty());
     }
 }
