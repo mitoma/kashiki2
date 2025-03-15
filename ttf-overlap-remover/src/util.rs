@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, f32::consts::PI};
+use std::cmp::Ordering;
 
 use tiny_skia_path::Point;
 
@@ -33,7 +33,7 @@ mod tests {
     use rand::RngCore;
 
     use super::*;
-    use std::cmp::Ordering;
+    use std::{cmp::Ordering, f32::consts::PI};
 
     #[inline]
     fn normalized_vec(degree: u32) -> Point {
