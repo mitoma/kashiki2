@@ -281,6 +281,7 @@ impl LoopSegments {
         Self::points(&self.counter_clockwise)
     }
 
+    // セグメントの点のリストを返す()
     fn points(segments: &Vec<Vec<PathSegment>>) -> Vec<Point> {
         segments
             .iter()
@@ -296,10 +297,12 @@ impl LoopSegments {
             .collect::<Vec<_>>()
     }
 
+    // 時計回りのパスの中で反時計回りのパスの点を含むパスを除外したものを返す
     fn filterd_clockwise(&self) -> Vec<Vec<PathSegment>> {
         Self::filtered_segments(&self.clockwise, &self.counter_clockwise_points())
     }
 
+    // 反時計回りのパスの中で時計回りのパスの点を含むパスを除外したものを返す
     fn filterd_counter_clockwise(&self) -> Vec<Vec<PathSegment>> {
         Self::filtered_segments(&self.counter_clockwise, &self.clockwise_points())
     }

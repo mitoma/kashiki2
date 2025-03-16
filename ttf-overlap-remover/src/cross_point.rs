@@ -2,7 +2,10 @@ use tiny_skia_path::Point;
 
 use crate::{Line, PathSegment, SegmentTrait};
 
-// 二つのセグメントが交差しているかを判定し、交差している場合はその交差点で二つのセグメントとをそれぞれ分割する
+/// 二つのセグメントが交差しているかを判定して交差している場合はその交差点で二つのセグメントをそれぞれ分割する
+///
+/// 分割されなかった場合は None を返す。
+/// 分割される場合はそれぞれのセグメントの Vec を返す。
 pub(crate) fn split_line_on_cross_point(
     a: &PathSegment,
     b: &PathSegment,
