@@ -124,7 +124,7 @@ pub(crate) fn path_segments_to_image(segments: Vec<&PathSegment>, dots: Vec<&Poi
 }
 
 pub(crate) fn path_segments_to_images(name: &str, segments: Vec<&PathSegment>, dots: Vec<&Point>) {
-    let canvas_size = 500.0;
+    let canvas_size = 1000.0;
     let (transform, scale) = calc_transform(canvas_size, &segments, &dots);
     let scale_unit = 1.0 / scale;
     //println!("scale: {}, scale_unit: {}", scale, scale_unit);
