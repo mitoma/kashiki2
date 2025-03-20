@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, vec};
+use std::cmp::Ordering;
 
 use tiny_skia_path::{NormalizedF32Exclusive, Point, Rect, path_geometry};
 
@@ -394,7 +394,7 @@ impl PathSegment {
         }
     }
 
-    #[allow(clippy::wrong_self_convention)]
+    #[allow(clippy::wrong_self_convention, dead_code)]
     pub(crate) fn from_vector(&self) -> Point {
         match self {
             PathSegment::Line(line) => line.from_vector(),
@@ -412,6 +412,7 @@ impl PathSegment {
     }
 
     #[inline]
+    #[allow(clippy::wrong_self_convention)]
     fn from_vector_candidates(&self) -> [Point; 3] {
         match self {
             PathSegment::Line(line) => [line.from_vector(), line.from_vector(), line.from_vector()],
@@ -433,8 +434,7 @@ impl PathSegment {
         let r_vectors = r.from_vector_candidates();
         let result = (0..3)
             .map(|i| cmp_clockwise(&base_vector, &l_vectors[i], &r_vectors[i]))
-            .filter(|o| *o != Ordering::Equal)
-            .next()
+            .find(|o| *o != Ordering::Equal)
             .unwrap_or(Ordering::Equal);
         if result == Ordering::Equal {
             println!(
@@ -446,22 +446,19 @@ impl PathSegment {
     }
 
     #[inline]
-    pub(crate) fn select_clockwise_vector(&self, segments: &Vec<PathSegment>) -> PathSegment {
+    pub(crate) fn select_clockwise_vector(&self, segments: &[PathSegment]) -> PathSegment {
         segments
             .iter()
-            .max_by(|l, r| Self::cmp_clockwise_vector(&self, l, r))
+            .max_by(|l, r| Self::cmp_clockwise_vector(self, l, r))
             .unwrap()
             .clone()
     }
 
     #[inline]
-    pub(crate) fn select_counter_clockwise_vector(
-        &self,
-        segments: &Vec<PathSegment>,
-    ) -> PathSegment {
+    pub(crate) fn select_counter_clockwise_vector(&self, segments: &[PathSegment]) -> PathSegment {
         segments
             .iter()
-            .min_by(|l, r| Self::cmp_clockwise_vector(&self, l, r))
+            .min_by(|l, r| Self::cmp_clockwise_vector(self, l, r))
             .unwrap()
             .clone()
     }
@@ -488,11 +485,11 @@ mod tests {
             control: p2,
         });
         assert_eq!(
-            segment1.select_clockwise_vector(&vec![segment2.clone(), segment3.clone()]),
+            segment1.select_clockwise_vector(&[segment2.clone(), segment3.clone()]),
             segment2.clone()
         );
         assert_eq!(
-            segment1.select_clockwise_vector(&vec![segment3.clone(), segment2.clone()]),
+            segment1.select_clockwise_vector(&[segment3.clone(), segment2.clone()]),
             segment2.clone()
         );
     }

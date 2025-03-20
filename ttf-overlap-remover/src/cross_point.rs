@@ -838,7 +838,7 @@ mod tests {
         assert!(!result.is_empty());
         assert_eq!(result.len(), 1);
         assert_eq!(
-            result.get(0).unwrap(),
+            result.first().unwrap(),
             &CrossPoint {
                 point: Point::from_xy(1345.0, -990.9708),
                 a_position: 0.0,

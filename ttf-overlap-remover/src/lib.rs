@@ -72,6 +72,27 @@ fn paths_to_path_segments(paths: &[Path]) -> Vec<PathSegment> {
         .collect()
 }
 
+/// Vec<Path> を PathSegment に変換する
+#[allow(dead_code)]
+#[inline]
+fn paths_to_clockwise_path_segments(paths: &[Path]) -> (Vec<PathSegment>, Vec<PathSegment>) {
+    let path_segments: Vec<Vec<PathSegment>> = paths
+        .iter()
+        .map(|path| path_to_path_segments(path.clone()))
+        .collect();
+    let clock_wise = path_segments
+        .iter()
+        .filter(|segments| is_clockwise(segments))
+        .flat_map(|segments| segments.clone())
+        .collect();
+    let counter_clock_wise = path_segments
+        .iter()
+        .filter(|segments| !is_clockwise(segments))
+        .flat_map(|segments| segments.clone())
+        .collect();
+    (clock_wise, counter_clock_wise)
+}
+
 #[derive(Debug, Clone)]
 struct LoopSegment {
     segments: Vec<PathSegment>,
@@ -102,24 +123,6 @@ impl LoopSegment {
 
     fn same_path(&self, other: &Self) -> bool {
         same_path(&self.segments, &other.segments)
-    }
-
-    fn points(&self) -> Vec<Point> {
-        self.segments
-            .iter()
-            .flat_map(|segment| {
-                let (f, _t) = segment.endpoints();
-                [f]
-            })
-            .collect()
-    }
-
-    fn segments(&self) -> Vec<&PathSegment> {
-        self.segments.iter().collect()
-    }
-
-    fn len(&self) -> usize {
-        self.segments.len()
     }
 
     fn to_path(&self) -> Option<Path> {
@@ -235,7 +238,8 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
             // 次のパスになりうるセグメントを探す(current の to が next の from または to と一致するセグメント)
             let nexts: Vec<PathSegment> = path_segments
                 .iter()
-                .flat_map(|p| [p.clone(), p.reverse()])
+                //.flat_map(|p| [p.clone(), p.reverse()])
+                .flat_map(|p| [p.clone()])
                 // 今のセグメントと繋がるパスを絞り込む
                 .filter(|s| {
                     let (_, current_to) = current_segment.endpoints();
@@ -302,42 +306,6 @@ struct LoopSegments {
     counter_clockwise: Vec<LoopSegment>,
 }
 
-impl LoopSegments {
-    fn clockwise_points(&self) -> Vec<Point> {
-        Self::points(&self.clockwise)
-    }
-
-    fn counter_clockwise_points(&self) -> Vec<Point> {
-        Self::points(&self.counter_clockwise)
-    }
-
-    // セグメントの点のリストを返す()
-    fn points(segments: &Vec<LoopSegment>) -> Vec<Point> {
-        segments
-            .iter()
-            .flat_map(|segments| segments.points())
-            .collect::<Vec<_>>()
-    }
-
-    // 時計回りのパスの中で反時計回りのパスの点を含むパスを除外したものを返す
-    fn filterd_clockwise(&self) -> Vec<LoopSegment> {
-        Self::filtered_segments(&self.clockwise, &self.counter_clockwise_points())
-    }
-
-    // 反時計回りのパスの中で時計回りのパスの点を含むパスを除外したものを返す
-    fn filterd_counter_clockwise(&self) -> Vec<LoopSegment> {
-        Self::filtered_segments(&self.counter_clockwise, &self.clockwise_points())
-    }
-
-    fn filtered_segments(segments: &Vec<LoopSegment>, points: &Vec<Point>) -> Vec<LoopSegment> {
-        segments
-            .iter()
-            .filter(|segments| !segments.points().iter().any(|point| points.contains(point)))
-            .cloned()
-            .collect()
-    }
-}
-
 /// overlap が含まれる path を受け取り、overlap を除去した path を返す
 fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<LoopSegment> {
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
@@ -345,7 +313,7 @@ fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<LoopSegment> {
     //let mut result = loop_segments.clockwise.clone();
     //result.append(&mut loop_segments.filterd_clockwise());
     let mut result = loop_segments.clockwise.clone();
-    //result.append(&mut loop_segments.filterd_counter_clockwise());
+    result.append(&mut loop_segments.counter_clockwise.clone());
     result
 }
 
@@ -411,8 +379,8 @@ mod tests {
     use tiny_skia_path::Point;
 
     use crate::{
-        get_loop_segment, has_vector_tail_loop, is_clockwise, is_closed, paths_to_path_segments,
-        remove_overlap, split_all_paths,
+        get_loop_segment, has_vector_tail_loop, paths_to_path_segments, remove_overlap,
+        split_all_paths,
         test_helper::{TestPathBuilder, path_segments_to_images},
     };
 
@@ -538,13 +506,14 @@ mod tests {
             // オリジナル
             path_segments_to_images("origin", segments.iter().collect(), vec![]);
         }
+
         {
             // 時計回りでループを取得
             let clockwise = get_loop_segment(segments.clone(), true);
             clockwise.into_iter().enumerate().for_each(|(i, segments)| {
                 path_segments_to_images(
                     &format!("clockwise_{}_{}", i, segments.is_clockwise()),
-                    segments.segments(),
+                    segments.segments.iter().collect(),
                     vec![],
                 );
             });
@@ -557,7 +526,7 @@ mod tests {
                 .for_each(|(i, segments)| {
                     path_segments_to_images(
                         &format!("counter_clockwise_{}_{}", i, segments.is_clockwise()),
-                        segments.segments(),
+                        segments.segments.iter().collect(),
                         vec![],
                     );
                 });
@@ -567,7 +536,7 @@ mod tests {
             let segments = remove_overlap(paths.clone());
             path_segments_to_images(
                 "generated",
-                segments.iter().flat_map(|s| s.segments()).collect(),
+                segments.iter().flat_map(|s| &s.segments).collect(),
                 vec![],
             );
             segments.into_iter().enumerate().for_each(|(i, segments)| {
@@ -576,11 +545,11 @@ mod tests {
                     i,
                     segments.is_clockwise(),
                     segments.is_closed(),
-                    segments.len()
+                    segments.segments.len()
                 );
                 path_segments_to_images(
                     &format!("remove_overlap_{}_{}", i, segments.is_clockwise()),
-                    segments.segments(),
+                    segments.segments.iter().collect(),
                     vec![],
                 );
             });
