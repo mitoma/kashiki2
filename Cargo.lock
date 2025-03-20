@@ -2713,6 +2713,7 @@ dependencies = [
  "bytemuck",
  "cfg-if",
  "log",
+ "png",
  "tiny-skia-path",
 ]
 
@@ -2784,6 +2785,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2df906b07856748fa3f6e0ad0cbaa047052d4a7dd609e231c4f72cee8c36f31"
 dependencies = [
  "core_maths",
+]
+
+[[package]]
+name = "ttf_overlap_remover"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "font_collector",
+ "log",
+ "rand",
+ "rustybuzz",
+ "tiny-skia",
+ "tiny-skia-path",
 ]
 
 [[package]]

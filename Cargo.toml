@@ -9,6 +9,7 @@ members = [
     "font_rasterizer_example",
     "sample_codes/*",
     "kashikishi",
+    "ttf_overlap_remover",
 ]
 resolver = "2"
 
