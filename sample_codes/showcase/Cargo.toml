@@ -30,4 +30,4 @@ web-sys = { version = "0.3", features = ["Document", "Window", "Element"] }
 # wasm-pack する時に js features を有効にする必要がある。
 # getrandom は複数の crate から間接的に依存されているので本来はもっといい指定の方法があるのではないかと思うが
 # 確たる答はないのでとりあえずこの指定で行く。
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.3.2", features = ["wasm_js"] }

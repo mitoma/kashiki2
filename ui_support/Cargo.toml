@@ -21,7 +21,7 @@ font_rasterizer = { path = "../font_rasterizer" }
 font_collector = { path = "../font_collector" }
 stroke_parser = { path = "../stroke_parser" }
 text_buffer = { path = "../text_buffer" }
-serde-jsonlines = "0.6.0"
+serde-jsonlines = "0.7.0"
 
 similar = "2.6.0"
 

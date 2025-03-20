@@ -24,7 +24,7 @@ bytemuck.workspace = true
 
 instant = { workspace = true }
 unicode-width = "0.2"
-cached = "0.54.0"
+cached = "0.55.1"
 svg = "0.18.0"
 
 bezier_converter = { git = "https://github.com/mitoma/sandbox", branch = "main" }
