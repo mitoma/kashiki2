@@ -92,7 +92,6 @@ mod tests {
             .collect();
 
         cases.iter().for_each(|c| {
-            //println!("{}", c.name);
             assert_eq!(cmp_clockwise(&c.base, &c.l, &c.r), c.expected, "{}", c.name);
         });
     }

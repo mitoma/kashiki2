@@ -432,17 +432,10 @@ impl PathSegment {
         let base_vector = -base.to_vector();
         let l_vectors = l.from_vector_candidates();
         let r_vectors = r.from_vector_candidates();
-        let result = (0..3)
+        (0..3)
             .map(|i| cmp_clockwise(&base_vector, &l_vectors[i], &r_vectors[i]))
             .find(|o| *o != Ordering::Equal)
-            .unwrap_or(Ordering::Equal);
-        if result == Ordering::Equal {
-            println!(
-                "Ordering::Equal base: {:?}, l: {:?}, r: {:?}, result: {:?}",
-                base, l, r, result
-            );
-        }
-        result
+            .unwrap_or(Ordering::Equal)
     }
 
     #[inline]

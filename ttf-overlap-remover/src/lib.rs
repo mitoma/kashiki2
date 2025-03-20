@@ -222,7 +222,6 @@ pub(crate) fn remove_overlap(paths: Vec<Path>) -> Vec<LoopSegment> {
         .iter()
         .flat_map(|path| path_to_path_segments(path.clone()));
     let path_segments = split_all_paths(path_segments.collect());
-    println!("最初のセグメント数: {:?}", path_segments.len());
     remove_overlap_inner(path_segments)
 }
 
@@ -292,9 +291,6 @@ fn get_splitted_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) 
         .cloned()
         .collect();
 
-    println!("時計回りのパス数: {:?}", clockwise.len());
-    println!("反時計回りのパス数: {:?}", counter_clockwise.len());
-
     LoopSegments {
         clockwise,
         counter_clockwise,
@@ -342,10 +338,6 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
             for i in i_start..paths.len() {
                 for j in i + 1..paths.len() {
                     if let Some((mut a, mut b)) = split_line_on_cross_point(&paths[i], &paths[j]) {
-                        println!("i: {:?}, j: {:?}", i, j);
-                        println!("path_i: {:?}, path_j: {:?}", &paths[i], &paths[j]);
-                        println!("a: {:?}, b: {:?}", a, b);
-
                         has_cross = true;
                         let mut result = Vec::new();
 
