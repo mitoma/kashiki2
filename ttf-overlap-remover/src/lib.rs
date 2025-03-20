@@ -259,24 +259,26 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
                 // 次のパスになりうるセグメントが見つからない場合、閉じていない Path だった可能性もあるのでまぁいいかという感じで次のセグメントに進む
                 break;
             }
+            nexts.sort_by(|l, r| {
+                l.from_vector()
+                    .cross(l.to_vector())
+                    .partial_cmp(&r.from_vector().cross(r.to_vector()))
+                    .unwrap()
+            });
 
             // 現在のセグメントの進行方向から、最も左向きのベクトルを持つセグメントを次のセグメントとして選択する
-            nexts.sort_by(|l, r| {
-                let v1 = -current_segment.to_vector();
-                let v2 = l.from_vector();
-                let v3 = r.from_vector();
-                cmp_clockwise(&v1, &v2, &v3)
-            });
             current_segment = if clock_wise {
-                nexts.first().unwrap().clone()
+                current_segment.select_clockwise_vector(&nexts)
             } else {
-                nexts.last().unwrap().clone()
+                current_segment.select_counter_clockwise_vector(&nexts)
             };
             current_path.push(current_segment.clone());
             if let Some(loop_position) = has_vector_tail_loop(&current_path) {
                 let created_path =
                     LoopSegment::create(current_path.split_off(loop_position)).unwrap();
-                let has_same_path = result_paths.iter().any(|s| s.same_path(&created_path));
+                let has_same_path = result_paths
+                    .iter()
+                    .any(|s| s.same_path(&created_path) || s.same_path(&created_path.reverse()));
                 if !has_same_path {
                     result_paths.push(created_path);
                 }
@@ -354,19 +356,8 @@ impl LoopSegments {
 /// overlap が含まれる path を受け取り、overlap を除去した path を返す
 fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<LoopSegment> {
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
-    let loop_segments = get_splitted_loop_segment(path_segments.clone(), false);
+    let loop_segments = get_splitted_loop_segment(path_segments.clone(), true);
     let mut result = loop_segments.clockwise.clone();
-
-    /*
-       let path_segments = loop_segments
-           .filterd_counter_clockwise()
-           .iter()
-           .flatten()
-           .cloned()
-           .collect::<Vec<_>>();
-
-       let loop_segments = get_splitted_loop_segment(path_segments, true);
-    */
     result.append(&mut loop_segments.filterd_clockwise());
     result
 }

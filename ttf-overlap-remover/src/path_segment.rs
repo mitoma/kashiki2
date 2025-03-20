@@ -1,4 +1,8 @@
+use std::{cmp::Ordering, vec};
+
 use tiny_skia_path::{NormalizedF32Exclusive, Point, Rect, path_geometry};
+
+use crate::cmp_clockwise;
 
 // PathSegment に備わっていてほしい共通操作を集めた trait
 pub(crate) trait SegmentTrait
@@ -405,5 +409,91 @@ impl PathSegment {
             PathSegment::Quadratic(quad) => quad.to_vector(),
             PathSegment::Cubic(cubic) => cubic.to_vector(),
         }
+    }
+
+    #[inline]
+    fn from_vector_candidates(&self) -> [Point; 3] {
+        match self {
+            PathSegment::Line(line) => [line.from_vector(), line.from_vector(), line.from_vector()],
+            PathSegment::Quadratic(quad) => {
+                [quad.from_vector(), quad.to_vector(), quad.to_vector()]
+            }
+            PathSegment::Cubic(cubic) => [
+                cubic.from_vector(),
+                cubic.control2 - cubic.control1,
+                cubic.to_vector(),
+            ],
+        }
+    }
+
+    #[inline]
+    fn cmp_clockwise_vector(base: &PathSegment, l: &PathSegment, r: &PathSegment) -> Ordering {
+        let base_vector = -base.to_vector();
+        let l_vectors = l.from_vector_candidates();
+        let r_vectors = r.from_vector_candidates();
+        let result = (0..3)
+            .map(|i| cmp_clockwise(&base_vector, &l_vectors[i], &r_vectors[i]))
+            .filter(|o| *o != Ordering::Equal)
+            .next()
+            .unwrap_or(Ordering::Equal);
+        if result == Ordering::Equal {
+            println!(
+                "Ordering::Equal base: {:?}, l: {:?}, r: {:?}, result: {:?}",
+                base, l, r, result
+            );
+        }
+        result
+    }
+
+    #[inline]
+    pub(crate) fn select_clockwise_vector(&self, segments: &Vec<PathSegment>) -> PathSegment {
+        segments
+            .iter()
+            .max_by(|l, r| Self::cmp_clockwise_vector(&self, l, r))
+            .unwrap()
+            .clone()
+    }
+
+    #[inline]
+    pub(crate) fn select_counter_clockwise_vector(
+        &self,
+        segments: &Vec<PathSegment>,
+    ) -> PathSegment {
+        segments
+            .iter()
+            .min_by(|l, r| Self::cmp_clockwise_vector(&self, l, r))
+            .unwrap()
+            .clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tiny_skia_path::Point;
+
+    use crate::{Line, PathSegment, Quadratic};
+
+    #[test]
+    fn test_select_clockwise_vector() {
+        let p0 = Point::from_xy(0.0, 100.0);
+        let p1 = Point::from_xy(100.0, 100.0);
+        let p2 = Point::from_xy(200.0, 100.0);
+        let p3 = Point::from_xy(200.0, 200.0);
+
+        let segment1 = PathSegment::Line(Line { from: p0, to: p1 });
+        let segment2 = PathSegment::Line(Line { from: p1, to: p2 });
+        let segment3 = PathSegment::Quadratic(Quadratic {
+            from: p1,
+            to: p3,
+            control: p2,
+        });
+        assert_eq!(
+            segment1.select_clockwise_vector(&vec![segment2.clone(), segment3.clone()]),
+            segment2.clone()
+        );
+        assert_eq!(
+            segment1.select_clockwise_vector(&vec![segment3.clone(), segment2.clone()]),
+            segment2.clone()
+        );
     }
 }
