@@ -227,45 +227,28 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
     let mut result_paths: Vec<LoopSegment> = Vec::new();
 
-    for segment in path_segments.iter().flat_map(|p| [p.clone(), p.reverse()]) {
+    for segment in path_segments.iter() {
         let mut current_segment = segment.clone();
         let mut current_path = Vec::new();
         current_path.push(current_segment.clone());
         loop {
             // 次のパスになりうるセグメントを探す(current の to が next の from または to と一致するセグメント)
-            let mut nexts: Vec<PathSegment> = path_segments
+            let nexts: Vec<PathSegment> = path_segments
                 .iter()
+                .flat_map(|p| [p.clone(), p.reverse()])
+                // 今のセグメントと繋がるパスを絞り込む
+                .filter(|s| {
+                    let (_, current_to) = current_segment.endpoints();
+                    let (next_from, _) = s.endpoints();
+                    current_to == next_from
+                })
                 // 今のセグメントと同一または逆向きのセグメントは除外
                 .filter(|s| !s.is_same_or_reversed(&current_segment))
-                // 今のセグメントと繋がるパスを絞り込む
-                .flat_map(|s| {
-                    let (_, current_to) = current_segment.endpoints();
-                    let (next_from, next_to) = s.endpoints();
-                    if current_to == next_from {
-                        Some(s.clone())
-                    } else if current_to == next_to {
-                        Some(s.reverse())
-                    } else {
-                        None
-                    }
-                })
-                // 今のパスに含まれているセグメントと逆向きのセグメントは除外
-                .filter(|s| {
-                    let rev = s.reverse();
-                    current_path.iter().all(|cs| cs != &rev)
-                })
                 .collect();
             if nexts.is_empty() {
                 // 次のパスになりうるセグメントが見つからない場合、閉じていない Path だった可能性もあるのでまぁいいかという感じで次のセグメントに進む
                 break;
             }
-            nexts.sort_by(|l, r| {
-                l.from_vector()
-                    .cross(l.to_vector())
-                    .partial_cmp(&r.from_vector().cross(r.to_vector()))
-                    .unwrap()
-            });
-
             // 現在のセグメントの進行方向から、最も左向きのベクトルを持つセグメントを次のセグメントとして選択する
             current_segment = if clock_wise {
                 current_segment.select_clockwise_vector(&nexts)
@@ -273,6 +256,8 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
                 current_segment.select_counter_clockwise_vector(&nexts)
             };
             current_path.push(current_segment.clone());
+
+            // ループが発生している場合、ループを切り出して result_paths に追加する
             if let Some(loop_position) = has_vector_tail_loop(&current_path) {
                 let created_path =
                     LoopSegment::create(current_path.split_off(loop_position)).unwrap();
@@ -357,8 +342,10 @@ impl LoopSegments {
 fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<LoopSegment> {
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
     let loop_segments = get_splitted_loop_segment(path_segments.clone(), true);
+    //let mut result = loop_segments.clockwise.clone();
+    //result.append(&mut loop_segments.filterd_clockwise());
     let mut result = loop_segments.clockwise.clone();
-    result.append(&mut loop_segments.filterd_clockwise());
+    //result.append(&mut loop_segments.filterd_counter_clockwise());
     result
 }
 
@@ -535,6 +522,18 @@ mod tests {
             f != t
         });
 
+        let min_distance = segments.iter().min_by(|l, r| {
+            let l_dis = {
+                let (f, t) = l.endpoints();
+                f.distance(t)
+            };
+            let r_dis = {
+                let (f, t) = r.endpoints();
+                f.distance(t)
+            };
+            l_dis.partial_cmp(&r_dis).unwrap()
+        });
+
         {
             // オリジナル
             path_segments_to_images("origin", segments.iter().collect(), vec![]);
@@ -587,6 +586,7 @@ mod tests {
             });
         }
         println!("no_zero_segment: {}", no_zero_segment);
+        println!("min_distance: {:?}", min_distance);
     }
 
     #[test]
