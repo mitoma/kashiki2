@@ -130,7 +130,11 @@ fn cross_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
 }
 
 #[inline]
-fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<CrossPoint> {
+fn closs_point_inner<T, U>(a: &T, b: &U) -> Vec<CrossPoint>
+where
+    T: SegmentTrait + std::fmt::Debug,
+    U: SegmentTrait + std::fmt::Debug,
+{
     struct StackItem<T, U> {
         a: T,
         a_position: f32,
@@ -188,7 +192,7 @@ fn closs_point_inner<T: SegmentTrait, U: SegmentTrait>(a: &T, b: &U) -> Vec<Cros
     {
         let intersect = a.rect().intersect(&b.rect());
         if let Some(intersect) = intersect {
-            if intersect.width() < EPSILON && intersect.height() < EPSILON {
+            if intersect.width() < EPSILON || intersect.height() < EPSILON {
                 let gain = 1.0 / (2u32.pow(depth) as f32);
                 let (a_from, a_to) = a.endpoints();
                 let (b_from, b_to) = b.endpoints();
@@ -575,6 +579,37 @@ mod tests {
         path_segments_to_image(draw_vec, vec![]);
         println!("{:?}", split1);
         println!("{:?}", split2);
+        assert_eq!(split1.len(), 2);
+        assert_eq!(split2.len(), 2);
+    }
+
+    #[test]
+    fn test_split_quad_quad2() {
+        // 🐕の絵文字で分割ミスが発生するのを再現するテストケース
+        let quad_seg1 = PathSegment::Quadratic(Quadratic {
+            from: Point::from_xy(1384.5, -1549.0),
+            to: Point::from_xy(1330.0, -1617.0),
+            control: Point::from_xy(1360.0, -1598.0),
+        });
+
+        let quad_seg2 = PathSegment::Quadratic(Quadratic {
+            from: Point::from_xy(1512.0, -1431.0),
+            to: Point::from_xy(1334.0, -1600.0),
+            control: Point::from_xy(1449.0, -1540.0),
+        });
+
+        let (split1, split2) = split_line_on_cross_point(&quad_seg1, &quad_seg2).unwrap();
+        let mut result_seg = vec![];
+        result_seg.extend(split1.iter());
+        result_seg.extend(split2.iter());
+        let moved_result: Vec<PathSegment> = result_seg
+            .iter()
+            .map(|seg| seg.move_to(Point::from_xy(0.0, 0.1)))
+            .collect();
+
+        let mut draw_vec = vec![&quad_seg1, &quad_seg2];
+        draw_vec.extend(moved_result.iter());
+
         assert_eq!(split1.len(), 2);
         assert_eq!(split2.len(), 2);
     }

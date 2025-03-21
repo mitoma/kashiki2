@@ -437,6 +437,18 @@ mod tests {
     }
 
     #[test]
+    fn test_dog() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index('🐕').unwrap();
+        let mut path_builder = TestPathBuilder::new();
+        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+        let paths = path_builder.paths();
+
+        visualize_paths(paths);
+    }
+
+    #[test]
     fn test_man() {
         let mut path_builder = TestPathBuilder::new();
         path_builder.move_to(1.0, 0.0);
