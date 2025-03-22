@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use font_collector::FontData;
-use rustybuzz::{Direction, Face, UnicodeBuffer, shape, ttf_parser::GlyphId};
+use rustybuzz::{
+    Direction, Face, UnicodeBuffer, shape,
+    ttf_parser::{GlyphId, OutlineBuilder},
+};
+use ttf_overlap_remover::OverlapRemoveOutlineBuilder;
 
 use crate::{
     char_width_calcurator::CharWidth,
@@ -103,10 +107,12 @@ impl GlyphVertexBuilder {
         face: &Face,
     ) -> Result<VectorVertex, FontRasterizerError> {
         let mut builder = VectorVertexBuilder::new();
+        let mut overlap_builder = OverlapRemoveOutlineBuilder::new();
 
         let rect = face
-            .outline_glyph(glyph_id, &mut builder)
+            .outline_glyph(glyph_id, &mut overlap_builder)
             .ok_or(FontRasterizerError::NoOutlineGlyph(glyph_id))?;
+        overlap_builder.outline(&mut builder);
 
         let global = face.global_bounding_box();
         let global_width = global.width() as f32;

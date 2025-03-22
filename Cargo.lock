@@ -971,6 +971,7 @@ dependencies = [
  "svg",
  "text_buffer",
  "thiserror 2.0.12",
+ "ttf_overlap_remover",
  "unicode-width 0.2.0",
  "wasm-bindgen",
  "wasm-bindgen-futures",

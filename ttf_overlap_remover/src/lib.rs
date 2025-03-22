@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use cross_point::split_line_on_cross_point;
+pub use outline_builder::OverlapRemoveOutlineBuilder;
 use path_segment::{Cubic, Line, PathSegment, Quadratic, SegmentTrait};
 use tiny_skia_path::{Path, PathBuilder, Point};
 use util::cmp_clockwise;
 
 mod cross_point;
+mod outline_builder;
 mod path_segment;
 #[cfg(test)]
 mod test_helper;
@@ -305,7 +307,7 @@ struct LoopSegments {
 /// overlap が含まれる path を受け取り、overlap を除去した path を返す
 fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<LoopSegment> {
     // 分解された PathFlagment からつなげてパスの候補となる Vec<PathSegment> を構成する
-    let loop_segments = get_splitted_loop_segment(path_segments.clone(), true);
+    let loop_segments = get_splitted_loop_segment(path_segments.clone(), false);
     //let mut result = loop_segments.clockwise.clone();
     //result.append(&mut loop_segments.filterd_clockwise());
     let mut result = loop_segments.clockwise.clone();
