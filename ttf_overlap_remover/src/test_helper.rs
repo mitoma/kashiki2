@@ -6,58 +6,6 @@ use tiny_skia_path::{PathBuilder, Point, Stroke, Transform};
 
 use crate::path_segment::{Cubic, Line, PathSegment, Quadratic};
 
-#[derive(Debug)]
-pub(crate) struct TestPathBuilder {
-    builder: Option<PathBuilder>,
-    paths: Vec<Path>,
-}
-
-impl TestPathBuilder {
-    pub(crate) fn new() -> Self {
-        Self {
-            builder: Some(PathBuilder::new()),
-            paths: Vec::new(),
-        }
-    }
-
-    pub(crate) fn paths(self) -> Vec<Path> {
-        self.paths
-    }
-}
-
-// font は y 軸の向きが逆
-impl OutlineBuilder for TestPathBuilder {
-    fn move_to(&mut self, x: f32, y: f32) {
-        println!("move to");
-        self.builder.as_mut().unwrap().move_to(x, -y);
-    }
-
-    fn line_to(&mut self, x: f32, y: f32) {
-        println!("line to");
-        self.builder.as_mut().unwrap().line_to(x, -y);
-    }
-
-    fn quad_to(&mut self, x: f32, y: f32, x1: f32, y1: f32) {
-        println!("quad to");
-        self.builder.as_mut().unwrap().quad_to(x1, -y1, x, -y);
-    }
-
-    fn curve_to(&mut self, x: f32, y: f32, x1: f32, y1: f32, x2: f32, y2: f32) {
-        println!("curve to");
-        self.builder
-            .as_mut()
-            .unwrap()
-            .cubic_to(x1, -y1, x2, -y2, x, -y);
-    }
-
-    fn close(&mut self) {
-        println!("close");
-        let mut builder = self.builder.replace(PathBuilder::new()).unwrap();
-        builder.close();
-        self.paths.push(builder.finish().unwrap());
-    }
-}
-
 // segments と dots が Pixmap の中に納まるような transform を計算する
 fn calc_transform(
     canvas_size: f32,
@@ -113,8 +61,8 @@ fn calc_transform(
 
     (
         Transform::identity()
-            .post_scale(scale, scale)
-            .post_translate(translate_x, translate_y),
+            .post_scale(scale, -scale)
+            .post_translate(translate_x, canvas_size - translate_y),
         scale,
     )
 }

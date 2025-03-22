@@ -1,4 +1,4 @@
-use tiny_skia_path::Point;
+use tiny_skia_path::{Point, Rect};
 
 use crate::{Line, PathSegment, SegmentTrait};
 
@@ -138,17 +138,19 @@ where
     struct StackItem<T, U> {
         a: T,
         a_position: f32,
+        a_depth: u32,
         b: U,
         b_position: f32,
-        depth: u32,
+        b_depth: u32,
     }
 
     let mut stack: Vec<StackItem<T, U>> = vec![StackItem {
         a: a.clone(),
         a_position: 0.0,
+        a_depth: 0,
         b: b.clone(),
         b_position: 0.0,
-        depth: 0,
+        b_depth: 0,
     }];
     let mut points = Vec::new();
 
@@ -185,15 +187,17 @@ where
     while let Some(StackItem {
         a,
         a_position,
+        a_depth,
         b,
         b_position,
-        depth,
+        b_depth,
     }) = stack.pop()
     {
         let intersect = a.rect().intersect(&b.rect());
         if let Some(intersect) = intersect {
-            if intersect.width() < EPSILON || intersect.height() < EPSILON {
-                let gain = 1.0 / (2u32.pow(depth) as f32);
+            if is_small_rect(&intersect) {
+                let a_gain = 1.0 / (2u32.pow(a_depth) as f32);
+                let b_gain = 1.0 / (2u32.pow(b_depth) as f32);
                 let (a_from, a_to) = a.endpoints();
                 let (b_from, b_to) = b.endpoints();
                 if let Some(point) = cross_point_line(
@@ -220,8 +224,8 @@ where
 
                     let cp = CrossPoint {
                         point: point.point,
-                        a_position: normalize(a_position + point.a_position * gain),
-                        b_position: normalize(b_position + point.b_position * gain),
+                        a_position: normalize(a_position + point.a_position * a_gain),
+                        b_position: normalize(b_position + point.b_position * b_gain),
                     };
                     // 交点が端点に丸められている際に、既に端点で既に交点が追加されているばあいは追加しない
                     if !points
@@ -230,48 +234,114 @@ where
                     {
                         points.push(CrossPoint {
                             point: point.point,
-                            a_position: normalize(a_position + point.a_position * gain),
-                            b_position: normalize(b_position + point.b_position * gain),
+                            a_position: normalize(a_position + point.a_position * a_gain),
+                            b_position: normalize(b_position + point.b_position * b_gain),
                         })
                     }
                 }
             } else {
-                let depth = depth + 1;
-                let gain = 1.0 / (2u32.pow(depth) as f32);
-                let (a1, a2) = a.chop_harf();
-                let (b1, b2) = b.chop_harf();
-                stack.push(StackItem {
-                    a: a1.clone(),
-                    a_position,
-                    b: b1.clone(),
-                    b_position,
-                    depth,
-                });
-                stack.push(StackItem {
-                    a: a1.clone(),
-                    a_position,
-                    b: b2.clone(),
-                    b_position: b_position + gain,
-                    depth,
-                });
-                stack.push(StackItem {
-                    a: a2.clone(),
-                    a_position: a_position + gain,
-                    b: b1.clone(),
-                    b_position,
-                    depth,
-                });
-                stack.push(StackItem {
-                    a: a2.clone(),
-                    a_position: a_position + gain,
-                    b: b2.clone(),
-                    b_position: b_position + gain,
-                    depth,
-                });
+                // b が非常に小さいか、a の面積が b の面積の 2 倍以上の場合は a を分割する。
+                // 理由はよくわからないが片方の PathSegment の大きさがもう片方との差が大きいとき
+                // 交点の検出に失敗するケースがあるのでこのワークロードを入れる
+                let split_only_a = is_small_rect(&b.rect())
+                    || a.rect().width() * a.rect().height()
+                        > 2.0 * (b.rect().width() * b.rect().height());
+                let split_only_b = is_small_rect(&a.rect())
+                    || b.rect().width() * b.rect().height()
+                        > 2.0 * (a.rect().width() * a.rect().height());
+
+                let split_only_a = false;
+                let split_only_b = false;
+
+                if split_only_a {
+                    let a_depth = a_depth + 1;
+                    let a_gain = 1.0 / (2u32.pow(a_depth) as f32);
+                    let (a1, a2) = a.chop_harf();
+                    stack.push(StackItem {
+                        a: a1.clone(),
+                        a_position,
+                        a_depth,
+                        b: b.clone(),
+                        b_position,
+                        b_depth,
+                    });
+                    stack.push(StackItem {
+                        a: a2.clone(),
+                        a_position: a_position + a_gain,
+                        a_depth,
+                        b: b.clone(),
+                        b_position,
+                        b_depth,
+                    });
+                } else if split_only_b {
+                    let b_depth = b_depth + 1;
+                    let b_gain = 1.0 / (2u32.pow(b_depth) as f32);
+                    let (b1, b2) = b.chop_harf();
+                    stack.push(StackItem {
+                        a: a.clone(),
+                        a_position,
+                        a_depth,
+                        b: b1.clone(),
+                        b_position,
+                        b_depth,
+                    });
+                    stack.push(StackItem {
+                        a: a.clone(),
+                        a_position,
+                        a_depth,
+                        b: b2.clone(),
+                        b_position: b_position + b_gain,
+                        b_depth,
+                    });
+                } else {
+                    let a_depth = a_depth + 1;
+                    let b_depth = b_depth + 1;
+                    let a_gain = 1.0 / (2u32.pow(a_depth) as f32);
+                    let b_gain = 1.0 / (2u32.pow(b_depth) as f32);
+                    let (a1, a2) = a.chop_harf();
+                    let (b1, b2) = b.chop_harf();
+                    stack.push(StackItem {
+                        a: a1.clone(),
+                        a_position,
+                        a_depth,
+                        b: b1.clone(),
+                        b_position,
+                        b_depth,
+                    });
+                    stack.push(StackItem {
+                        a: a1.clone(),
+                        a_position,
+                        a_depth,
+                        b: b2.clone(),
+                        b_position: b_position + b_gain,
+                        b_depth,
+                    });
+                    stack.push(StackItem {
+                        a: a2.clone(),
+                        a_position: a_position + a_gain,
+                        a_depth,
+                        b: b1.clone(),
+                        b_position,
+                        b_depth,
+                    });
+                    stack.push(StackItem {
+                        a: a2.clone(),
+                        a_position: a_position + a_gain,
+                        a_depth,
+                        b: b2.clone(),
+                        b_position: b_position + b_gain,
+                        b_depth,
+                    });
+                }
             }
         }
     }
     points
+}
+
+#[inline]
+fn is_small_rect(rect: &Rect) -> bool {
+    rect.width() < EPSILON && rect.height() < EPSILON
 }
 
 #[cfg(test)]
@@ -584,19 +654,26 @@ mod tests {
     }
 
     #[test]
-    fn test_split_quad_quad2() {
+    fn test_split_dog_quad() {
         // 🐕の絵文字で分割ミスが発生するのを再現するテストケース
         let quad_seg1 = PathSegment::Quadratic(Quadratic {
             from: Point::from_xy(1384.5, -1549.0),
             to: Point::from_xy(1330.0, -1617.0),
             control: Point::from_xy(1360.0, -1598.0),
         });
-
         let quad_seg2 = PathSegment::Quadratic(Quadratic {
             from: Point::from_xy(1512.0, -1431.0),
             to: Point::from_xy(1334.0, -1600.0),
             control: Point::from_xy(1449.0, -1540.0),
         });
+
+        let quad_seg1 = quad_seg1.chop(0.5).0.chop(0.5).1.chop(0.5).1; //.chop(0.5).0;
+        let quad_seg2 = quad_seg2.chop(0.5).1.chop(0.5).1.chop(0.5).0; //.chop(0.5).1;
+
+        println!("{:?}", quad_seg1);
+        println!("{:?}", quad_seg2);
+
+        path_segments_to_image(vec![&quad_seg1, &quad_seg2], vec![]);
 
         let (split1, split2) = split_line_on_cross_point(&quad_seg1, &quad_seg2).unwrap();
         let mut result_seg = vec![];
