@@ -87,9 +87,9 @@ impl MotionFlags {
     }
 
     pub fn random_motion() -> MotionFlags {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
-        let func_type = match rng.gen_range(0..=11) {
+        let func_type = match rng.random_range(0..=11) {
             0 => EasingFuncType::Liner,
             1 => EasingFuncType::Sin,
             2 => EasingFuncType::Quad,
@@ -104,14 +104,14 @@ impl MotionFlags {
             _ => EasingFuncType::Liner,
         };
 
-        let motion_type = match rng.gen_range(0..=3) {
+        let motion_type = match rng.random_range(0..=3) {
             0 => MotionType::EaseIn(func_type, true),
             1 => MotionType::EaseOut(func_type, true),
             2 => MotionType::EaseInOut(func_type, true),
             3 => MotionType::EaseIn(func_type, true),
             _ => MotionType::None,
         };
-        let motion_detail = match rng.gen_range(0..=4) {
+        let motion_detail = match rng.random_range(0..=4) {
             0 => MotionDetail::empty(),
             1 => MotionDetail::TO_CURRENT,
             2 => MotionDetail::USE_X_DISTANCE,
@@ -121,7 +121,7 @@ impl MotionFlags {
         };
         let mut motion_target = MotionTarget::empty();
         (0..4).for_each(|_| {
-            motion_target |= match rng.gen_range(0..=15) {
+            motion_target |= match rng.random_range(0..=15) {
                 0 => MotionTarget::MOVE_X_PLUS,
                 1 => MotionTarget::MOVE_X_MINUS,
                 2 => MotionTarget::MOVE_Y_PLUS,
