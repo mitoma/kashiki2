@@ -1,7 +1,6 @@
 use std::f32;
 
-use rustybuzz::ttf_parser::OutlineBuilder;
-use tiny_skia::{Paint, Path, Pixmap};
+use tiny_skia::{Paint, Pixmap};
 use tiny_skia_path::{PathBuilder, Point, Stroke, Transform};
 
 use crate::path_segment::{Cubic, Line, PathSegment, Quadratic};

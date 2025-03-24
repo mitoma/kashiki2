@@ -22,41 +22,58 @@ pub(crate) fn split_line_on_cross_point(
         return None;
     }
 
-    let mut a_sorted = cross_points.clone();
+    let mut a_sorted = cross_points
+        .iter()
+        .filter(|cp| ![0.0, 1.0].contains(&cp.a_position.abs()))
+        .cloned()
+        .collect::<Vec<_>>();
     a_sorted.sort_by(|l, r| l.a_position.partial_cmp(&r.a_position).unwrap());
-    let (mut a_result, last, _) = a_sorted.iter().fold(
-        (vec![], a.clone(), 0.0f32),
-        |(mut result, target_path, consumed), cp| {
-            let length = 1.0 - consumed;
-            let next_gain = cp.a_position - consumed;
-            let chop_point = next_gain / length;
-            let (mut pre, mut post) = target_path.chop(chop_point);
-            // 単に chop しただけだと誤差の都合で導出した交点と一致しない場合があるので、導出した交点に置き換える
-            pre.set_to(cp.point);
-            post.set_from(cp.point);
-            result.push(pre);
-            (result, post, consumed + cp.a_position)
-        },
-    );
-    a_result.push(last);
+    let a_result = if a_sorted.is_empty() {
+        vec![a.clone()]
+    } else {
+        let (mut a_result, last, _) = a_sorted.iter().fold(
+            (vec![], a.clone(), 0.0f32),
+            |(mut result, target_path, consumed), cp| {
+                let length = 1.0 - consumed;
+                let next_gain = cp.a_position - consumed;
+                let chop_point = next_gain / length;
+                let (mut pre, mut post) = target_path.chop(chop_point);
+                // 単に chop しただけだと誤差の都合で導出した交点と一致しない場合があるので、導出した交点に置き換える
+                pre.set_to(cp.point);
+                post.set_from(cp.point);
+                result.push(pre);
+                (result, post, consumed + cp.a_position)
+            },
+        );
+        a_result.push(last);
+        a_result
+    };
 
-    let mut b_sorted = cross_points.clone();
+    let mut b_sorted = cross_points
+        .iter()
+        .filter(|cp| ![0.0, 1.0].contains(&cp.b_position.abs()))
+        .cloned()
+        .collect::<Vec<_>>();
     b_sorted.sort_by(|l, r| l.b_position.partial_cmp(&r.b_position).unwrap());
-    let (mut b_result, last, _) = b_sorted.iter().fold(
-        (vec![], b.clone(), 0.0f32),
-        |(mut result, target_path, consumed), cp| {
-            let length = 1.0 - consumed;
-            let next_gain = cp.b_position - consumed;
-            let chop_point = next_gain / length;
-            let (mut pre, mut post) = target_path.chop(chop_point);
-            pre.set_to(cp.point);
-            post.set_from(cp.point);
-            result.push(pre);
-            (result, post, consumed + cp.b_position)
-        },
-    );
-    b_result.push(last);
-
+    let b_result = if b_sorted.is_empty() {
+        vec![b.clone()]
+    } else {
+        let (mut b_result, last, _) = b_sorted.iter().fold(
+            (vec![], b.clone(), 0.0f32),
+            |(mut result, target_path, consumed), cp| {
+                let length = 1.0 - consumed;
+                let next_gain = cp.b_position - consumed;
+                let chop_point = next_gain / length;
+                let (mut pre, mut post) = target_path.chop(chop_point);
+                pre.set_to(cp.point);
+                post.set_from(cp.point);
+                result.push(pre);
+                (result, post, consumed + cp.b_position)
+            },
+        );
+        b_result.push(last);
+        b_result
+    };
     Some((a_result, b_result))
 }
 
@@ -102,6 +119,27 @@ struct CrossPoint {
     b_position: f32,
 }
 
+impl CrossPoint {
+    fn normalize(&self) -> CrossPoint {
+        CrossPoint {
+            point: self.point,
+            a_position: Self::position_normalize(self.a_position),
+            b_position: Self::position_normalize(self.b_position),
+        }
+    }
+
+    #[inline]
+    fn position_normalize(value: f32) -> f32 {
+        if 0.0 < value && value < EPSILON {
+            0.0
+        } else if 1.0 - EPSILON < value && value < 1.0 {
+            1.0
+        } else {
+            value
+        }
+    }
+}
+
 #[inline]
 fn cross_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
     // 直線同士の交点を求める
@@ -116,14 +154,17 @@ fn cross_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
     let ub = ((a.to.x - a.from.x) * (a.from.y - b.from.y)
         - (a.to.y - a.from.y) * (a.from.x - b.from.x))
         / denom;
-    if (0.0..1.0).contains(&ua) && (0.0..1.0).contains(&ub) {
+    if (0.0..=1.0).contains(&ua) && (0.0..=1.0).contains(&ub) {
         let x = a.from.x + ua * (a.to.x - a.from.x);
         let y = a.from.y + ua * (a.to.y - a.from.y);
-        Some(CrossPoint {
-            point: Point::from_xy(x, y),
-            a_position: ua,
-            b_position: ub,
-        })
+        Some(
+            CrossPoint {
+                point: Point::from_xy(x, y),
+                a_position: ua,
+                b_position: ub,
+            }
+            .normalize(),
+        )
     } else {
         None // 線分上に交点がない場合
     }
@@ -211,128 +252,60 @@ where
                     },
                 ) {
                     // 交点が線分の端点に近い場合は端点として扱う
-                    fn normalize(value: f32) -> f32 {
-                        const NORMALIZE_EPSILON: f32 = 0.01;
-                        if 0.0 < value && value < NORMALIZE_EPSILON {
-                            0.0
-                        } else if 1.0 - NORMALIZE_EPSILON < value && value < 1.0 {
-                            1.0
-                        } else {
-                            value
-                        }
-                    }
-
                     let cp = CrossPoint {
                         point: point.point,
-                        a_position: normalize(a_position + point.a_position * a_gain),
-                        b_position: normalize(b_position + point.b_position * b_gain),
-                    };
+                        a_position: a_position + point.a_position * a_gain,
+                        b_position: b_position + point.b_position * b_gain,
+                    }
+                    .normalize();
                     // 交点が端点に丸められている際に、既に端点で既に交点が追加されているばあいは追加しない
+                    // point は厳密に一致しない可能性が高いので、a_position と b_position で判定する
                     if !points
                         .iter()
                         .any(|p| p.a_position == cp.a_position && p.b_position == cp.b_position)
                     {
-                        points.push(CrossPoint {
-                            point: point.point,
-                            a_position: normalize(a_position + point.a_position * a_gain),
-                            b_position: normalize(b_position + point.b_position * b_gain),
-                        })
+                        points.push(cp)
                     }
                 }
             } else {
-                // b が非常に小さいか、a の面積が b の面積の 2 倍以上の場合は a を分割する。
-                // 理由はよくわからないが片方の PathSegment の大きさがもう片方との差が大きいとき
-                // 交点の検出に失敗するケースがあるのでこのワークロードを入れる
-                let split_only_a = is_small_rect(&b.rect())
-                    || a.rect().width() * a.rect().height()
-                        > 2.0 * (b.rect().width() * b.rect().height());
-                let split_only_b = is_small_rect(&a.rect())
-                    || b.rect().width() * b.rect().height()
-                        > 2.0 * (a.rect().width() * a.rect().height());
-
-                let split_only_a = false;
-                let split_only_b = false;
-
-                if split_only_a {
-                    let a_depth = a_depth + 1;
-                    let a_gain = 1.0 / (2u32.pow(a_depth) as f32);
-                    let (a1, a2) = a.chop_harf();
-                    stack.push(StackItem {
-                        a: a1.clone(),
-                        a_position,
-                        a_depth,
-                        b: b.clone(),
-                        b_position,
-                        b_depth,
-                    });
-                    stack.push(StackItem {
-                        a: a2.clone(),
-                        a_position: a_position + a_gain,
-                        a_depth,
-                        b: b.clone(),
-                        b_position,
-                        b_depth,
-                    });
-                } else if split_only_b {
-                    let b_depth = b_depth + 1;
-                    let b_gain = 1.0 / (2u32.pow(b_depth) as f32);
-                    let (b1, b2) = b.chop_harf();
-                    stack.push(StackItem {
-                        a: a.clone(),
-                        a_position,
-                        a_depth,
-                        b: b1.clone(),
-                        b_position,
-                        b_depth,
-                    });
-                    stack.push(StackItem {
-                        a: a.clone(),
-                        a_position,
-                        a_depth,
-                        b: b2.clone(),
-                        b_position: b_position + b_gain,
-                        b_depth,
-                    });
-                } else {
-                    let a_depth = a_depth + 1;
-                    let b_depth = b_depth + 1;
-                    let a_gain = 1.0 / (2u32.pow(a_depth) as f32);
-                    let b_gain = 1.0 / (2u32.pow(b_depth) as f32);
-                    let (a1, a2) = a.chop_harf();
-                    let (b1, b2) = b.chop_harf();
-                    stack.push(StackItem {
-                        a: a1.clone(),
-                        a_position,
-                        a_depth,
-                        b: b1.clone(),
-                        b_position,
-                        b_depth,
-                    });
-                    stack.push(StackItem {
-                        a: a1.clone(),
-                        a_position,
-                        a_depth,
-                        b: b2.clone(),
-                        b_position: b_position + b_gain,
-                        b_depth,
-                    });
-                    stack.push(StackItem {
-                        a: a2.clone(),
-                        a_position: a_position + a_gain,
-                        a_depth,
-                        b: b1.clone(),
-                        b_position,
-                        b_depth,
-                    });
-                    stack.push(StackItem {
-                        a: a2.clone(),
-                        a_position: a_position + a_gain,
-                        a_depth,
-                        b: b2.clone(),
-                        b_position: b_position + b_gain,
-                        b_depth,
-                    });
-                }
+                let a_depth = a_depth + 1;
+                let b_depth = b_depth + 1;
+                let a_gain = 1.0 / (2u32.pow(a_depth) as f32);
+                let b_gain = 1.0 / (2u32.pow(b_depth) as f32);
+                let (a1, a2) = a.chop_harf();
+                let (b1, b2) = b.chop_harf();
+                stack.push(StackItem {
+                    a: a1.clone(),
+                    a_position,
+                    a_depth,
+                    b: b1.clone(),
+                    b_position,
+                    b_depth,
+                });
+                stack.push(StackItem {
+                    a: a1.clone(),
+                    a_position,
+                    a_depth,
+                    b: b2.clone(),
+                    b_position: b_position + b_gain,
+                    b_depth,
+                });
+                stack.push(StackItem {
+                    a: a2.clone(),
+                    a_position: a_position + a_gain,
+                    a_depth,
+                    b: b1.clone(),
+                    b_position,
+                    b_depth,
+                });
+                stack.push(StackItem {
+                    a: a2.clone(),
+                    a_position: a_position + a_gain,
+                    a_depth,
+                    b: b2.clone(),
+                    b_position: b_position + b_gain,
+                    b_depth,
+                });
             }
         }
     }
@@ -667,13 +640,15 @@ mod tests {
             control: Point::from_xy(1449.0, -1540.0),
         });
 
-        let quad_seg1 = quad_seg1.chop(0.5).0.chop(0.5).1.chop(0.5).1; //.chop(0.5).0;
-        let quad_seg2 = quad_seg2.chop(0.5).1.chop(0.5).1.chop(0.5).0; //.chop(0.5).1;
+        //let quad_seg1 = quad_seg1.chop(0.5).0.chop(0.5).1.chop(0.5).1; //.chop(0.5).0;
+        //let quad_seg2 = quad_seg2.chop(0.5).1.chop(0.5).1.chop(0.5).0; //.chop(0.5).1;
 
         println!("{:?}", quad_seg1);
         println!("{:?}", quad_seg2);
+        let cross_point = cross_point(&quad_seg1, &quad_seg2);
+        let points = cross_point.iter().map(|cp| &cp.point).collect::<Vec<_>>();
 
-        path_segments_to_image(vec![&quad_seg1, &quad_seg2], vec![]);
+        path_segments_to_image(vec![&quad_seg1, &quad_seg2], points);
 
         let (split1, split2) = split_line_on_cross_point(&quad_seg1, &quad_seg2).unwrap();
         let mut result_seg = vec![];

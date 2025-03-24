@@ -14,8 +14,14 @@ pub struct OverlapRemoveOutlineBuilder {
     paths: Vec<Path>,
 }
 
+impl Default for OverlapRemoveOutlineBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OverlapRemoveOutlineBuilder {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             builder: Some(PathBuilder::new()),
             paths: Vec::new(),

@@ -383,7 +383,7 @@ mod tests {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
         let glyph_id = face.glyph_index('🐢').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
 
@@ -395,7 +395,7 @@ mod tests {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
         let glyph_id = face.glyph_index('🐖').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
 
@@ -407,7 +407,7 @@ mod tests {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
         let glyph_id = face.glyph_index('🐦').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
 
@@ -419,7 +419,7 @@ mod tests {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
         let glyph_id = face.glyph_index('🎍').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
 
@@ -431,7 +431,7 @@ mod tests {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
         let glyph_id = face.glyph_index('🌅').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
 
@@ -443,7 +443,19 @@ mod tests {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
         let glyph_id = face.glyph_index('🐕').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
+        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+        let paths = path_builder.paths();
+
+        visualize_paths(paths);
+    }
+
+    #[test]
+    fn test_city() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index('🏙').unwrap();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
 
@@ -452,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_man() {
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
         path_builder.move_to(1.0, 0.0);
         path_builder.line_to(2.0, 0.0);
         path_builder.line_to(2.0, 3.0);
