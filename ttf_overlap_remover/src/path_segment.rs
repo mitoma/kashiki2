@@ -9,7 +9,6 @@ pub(crate) trait SegmentTrait
 where
     Self: Sized + PartialEq + Clone,
 {
-    #[allow(dead_code)]
     fn move_to(&self, point: Point) -> Self;
     fn set_from(&mut self, point: Point);
     fn set_to(&mut self, point: Point);
@@ -17,8 +16,6 @@ where
     fn rect(&self) -> Rect;
     fn chop_harf(&self) -> (Self, Self);
     fn chop(&self, position: f32) -> (Self, Self);
-    #[allow(dead_code)]
-    fn to_path_segment(self) -> PathSegment;
     fn reverse(&self) -> Self;
     fn is_same_or_reversed(&self, other: &Self) -> bool;
     #[allow(clippy::wrong_self_convention)]
@@ -79,10 +76,6 @@ impl SegmentTrait for Line {
                 to: self.to,
             },
         )
-    }
-
-    fn to_path_segment(self) -> PathSegment {
-        PathSegment::Line(self)
     }
 
     fn reverse(&self) -> Self {
@@ -167,10 +160,6 @@ impl SegmentTrait for Quadratic {
                 control: result[3],
             },
         )
-    }
-
-    fn to_path_segment(self) -> PathSegment {
-        PathSegment::Quadratic(self)
     }
 
     fn reverse(&self) -> Self {
@@ -281,10 +270,6 @@ impl SegmentTrait for Cubic {
         )
     }
 
-    fn to_path_segment(self) -> PathSegment {
-        PathSegment::Cubic(self)
-    }
-
     fn reverse(&self) -> Self {
         Cubic {
             from: self.to,
@@ -330,7 +315,6 @@ pub(crate) enum PathSegment {
 }
 
 impl PathSegment {
-    #[allow(dead_code)]
     pub(crate) fn move_to(&self, point: Point) -> Self {
         match self {
             PathSegment::Line(line) => PathSegment::Line(line.move_to(point)),
@@ -339,7 +323,6 @@ impl PathSegment {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn set_from(&mut self, point: Point) {
         match self {
             PathSegment::Line(line) => line.set_from(point),
@@ -348,7 +331,6 @@ impl PathSegment {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn set_to(&mut self, point: Point) {
         match self {
             PathSegment::Line(line) => line.set_to(point),
@@ -362,15 +344,6 @@ impl PathSegment {
             PathSegment::Line(line) => line.endpoints(),
             PathSegment::Quadratic(quad) => quad.endpoints(),
             PathSegment::Cubic(cubic) => cubic.endpoints(),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn rect(&self) -> Rect {
-        match self {
-            PathSegment::Line(line) => line.rect(),
-            PathSegment::Quadratic(quad) => quad.rect(),
-            PathSegment::Cubic(cubic) => cubic.rect(),
         }
     }
 

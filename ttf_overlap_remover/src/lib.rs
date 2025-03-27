@@ -14,19 +14,6 @@ mod sat;
 mod test_helper;
 mod util;
 
-/// Point を PathSegment に変換する
-#[allow(dead_code)]
-fn point_to_dot(point: Point) -> PathSegment {
-    let (x, y) = (point.x, point.y);
-    PathSegment::Line(Line {
-        from: point,
-        to: Point {
-            x: x + f32::EPSILON,
-            y: y + f32::EPSILON,
-        },
-    })
-}
-
 /// Path を PathSegment に変換する
 fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
     let mut results = Vec::new();
@@ -66,34 +53,12 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
 }
 
 /// Vec<Path> を PathSegment に変換する
-#[allow(dead_code)]
 #[inline]
 fn paths_to_path_segments(paths: &[Path]) -> Vec<PathSegment> {
     paths
         .iter()
         .flat_map(|path| path_to_path_segments(path.clone()))
         .collect()
-}
-
-/// Vec<Path> を PathSegment に変換する
-#[allow(dead_code)]
-#[inline]
-fn paths_to_clockwise_path_segments(paths: &[Path]) -> (Vec<PathSegment>, Vec<PathSegment>) {
-    let path_segments: Vec<Vec<PathSegment>> = paths
-        .iter()
-        .map(|path| path_to_path_segments(path.clone()))
-        .collect();
-    let clock_wise = path_segments
-        .iter()
-        .filter(|segments| is_clockwise(segments))
-        .flat_map(|segments| segments.clone())
-        .collect();
-    let counter_clock_wise = path_segments
-        .iter()
-        .filter(|segments| !is_clockwise(segments))
-        .flat_map(|segments| segments.clone())
-        .collect();
-    (clock_wise, counter_clock_wise)
 }
 
 #[derive(Debug, Clone)]
@@ -191,11 +156,6 @@ fn is_clockwise(segments: &Vec<PathSegment>) -> bool {
     sum > 0.0
 }
 
-#[allow(dead_code)]
-fn reverse(segments: &[PathSegment]) -> Vec<PathSegment> {
-    segments.iter().map(|s| s.reverse()).rev().collect()
-}
-
 fn same_path(segments1: &[PathSegment], segments2: &[PathSegment]) -> bool {
     if segments1.len() != segments2.len() {
         return false;
@@ -218,7 +178,6 @@ pub fn remove_path_overlap(paths: Vec<Path>) -> Vec<Path> {
         .collect()
 }
 
-#[allow(dead_code)]
 pub(crate) fn remove_overlap(paths: Vec<Path>) -> Vec<LoopSegment> {
     // Path を全て PathFlagment に分解し、交差部分でセグメントを分割する
     let path_segments = paths
