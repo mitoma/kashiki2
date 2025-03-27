@@ -54,8 +54,10 @@ pub(crate) fn is_polygon_overlapping(polygon1: &[Point], polygon2: &[Point]) -> 
 }
 
 mod tests {
-    use crate::sat::is_polygon_overlapping;
+
     use tiny_skia_path::Point;
+
+    use crate::sat::is_polygon_overlapping;
 
     #[test]
     fn test_polygons_overlap() {

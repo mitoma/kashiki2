@@ -307,7 +307,7 @@ impl SegmentTrait for Cubic {
     }
 
     fn polygon(&self) -> Vec<Point> {
-        let mut points = vec![self.from, self.control1, self.control2, self.to];
+        let mut points = [self.from, self.control1, self.control2, self.to];
         let center = points.iter().fold(Point::zero(), |sum, p| Point {
             x: sum.x + p.x,
             y: sum.y + p.y,
@@ -318,7 +318,7 @@ impl SegmentTrait for Cubic {
         };
 
         points.sort_by(|l, r| cmp_clockwise(&center, l, r));
-        return [points[0], points[1], points[2], points[3]].to_vec();
+        [points[0], points[1], points[2], points[3]].to_vec()
     }
 }
 
