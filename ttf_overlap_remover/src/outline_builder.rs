@@ -28,8 +28,15 @@ impl OverlapRemoveOutlineBuilder {
         }
     }
 
-    pub fn paths(self) -> Vec<Path> {
-        self.paths
+    pub fn paths(&self) -> Vec<Path> {
+        self.paths.clone()
+    }
+
+    pub fn removed_paths(&self) -> Vec<Path> {
+        remove_overlap(self.paths.clone())
+            .iter()
+            .flat_map(|segment| segment.to_path())
+            .collect::<Vec<_>>()
     }
 
     pub fn outline<T>(&self, builder: &mut T)
@@ -81,11 +88,11 @@ impl OutlineBuilder for OverlapRemoveOutlineBuilder {
         self.builder.as_mut().unwrap().line_to(x, y);
     }
 
-    fn quad_to(&mut self, x: f32, y: f32, x1: f32, y1: f32) {
+    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
         self.builder.as_mut().unwrap().quad_to(x1, y1, x, y);
     }
 
-    fn curve_to(&mut self, x: f32, y: f32, x1: f32, y1: f32, x2: f32, y2: f32) {
+    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
         self.builder
             .as_mut()
             .unwrap()

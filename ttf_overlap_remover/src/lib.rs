@@ -29,7 +29,7 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
                 }));
                 start_point = point;
             }
-            tiny_skia_path::PathSegment::QuadTo(point, point1) => {
+            tiny_skia_path::PathSegment::QuadTo(point1, point) => {
                 results.push(PathSegment::Quadratic(Quadratic {
                     from: start_point,
                     to: point,
@@ -37,7 +37,7 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
                 }));
                 start_point = point;
             }
-            tiny_skia_path::PathSegment::CubicTo(point, point1, point2) => {
+            tiny_skia_path::PathSegment::CubicTo(point1, point2, point) => {
                 results.push(PathSegment::Cubic(Cubic {
                     from: start_point,
                     to: point,
@@ -102,12 +102,12 @@ impl LoopSegment {
                 }
                 PathSegment::Cubic(cubic) => {
                     pb.cubic_to(
+                        cubic.to.x,
+                        cubic.to.y,
                         cubic.control1.x,
                         cubic.control1.y,
                         cubic.control2.x,
                         cubic.control2.y,
-                        cubic.to.x,
-                        cubic.to.y,
                     );
                 }
             }
@@ -326,8 +326,20 @@ mod tests {
     use crate::{
         OverlapRemoveOutlineBuilder, PathSegment, get_loop_segment, has_vector_tail_loop,
         path_to_path_segments, remove_overlap, split_all_paths,
-        test_helper::path_segments_to_images,
+        test_helper::{path_segments_to_images, render_path},
     };
+
+    #[test]
+    fn test_compare_turtle() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index('🐢').unwrap();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
+        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+
+        render_path("original", &path_builder.paths());
+        render_path("removed", &path_builder.removed_paths());
+    }
 
     #[test]
     fn test_turtle() {
