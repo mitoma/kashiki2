@@ -9,6 +9,7 @@ use util::cmp_clockwise;
 mod cross_point;
 mod outline_builder;
 mod path_segment;
+mod sat;
 #[cfg(test)]
 mod test_helper;
 mod util;

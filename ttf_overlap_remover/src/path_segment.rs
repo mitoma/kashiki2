@@ -24,6 +24,7 @@ where
     #[allow(clippy::wrong_self_convention)]
     fn from_vector(&self) -> Point;
     fn to_vector(&self) -> Point;
+    fn polygon(&self) -> Vec<Point>;
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -101,6 +102,10 @@ impl SegmentTrait for Line {
 
     fn to_vector(&self) -> Point {
         self.to - self.from
+    }
+
+    fn polygon(&self) -> Vec<Point> {
+        vec![self.from, self.to]
     }
 }
 
@@ -186,6 +191,10 @@ impl SegmentTrait for Quadratic {
 
     fn to_vector(&self) -> Point {
         self.to - self.control
+    }
+
+    fn polygon(&self) -> Vec<Point> {
+        vec![self.from, self.control, self.to]
     }
 }
 
@@ -295,6 +304,21 @@ impl SegmentTrait for Cubic {
 
     fn to_vector(&self) -> Point {
         self.to - self.control2
+    }
+
+    fn polygon(&self) -> Vec<Point> {
+        let mut points = vec![self.from, self.control1, self.control2, self.to];
+        let center = points.iter().fold(Point::zero(), |sum, p| Point {
+            x: sum.x + p.x,
+            y: sum.y + p.y,
+        });
+        let center = Point {
+            x: center.x / 4.0,
+            y: center.y / 4.0,
+        };
+
+        points.sort_by(|l, r| cmp_clockwise(&center, l, r));
+        return [points[0], points[1], points[2], points[3]].to_vec();
     }
 }
 
@@ -454,6 +478,15 @@ impl PathSegment {
             .min_by(|l, r| Self::cmp_clockwise_vector(self, l, r))
             .unwrap()
             .clone()
+    }
+
+    #[inline]
+    pub(crate) fn polygon(&self) -> Vec<Point> {
+        match self {
+            PathSegment::Line(line) => line.polygon(),
+            PathSegment::Quadratic(quad) => quad.polygon(),
+            PathSegment::Cubic(cubic) => cubic.polygon(),
+        }
     }
 }
 
