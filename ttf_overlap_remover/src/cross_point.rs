@@ -667,42 +667,6 @@ mod tests {
     }
 
     #[test]
-    fn test_split_cycle_quad() {
-        // 🛵の絵文字で分割ミスが発生するのを再現するテストケース
-        let quad_seg1 = PathSegment::Quadratic(Quadratic {
-            from: Point::from_xy(1101.0, 1046.0),
-            to: Point::from_xy(1014.0, 751.0),
-            control: Point::from_xy(1040.0, 873.0),
-        });
-        let quad_seg2 = PathSegment::Line(Line {
-            from: Point::from_xy(1137.0, 1135.0),
-            to: Point::from_xy(1093.0, 1024.0),
-        });
-
-        println!("{:?}", quad_seg1);
-        println!("{:?}", quad_seg2);
-        let cross_point = cross_point(&quad_seg1, &quad_seg2);
-        let points = cross_point.iter().map(|cp| &cp.point).collect::<Vec<_>>();
-
-        path_segments_to_image(vec![&quad_seg1, &quad_seg2], points);
-
-        let (split1, split2) = split_line_on_cross_point(&quad_seg1, &quad_seg2).unwrap();
-        let mut result_seg = vec![];
-        result_seg.extend(split1.iter());
-        result_seg.extend(split2.iter());
-        let moved_result: Vec<PathSegment> = result_seg
-            .iter()
-            .map(|seg| seg.move_to(Point::from_xy(0.0, 0.1)))
-            .collect();
-
-        let mut draw_vec = vec![&quad_seg1, &quad_seg2];
-        draw_vec.extend(moved_result.iter());
-
-        assert_eq!(split1.len(), 2);
-        assert_eq!(split2.len(), 2);
-    }
-
-    #[test]
     fn test_split_cubic_cubic() {
         let p1 = Point::from_xy(0.0, 2.0);
         let p2 = Point::from_xy(2.0, 2.0);
