@@ -53,6 +53,7 @@ pub(crate) fn is_polygon_overlapping(polygon1: &[Point], polygon2: &[Point]) -> 
     true // 全ての軸で重なりがあれば重なっている
 }
 
+#[cfg(test)]
 mod tests {
 
     use tiny_skia_path::Point;

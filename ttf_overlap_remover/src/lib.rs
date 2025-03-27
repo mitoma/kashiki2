@@ -52,15 +52,6 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
     results
 }
 
-/// Vec<Path> を PathSegment に変換する
-#[inline]
-fn paths_to_path_segments(paths: &[Path]) -> Vec<PathSegment> {
-    paths
-        .iter()
-        .flat_map(|path| path_to_path_segments(path.clone()))
-        .collect()
-}
-
 #[derive(Debug, Clone)]
 struct LoopSegment {
     segments: Vec<PathSegment>,
@@ -333,8 +324,8 @@ mod tests {
     use tiny_skia_path::Point;
 
     use crate::{
-        OverlapRemoveOutlineBuilder, get_loop_segment, has_vector_tail_loop,
-        paths_to_path_segments, remove_overlap, split_all_paths,
+        OverlapRemoveOutlineBuilder, PathSegment, get_loop_segment, has_vector_tail_loop,
+        path_to_path_segments, remove_overlap, split_all_paths,
         test_helper::path_segments_to_images,
     };
 
@@ -558,6 +549,15 @@ mod tests {
         }
         println!("no_zero_segment: {}", no_zero_segment);
         println!("min_distance: {:?}", min_distance);
+    }
+
+    /// Vec<Path> を PathSegment に変換する
+    #[inline]
+    fn paths_to_path_segments(paths: &[Path]) -> Vec<PathSegment> {
+        paths
+            .iter()
+            .flat_map(|path| path_to_path_segments(path.clone()))
+            .collect()
     }
 
     #[test]

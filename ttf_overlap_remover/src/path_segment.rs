@@ -9,6 +9,7 @@ pub(crate) trait SegmentTrait
 where
     Self: Sized + PartialEq + Clone,
 {
+    #[cfg(test)]
     fn move_to(&self, point: Point) -> Self;
     fn set_from(&mut self, point: Point);
     fn set_to(&mut self, point: Point);
@@ -31,6 +32,7 @@ pub(crate) struct Line {
 }
 
 impl SegmentTrait for Line {
+    #[cfg(test)]
     fn move_to(&self, point: Point) -> Self {
         Line {
             from: self.from + point,
@@ -111,6 +113,7 @@ pub(crate) struct Quadratic {
 }
 
 impl SegmentTrait for Quadratic {
+    #[cfg(test)]
     fn move_to(&self, point: Point) -> Self {
         Quadratic {
             from: self.from + point,
@@ -196,6 +199,7 @@ pub(crate) struct Cubic {
 }
 
 impl SegmentTrait for Cubic {
+    #[cfg(test)]
     fn move_to(&self, point: Point) -> Self {
         Cubic {
             from: self.from + point,
@@ -315,6 +319,7 @@ pub(crate) enum PathSegment {
 }
 
 impl PathSegment {
+    #[cfg(test)]
     pub(crate) fn move_to(&self, point: Point) -> Self {
         match self {
             PathSegment::Line(line) => PathSegment::Line(line.move_to(point)),
