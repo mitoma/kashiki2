@@ -41,11 +41,17 @@ pub(crate) fn split_line_on_cross_point(
                 // 単に chop しただけだと誤差の都合で導出した交点と一致しない場合があるので、導出した交点に置き換える
                 pre.set_to(cp.point);
                 post.set_from(cp.point);
-                result.push(pre);
+                if !pre.same_from_to() {
+                    // 端点が異なる場合は追加する
+                    result.push(pre);
+                }
                 (result, post, consumed + cp.a_position)
             },
         );
-        a_result.push(last);
+        if !last.same_from_to() {
+            // 端点が異なる場合は追加する
+            a_result.push(last);
+        }
         a_result
     };
 
@@ -67,11 +73,17 @@ pub(crate) fn split_line_on_cross_point(
                 let (mut pre, mut post) = target_path.chop(chop_point);
                 pre.set_to(cp.point);
                 post.set_from(cp.point);
-                result.push(pre);
+                if !pre.same_from_to() {
+                    // 端点が異なる場合は追加する
+                    result.push(pre);
+                }
                 (result, post, consumed + cp.b_position)
             },
         );
-        b_result.push(last);
+        if !last.same_from_to() {
+            // 端点が異なる場合は追加する
+            b_result.push(last);
+        }
         b_result
     };
     Some((a_result, b_result))
@@ -642,6 +654,47 @@ mod tests {
 
         //let quad_seg1 = quad_seg1.chop(0.5).0.chop(0.5).1.chop(0.5).1; //.chop(0.5).0;
         //let quad_seg2 = quad_seg2.chop(0.5).1.chop(0.5).1.chop(0.5).0; //.chop(0.5).1;
+
+        println!("{:?}", quad_seg1);
+        println!("{:?}", quad_seg2);
+        let cross_point = cross_point(&quad_seg1, &quad_seg2);
+        let points = cross_point.iter().map(|cp| &cp.point).collect::<Vec<_>>();
+
+        path_segments_to_image(vec![&quad_seg1, &quad_seg2], points);
+
+        let (split1, split2) = split_line_on_cross_point(&quad_seg1, &quad_seg2).unwrap();
+        let mut result_seg = vec![];
+        result_seg.extend(split1.iter());
+        result_seg.extend(split2.iter());
+        let moved_result: Vec<PathSegment> = result_seg
+            .iter()
+            .map(|seg| seg.move_to(Point::from_xy(0.0, 0.1)))
+            .collect();
+
+        let mut draw_vec = vec![&quad_seg1, &quad_seg2];
+        draw_vec.extend(moved_result.iter());
+
+        assert_eq!(split1.len(), 2);
+        assert_eq!(split2.len(), 2);
+    }
+
+    #[test]
+    fn test_split_uni_quad() {
+        // 🦄の絵文字で分割ミスが発生するのを再現するテストケース
+        // 分割後のセグメントがほぼ同じセグメントになっていて無限ループを誘発している
+        //i:Quadratic(Quadratic { from: Point { x: 1453.772, y: 1382.0125 }, to: Point { x: 1453.7717, y: 1382.0137 }, control: Point { x: 1450.3162, y: 1414.9514 } }),
+        //j:Quadratic(Quadratic { from: Point { x: 1453.7714, y: 1382.0182 }, to: Point { x: 1453.7715, y: 1382.0171 }, control: Point { x: 1453.7715, y: 1382.0176 } })
+
+        let quad_seg1 = PathSegment::Quadratic(Quadratic {
+            from: Point::from_xy(1453.772, -1382.0125),
+            to: Point::from_xy(1453.7717, -1382.0137),
+            control: Point::from_xy(1450.3162, -1414.9514),
+        });
+        let quad_seg2 = PathSegment::Quadratic(Quadratic {
+            from: Point::from_xy(1453.7714, -1382.0182),
+            to: Point::from_xy(1453.7715, -1382.0171),
+            control: Point::from_xy(1453.7715, -1382.0176),
+        });
 
         println!("{:?}", quad_seg1);
         println!("{:?}", quad_seg2);

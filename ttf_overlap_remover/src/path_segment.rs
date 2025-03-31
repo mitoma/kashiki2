@@ -466,6 +466,12 @@ impl PathSegment {
             PathSegment::Cubic(cubic) => cubic.polygon(),
         }
     }
+
+    #[inline]
+    pub(crate) fn same_from_to(&self) -> bool {
+        let (from, to) = self.endpoints();
+        from == to
+    }
 }
 
 #[cfg(test)]

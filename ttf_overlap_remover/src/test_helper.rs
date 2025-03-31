@@ -1,6 +1,6 @@
 use std::f32;
 
-use tiny_skia::{Paint, Pixmap};
+use tiny_skia::{Color, Paint, Pixmap, PremultipliedColorU8};
 use tiny_skia_path::{Path, PathBuilder, Point, Stroke, Transform};
 
 use crate::{
@@ -70,7 +70,7 @@ fn calc_transform(
     )
 }
 
-pub(crate) fn render_path(name: &str, paths: &Vec<Path>) {
+pub(crate) fn gen_even_pixmap(paths: &Vec<Path>) -> Pixmap {
     let canvas_size = 500.0;
     let segments = paths
         .iter()
@@ -81,26 +81,33 @@ pub(crate) fn render_path(name: &str, paths: &Vec<Path>) {
     let (transform, _) = calc_transform(canvas_size, &segments.iter().collect(), &vec![]);
     let mut paint = Paint::default();
     let mut pixmap = Pixmap::new(canvas_size as u32, canvas_size as u32).unwrap();
-    paint.anti_alias = true;
+    paint.anti_alias = false;
+    pixmap.fill(Color::WHITE);
 
     for path in paths {
         let segments = path_to_path_segments(path.clone());
         if !is_clockwise(&segments) {
-            paint.set_color_rgba8(0, 127, 0, 255);
+            paint.set_color_rgba8(255, 0, 0, 16);
             pixmap.fill_path(path, &paint, tiny_skia::FillRule::EvenOdd, transform, None);
         }
     }
     for path in paths {
         let segments = path_to_path_segments(path.clone());
         if is_clockwise(&segments) {
-            paint.set_color_rgba8(0, 0, 0, 255);
+            paint.set_color_rgba8(0, 255, 0, 16);
             pixmap.fill_path(path, &paint, tiny_skia::FillRule::EvenOdd, transform, None);
         }
     }
-
+    pixmap.pixels_mut().iter_mut().for_each(|p| {
+        let red = p.red();
+        let green = p.green();
+        if red > green {
+            *p = PremultipliedColorU8::from_rgba(0, 0, 0, 255).unwrap();
+        } else {
+            *p = PremultipliedColorU8::from_rgba(255, 255, 255, 255).unwrap();
+        }
+    });
     pixmap
-        .save_png(format!("image/image_{}.png", name))
-        .unwrap();
 }
 
 pub(crate) fn path_segments_to_image(segments: Vec<&PathSegment>, dots: Vec<&Point>) {
