@@ -183,40 +183,27 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
     let mut result_paths: Vec<LoopSegment> = Vec::new();
 
     for segment in path_segments.iter() {
+        if result_paths.iter().any(|s| s.segments.contains(&segment)) {
+            continue;
+        }
+
         let mut current_segment = segment.clone();
         let mut current_path = Vec::new();
         current_path.push(current_segment.clone());
         loop {
-            // 次のパスになりうるセグメントを探す(current の to が next の from または to と一致するセグメント)
-            let nexts: Vec<PathSegment> = path_segments
-                .iter()
-                //.flat_map(|p| [p.clone(), p.reverse()])
-                .flat_map(|p| [p.clone()])
-                // 今のセグメントと繋がるパスを絞り込む
-                .filter(|s| {
-                    let (_, current_to) = current_segment.endpoints();
-                    let (next_from, _) = s.endpoints();
-                    current_to == next_from
-                })
-                // 今のセグメントと同一または逆向きのセグメントは除外
-                .filter(|s| !s.is_same_or_reversed(&current_segment))
-                .collect();
-            if nexts.is_empty() {
-                // 次のパスになりうるセグメントが見つからない場合、閉じていない Path だった可能性もあるのでまぁいいかという感じで次のセグメントに進む
+            let Some(next_segment) =
+                resolve_next_segment(&path_segments, clock_wise, &current_segment)
+            else {
                 break;
-            }
-            // 現在のセグメントの進行方向から、最も左向きのベクトルを持つセグメントを次のセグメントとして選択する
-            current_segment = if clock_wise {
-                current_segment.select_clockwise_vector(&nexts)
-            } else {
-                current_segment.select_counter_clockwise_vector(&nexts)
             };
+            current_segment = next_segment;
             current_path.push(current_segment.clone());
 
             // ループが発生している場合、ループを切り出して result_paths に追加する
             if let Some(loop_position) = has_vector_tail_loop(&current_path) {
                 let created_path =
                     LoopSegment::create(current_path.split_off(loop_position)).unwrap();
+
                 let has_same_path = result_paths
                     .iter()
                     .any(|s| s.same_path(&created_path) || s.same_path(&created_path.reverse()));
@@ -228,6 +215,38 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
         }
     }
     result_paths
+}
+
+fn resolve_next_segment(
+    path_segments: &Vec<PathSegment>,
+    clock_wise: bool,
+    current_segment: &PathSegment,
+) -> Option<PathSegment> {
+    // 次のパスになりうるセグメントを探す(current の to が next の from または to と一致するセグメント)
+    let nexts: Vec<PathSegment> = path_segments
+        .iter()
+        //.flat_map(|p| [p.clone(), p.reverse()])
+        .flat_map(|p| [p.clone()])
+        // 今のセグメントと繋がるパスを絞り込む
+        .filter(|s| {
+            let (_, current_to) = current_segment.endpoints();
+            let (next_from, _) = s.endpoints();
+            current_to == next_from
+        })
+        // 今のセグメントと同一または逆向きのセグメントは除外
+        .filter(|s| !s.is_same_or_reversed(&current_segment))
+        .collect();
+    if nexts.is_empty() {
+        // 次のパスになりうるセグメントが見つからない場合、閉じていない Path だった可能性もあるのでまぁいいかという感じで次のセグメントに進む
+        return None;
+    }
+    // 現在のセグメントの進行方向から、最も左向きのベクトルを持つセグメントを次のセグメントとして選択する
+    let next_segment = if clock_wise {
+        current_segment.select_clockwise_vector(&nexts)
+    } else {
+        current_segment.select_counter_clockwise_vector(&nexts)
+    };
+    Some(next_segment)
 }
 
 fn get_splitted_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> LoopSegments {
@@ -469,7 +488,7 @@ mod tests {
         visualize_paths(paths);
     }
 
-    /* TODO 遅すぎるのでコメントアウト
+    //* TODO 遅すぎるのでコメントアウト
     #[test]
     fn test_truck() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
@@ -480,9 +499,14 @@ mod tests {
         let paths = path_builder.paths();
 
         visualize_paths(paths);
+        /*
+        let paths = paths_to_path_segments(&paths);
+        println!("paths: {:?}", paths[4]);
+        println!("paths: {:?}", paths[5]);
+        split_all_paths(paths.clone());
+         */
     }
-    */
-
+    //*/
     #[test]
     fn test_kaede() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
@@ -574,16 +598,6 @@ mod tests {
         }
 
         {
-            // 時計回りでループを取得
-            let clockwise = get_loop_segment(segments.clone(), true);
-            clockwise.into_iter().enumerate().for_each(|(i, segments)| {
-                path_segments_to_images(
-                    &format!("clockwise_{}_{}", i, segments.is_clockwise()),
-                    segments.segments.iter().collect(),
-                    vec![],
-                );
-            });
-
             // 反時計回りでループを取得
             let counter_clockwise = get_loop_segment(segments.clone(), false);
             counter_clockwise
