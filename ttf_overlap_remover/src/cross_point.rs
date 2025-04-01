@@ -86,6 +86,9 @@ pub(crate) fn split_line_on_cross_point(
         }
         b_result
     };
+    if a_result.len() == 1 && b_result.len() == 1 {
+        return None; // 分割されなかった場合は None を返す
+    }
     Some((a_result, b_result))
 }
 
@@ -248,7 +251,7 @@ where
     {
         let intersect = a.rect().intersect(&b.rect());
         if let Some(intersect) = intersect {
-            if is_small_rect(&intersect) {
+            if is_small_rect(&intersect) || a_depth > 8 || b_depth > 8 {
                 let a_gain = 1.0 / (2u32.pow(a_depth) as f32);
                 let b_gain = 1.0 / (2u32.pow(b_depth) as f32);
                 let (a_from, a_to) = a.endpoints();

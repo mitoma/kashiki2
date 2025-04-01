@@ -335,8 +335,8 @@ mod tests {
         let face: Face = Face::from_slice(font_file, 0).unwrap();
         let target_chars = vec![
             '🐢', '🐖', '🐦', '🎍', '🌅', '🐕', '🏙', '🛵', '🐈', '🐒', '🦉', '🐎', '🌸', '🍁',
-            '🍎', '🍔', '🎂', '🩷', '🌙', '⛄', '🎵', '⚽', '🏀', '🎲', '🎮', '📚',
-            '📷', /* heavy glyph '🚚', '🦄', */
+            '🍎', '🍔', '🎂', '🩷', '🌙', '⛄', '🎵', '⚽', '🏀', '🎲', '🎮', '📚', '📷', '🦄',
+            /* heavy glyph '🚚', */ '🌵',
         ];
 
         for target_char in target_chars {
@@ -495,7 +495,6 @@ mod tests {
         visualize_paths(paths);
     }
 
-    /* TODO 無限ループに嵌るのでコメントアウト
     #[test]
     fn test_uni() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
@@ -507,7 +506,6 @@ mod tests {
 
         visualize_paths(paths);
     }
-     */
 
     #[test]
     fn test_man() {
