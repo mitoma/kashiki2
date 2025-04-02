@@ -194,3 +194,86 @@ pub(crate) fn path_segments_to_images(name: &str, segments: Vec<&PathSegment>, d
         .save_png(format!("image/image_{}.png", name))
         .unwrap();
 }
+
+pub(crate) fn path_segments_to_images2(
+    image_path: &str,
+    segments: Vec<&PathSegment>,
+    dots: Vec<&Point>,
+) {
+    let canvas_size = 1000.0;
+    let (transform, scale) = calc_transform(canvas_size, &segments, &dots);
+    let scale_unit = 1.0 / scale;
+    //println!("scale: {}, scale_unit: {}", scale, scale_unit);
+
+    let mut paint = Paint::default();
+    let mut pixmap = Pixmap::new(canvas_size as u32, canvas_size as u32).unwrap();
+    let stroke = Stroke {
+        width: scale_unit,
+        ..Default::default()
+    };
+    paint.anti_alias = true;
+
+    let dot_stroke = Stroke {
+        width: scale_unit * 5.0,
+        line_cap: tiny_skia::LineCap::Round,
+        ..Default::default()
+    };
+
+    for segment in segments {
+        let (from, to) = segment.endpoints();
+        let from_dot = {
+            let mut from_dot = PathBuilder::new();
+            from_dot.move_to(from.x, from.y);
+            from_dot.line_to(from.x + f32::EPSILON, from.y + f32::EPSILON);
+            from_dot.finish().unwrap()
+        };
+        let to_dot = {
+            let mut to_dot = PathBuilder::new();
+            to_dot.move_to(to.x, to.y);
+            to_dot.line_to(to.x + f32::EPSILON, to.y + f32::EPSILON);
+            to_dot.finish().unwrap()
+        };
+
+        let path = {
+            let mut pb = PathBuilder::new();
+            match segment {
+                PathSegment::Line(Line { from, to }) => {
+                    pb.move_to(from.x, from.y);
+                    pb.line_to(to.x, to.y);
+                }
+                PathSegment::Quadratic(Quadratic { from, to, control }) => {
+                    pb.move_to(from.x, from.y);
+                    pb.quad_to(control.x, control.y, to.x, to.y);
+                }
+                PathSegment::Cubic(Cubic {
+                    from,
+                    to,
+                    control1,
+                    control2,
+                }) => {
+                    pb.move_to(from.x, from.y);
+                    pb.cubic_to(control1.x, control1.y, control2.x, control2.y, to.x, to.y);
+                }
+            }
+            pb.finish().unwrap()
+        };
+
+        paint.set_color_rgba8(0, 127, 0, 255);
+        pixmap.stroke_path(&path, &paint, &stroke, transform, None);
+        paint.set_color_rgba8(255, 0, 0, 120);
+        pixmap.stroke_path(&from_dot, &paint, &dot_stroke, transform, None);
+        paint.set_color_rgba8(0, 255, 0, 120);
+        pixmap.stroke_path(&to_dot, &paint, &dot_stroke, transform, None);
+    }
+
+    paint.set_color_rgba8(0, 0, 255, 255);
+    for dot in dots {
+        let mut dot_path = PathBuilder::new();
+        dot_path.move_to(dot.x, dot.y);
+        dot_path.line_to(dot.x + f32::EPSILON, dot.y + f32::EPSILON);
+        let dot_path = dot_path.finish().unwrap();
+        pixmap.stroke_path(&dot_path, &paint, &dot_stroke, transform, None);
+    }
+
+    pixmap.save_png(image_path).unwrap();
+}

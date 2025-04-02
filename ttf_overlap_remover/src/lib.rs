@@ -343,13 +343,11 @@ mod tests {
     use tiny_skia_path::Point;
 
     use crate::{
-        OverlapRemoveOutlineBuilder, PathSegment, get_loop_segment, has_vector_tail_loop,
-        path_to_path_segments, remove_overlap, split_all_paths,
-        test_helper::{gen_even_pixmap, path_segments_to_images},
+        get_loop_segment, has_vector_tail_loop, path_to_path_segments, remove_overlap, split_all_paths, test_helper::{gen_even_pixmap, path_segments_to_images, path_segments_to_images2}, OverlapRemoveOutlineBuilder, PathSegment
     };
 
     #[test]
-    fn test_compare_turtle() {
+    fn test_compare_glyphs() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
 
@@ -393,9 +391,20 @@ mod tests {
             );
 
             if equal_rate < 0.99 {
-                let _ = original.save_png(format!("image/bad_{}_org.png", target_char));
-                let _ = removed.save_png(format!("image/bad_{}_removed.png", target_char));
-                //unreachable!("一致率が低い");
+                let _ = original.save_png(format!("image/bad_{}_fill_original.png", target_char));
+                let _ = removed.save_png(format!("image/bad_{}_fill_removed.png", target_char));
+                let original_segments = paths_to_path_segments(&path_builder.paths());
+                path_segments_to_images2(
+                    &format!("image/bad_{}_line_original.png", target_char),
+                    original_segments.iter().collect(),
+                    vec![],
+                );
+                let removed_segments = paths_to_path_segments(&path_builder.removed_paths());
+                path_segments_to_images2(
+                    &format!("image/bad_{}_line_removed.png", target_char),
+                    removed_segments.iter().collect(),
+                    vec![],
+                );
             }
         }
     }
