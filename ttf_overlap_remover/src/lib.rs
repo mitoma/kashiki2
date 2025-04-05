@@ -289,11 +289,12 @@ fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<LoopSegment> {
 fn has_vector_tail_loop<T: PartialEq>(value: &[T]) -> Option<usize> {
     let len = value.len();
     for i in 1..len {
-        if len < (1 + i) * 2 {
+        let double_i = i * 2;
+        if len < double_i {
             continue;
         }
-        if value[len - 1 - i..] == value[len - ((1 + i) * 2)..(len - (1 + i))] {
-            return Some(len - 1 - i);
+        if value[len - i..] == value[len - double_i..(len - i)] {
+            return Some(len - i);
         }
     }
     None
