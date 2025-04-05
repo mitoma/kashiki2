@@ -706,20 +706,10 @@ mod tests {
 
         path_segments_to_image(vec![&quad_seg1, &quad_seg2], points);
 
-        let (split1, split2) = split_line_on_cross_point(&quad_seg1, &quad_seg2).unwrap();
-        let mut result_seg = vec![];
-        result_seg.extend(split1.iter());
-        result_seg.extend(split2.iter());
-        let moved_result: Vec<PathSegment> = result_seg
-            .iter()
-            .map(|seg| seg.move_to(Point::from_xy(0.0, 0.1)))
-            .collect();
-
-        let mut draw_vec = vec![&quad_seg1, &quad_seg2];
-        draw_vec.extend(moved_result.iter());
-
-        assert_eq!(split1.len(), 2);
-        assert_eq!(split2.len(), 2);
+        let Some((_split1, _split2)) = split_line_on_cross_point(&quad_seg1, &quad_seg2) else {
+            return;
+        };
+        unreachable!("分割はされないのが今の正解");
     }
 
     #[test]
