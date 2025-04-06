@@ -712,6 +712,50 @@ mod tests {
         unreachable!("分割はされないのが今の正解");
     }
 
+    // FIXME できれば直したいが…
+    //#[test]
+    fn test_mogemoge() {
+        //a:Quadratic(Quadratic { from: Point { x: 1172.0261, y: 423.0 }, to: Point { x: 1172.0, y: 425.0 }, control: Point { x: 1172.0, y: 423.99362 } }),
+        //b:Line(Line { from: Point { x: 1172.0, y: 79.0 }, to: Point { x: 1172.0, y: 467.0 } })
+        let quad_seg1 = PathSegment::Quadratic(Quadratic {
+            from: Point::from_xy(1172.0261, 423.0),
+            to: Point::from_xy(1172.0, 425.0),
+            control: Point::from_xy(1172.0, 423.99362),
+        });
+        let quad_seg2 = PathSegment::Line(Line {
+            from: Point::from_xy(1172.0, 79.0),
+            to: Point::from_xy(1172.0, 467.0),
+        });
+
+        println!("{:?}", quad_seg1);
+        println!("{:?}", quad_seg2);
+        let cp = cross_point(&quad_seg1, &quad_seg2);
+        println!("{:?}", cp);
+        let points = cp.iter().map(|cp| &cp.point).collect::<Vec<_>>();
+
+        path_segments_to_image(vec![&quad_seg1, &quad_seg2], points);
+
+        let Some((a_result, b_result)) = split_line_on_cross_point(&quad_seg1, &quad_seg2) else {
+            unreachable!("分割される");
+        };
+
+        for new_a in a_result.iter() {
+            for new_b in b_result.iter() {
+                let points = cross_point(new_a, new_b)
+                    .into_iter()
+                    // 端点同士が交点となる場合は分割対象外
+                    .filter(|cp| {
+                        !([0.0, 1.0].contains(&cp.a_position.abs())
+                            && [0.0, 1.0].contains(&cp.b_position.abs()))
+                    })
+                    .collect::<Vec<_>>();
+                if points.len() > 0 {
+                    unreachable!("分割したのに分割後も交点が存在する");
+                }
+            }
+        }
+    }
+
     #[test]
     fn test_split_cubic_cubic() {
         let p1 = Point::from_xy(0.0, 2.0);

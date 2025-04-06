@@ -305,12 +305,44 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
 
     let mut has_cross = true;
     let mut i_min = 0;
+
+    struct IgnoreGroup {
+        segments: Vec<PathSegment>,
+    }
+
+    impl IgnoreGroup {
+        #[inline]
+        fn new(left: Vec<PathSegment>, right: Vec<PathSegment>) -> Self {
+            Self {
+                segments: vec![left, right].concat(),
+            }
+        }
+
+        #[inline]
+        fn contains(&self, a: &PathSegment, b: &PathSegment) -> bool {
+            self.segments.contains(a) && self.segments.contains(b)
+        }
+    }
+
+    let mut ignore_pair_list: Vec<IgnoreGroup> = vec![];
+
     while has_cross {
         'outer: {
             let i_start = i_min;
             for i in i_start..paths.len() {
                 for j in i + 1..paths.len() {
-                    if let Some((mut a, mut b)) = split_line_on_cross_point(&paths[i], &paths[j]) {
+                    let path_i = &paths[i];
+                    let path_j = &paths[j];
+                    if path_i.is_same_or_reversed(path_j) {
+                        // skip
+                    } else if ignore_pair_list
+                        .iter()
+                        .any(|pair| pair.contains(path_i, path_j))
+                    {
+                        // skip
+                    } else if let Some((mut a, mut b)) = split_line_on_cross_point(path_i, path_j) {
+                        ignore_pair_list.push(IgnoreGroup::new(a.clone(), b.clone()));
+
                         has_cross = true;
                         let mut result = Vec::new();
 
@@ -337,7 +369,7 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
 #[cfg(test)]
 mod tests {
 
-    use std::f32::consts::PI;
+    use std::{collections::HashMap, f32::consts::PI};
 
     use rustybuzz::{Face, ttf_parser::OutlineBuilder};
     use tiny_skia::Path;
@@ -349,7 +381,43 @@ mod tests {
         test_helper::{gen_even_pixmap, path_segments_to_images, path_segments_to_images2},
     };
 
-    //#[test]
+    #[test]
+    fn test_search_dup_path() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+
+        let target_chars = '\u{10000}'..='\u{1FFFF}';
+
+        for target_char in target_chars {
+            let Some(glyph_id) = face.glyph_index(target_char) else {
+                continue;
+            };
+            let mut path_builder = OverlapRemoveOutlineBuilder::default();
+            face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+
+            let segments = paths_to_path_segments(&path_builder.paths());
+            let mut dup_paths: HashMap<String, u32> = HashMap::new();
+            segments.iter().for_each(|segment| {
+                let key = format!("{:?}", segment);
+                dup_paths.entry(key).and_modify(|e| *e += 1).or_insert(1);
+                let reverse_key = format!("{:?}", segment.reverse());
+                dup_paths
+                    .entry(reverse_key)
+                    .and_modify(|e| *e += 1)
+                    .or_insert(1);
+            });
+            dup_paths.iter().for_each(|(key, count)| {
+                if *count > 1 {
+                    println!(
+                        "target_char: {}, dup_path: {}, count: {}",
+                        target_char, key, count
+                    );
+                }
+            });
+        }
+    }
+
+    #[test]
     fn test_compare_glyphs() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
@@ -358,7 +426,8 @@ mod tests {
         let target_chars = '\u{10000}'..='\u{1FFFF}';
 
         // 処理が終わらない重い文字
-        let skip_char = ['🎑', '📜', '🦆'];
+        //let skip_char = ['🎑', '📜', '🦆'];
+        let skip_char = [];
 
         let mut failed_chars = Vec::new();
 
@@ -483,10 +552,19 @@ mod tests {
         noto_emoji_glyph('🦄')
     }
 
-    // TODO 遅すぎるのでコメントアウト
-    //#[test]
+    #[test]
     fn test_tsukimi() {
         noto_emoji_glyph('🎑')
+    }
+
+    #[test]
+    fn test_duck2() {
+        noto_emoji_glyph('🦆')
+    }
+
+    #[test]
+    fn test_map() {
+        noto_emoji_glyph('📜')
     }
 
     fn noto_emoji_glyph(c: char) {
