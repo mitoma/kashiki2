@@ -92,7 +92,7 @@ pub(crate) fn split_line_on_cross_point(
     Some((a_result, b_result))
 }
 
-const EPSILON: f32 = 0.0005;
+const EPSILON: f32 = 0.00001;
 fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<CrossPoint> {
     // 二つのセグメントが交差しているかどうかを判定
     if !is_polygon_overlapping(&a.polygon(), &b.polygon()) {
