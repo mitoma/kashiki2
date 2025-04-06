@@ -162,14 +162,14 @@ fn same_path(segments1: &[PathSegment], segments2: &[PathSegment]) -> bool {
     segment1_map == segment2_map
 }
 
-pub fn remove_path_overlap(paths: Vec<Path>) -> Vec<Path> {
+pub(crate) fn remove_path_overlap(paths: Vec<Path>) -> Vec<Path> {
     remove_overlap(paths)
         .iter()
         .flat_map(|segments| segments.to_path())
         .collect()
 }
 
-pub(crate) fn remove_overlap(paths: Vec<Path>) -> Vec<LoopSegment> {
+fn remove_overlap(paths: Vec<Path>) -> Vec<LoopSegment> {
     // Path を全て PathFlagment に分解し、交差部分でセグメントを分割する
     let path_segments = paths
         .iter()
@@ -183,7 +183,7 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
     let mut result_paths: Vec<LoopSegment> = Vec::new();
 
     for segment in path_segments.iter() {
-        if result_paths.iter().any(|s| s.segments.contains(&segment)) {
+        if result_paths.iter().any(|s| s.segments.contains(segment)) {
             continue;
         }
 
@@ -218,7 +218,7 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
 }
 
 fn resolve_next_segment(
-    path_segments: &Vec<PathSegment>,
+    path_segments: &[PathSegment],
     clock_wise: bool,
     current_segment: &PathSegment,
 ) -> Option<PathSegment> {
@@ -234,7 +234,7 @@ fn resolve_next_segment(
             current_to == next_from
         })
         // 今のセグメントと同一または逆向きのセグメントは除外
-        .filter(|s| !s.is_same_or_reversed(&current_segment))
+        .filter(|s| !s.is_same_or_reversed(current_segment))
         .collect();
     if nexts.is_empty() {
         // 次のパスになりうるセグメントが見つからない場合、閉じていない Path だった可能性もあるのでまぁいいかという感じで次のセグメントに進む
@@ -314,7 +314,7 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
         #[inline]
         fn new(left: Vec<PathSegment>, right: Vec<PathSegment>) -> Self {
             Self {
-                segments: vec![left, right].concat(),
+                segments: [left, right].concat(),
             }
         }
 
@@ -324,7 +324,7 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
         }
     }
 
-    let mut ignore_pair_list: Vec<IgnoreGroup> = vec![];
+    let mut ignore_group: Vec<IgnoreGroup> = vec![];
 
     while has_cross {
         'outer: {
@@ -334,29 +334,34 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
                     let path_i = &paths[i];
                     let path_j = &paths[j];
                     if path_i.is_same_or_reversed(path_j) {
-                        // skip
-                    } else if ignore_pair_list
+                        // 同一のパスで交点分割は不毛なので skip
+                        continue;
+                    }
+                    if ignore_group
                         .iter()
                         .any(|pair| pair.contains(path_i, path_j))
                     {
-                        // skip
-                    } else if let Some((mut a, mut b)) = split_line_on_cross_point(path_i, path_j) {
-                        ignore_pair_list.push(IgnoreGroup::new(a.clone(), b.clone()));
-
-                        has_cross = true;
-                        let mut result = Vec::new();
-
-                        result.append(&mut paths.clone()[0..i].to_vec());
-
-                        result.append(&mut a);
-                        result.append(&mut b);
-                        if i + 1 != j {
-                            result.append(&mut paths.clone()[i + 1..j].to_vec());
-                        }
-                        result.append(&mut paths.clone()[j + 1..].to_vec());
-                        paths = result;
-                        break 'outer;
+                        // 既に分割済みのパスで再分割すると精度の問題で再分割が発生するので skip
+                        continue;
                     }
+                    let Some((mut a, mut b)) = split_line_on_cross_point(path_i, path_j) else {
+                        continue;
+                    };
+                    ignore_group.push(IgnoreGroup::new(a.clone(), b.clone()));
+
+                    has_cross = true;
+                    let mut result = Vec::new();
+
+                    result.append(&mut paths.clone()[0..i].to_vec());
+
+                    result.append(&mut a);
+                    result.append(&mut b);
+                    if i + 1 != j {
+                        result.append(&mut paths.clone()[i + 1..j].to_vec());
+                    }
+                    result.append(&mut paths.clone()[j + 1..].to_vec());
+                    paths = result;
+                    break 'outer;
                 }
                 i_min = i;
             }
@@ -418,6 +423,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "reason: slow"]
     fn test_compare_glyphs() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();

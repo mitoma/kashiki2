@@ -5,7 +5,7 @@ use tiny_skia_path::{Path, PathBuilder, Point};
 
 use crate::{
     path_segment::{Cubic, Line, PathSegment, Quadratic},
-    remove_overlap,
+    remove_overlap, remove_path_overlap,
 };
 
 #[derive(Debug)]
@@ -33,10 +33,7 @@ impl OverlapRemoveOutlineBuilder {
     }
 
     pub fn removed_paths(&self) -> Vec<Path> {
-        remove_overlap(self.paths.clone())
-            .iter()
-            .flat_map(|segment| segment.to_path())
-            .collect::<Vec<_>>()
+        remove_path_overlap(self.paths.clone())
     }
 
     pub fn outline<T>(&self, builder: &mut T)

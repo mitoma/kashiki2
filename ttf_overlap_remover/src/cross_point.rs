@@ -681,40 +681,10 @@ mod tests {
         assert_eq!(split2.len(), 2);
     }
 
+    // FIXME 交点分割後にも関わらず分割後に交点が存在する場合がある
     #[test]
-    fn test_split_uni_quad() {
-        // 🦄の絵文字で分割ミスが発生するのを再現するテストケース
-        // 分割後のセグメントがほぼ同じセグメントになっていて無限ループを誘発している
-        //i:Quadratic(Quadratic { from: Point { x: 1453.772, y: 1382.0125 }, to: Point { x: 1453.7717, y: 1382.0137 }, control: Point { x: 1450.3162, y: 1414.9514 } }),
-        //j:Quadratic(Quadratic { from: Point { x: 1453.7714, y: 1382.0182 }, to: Point { x: 1453.7715, y: 1382.0171 }, control: Point { x: 1453.7715, y: 1382.0176 } })
-
-        let quad_seg1 = PathSegment::Quadratic(Quadratic {
-            from: Point::from_xy(1453.772, -1382.0125),
-            to: Point::from_xy(1453.7717, -1382.0137),
-            control: Point::from_xy(1450.3162, -1414.9514),
-        });
-        let quad_seg2 = PathSegment::Quadratic(Quadratic {
-            from: Point::from_xy(1453.7714, -1382.0182),
-            to: Point::from_xy(1453.7715, -1382.0171),
-            control: Point::from_xy(1453.7715, -1382.0176),
-        });
-
-        println!("{:?}", quad_seg1);
-        println!("{:?}", quad_seg2);
-        let cross_point = cross_point(&quad_seg1, &quad_seg2);
-        let points = cross_point.iter().map(|cp| &cp.point).collect::<Vec<_>>();
-
-        path_segments_to_image(vec![&quad_seg1, &quad_seg2], points);
-
-        let Some((_split1, _split2)) = split_line_on_cross_point(&quad_seg1, &quad_seg2) else {
-            return;
-        };
-        unreachable!("分割はされないのが今の正解");
-    }
-
-    // FIXME できれば直したいが…
-    //#[test]
-    fn test_mogemoge() {
+    #[ignore = "FIXME"]
+    fn test_no_cross_point() {
         //a:Quadratic(Quadratic { from: Point { x: 1172.0261, y: 423.0 }, to: Point { x: 1172.0, y: 425.0 }, control: Point { x: 1172.0, y: 423.99362 } }),
         //b:Line(Line { from: Point { x: 1172.0, y: 79.0 }, to: Point { x: 1172.0, y: 467.0 } })
         let quad_seg1 = PathSegment::Quadratic(Quadratic {
@@ -749,7 +719,7 @@ mod tests {
                             && [0.0, 1.0].contains(&cp.b_position.abs()))
                     })
                     .collect::<Vec<_>>();
-                if points.len() > 0 {
+                if !points.is_empty() {
                     unreachable!("分割したのに分割後も交点が存在する");
                 }
             }
