@@ -9,7 +9,7 @@ pub(crate) trait SegmentTrait
 where
     Self: Sized + PartialEq + Clone,
 {
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn move_to(&self, point: Point) -> Self;
     fn set_from(&mut self, point: Point);
     fn set_to(&mut self, point: Point);
@@ -17,13 +17,12 @@ where
     fn rect(&self) -> Rect;
     fn chop_harf(&self) -> (Self, Self);
     fn chop(&self, position: f32) -> (Self, Self);
-    #[allow(dead_code)]
-    fn to_path_segment(self) -> PathSegment;
     fn reverse(&self) -> Self;
     fn is_same_or_reversed(&self, other: &Self) -> bool;
     #[allow(clippy::wrong_self_convention)]
     fn from_vector(&self) -> Point;
     fn to_vector(&self) -> Point;
+    fn polygon(&self) -> Vec<Point>;
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -33,6 +32,7 @@ pub(crate) struct Line {
 }
 
 impl SegmentTrait for Line {
+    #[cfg(test)]
     fn move_to(&self, point: Point) -> Self {
         Line {
             from: self.from + point,
@@ -80,10 +80,6 @@ impl SegmentTrait for Line {
         )
     }
 
-    fn to_path_segment(self) -> PathSegment {
-        PathSegment::Line(self)
-    }
-
     fn reverse(&self) -> Self {
         Line {
             from: self.to,
@@ -102,6 +98,10 @@ impl SegmentTrait for Line {
     fn to_vector(&self) -> Point {
         self.to - self.from
     }
+
+    fn polygon(&self) -> Vec<Point> {
+        vec![self.from, self.to]
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -113,6 +113,7 @@ pub(crate) struct Quadratic {
 }
 
 impl SegmentTrait for Quadratic {
+    #[cfg(test)]
     fn move_to(&self, point: Point) -> Self {
         Quadratic {
             from: self.from + point,
@@ -164,10 +165,6 @@ impl SegmentTrait for Quadratic {
         )
     }
 
-    fn to_path_segment(self) -> PathSegment {
-        PathSegment::Quadratic(self)
-    }
-
     fn reverse(&self) -> Self {
         Quadratic {
             from: self.to,
@@ -187,6 +184,10 @@ impl SegmentTrait for Quadratic {
     fn to_vector(&self) -> Point {
         self.to - self.control
     }
+
+    fn polygon(&self) -> Vec<Point> {
+        vec![self.from, self.control, self.to]
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -198,6 +199,7 @@ pub(crate) struct Cubic {
 }
 
 impl SegmentTrait for Cubic {
+    #[cfg(test)]
     fn move_to(&self, point: Point) -> Self {
         Cubic {
             from: self.from + point,
@@ -272,10 +274,6 @@ impl SegmentTrait for Cubic {
         )
     }
 
-    fn to_path_segment(self) -> PathSegment {
-        PathSegment::Cubic(self)
-    }
-
     fn reverse(&self) -> Self {
         Cubic {
             from: self.to,
@@ -296,6 +294,21 @@ impl SegmentTrait for Cubic {
     fn to_vector(&self) -> Point {
         self.to - self.control2
     }
+
+    fn polygon(&self) -> Vec<Point> {
+        let mut points = [self.from, self.control1, self.control2, self.to];
+        let center = points.iter().fold(Point::zero(), |sum, p| Point {
+            x: sum.x + p.x,
+            y: sum.y + p.y,
+        });
+        let center = Point {
+            x: center.x / 4.0,
+            y: center.y / 4.0,
+        };
+
+        points.sort_by(|l, r| cmp_clockwise(&center, l, r));
+        [points[0], points[1], points[2], points[3]].to_vec()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -306,7 +319,7 @@ pub(crate) enum PathSegment {
 }
 
 impl PathSegment {
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn move_to(&self, point: Point) -> Self {
         match self {
             PathSegment::Line(line) => PathSegment::Line(line.move_to(point)),
@@ -315,7 +328,6 @@ impl PathSegment {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn set_from(&mut self, point: Point) {
         match self {
             PathSegment::Line(line) => line.set_from(point),
@@ -324,7 +336,6 @@ impl PathSegment {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn set_to(&mut self, point: Point) {
         match self {
             PathSegment::Line(line) => line.set_to(point),
@@ -338,15 +349,6 @@ impl PathSegment {
             PathSegment::Line(line) => line.endpoints(),
             PathSegment::Quadratic(quad) => quad.endpoints(),
             PathSegment::Cubic(cubic) => cubic.endpoints(),
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn rect(&self) -> Rect {
-        match self {
-            PathSegment::Line(line) => line.rect(),
-            PathSegment::Quadratic(quad) => quad.rect(),
-            PathSegment::Cubic(cubic) => cubic.rect(),
         }
     }
 
@@ -454,6 +456,21 @@ impl PathSegment {
             .min_by(|l, r| Self::cmp_clockwise_vector(self, l, r))
             .unwrap()
             .clone()
+    }
+
+    #[inline]
+    pub(crate) fn polygon(&self) -> Vec<Point> {
+        match self {
+            PathSegment::Line(line) => line.polygon(),
+            PathSegment::Quadratic(quad) => quad.polygon(),
+            PathSegment::Cubic(cubic) => cubic.polygon(),
+        }
+    }
+
+    #[inline]
+    pub(crate) fn same_from_to(&self) -> bool {
+        let (from, to) = self.endpoints();
+        from == to
     }
 }
 

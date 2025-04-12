@@ -9,22 +9,10 @@ use util::cmp_clockwise;
 mod cross_point;
 mod outline_builder;
 mod path_segment;
+mod sat;
 #[cfg(test)]
 mod test_helper;
 mod util;
-
-/// Point を PathSegment に変換する
-#[allow(dead_code)]
-fn point_to_dot(point: Point) -> PathSegment {
-    let (x, y) = (point.x, point.y);
-    PathSegment::Line(Line {
-        from: point,
-        to: Point {
-            x: x + f32::EPSILON,
-            y: y + f32::EPSILON,
-        },
-    })
-}
 
 /// Path を PathSegment に変換する
 fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
@@ -41,7 +29,7 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
                 }));
                 start_point = point;
             }
-            tiny_skia_path::PathSegment::QuadTo(point, point1) => {
+            tiny_skia_path::PathSegment::QuadTo(point1, point) => {
                 results.push(PathSegment::Quadratic(Quadratic {
                     from: start_point,
                     to: point,
@@ -49,7 +37,7 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
                 }));
                 start_point = point;
             }
-            tiny_skia_path::PathSegment::CubicTo(point, point1, point2) => {
+            tiny_skia_path::PathSegment::CubicTo(point1, point2, point) => {
                 results.push(PathSegment::Cubic(Cubic {
                     from: start_point,
                     to: point,
@@ -62,37 +50,6 @@ fn path_to_path_segments(path: Path) -> Vec<PathSegment> {
         }
     }
     results
-}
-
-/// Vec<Path> を PathSegment に変換する
-#[allow(dead_code)]
-#[inline]
-fn paths_to_path_segments(paths: &[Path]) -> Vec<PathSegment> {
-    paths
-        .iter()
-        .flat_map(|path| path_to_path_segments(path.clone()))
-        .collect()
-}
-
-/// Vec<Path> を PathSegment に変換する
-#[allow(dead_code)]
-#[inline]
-fn paths_to_clockwise_path_segments(paths: &[Path]) -> (Vec<PathSegment>, Vec<PathSegment>) {
-    let path_segments: Vec<Vec<PathSegment>> = paths
-        .iter()
-        .map(|path| path_to_path_segments(path.clone()))
-        .collect();
-    let clock_wise = path_segments
-        .iter()
-        .filter(|segments| is_clockwise(segments))
-        .flat_map(|segments| segments.clone())
-        .collect();
-    let counter_clock_wise = path_segments
-        .iter()
-        .filter(|segments| !is_clockwise(segments))
-        .flat_map(|segments| segments.clone())
-        .collect();
-    (clock_wise, counter_clock_wise)
 }
 
 #[derive(Debug, Clone)]
@@ -145,12 +102,12 @@ impl LoopSegment {
                 }
                 PathSegment::Cubic(cubic) => {
                     pb.cubic_to(
+                        cubic.to.x,
+                        cubic.to.y,
                         cubic.control1.x,
                         cubic.control1.y,
                         cubic.control2.x,
                         cubic.control2.y,
-                        cubic.to.x,
-                        cubic.to.y,
                     );
                 }
             }
@@ -190,11 +147,6 @@ fn is_clockwise(segments: &Vec<PathSegment>) -> bool {
     sum > 0.0
 }
 
-#[allow(dead_code)]
-fn reverse(segments: &[PathSegment]) -> Vec<PathSegment> {
-    segments.iter().map(|s| s.reverse()).rev().collect()
-}
-
 fn same_path(segments1: &[PathSegment], segments2: &[PathSegment]) -> bool {
     if segments1.len() != segments2.len() {
         return false;
@@ -210,15 +162,14 @@ fn same_path(segments1: &[PathSegment], segments2: &[PathSegment]) -> bool {
     segment1_map == segment2_map
 }
 
-pub fn remove_path_overlap(paths: Vec<Path>) -> Vec<Path> {
+pub(crate) fn remove_path_overlap(paths: Vec<Path>) -> Vec<Path> {
     remove_overlap(paths)
         .iter()
         .flat_map(|segments| segments.to_path())
         .collect()
 }
 
-#[allow(dead_code)]
-pub(crate) fn remove_overlap(paths: Vec<Path>) -> Vec<LoopSegment> {
+fn remove_overlap(paths: Vec<Path>) -> Vec<LoopSegment> {
     // Path を全て PathFlagment に分解し、交差部分でセグメントを分割する
     let path_segments = paths
         .iter()
@@ -232,40 +183,27 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
     let mut result_paths: Vec<LoopSegment> = Vec::new();
 
     for segment in path_segments.iter() {
+        if result_paths.iter().any(|s| s.segments.contains(segment)) {
+            continue;
+        }
+
         let mut current_segment = segment.clone();
         let mut current_path = Vec::new();
         current_path.push(current_segment.clone());
         loop {
-            // 次のパスになりうるセグメントを探す(current の to が next の from または to と一致するセグメント)
-            let nexts: Vec<PathSegment> = path_segments
-                .iter()
-                //.flat_map(|p| [p.clone(), p.reverse()])
-                .flat_map(|p| [p.clone()])
-                // 今のセグメントと繋がるパスを絞り込む
-                .filter(|s| {
-                    let (_, current_to) = current_segment.endpoints();
-                    let (next_from, _) = s.endpoints();
-                    current_to == next_from
-                })
-                // 今のセグメントと同一または逆向きのセグメントは除外
-                .filter(|s| !s.is_same_or_reversed(&current_segment))
-                .collect();
-            if nexts.is_empty() {
-                // 次のパスになりうるセグメントが見つからない場合、閉じていない Path だった可能性もあるのでまぁいいかという感じで次のセグメントに進む
+            let Some(next_segment) =
+                resolve_next_segment(&path_segments, clock_wise, &current_segment)
+            else {
                 break;
-            }
-            // 現在のセグメントの進行方向から、最も左向きのベクトルを持つセグメントを次のセグメントとして選択する
-            current_segment = if clock_wise {
-                current_segment.select_clockwise_vector(&nexts)
-            } else {
-                current_segment.select_counter_clockwise_vector(&nexts)
             };
+            current_segment = next_segment;
             current_path.push(current_segment.clone());
 
             // ループが発生している場合、ループを切り出して result_paths に追加する
             if let Some(loop_position) = has_vector_tail_loop(&current_path) {
                 let created_path =
                     LoopSegment::create(current_path.split_off(loop_position)).unwrap();
+
                 let has_same_path = result_paths
                     .iter()
                     .any(|s| s.same_path(&created_path) || s.same_path(&created_path.reverse()));
@@ -277,6 +215,38 @@ fn get_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> Vec<Lo
         }
     }
     result_paths
+}
+
+fn resolve_next_segment(
+    path_segments: &[PathSegment],
+    clock_wise: bool,
+    current_segment: &PathSegment,
+) -> Option<PathSegment> {
+    // 次のパスになりうるセグメントを探す(current の to が next の from または to と一致するセグメント)
+    let nexts: Vec<PathSegment> = path_segments
+        .iter()
+        //.flat_map(|p| [p.clone(), p.reverse()])
+        .flat_map(|p| [p.clone()])
+        // 今のセグメントと繋がるパスを絞り込む
+        .filter(|s| {
+            let (_, current_to) = current_segment.endpoints();
+            let (next_from, _) = s.endpoints();
+            current_to == next_from
+        })
+        // 今のセグメントと同一または逆向きのセグメントは除外
+        .filter(|s| !s.is_same_or_reversed(current_segment))
+        .collect();
+    if nexts.is_empty() {
+        // 次のパスになりうるセグメントが見つからない場合、閉じていない Path だった可能性もあるのでまぁいいかという感じで次のセグメントに進む
+        return None;
+    }
+    // 現在のセグメントの進行方向から、最も左向きのベクトルを持つセグメントを次のセグメントとして選択する
+    let next_segment = if clock_wise {
+        current_segment.select_clockwise_vector(&nexts)
+    } else {
+        current_segment.select_counter_clockwise_vector(&nexts)
+    };
+    Some(next_segment)
 }
 
 fn get_splitted_loop_segment(path_segments: Vec<PathSegment>, clock_wise: bool) -> LoopSegments {
@@ -319,11 +289,12 @@ fn remove_overlap_inner(path_segments: Vec<PathSegment>) -> Vec<LoopSegment> {
 fn has_vector_tail_loop<T: PartialEq>(value: &[T]) -> Option<usize> {
     let len = value.len();
     for i in 1..len {
-        if len < (1 + i) * 2 {
+        let double_i = i * 2;
+        if len < double_i {
             continue;
         }
-        if value[len - 1 - i..] == value[len - ((1 + i) * 2)..(len - (1 + i))] {
-            return Some(len - 1 - i);
+        if value[len - i..] == value[len - double_i..(len - i)] {
+            return Some(len - i);
         }
     }
     None
@@ -334,26 +305,63 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
 
     let mut has_cross = true;
     let mut i_min = 0;
+
+    struct IgnoreGroup {
+        segments: Vec<PathSegment>,
+    }
+
+    impl IgnoreGroup {
+        #[inline]
+        fn new(left: Vec<PathSegment>, right: Vec<PathSegment>) -> Self {
+            Self {
+                segments: [left, right].concat(),
+            }
+        }
+
+        #[inline]
+        fn contains(&self, a: &PathSegment, b: &PathSegment) -> bool {
+            self.segments.contains(a) && self.segments.contains(b)
+        }
+    }
+
+    let mut ignore_group: Vec<IgnoreGroup> = vec![];
+
     while has_cross {
         'outer: {
             let i_start = i_min;
             for i in i_start..paths.len() {
                 for j in i + 1..paths.len() {
-                    if let Some((mut a, mut b)) = split_line_on_cross_point(&paths[i], &paths[j]) {
-                        has_cross = true;
-                        let mut result = Vec::new();
-
-                        result.append(&mut paths.clone()[0..i].to_vec());
-
-                        result.append(&mut a);
-                        result.append(&mut b);
-                        if i + 1 != j {
-                            result.append(&mut paths.clone()[i + 1..j].to_vec());
-                        }
-                        result.append(&mut paths.clone()[j + 1..].to_vec());
-                        paths = result;
-                        break 'outer;
+                    let path_i = &paths[i];
+                    let path_j = &paths[j];
+                    if path_i.is_same_or_reversed(path_j) {
+                        // 同一のパスで交点分割は不毛なので skip
+                        continue;
                     }
+                    if ignore_group
+                        .iter()
+                        .any(|pair| pair.contains(path_i, path_j))
+                    {
+                        // 既に分割済みのパスで再分割すると精度の問題で再分割が発生するので skip
+                        continue;
+                    }
+                    let Some((mut a, mut b)) = split_line_on_cross_point(path_i, path_j) else {
+                        continue;
+                    };
+                    ignore_group.push(IgnoreGroup::new(a.clone(), b.clone()));
+
+                    has_cross = true;
+                    let mut result = Vec::new();
+
+                    result.append(&mut paths.clone()[0..i].to_vec());
+
+                    result.append(&mut a);
+                    result.append(&mut b);
+                    if i + 1 != j {
+                        result.append(&mut paths.clone()[i + 1..j].to_vec());
+                    }
+                    result.append(&mut paths.clone()[j + 1..].to_vec());
+                    paths = result;
+                    break 'outer;
                 }
                 i_min = i;
             }
@@ -366,84 +374,210 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
 #[cfg(test)]
 mod tests {
 
-    use std::f32::consts::PI;
+    use std::{collections::HashMap, f32::consts::PI};
 
     use rustybuzz::{Face, ttf_parser::OutlineBuilder};
     use tiny_skia::Path;
     use tiny_skia_path::Point;
 
     use crate::{
-        OverlapRemoveOutlineBuilder, get_loop_segment, has_vector_tail_loop,
-        paths_to_path_segments, remove_overlap, split_all_paths,
-        test_helper::path_segments_to_images,
+        OverlapRemoveOutlineBuilder, PathSegment, get_loop_segment, has_vector_tail_loop,
+        path_to_path_segments, remove_overlap, split_all_paths,
+        test_helper::{gen_even_pixmap, path_segments_to_images, path_segments_to_images2},
     };
 
     #[test]
-    fn test_turtle() {
+    fn test_search_dup_path() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
-        let glyph_id = face.glyph_index('🐢').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
-        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
-        let paths = path_builder.paths();
 
-        visualize_paths(paths);
+        let target_chars = '\u{10000}'..='\u{1FFFF}';
+
+        for target_char in target_chars {
+            let Some(glyph_id) = face.glyph_index(target_char) else {
+                continue;
+            };
+            let mut path_builder = OverlapRemoveOutlineBuilder::default();
+            face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+
+            let segments = paths_to_path_segments(&path_builder.paths());
+            let mut dup_paths: HashMap<String, u32> = HashMap::new();
+            segments.iter().for_each(|segment| {
+                let key = format!("{:?}", segment);
+                dup_paths.entry(key).and_modify(|e| *e += 1).or_insert(1);
+                let reverse_key = format!("{:?}", segment.reverse());
+                dup_paths
+                    .entry(reverse_key)
+                    .and_modify(|e| *e += 1)
+                    .or_insert(1);
+            });
+            dup_paths.iter().for_each(|(key, count)| {
+                if *count > 1 {
+                    println!(
+                        "target_char: {}, dup_path: {}, count: {}",
+                        target_char, key, count
+                    );
+                }
+            });
+        }
+    }
+
+    #[test]
+    #[ignore = "reason: slow"]
+    fn test_compare_glyphs() {
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face: Face = Face::from_slice(font_file, 0).unwrap();
+
+        let mut glyph_count = 0;
+        let target_chars = '\u{10000}'..='\u{1FFFF}';
+
+        // 処理が終わらない重い文字
+        //let skip_char = ['🎑', '📜', '🦆'];
+        let skip_char = [];
+
+        let mut failed_chars = Vec::new();
+
+        for target_char in target_chars {
+            //println!("target_char: {}", target_char);
+            if skip_char.contains(&target_char) {
+                //println!("skip: {}", target_char);
+                continue;
+            }
+            let Some(glyph_id) = face.glyph_index(target_char) else {
+                //println!("glyph_id not found: {}", target_char);
+                continue;
+            };
+            glyph_count += 1;
+            let mut path_builder = OverlapRemoveOutlineBuilder::default();
+            face.outline_glyph(glyph_id, &mut path_builder).unwrap();
+
+            let original = gen_even_pixmap(&path_builder.paths());
+            let removed = gen_even_pixmap(&path_builder.removed_paths());
+
+            let (total, equal) = original.pixels().iter().zip(removed.pixels()).fold(
+                (0, 0),
+                |(total, equal), (o, r)| {
+                    if o == r {
+                        (total + 1, equal + 1)
+                    } else {
+                        (total + 1, equal)
+                    }
+                },
+            );
+
+            let equal_rate = equal as f32 / total as f32;
+
+            println!(
+                "target_char: {} total: {}, equal: {}, 一致率: {}",
+                target_char, total, equal, equal_rate
+            );
+
+            if equal_rate < 0.99 {
+                failed_chars.push(target_char);
+                let _ = original.save_png(format!("image/bad_{}_fill_original.png", target_char));
+                let _ = removed.save_png(format!("image/bad_{}_fill_removed.png", target_char));
+                let original_segments = paths_to_path_segments(&path_builder.paths());
+                path_segments_to_images2(
+                    &format!("image/bad_{}_line_original.png", target_char),
+                    original_segments.iter().collect(),
+                    vec![],
+                );
+                let removed_segments = paths_to_path_segments(&path_builder.removed_paths());
+                path_segments_to_images2(
+                    &format!("image/bad_{}_line_removed.png", target_char),
+                    removed_segments.iter().collect(),
+                    vec![],
+                );
+            }
+        }
+        println!(
+            "'{}'",
+            failed_chars
+                .iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<_>>()
+                .join("', '")
+        );
+        println!("failed_chars_count: {}", failed_chars.len());
+        println!("total_glyph_count: {}", glyph_count);
+    }
+
+    #[test]
+    fn test_turtle() {
+        noto_emoji_glyph('🐢')
     }
 
     #[test]
     fn test_pig() {
-        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-        let face: Face = Face::from_slice(font_file, 0).unwrap();
-        let glyph_id = face.glyph_index('🐖').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
-        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
-        let paths = path_builder.paths();
-
-        visualize_paths(paths);
+        noto_emoji_glyph('🐖')
     }
 
     #[test]
     fn test_duck() {
-        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-        let face: Face = Face::from_slice(font_file, 0).unwrap();
-        let glyph_id = face.glyph_index('🐦').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
-        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
-        let paths = path_builder.paths();
-
-        visualize_paths(paths);
+        noto_emoji_glyph('🐦')
     }
 
     #[test]
     fn test_kadomatsu() {
-        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-        let face: Face = Face::from_slice(font_file, 0).unwrap();
-        let glyph_id = face.glyph_index('🎍').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
-        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
-        let paths = path_builder.paths();
-
-        visualize_paths(paths);
+        noto_emoji_glyph('🎍')
     }
 
     #[test]
     fn test_hinode() {
-        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-        let face: Face = Face::from_slice(font_file, 0).unwrap();
-        let glyph_id = face.glyph_index('🌅').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
-        face.outline_glyph(glyph_id, &mut path_builder).unwrap();
-        let paths = path_builder.paths();
-
-        visualize_paths(paths);
+        noto_emoji_glyph('🌅')
     }
 
     #[test]
     fn test_dog() {
+        noto_emoji_glyph('🐕')
+    }
+
+    #[test]
+    fn test_city() {
+        noto_emoji_glyph('🏙')
+    }
+
+    #[test]
+    fn test_cycle() {
+        noto_emoji_glyph('🛵')
+    }
+
+    //* TODO 遅すぎるのでコメントアウト
+    #[test]
+    fn test_truck() {
+        noto_emoji_glyph('🚚')
+    }
+
+    #[test]
+    fn test_kaede() {
+        noto_emoji_glyph('🍁')
+    }
+
+    #[test]
+    fn test_uni() {
+        noto_emoji_glyph('🦄')
+    }
+
+    #[test]
+    fn test_tsukimi() {
+        noto_emoji_glyph('🎑')
+    }
+
+    #[test]
+    fn test_duck2() {
+        noto_emoji_glyph('🦆')
+    }
+
+    #[test]
+    fn test_map() {
+        noto_emoji_glyph('📜')
+    }
+
+    fn noto_emoji_glyph(c: char) {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
         let face: Face = Face::from_slice(font_file, 0).unwrap();
-        let glyph_id = face.glyph_index('🐕').unwrap();
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
+        let glyph_id = face.glyph_index(c).unwrap();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
         face.outline_glyph(glyph_id, &mut path_builder).unwrap();
         let paths = path_builder.paths();
 
@@ -452,7 +586,7 @@ mod tests {
 
     #[test]
     fn test_man() {
-        let mut path_builder = OverlapRemoveOutlineBuilder::new();
+        let mut path_builder = OverlapRemoveOutlineBuilder::default();
         path_builder.move_to(1.0, 0.0);
         path_builder.line_to(2.0, 0.0);
         path_builder.line_to(2.0, 3.0);
@@ -489,10 +623,17 @@ mod tests {
         });
 
         let segments = paths_to_path_segments(&paths);
+
+        println!("start split");
         let segments = split_all_paths(segments);
+
+        println!("next!");
 
         let no_zero_segment = segments.iter().all(|seg| {
             let (f, t) = seg.endpoints();
+            if f == t {
+                println!("zero segment: {:?}", seg);
+            }
             f != t
         });
 
@@ -514,16 +655,6 @@ mod tests {
         }
 
         {
-            // 時計回りでループを取得
-            let clockwise = get_loop_segment(segments.clone(), true);
-            clockwise.into_iter().enumerate().for_each(|(i, segments)| {
-                path_segments_to_images(
-                    &format!("clockwise_{}_{}", i, segments.is_clockwise()),
-                    segments.segments.iter().collect(),
-                    vec![],
-                );
-            });
-
             // 反時計回りでループを取得
             let counter_clockwise = get_loop_segment(segments.clone(), false);
             counter_clockwise
@@ -562,6 +693,15 @@ mod tests {
         }
         println!("no_zero_segment: {}", no_zero_segment);
         println!("min_distance: {:?}", min_distance);
+    }
+
+    /// Vec<Path> を PathSegment に変換する
+    #[inline]
+    fn paths_to_path_segments(paths: &[Path]) -> Vec<PathSegment> {
+        paths
+            .iter()
+            .flat_map(|path| path_to_path_segments(path.clone()))
+            .collect()
     }
 
     #[test]

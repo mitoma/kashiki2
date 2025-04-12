@@ -284,16 +284,14 @@ impl CharStates {
 
     pub(crate) fn set_motion_and_color(&mut self, text_context: &TextContext) {
         if text_context.psychedelic {
+            let mut rng = rand::rng();
             for (c, i) in self.chars.iter_mut() {
                 if let Some(instance) = self.instances.get_mut(&(*c).into()) {
                     instance.motion = MotionFlags::random_motion();
                     instance.start_time = now_millis();
-                    instance.duration =
-                        Duration::from_millis(rand::thread_rng().gen_range(300..3000));
-                    //    instance.gain = rand::thread_rng().gen_range(0.1..1.0);
-                    i.motion_gain
-                        .update([rand::thread_rng().gen_range(0.1..1.0)]);
-                    i.base_color = match rand::thread_rng().gen_range(0..8) {
+                    instance.duration = Duration::from_millis(rng.random_range(300..3000));
+                    i.motion_gain.update([rng.random_range(0.1..1.0)]);
+                    i.base_color = match rng.random_range(0..8) {
                         0 => ThemedColor::Yellow,
                         1 => ThemedColor::Orange,
                         2 => ThemedColor::Red,
