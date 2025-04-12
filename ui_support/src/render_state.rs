@@ -140,7 +140,7 @@ impl RenderTarget {
                     buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
                         tx.send(result).unwrap();
                     });
-                    context.device.poll(wgpu::Maintain::Wait);
+                    let _ = context.device.poll(wgpu::PollType::Wait);
                     rx.recv().unwrap().unwrap();
 
                     let data = buffer_slice.get_mapped_range();
@@ -211,22 +211,19 @@ impl RenderState {
             .await
             .unwrap();
         let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    required_features: wgpu::Features::empty(),
-                    // WebGL doesn't support all of wgpu's features, so if
-                    // we're building for the web we'll have to disable some.
-                    required_limits: if cfg!(target_arch = "wasm32") {
-                        wgpu::Limits::downlevel_webgl2_defaults()
-                    } else {
-                        wgpu::Limits::default()
-                    },
-                    // memory_hints とか今後の新しい機能はまぁデフォルトで行きましょう。
-                    ..Default::default()
+            .request_device(&wgpu::DeviceDescriptor {
+                label: None,
+                required_features: wgpu::Features::empty(),
+                // WebGL doesn't support all of wgpu's features, so if
+                // we're building for the web we'll have to disable some.
+                required_limits: if cfg!(target_arch = "wasm32") {
+                    wgpu::Limits::downlevel_webgl2_defaults()
+                } else {
+                    wgpu::Limits::default()
                 },
-                None, // Trace path
-            )
+                // memory_hints とか今後の新しい機能はまぁデフォルトで行きましょう。
+                ..Default::default()
+            })
             .await
             .unwrap();
 
