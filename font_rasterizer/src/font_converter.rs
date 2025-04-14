@@ -20,18 +20,28 @@ impl FontVertexConverter {
         Self { fonts }
     }
 
-    fn faces(&self) -> Vec<Face> {
-        self.fonts
-            .iter()
-            .flat_map(|f| Face::from_slice(&f.binary, f.index))
-            .collect::<Vec<Face>>()
+    fn is_remove_outline_fontname(fontname: &str) -> bool {
+        ["Noto Emoji Regular"].contains(&fontname)
     }
 
-    fn get_face_and_glyph_ids(&self, c: char) -> Result<(Face, CharGlyphIds), FontRasterizerError> {
+    fn faces(&self) -> Vec<(Face, bool)> {
+        self.fonts
+            .iter()
+            .flat_map(|f| {
+                Face::from_slice(&f.binary, f.index)
+                    .map(|face| (face, Self::is_remove_outline_fontname(&f.font_name)))
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn get_face_and_glyph_ids(
+        &self,
+        c: char,
+    ) -> Result<(Face, bool, CharGlyphIds), FontRasterizerError> {
         let mut buf = UnicodeBuffer::new();
         buf.set_direction(Direction::TopToBottom);
         buf.add(c, 0);
-        for face in self.faces().into_iter() {
+        for (face, remove_overlap) in self.faces().into_iter() {
             if let Some(horizontal_glyph_id) = face.glyph_index(c) {
                 let vertical_glyph_buffer = shape(&face, &[], buf);
                 let vertical_glyph_id =
@@ -43,6 +53,7 @@ impl FontVertexConverter {
                 };
                 return Ok((
                     face,
+                    remove_overlap,
                     CharGlyphIds {
                         horizontal_glyph_id,
                         vertical_glyph_id,
@@ -60,15 +71,17 @@ impl FontVertexConverter {
     ) -> Result<GlyphVertex, FontRasterizerError> {
         let (
             face,
+            remove_overlap,
             CharGlyphIds {
                 horizontal_glyph_id,
                 vertical_glyph_id,
             },
         ) = self.get_face_and_glyph_ids(c)?;
-        let h_vertex = GlyphVertexBuilder::new().build(horizontal_glyph_id, width, &face)?;
+        let h_vertex =
+            GlyphVertexBuilder::new().build(horizontal_glyph_id, width, &face, remove_overlap)?;
         let v_vertex = vertical_glyph_id.and_then(|vertical_glyph_id| {
             GlyphVertexBuilder::new()
-                .build(vertical_glyph_id, width, &face)
+                .build(vertical_glyph_id, width, &face, remove_overlap)
                 .ok()
         });
         Ok(GlyphVertex {
@@ -102,14 +115,20 @@ impl GlyphVertexBuilder {
         glyph_id: GlyphId,
         width: CharWidth,
         face: &Face,
+        remove_overlap: bool,
     ) -> Result<VectorVertex, FontRasterizerError> {
         let mut builder = VectorVertexBuilder::new();
-        let mut overlap_builder = OverlapRemoveOutlineBuilder::default();
-
-        let rect = face
-            .outline_glyph(glyph_id, &mut overlap_builder)
-            .ok_or(FontRasterizerError::NoOutlineGlyph(glyph_id))?;
-        overlap_builder.outline(&mut builder);
+        let rect = if remove_overlap {
+            let mut overlap_builder = OverlapRemoveOutlineBuilder::default();
+            let rect = face
+                .outline_glyph(glyph_id, &mut overlap_builder)
+                .ok_or(FontRasterizerError::NoOutlineGlyph(glyph_id))?;
+            overlap_builder.outline(&mut builder);
+            rect
+        } else {
+            face.outline_glyph(glyph_id, &mut builder)
+                .ok_or(FontRasterizerError::NoOutlineGlyph(glyph_id))?
+        };
 
         let global = face.global_bounding_box();
         let global_width = global.width() as f32;
@@ -183,7 +202,7 @@ mod test {
             ('ー', true),
         ];
         for (c, expected) in cases {
-            let (_, ids) = converter
+            let (_, _, ids) = converter
                 .get_face_and_glyph_ids(c)
                 .expect("get char glyph ids");
             assert_eq!(ids.vertical_glyph_id.is_some(), expected);
