@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 serde.workspace = true
 serde_derive.workspace = true
+chrono.workspace = true
 
 [dependencies.uuid]
 features = ["v7", "fast-rng", "macro-diagnostics", "serde"]
