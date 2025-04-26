@@ -6,78 +6,40 @@ fn now() -> DateTime<Local> {
     Local::now().round_subsecs(0)
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
-#[serde(transparent)]
-pub struct WorkspaceId(Uuid);
+macro_rules! define_id_of_uuid_v7 {
+    ($name:ident) => {
+        #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
+        #[serde(transparent)]
+        pub struct $name(Uuid);
 
-impl WorkspaceId {
-    pub fn new() -> Self {
-        Self(Uuid::now_v7())
-    }
+        impl $name {
+            pub fn new() -> Self {
+                Self(Uuid::now_v7())
+            }
+        }
+
+        impl From<Uuid> for $name {
+            fn from(uuid: Uuid) -> Self {
+                Self(uuid)
+            }
+        }
+
+        impl TryFrom<String> for $name {
+            type Error = uuid::Error;
+
+            fn try_from(value: String) -> Result<Self, Self::Error> {
+                Uuid::parse_str(&value).map(Self)
+            }
+        }
+    };
 }
 
-impl From<Uuid> for WorkspaceId {
-    fn from(uuid: Uuid) -> Self {
-        Self(uuid)
-    }
-}
+// マクロを使用して構造体を定義
+define_id_of_uuid_v7!(WorkspaceId);
+define_id_of_uuid_v7!(MemoId);
+define_id_of_uuid_v7!(LabelId);
 
-impl TryFrom<String> for WorkspaceId {
-    type Error = uuid::Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Uuid::parse_str(&value).map(Self)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
-#[serde(transparent)]
-pub struct MemoId(Uuid);
-
-impl MemoId {
-    pub fn new() -> Self {
-        Self(Uuid::now_v7())
-    }
-}
-
-impl From<Uuid> for MemoId {
-    fn from(uuid: Uuid) -> Self {
-        Self(uuid)
-    }
-}
-
-impl TryFrom<String> for MemoId {
-    type Error = uuid::Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Uuid::parse_str(&value).map(Self)
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
-#[serde(transparent)]
-pub struct LabelId(Uuid);
-
-impl LabelId {
-    pub fn new() -> Self {
-        Self(Uuid::now_v7())
-    }
-}
-
-impl From<Uuid> for LabelId {
-    fn from(uuid: Uuid) -> Self {
-        Self(uuid)
-    }
-}
-
-impl TryFrom<String> for LabelId {
-    type Error = uuid::Error;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Uuid::parse_str(&value).map(Self)
-    }
-}
-
+// 定数の定義
 const UNLABELED_ID: LabelId = LabelId(Uuid::from_u128(0));
 
 #[derive(Serialize, Deserialize, Debug)]
