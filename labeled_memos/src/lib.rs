@@ -58,15 +58,62 @@ impl LabeledMemos {
         }];
         let mut memo = Memo::new();
         memo.labels.push(labels[0].id);
-        let mut workspace = Workspace::new("".to_string());
+        let memos = vec![memo];
 
-        workspace.memos_order.push(memo.id);
+        let mut workspace = Workspace::new("".to_string());
+        workspace
+            .memos_order
+            .append(&mut memos.iter().map(|memo| memo.id.clone()).collect());
 
         Self {
             current_workspace_id: workspace.id,
             workspaces: vec![workspace],
-            memos: vec![],
-            labels: vec![],
+            memos,
+            labels,
+        }
+    }
+
+    fn current_workspace(&self) -> &Workspace {
+        self.find_workspace(self.current_workspace_id)
+            .expect("Current workspace not found")
+    }
+
+    fn current_workspace_mut(&mut self) -> &mut Workspace {
+        self.find_workspace_mut(self.current_workspace_id)
+            .expect("Current workspace not found")
+    }
+
+    fn find_workspace(&self, id: WorkspaceId) -> Option<&Workspace> {
+        self.workspaces.iter().find(|workspace| workspace.id == id)
+    }
+
+    fn find_workspace_mut(&mut self, id: WorkspaceId) -> Option<&mut Workspace> {
+        self.workspaces.iter_mut().find(|workspace| workspace.id == id)
+    }
+
+    pub fn workspace_memos(&self) -> Vec<&Memo> {
+        self.current_workspace()
+            .memos_order
+            .iter()
+            .map(|memo_id| self.memos.iter().find(|memo| memo.id == *memo_id).unwrap())
+            .collect()
+    }
+
+    pub fn add_memo(&mut self, memo: Memo) {
+        self.current_workspace_mut()
+            .memos_order
+            .push(memo.id.clone());
+        self.memos.push(memo);
+    }
+
+    pub fn remove_memo(&mut self, memo_id: MemoId) {
+        if let Some(pos) = self
+            .current_workspace_mut()
+            .memos_order
+            .iter()
+            .position(|id| *id == memo_id)
+        {
+            self.current_workspace_mut().memos_order.remove(pos);
         }
     }
 }
