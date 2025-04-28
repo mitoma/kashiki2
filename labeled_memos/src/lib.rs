@@ -275,6 +275,19 @@ impl LabeledMemos {
         // 指定されたラベルを持つメモを検索して追加
         self.add_memos_by_condition(label_ids);
     }
+
+    pub fn list_labels(&self) -> &[Label] {
+        &self.labels
+    }
+
+    pub fn upsert_labels(&mut self, label: Label) {
+        self.remove_label(label.id);
+        self.labels.push(label);
+    }
+
+    pub fn remove_label(&mut self, label_id: LabelId) {
+        self.labels.retain(|l| l.id != label_id);
+    }
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -939,5 +952,101 @@ mod tests {
 
         // 全てのメモがワークスペースに含まれていることを確認
         assert_eq!(labeled_memos.current_workspace().memos_order.len(), 3);
+    }
+
+    #[test]
+    fn test_list_labels() {
+        let mut labeled_memos = LabeledMemos::new();
+        
+        // 初期状態では未分類ラベルのみ
+        let initial_labels = labeled_memos.list_labels();
+        assert_eq!(initial_labels.len(), 1);
+        assert_eq!(initial_labels[0].id, UNLABELED_ID);
+        assert_eq!(initial_labels[0].name, "未分類");
+
+        // 新しいラベルを追加
+        labeled_memos.labels.push(Label::new("ラベル1"));
+        labeled_memos.labels.push(Label::new("ラベル2"));
+
+        // リストが正しく返されること
+        let labels = labeled_memos.list_labels();
+        assert_eq!(labels.len(), 3); // 未分類 + 追加した2つ
+        assert_eq!(labels[0].name, "未分類");
+        assert_eq!(labels[1].name, "ラベル1");
+        assert_eq!(labels[2].name, "ラベル2");
+    }
+
+    #[test]
+    fn test_upsert_labels() {
+        let mut labeled_memos = LabeledMemos::new();
+
+        // 新しいラベルの追加
+        let new_label = Label::new("新しいラベル");
+        let label_id = new_label.id;
+        
+        labeled_memos.upsert_labels(new_label);
+        
+        // ラベルが追加されたか確認
+        assert_eq!(labeled_memos.labels.len(), 2); // 未分類 + 追加した1つ
+        assert_eq!(labeled_memos.labels[1].name, "新しいラベル");
+        
+        // 同じIDで名前を更新
+        let updated_label = Label {
+            id: label_id,
+            name: "更新されたラベル".to_string(),
+        };
+        
+        labeled_memos.upsert_labels(updated_label);
+        
+        // ラベル数は変わらず名前だけ更新されていることを確認
+        assert_eq!(labeled_memos.labels.len(), 2);
+        assert_eq!(labeled_memos.labels[1].name, "更新されたラベル");
+        
+        // IDが同じラベルを確認
+        let found_label = labeled_memos.labels.iter().find(|l| l.id == label_id);
+        assert!(found_label.is_some());
+        assert_eq!(found_label.unwrap().name, "更新されたラベル");
+    }
+
+    #[test]
+    fn test_remove_label() {
+        let mut labeled_memos = LabeledMemos::new();
+        
+        // 新しいラベルを追加
+        let label1 = Label::new("ラベル1");
+        let label1_id = label1.id;
+        
+        let label2 = Label::new("ラベル2");
+        let label2_id = label2.id;
+        
+        labeled_memos.upsert_labels(label1);
+        labeled_memos.upsert_labels(label2);
+        
+        // 追加されたか確認
+        assert_eq!(labeled_memos.labels.len(), 3); // 未分類 + 追加した2つ
+        
+        // ラベル1を削除
+        labeled_memos.remove_label(label1_id);
+        
+        // 削除されたか確認
+        assert_eq!(labeled_memos.labels.len(), 2);
+        assert!(labeled_memos.labels.iter().all(|l| l.id != label1_id));
+        assert!(labeled_memos.labels.iter().any(|l| l.id == label2_id));
+        assert!(labeled_memos.labels.iter().any(|l| l.id == UNLABELED_ID));
+        
+        // 存在しないラベルIDを削除しても何も起こらない
+        let non_existent_id = LabelId::new();
+        let initial_len = labeled_memos.labels.len();
+        
+        labeled_memos.remove_label(non_existent_id);
+        
+        assert_eq!(labeled_memos.labels.len(), initial_len);
+        
+        // 未分類ラベルの削除
+        labeled_memos.remove_label(UNLABELED_ID);
+        
+        // 未分類ラベルも削除可能
+        assert_eq!(labeled_memos.labels.len(), 1);
+        assert!(labeled_memos.labels.iter().all(|l| l.id != UNLABELED_ID));
     }
 }
