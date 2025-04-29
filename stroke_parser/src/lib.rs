@@ -11,7 +11,7 @@ use std::{
     fmt::{Display, Formatter},
     ops::Deref,
 };
-use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
+use winit::event::{ElementState, KeyEvent, WindowEvent};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub(crate) struct InputWithModifier {
@@ -314,13 +314,6 @@ impl ActionStore {
                     None
                 }
             },
-            _ => None,
-        }
-    }
-
-    pub fn winit_event_to_action(&mut self, event: &Event<()>) -> Option<Action> {
-        match event {
-            Event::WindowEvent { event, .. } => self.winit_window_event_to_action(event),
             _ => None,
         }
     }
