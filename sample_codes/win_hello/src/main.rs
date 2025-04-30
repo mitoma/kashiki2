@@ -7,6 +7,8 @@ fn main() {
 
 #[cfg(target_os = "windows")]
 mod windows {
+    use std::sync::mpsc::Sender;
+
     use windows::{
         Foundation::IAsyncOperation,
         Security::Credentials::{KeyCredentialCreationOption, KeyCredentialManager, UI::*},
@@ -18,60 +20,57 @@ mod windows {
         core::{Result, factory, h, s},
     };
     use winit::{
+        application::ApplicationHandler,
         dpi::PhysicalSize,
-        event::{ElementState, Event, KeyEvent, WindowEvent},
+        event::{ElementState, KeyEvent, WindowEvent},
         event_loop::EventLoop,
         keyboard::Key,
         raw_window_handle::{HasWindowHandle, Win32WindowHandle},
-        window::WindowBuilder,
+        window::{Window, WindowAttributes},
     };
 
-    fn to_hwnd(handle: Win32WindowHandle) -> HWND {
-        HWND(handle.hwnd.get() as *mut std::ffi::c_void)
+    pub struct State {
+        window: Option<Window>,
+        tx: Option<Sender<()>>,
     }
 
-    /// Windows Hello のサンプルコード。bitwarden/clients が参考になる。
-    /// https://github.com/bitwarden/clients/blob/bcb2a976b094f57f1f7e1261e2692f12103d7b16/apps/desktop/desktop_native/src/biometric/windows.rs
-    pub(crate) fn inner_main() {
-        let event_loop = EventLoop::new().unwrap();
-        let window = WindowBuilder::new()
-            .with_inner_size(PhysicalSize::new(800, 600))
-            .build(&event_loop)
-            .unwrap();
-        let window_handle = window.window_handle().unwrap();
-        let raw_window_handle = window_handle.as_raw();
-        let handle = match raw_window_handle {
-            winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle,
-            _ => panic!("Not Windows"),
-        };
+    impl ApplicationHandler for State {
+        fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+            let window_attr =
+                WindowAttributes::default().with_inner_size(PhysicalSize::new(800, 600));
+            self.window = event_loop.create_window(window_attr).ok();
+            let handle = to_handle(self.window.as_ref().unwrap());
 
-        // Windows Hello 用のスレッドを作ってチャネルを持たせる
-        let (tx, rx) = std::sync::mpsc::channel::<()>();
-        std::thread::spawn(move || {
-            let hwnd = to_hwnd(handle);
-            while rx.recv().is_ok() {
-                call_hello(&hwnd).unwrap();
-            }
-        });
+            // Windows Hello 用のスレッドを作ってチャネルを持たせる
+            let (tx, rx) = std::sync::mpsc::channel::<()>();
+            std::thread::spawn(move || {
+                let hwnd = to_hwnd(handle);
+                while rx.recv().is_ok() {
+                    call_hello(&hwnd).unwrap();
+                }
+            });
+            self.tx = Some(tx);
+        }
 
-        event_loop
-            .run(move |event, control_flow| match event {
-                Event::WindowEvent {
+        fn window_event(
+            &mut self,
+            event_loop: &winit::event_loop::ActiveEventLoop,
+            window_id: winit::window::WindowId,
+            event: WindowEvent,
+        ) {
+            match event {
+                WindowEvent::KeyboardInput {
                     event:
-                        WindowEvent::KeyboardInput {
-                            event:
-                                KeyEvent {
-                                    state: ElementState::Pressed,
-                                    logical_key: Key::Character(str),
-                                    ..
-                                },
+                        KeyEvent {
+                            state: ElementState::Pressed,
+                            logical_key: Key::Character(str),
                             ..
                         },
-                    window_id,
+                    ..
                 } => {
                     match str.as_str() {
                         "a" => {
-                            tx.send(()).unwrap();
+                            self.tx.as_ref().unwrap().send(()).unwrap();
                             // あまりにも意味不明だが Credential Dialog Xaml Host のウィンドウを前面に出さないと
                             // Windows Hello の顔認証が失敗するため、ウインドウが出たであろうタイミングを待ってから最前面に移動させる。
                             let class_name = s!("Credential Dialog Xaml Host");
@@ -90,18 +89,45 @@ mod windows {
                             setup_first().unwrap();
                         }
                         "h" => {
-                            println!("HWND: {:?}, WindowID: {:?}", handle, window_id);
+                            println!(
+                                "HWND: {:?}, WindowID: {:?}",
+                                to_handle(self.window.as_ref().unwrap()),
+                                window_id
+                            );
                         }
                         _ => (),
                     }
                 }
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    window_id,
-                } if window_id == window.id() => control_flow.exit(),
-                _ => (),
-            })
-            .unwrap();
+                WindowEvent::CloseRequested if window_id == self.window.as_ref().unwrap().id() => {
+                    event_loop.exit()
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn to_handle(window: &Window) -> Win32WindowHandle {
+        let window_handle = window.window_handle().unwrap();
+        let raw_window_handle = window_handle.as_raw();
+        match raw_window_handle {
+            winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle,
+            _ => panic!("Not Windows"),
+        }
+    }
+
+    fn to_hwnd(handle: Win32WindowHandle) -> HWND {
+        HWND(handle.hwnd.get() as *mut std::ffi::c_void)
+    }
+
+    /// Windows Hello のサンプルコード。bitwarden/clients が参考になる。
+    /// https://github.com/bitwarden/clients/blob/bcb2a976b094f57f1f7e1261e2692f12103d7b16/apps/desktop/desktop_native/src/biometric/windows.rs
+    pub(crate) fn inner_main() {
+        let event_loop = EventLoop::new().unwrap();
+        let mut state = State {
+            window: None,
+            tx: None,
+        };
+        let _ = event_loop.run_app(&mut state);
     }
 
     fn setup_first() -> Result<()> {
