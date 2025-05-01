@@ -1,4 +1,4 @@
-use std::sync::{Arc, mpsc::Receiver};
+use std::sync::{Arc, Mutex, mpsc::Receiver};
 
 use font_collector::FontRepository;
 use font_rasterizer::{
@@ -171,7 +171,7 @@ pub(crate) struct RenderState {
     glyph_vertex_buffer: GlyphVertexBuffer,
     svg_vertex_buffer: SvgVertexBuffer,
 
-    simple_state_callback: Box<dyn SimpleStateCallback>,
+    simple_state_callback: Arc<Mutex<Box<dyn SimpleStateCallback>>>,
 
     background_color: EasingPointN<4>,
     background_image: Option<DynamicImage>,
@@ -187,8 +187,8 @@ impl RenderState {
         render_target_request: RenderTargetRequest,
         quarity: Quarity,
         color_theme: ColorTheme,
-        mut simple_state_callback: Box<dyn SimpleStateCallback>,
-        font_repository: FontRepository,
+        simple_state_callback: Arc<Mutex<Box<dyn SimpleStateCallback>>>,
+        font_repository: Arc<Mutex<FontRepository>>,
         performance_mode: bool,
     ) -> Self {
         let window_size = render_target_request.window_size();
@@ -310,7 +310,7 @@ impl RenderState {
             color_theme.background().into(),
         );
 
-        let font_binaries = font_repository.get_fonts();
+        let font_binaries = font_repository.lock().unwrap().get_fonts();
         let font_binaries = Arc::new(font_binaries);
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
         let glyph_vertex_buffer =
@@ -341,7 +341,7 @@ impl RenderState {
             ),
         );
 
-        simple_state_callback.init(&context);
+        simple_state_callback.lock().unwrap().init(&context);
 
         Self {
             context,
@@ -411,7 +411,7 @@ impl RenderState {
                 }
             }
 
-            self.simple_state_callback.resize(new_size);
+            self.simple_state_callback.lock().unwrap().resize(new_size);
 
             let bg_color = self.rasterizer_pipeline.bg_color;
             // サイズ変更時にはパイプラインを作り直す
@@ -432,15 +432,24 @@ impl RenderState {
     }
 
     pub(crate) fn input(&mut self, event: &WindowEvent) -> InputResult {
-        self.simple_state_callback.input(&self.context, event)
+        self.simple_state_callback
+            .lock()
+            .unwrap()
+            .input(&self.context, event)
     }
 
     pub(crate) fn action(&mut self, action: Action) -> InputResult {
-        self.simple_state_callback.action(&self.context, action)
+        self.simple_state_callback
+            .lock()
+            .unwrap()
+            .action(&self.context, action)
     }
 
     pub(crate) fn update(&mut self) {
-        self.simple_state_callback.update(&self.context);
+        self.simple_state_callback
+            .lock()
+            .unwrap()
+            .update(&self.context);
         if self.background_color.in_animation() {
             let [r, g, b, a] = self.background_color.current();
             self.rasterizer_pipeline.bg_color = wgpu::Color {
@@ -541,19 +550,27 @@ impl RenderState {
     }
 
     pub(crate) fn shutdown(&mut self) {
-        self.simple_state_callback.shutdown();
+        self.simple_state_callback.lock().unwrap().shutdown();
     }
 
     pub(crate) fn change_font(&mut self, font_name: Option<String>) {
         match font_name {
             Some(font_name) => {
-                self.context.font_repository.set_primary_font(&font_name);
+                self.context
+                    .font_repository
+                    .lock()
+                    .unwrap()
+                    .set_primary_font(&font_name);
             }
             None => {
-                self.context.font_repository.clear_primary_font();
+                self.context
+                    .font_repository
+                    .lock()
+                    .unwrap()
+                    .clear_primary_font();
             }
         }
-        let font_binaries = self.context.font_repository.get_fonts();
+        let font_binaries = self.context.font_repository.lock().unwrap().get_fonts();
         let font_binaries = Arc::new(font_binaries);
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
 

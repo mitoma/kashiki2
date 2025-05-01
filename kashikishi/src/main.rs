@@ -8,7 +8,7 @@ mod memos;
 mod rokid_max_ext;
 mod world;
 
-use std::{rc::Rc, sync::Mutex};
+use std::{rc::Rc, sync::{Arc, Mutex}};
 
 use arboard::Clipboard;
 use clap::{Parser, command};
@@ -142,11 +142,11 @@ pub async fn run(args: Args) {
         window_icon: icon,
         window_title: "Kashikishi".to_string(),
         window_size,
-        callback: Box::new(callback),
+        callback: Arc::new(Mutex::new(Box::new(callback))),
         quarity: Quarity::CappedVeryHigh(1920 * 2, 1200 * 2),
         color_theme: COLOR_THEME,
         flags: Flags::DEFAULT,
-        font_repository,
+        font_repository: Arc::new(Mutex::new(font_repository)),
         performance_mode: args.performance_mode,
     };
     run_support(support).await;

@@ -1,4 +1,4 @@
-use std::sync::{Arc, mpsc::Sender};
+use std::sync::{mpsc::Sender, Arc, Mutex};
 
 use font_collector::FontRepository;
 use log::warn;
@@ -40,7 +40,7 @@ pub struct StateContext {
     pub color_theme: ColorTheme,
     pub window_size: WindowSize,
     pub global_direction: Direction,
-    pub font_repository: FontRepository,
+    pub font_repository: Arc<Mutex<FontRepository>>,
     senders: Senders,
 }
 
@@ -55,7 +55,7 @@ impl StateContext {
         color_theme: ColorTheme,
         window_size: WindowSize,
         global_direction: Direction,
-        font_repository: FontRepository,
+        font_repository: Arc<Mutex<FontRepository>>,
         senders: Senders,
     ) -> Self {
         Self {

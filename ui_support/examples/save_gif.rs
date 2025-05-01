@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::{fs::File, sync::{Arc, Mutex}};
 
 use font_collector::{FontCollector, FontRepository};
 use image::{Delay, Frame, codecs::gif::GifEncoder};
@@ -45,11 +45,11 @@ pub async fn run() {
         window_icon: None,
         window_title: "Hello".to_string(),
         window_size,
-        callback: Box::new(callback),
+        callback: Arc::new(Mutex::new(Box::new(callback))),
         quarity: Quarity::VeryHigh,
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
-        font_repository,
+        font_repository: Arc::new(Mutex::new(font_repository)),
         performance_mode: false,
     };
 
