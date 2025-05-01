@@ -314,6 +314,8 @@ impl ActionProcessor for SystemChangeFontUi {
         options.extend(
             context
                 .font_repository
+                .lock()
+                .unwrap()
                 .list_font_names()
                 .iter()
                 .map(|name| {
