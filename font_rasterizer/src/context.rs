@@ -1,4 +1,4 @@
-use std::sync::{mpsc::Sender, Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc::Sender};
 
 use font_collector::FontRepository;
 use log::warn;

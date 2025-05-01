@@ -8,7 +8,10 @@ mod memos;
 mod rokid_max_ext;
 mod world;
 
-use std::{rc::Rc, sync::{Arc, Mutex}};
+use std::{
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 use arboard::Clipboard;
 use clap::{Parser, command};

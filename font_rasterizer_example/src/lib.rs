@@ -15,6 +15,7 @@ use font_rasterizer::{
     vector_instances::InstanceAttributes,
 };
 use log::info;
+use std::sync::{Arc, Mutex};
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
@@ -37,11 +38,11 @@ pub async fn run() {
         window_icon: None,
         window_title: "Hello".to_string(),
         window_size,
-        callback: Box::new(callback),
+        callback: Arc::new(Mutex::new(Box::new(callback))),
         quarity: Quarity::VeryHigh,
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
-        font_repository,
+        font_repository: Arc::new(Mutex::new(font_repository)),
         performance_mode: false,
     };
     run_support(support).await;

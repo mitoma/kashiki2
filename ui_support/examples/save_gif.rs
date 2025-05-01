@@ -1,4 +1,7 @@
-use std::{fs::File, sync::{Arc, Mutex}};
+use std::{
+    fs::File,
+    sync::{Arc, Mutex},
+};
 
 use font_collector::{FontCollector, FontRepository};
 use image::{Delay, Frame, codecs::gif::GifEncoder};

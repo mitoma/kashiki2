@@ -36,11 +36,11 @@ pub async fn run() {
         window_icon: None,
         window_title: "Hello".to_string(),
         window_size,
-        callback: Box::new(callback),
+        callback: std::sync::Arc::new(std::sync::Mutex::new(Box::new(callback))),
         quarity: Quarity::VeryHigh,
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
-        font_repository,
+        font_repository: std::sync::Arc::new(std::sync::Mutex::new(font_repository)),
         performance_mode: false,
     };
     run_support(support).await;
