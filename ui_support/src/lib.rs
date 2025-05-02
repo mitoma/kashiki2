@@ -95,39 +95,6 @@ pub async fn run_support(support: SimpleStateSupport) {
     record_start_of_phase("initialize");
 
     let event_loop = EventLoop::new().unwrap();
-    let window_attr = WindowAttributes::default()
-        .with_window_icon(support.window_icon.clone())
-        .with_title(support.window_title.clone())
-        .with_inner_size(winit::dpi::LogicalSize {
-            width: support.window_size.width,
-            height: support.window_size.height,
-        })
-        .with_transparent(support.flags.contains(Flags::TRANCEPARENT))
-        .with_decorations(!support.flags.contains(Flags::NO_TITLEBAR));
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        use winit::platform::web::WindowExtWebSys;
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
-                let dst = doc.get_element_by_id("kashikishi-area")?;
-                let canvas = web_sys::Element::from(window.canvas()?);
-                dst.append_child(&canvas.clone()).ok()?;
-                let input = web_sys::Element::from(window.input()?);
-                dst.append_child(&input).ok()?;
-                Some(())
-            })
-            .expect("Couldn't append canvas to document body.");
-
-        // Winit prevents sizing with CSS, so we have to set
-        // the size manually when on web.
-        use winit::dpi::PhysicalSize;
-        let _ = window.request_inner_size(PhysicalSize::new(
-            support.window_size.width,
-            support.window_size.height,
-        ));
-    }
 
     record_start_of_phase("setup state");
     // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
@@ -141,7 +108,6 @@ pub async fn run_support(support: SimpleStateSupport) {
     );
 
     let mut winit_state = WinitState {
-        window_attr,
         render_state: None,
         render_rate_adjuster,
         support,
@@ -152,7 +118,6 @@ pub async fn run_support(support: SimpleStateSupport) {
 }
 
 struct WinitState {
-    window_attr: WindowAttributes,
     render_state: Option<RenderState>,
     render_rate_adjuster: RenderRateAdjuster,
     support: SimpleStateSupport,
@@ -161,14 +126,49 @@ struct WinitState {
 
 impl ApplicationHandler for WinitState {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
-        self.window = event_loop
-            .create_window(self.window_attr.clone())
-            .map(|w| {
-                w.set_ime_allowed(true);
-                Arc::new(w)
+        let support = &self.support;
+        let window_attr = WindowAttributes::default()
+            .with_window_icon(support.window_icon.clone())
+            .with_title(support.window_title.clone())
+            .with_inner_size(winit::dpi::LogicalSize {
+                width: support.window_size.width,
+                height: support.window_size.height,
             })
-            .ok();
+            .with_transparent(support.flags.contains(Flags::TRANCEPARENT))
+            .with_decorations(!support.flags.contains(Flags::NO_TITLEBAR));
 
+        let window = event_loop
+            .create_window(window_attr.clone())
+            .inspect(|w| {
+                w.set_ime_allowed(true);
+            })
+            .unwrap();
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            use winit::platform::web::WindowExtWebSys;
+            web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| {
+                    let dst = doc.get_element_by_id("kashikishi-area")?;
+                    let canvas = web_sys::Element::from(window.canvas()?);
+                    dst.append_child(&canvas.clone()).ok()?;
+                    let input = web_sys::Element::from(window.input()?);
+                    dst.append_child(&input).ok()?;
+                    Some(())
+                })
+                .expect("Couldn't append canvas to document body.");
+
+            // Winit prevents sizing with CSS, so we have to set
+            // the size manually when on web.
+            use winit::dpi::PhysicalSize;
+            let _ = window.request_inner_size(PhysicalSize::new(
+                support.window_size.width,
+                support.window_size.height,
+            ));
+        }
+
+        self.window = Some(Arc::new(window));
         let support = &self.support;
         let state = RenderState::new(
             RenderTargetRequest::Window {
