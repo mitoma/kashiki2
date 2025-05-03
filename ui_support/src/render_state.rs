@@ -7,6 +7,9 @@ use font_rasterizer::{
     context::{Senders, StateContext, WindowSize},
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
+    svg::SvgVertexBuffer,
+    vector_instances,
+    vector_vertex_buffer::VectorVertexBuffer,
 };
 use image::{DynamicImage, ImageBuffer, Rgba};
 use log::info;
@@ -165,6 +168,7 @@ pub(crate) struct RenderState {
 
     rasterizer_pipeline: RasterizerPipeline,
     glyph_vertex_buffer: GlyphVertexBuffer,
+    svg_vertex_buffer: SvgVertexBuffer,
 
     simple_state_callback: Box<dyn SimpleStateCallback>,
 
@@ -172,6 +176,7 @@ pub(crate) struct RenderState {
     background_image: Option<DynamicImage>,
 
     pub(crate) ui_string_receiver: Receiver<String>,
+    pub(crate) ui_svg_receiver: Receiver<(String, String)>,
     pub(crate) action_queue_receiver: Receiver<Action>,
     pub(crate) post_action_queue_receiver: Receiver<Action>,
 }
@@ -309,8 +314,10 @@ impl RenderState {
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
         let glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
+        let svg_vertex_buffer: SvgVertexBuffer = SvgVertexBuffer::default();
 
         let (ui_string_sender, ui_string_receiver) = std::sync::mpsc::channel();
+        let (ui_svg_sender, ui_svg_receiver) = std::sync::mpsc::channel();
         let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
         let (post_action_queue_sender, post_action_queue_receiver) = std::sync::mpsc::channel();
 
@@ -327,6 +334,7 @@ impl RenderState {
             font_repository,
             Senders::new(
                 ui_string_sender,
+                ui_svg_sender,
                 action_queue_sender,
                 post_action_queue_sender,
             ),
@@ -343,12 +351,14 @@ impl RenderState {
             rasterizer_pipeline,
 
             glyph_vertex_buffer,
+            svg_vertex_buffer,
             simple_state_callback,
 
             background_color,
             background_image: None,
 
             ui_string_receiver,
+            ui_svg_receiver,
             action_queue_receiver,
             post_action_queue_receiver,
         }
@@ -453,6 +463,17 @@ impl RenderState {
                     s.chars().collect(),
                 );
             });
+        self.ui_svg_receiver
+            .try_recv()
+            .into_iter()
+            .for_each(|(key, svg)| {
+                let _ = self.svg_vertex_buffer.append_svg(
+                    &self.context.device,
+                    &self.context.queue,
+                    &key,
+                    &svg,
+                );
+            });
 
         record_start_of_phase("render 1: setup encoder");
         let mut encoder =
@@ -471,7 +492,7 @@ impl RenderState {
         let screen_view = self.render_target.get_screen_view()?;
 
         record_start_of_phase("render 3: callback render");
-        let (camera, glyph_instances) = self.simple_state_callback.render();
+        let (camera, glyph_instances, vector_instances) = self.simple_state_callback.render();
 
         record_start_of_phase("render 4: run all stage");
         self.rasterizer_pipeline.run_all_stage(
@@ -483,7 +504,10 @@ impl RenderState {
                 camera.build_default_view_projection_matrix().into(),
             ),
             Some((&self.glyph_vertex_buffer, &glyph_instances)),
-            None,
+            Some((
+                &self.svg_vertex_buffer.vector_vertex_buffer(),
+                &vector_instances,
+            )),
             screen_view,
         );
 

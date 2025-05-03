@@ -21,6 +21,7 @@ use font_rasterizer::{
     context::StateContext,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
+    vector_instances::VectorInstances,
 };
 
 use crate::{
@@ -162,14 +163,14 @@ impl Model for TextEdit {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
+        self.char_states.instances.to_instances()
+    }
+
+    fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
         if self.config.hyde_caret {
-            self.char_states.instances.to_instances()
+            vec![]
         } else {
-            [
-                self.caret_states.instances.to_instances(),
-                self.char_states.instances.to_instances(),
-            ]
-            .concat()
+            self.caret_states.instances.to_instances()
         }
     }
 

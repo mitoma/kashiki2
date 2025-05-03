@@ -12,6 +12,7 @@ use font_rasterizer::{
     context::{StateContext, WindowSize},
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
+    vector_instances::VectorInstances,
 };
 
 use crate::camera::{Camera, CameraAdjustment, CameraController, CameraOperation};
@@ -57,6 +58,8 @@ pub trait World {
     fn layout(&self) -> &WorldLayout;
     // glyph_instances を返す
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
+    // vector_instances を返す
+    fn vector_instances(&self) -> Vec<&VectorInstances<String>>;
 
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation);
@@ -260,6 +263,23 @@ impl World for DefaultWorld {
             .removed_models
             .iter()
             .flat_map(|m| m.glyph_instances())
+            .collect();
+        models
+            .iter()
+            .chain(removed_models.iter())
+            .cloned()
+            .collect()
+    }
+
+    fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
+        let models: Vec<&VectorInstances<String>> = self.models[self.get_surrounding_model_range()]
+            .iter()
+            .flat_map(|m| m.vector_instances())
+            .collect();
+        let removed_models: Vec<&VectorInstances<String>> = self
+            .removed_models
+            .iter()
+            .flat_map(|m| m.vector_instances())
             .collect();
         models
             .iter()
@@ -493,6 +513,7 @@ pub trait Model {
     // モデルの縦横の長さを返す
     fn bound(&self) -> (f32, f32);
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
+    fn vector_instances(&self) -> Vec<&VectorInstances<String>>;
     fn update(&mut self, context: &StateContext);
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult;

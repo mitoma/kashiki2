@@ -16,6 +16,40 @@ use crate::{
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
+pub struct SvgVertexBuffer {
+    vertex_buffer: VectorVertexBuffer<String>,
+}
+
+impl Default for SvgVertexBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SvgVertexBuffer {
+    fn new() -> Self {
+        Self {
+            vertex_buffer: VectorVertexBuffer::new(),
+        }
+    }
+
+    pub fn append_svg(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        key: &str,
+        svg: &str,
+    ) -> Result<(), FontRasterizerError> {
+        let vector_vertex = svg_to_vector_vertex(svg)?;
+        self.vertex_buffer
+            .append(device, queue, key.to_string(), vector_vertex)
+    }
+
+    pub fn vector_vertex_buffer(&self) -> &VectorVertexBuffer<String> {
+        &self.vertex_buffer
+    }
+}
+
 pub struct SvgBuffers {
     vertex_buffer: VectorVertexBuffer<String>,
     instances: BTreeMap<String, VectorInstances<String>>,
@@ -136,7 +170,7 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                                 current_position,
                                 (parameters[0], parameters[1]),
                             );
-                            builder.move_to(to_x, to_y);
+                            builder.move_to(to_x, -to_y);
                             current_position = (to_x, to_y);
                             start_position = Some(current_position);
                         }
@@ -146,19 +180,19 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                                 current_position,
                                 (parameters[0], parameters[1]),
                             );
-                            builder.line_to(to_x, to_y);
+                            builder.line_to(to_x, -to_y);
                             current_position = (to_x, to_y);
                         }
                         Command::HorizontalLine(position, parameters) => {
                             let (to_x, _) =
                                 abs_position(position, current_position, (parameters[0], 0.0));
-                            builder.line_to(to_x, current_position.1);
+                            builder.line_to(to_x, -current_position.1);
                             current_position = (to_x, current_position.1);
                         }
                         Command::VerticalLine(position, parameters) => {
                             let (_, to_y) =
                                 abs_position(position, current_position, (0.0, parameters[0]));
-                            builder.line_to(current_position.0, to_y);
+                            builder.line_to(current_position.0, -to_y);
                             current_position = (current_position.0, to_y);
                         }
                         Command::QuadraticCurve(position, parameters) => {
@@ -172,7 +206,7 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                                 current_position,
                                 (parameters[0], parameters[1]),
                             );
-                            builder.quad_to(to_x1, to_y1, to_x, to_y);
+                            builder.quad_to(to_x1, -to_y1, to_x, -to_y);
                             current_position = (to_x, to_y);
                         }
                         Command::SmoothQuadraticCurve(position, parameters) => {
@@ -187,7 +221,7 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                                 current_position,
                                 (parameters[0], parameters[1]),
                             );
-                            builder.quad_to(to_x1, to_y1, to_x, to_y);
+                            builder.quad_to(to_x1, -to_y1, to_x, -to_y);
                             current_position = (to_x, to_y);
                         }
                         Command::CubicCurve(position, parameters) => {
@@ -206,7 +240,7 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                                 current_position,
                                 (parameters[4], parameters[5]),
                             );
-                            builder.curve_to(to_x1, to_y1, to_x2, to_y2, to_x, to_y);
+                            builder.curve_to(to_x1, -to_y1, to_x2, -to_y2, to_x, -to_y);
                             current_position = (to_x, to_y);
                         }
                         Command::SmoothCubicCurve(position, parameters) => {
@@ -221,7 +255,7 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                                 current_position,
                                 (parameters[2], parameters[3]),
                             );
-                            builder.quad_to(to_x1, to_y1, to_x, to_y);
+                            builder.quad_to(to_x1, -to_y1, to_x, -to_y);
                             current_position = (to_x, to_y);
                         }
                         Command::EllipticalArc(position, parameters) => {
@@ -231,12 +265,12 @@ fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> 
                                 current_position,
                                 (parameters[2], parameters[3]),
                             );
-                            builder.line_to(to_x, to_y);
+                            builder.line_to(to_x, -to_y);
                             current_position = (to_x, to_y);
                         }
                         Command::Close => {
                             if let Some(start_position) = start_position {
-                                builder.line_to(start_position.0, start_position.1);
+                                builder.line_to(start_position.0, -start_position.1);
                                 current_position = start_position;
                             }
                         }

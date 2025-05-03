@@ -28,6 +28,7 @@ use font_rasterizer::{
     glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
     time::set_clock_mode,
+    vector_instances::VectorInstances,
 };
 use log::info;
 use ui_support::{
@@ -238,6 +239,15 @@ impl SimpleStateCallback for KashikishiCallback {
         chars.extend(ime_chars());
         context.register_string(chars.into_iter().collect::<String>());
 
+        context.register_svg(
+            caret_char(text_buffer::caret::CaretType::Primary).to_string(),
+            include_str!("../asset/caret.svg").to_string(),
+        );
+        context.register_svg(
+            caret_char(text_buffer::caret::CaretType::Mark).to_string(),
+            include_str!("../../font_rasterizer/data/rice.svg").to_string(),
+        );
+
         // カメラを初期化する
         context.register_post_action(Action::new_command("world", "fit-by-direction"));
     }
@@ -338,11 +348,13 @@ impl SimpleStateCallback for KashikishiCallback {
         }
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        let mut world_instances = self.world.get().glyph_instances();
+    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
+        let mut glyph_instances = self.world.get().glyph_instances();
+        let vector_instances = self.world.get().vector_instances();
+
         let mut ime_instances = self.ime.get_instances();
-        world_instances.append(&mut ime_instances);
-        (self.world.get().camera(), world_instances)
+        glyph_instances.append(&mut ime_instances);
+        (self.world.get().camera(), glyph_instances, vector_instances)
     }
 
     fn shutdown(&mut self) {

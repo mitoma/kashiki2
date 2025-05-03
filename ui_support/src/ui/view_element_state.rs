@@ -21,7 +21,7 @@ use font_rasterizer::{
 use crate::{
     easing_value::EasingPointN,
     layout_engine::ModelAttributes,
-    text_instances::TextInstances,
+    text_instances::{CaretInstances, TextInstances},
     ui_context::{GpuEasingConfig, RemoveCharMode, TextContext},
 };
 
@@ -400,7 +400,7 @@ pub(crate) struct CaretStates {
     main_caret: Option<(Caret, ViewElementState)>,
     mark: Option<(Caret, ViewElementState)>,
     removed_carets: BTreeMap<Caret, ViewElementState>,
-    pub(crate) instances: TextInstances,
+    pub(crate) instances: CaretInstances,
 }
 
 impl CaretStates {

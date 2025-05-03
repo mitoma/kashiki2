@@ -12,6 +12,7 @@ use crate::{
 
 pub struct Senders {
     ui_string_sender: Sender<String>,
+    ui_svg_sender: Sender<(String, String)>,
     action_queue_sender: Sender<Action>,
     post_action_queue_sender: Sender<Action>,
 }
@@ -19,11 +20,13 @@ pub struct Senders {
 impl Senders {
     pub fn new(
         ui_string_sender: Sender<String>,
+        ui_svg_sender: Sender<(String, String)>,
         action_queue_sender: Sender<Action>,
         post_action_queue_sender: Sender<Action>,
     ) -> Self {
         Self {
             ui_string_sender,
+            ui_svg_sender,
             action_queue_sender,
             post_action_queue_sender,
         }
@@ -73,6 +76,16 @@ impl StateContext {
             Ok(_) => {}
             Err(err) => {
                 warn!("Failed to send string: {}", err)
+            }
+        }
+    }
+
+    #[inline]
+    pub fn register_svg(&self, key: String, svg: String) {
+        match self.senders.ui_svg_sender.send((key, svg)) {
+            Ok(_) => {}
+            Err(err) => {
+                warn!("Failed to send SVG: {}", err)
             }
         }
     }

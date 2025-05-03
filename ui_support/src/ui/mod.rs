@@ -25,7 +25,7 @@ use text_buffer::caret::CaretType;
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator, color_theme::ColorTheme, context::StateContext,
     glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction, motion::MotionFlags,
-    time::now_millis, vector_instances::InstanceAttributes,
+    time::now_millis, vector_instances::{InstanceAttributes, VectorInstances},
 };
 
 use crate::layout_engine::{Model, ModelBorder, ModelMode, ModelOperation, ModelOperationResult};
@@ -72,6 +72,10 @@ impl Model for PlaneTextReader {
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
         self.get_instances()
+    }
+
+    fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
+        vec![]
     }
 
     fn update(&mut self, context: &StateContext) {
