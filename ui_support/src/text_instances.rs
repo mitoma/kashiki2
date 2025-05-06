@@ -135,7 +135,6 @@ impl TextInstances {
 #[derive(Default)]
 pub(crate) struct CaretInstances {
     glyph_instances: BTreeMap<String, VectorInstances<String>>,
-    direction: Direction,
 }
 
 impl CaretInstances {
@@ -201,13 +200,6 @@ impl CaretInstances {
     pub(crate) fn update(&mut self, device: &Device, queue: &Queue) {
         for instances in self.glyph_instances.values_mut() {
             instances.update_buffer(device, queue)
-        }
-    }
-
-    pub(crate) fn set_direction(&mut self, direction: &Direction) {
-        self.direction = *direction;
-        for instances in self.glyph_instances.values_mut() {
-            //instances.set_direction(direction);
         }
     }
 
