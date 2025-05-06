@@ -134,7 +134,7 @@ impl TextInstances {
 
 #[derive(Default)]
 pub(crate) struct CaretInstances {
-    glyph_instances: BTreeMap<String, VectorInstances<String>>,
+    vector_instances: BTreeMap<String, VectorInstances<String>>,
 }
 
 impl CaretInstances {
@@ -145,14 +145,14 @@ impl CaretInstances {
         device: &Device,
     ) {
         let instances = self
-            .glyph_instances
+            .vector_instances
             .entry(key.c.to_string())
             .or_insert_with(|| VectorInstances::new(key.c.to_string(), device));
         instances.insert(key.to_instance_key(), instance)
     }
 
     pub(crate) fn get_mut(&mut self, key: &TextInstancesKey) -> Option<&mut InstanceAttributes> {
-        if let Some(instances) = self.glyph_instances.get_mut(&key.c.to_string()) {
+        if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string()) {
             instances.get_mut(&key.to_instance_key())
         } else {
             None
@@ -160,7 +160,7 @@ impl CaretInstances {
     }
 
     pub(crate) fn remove(&mut self, key: &TextInstancesKey) -> Option<InstanceAttributes> {
-        if let Some(instances) = self.glyph_instances.get_mut(&key.c.to_string()) {
+        if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string()) {
             instances.remove(&key.to_instance_key())
         } else {
             None
@@ -168,7 +168,7 @@ impl CaretInstances {
     }
 
     pub(crate) fn pre_remove(&mut self, key: &TextInstancesKey) {
-        if let Some(instances) = self.glyph_instances.get_mut(&key.c.to_string()) {
+        if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string()) {
             if let Some(instance) = instances.remove(&key.to_instance_key()) {
                 instances.insert(key.to_pre_remove_instance_key(), instance);
             }
@@ -179,7 +179,7 @@ impl CaretInstances {
         &mut self,
         key: &TextInstancesKey,
     ) -> Option<&mut InstanceAttributes> {
-        if let Some(instances) = self.glyph_instances.get_mut(&key.c.to_string()) {
+        if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string()) {
             instances.get_mut(&key.to_pre_remove_instance_key())
         } else {
             None
@@ -190,7 +190,7 @@ impl CaretInstances {
         &mut self,
         key: &TextInstancesKey,
     ) -> Option<InstanceAttributes> {
-        if let Some(instances) = self.glyph_instances.get_mut(&key.c.to_string()) {
+        if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string()) {
             instances.remove(&key.to_pre_remove_instance_key())
         } else {
             None
@@ -198,12 +198,12 @@ impl CaretInstances {
     }
 
     pub(crate) fn update(&mut self, device: &Device, queue: &Queue) {
-        for instances in self.glyph_instances.values_mut() {
+        for instances in self.vector_instances.values_mut() {
             instances.update_buffer(device, queue)
         }
     }
 
     pub(crate) fn to_instances(&self) -> Vec<&VectorInstances<String>> {
-        self.glyph_instances.values().collect()
+        self.vector_instances.values().collect()
     }
 }
