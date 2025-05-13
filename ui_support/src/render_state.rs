@@ -13,7 +13,7 @@ use font_rasterizer::{
     vector_vertex_buffer::VectorVertexBuffer,
 };
 use image::{DynamicImage, ImageBuffer, Rgba};
-use log::{info, warn};
+use log::info;
 
 use crate::{
     InputResult, RenderData, SimpleStateCallback, easing_value::EasingPointN,

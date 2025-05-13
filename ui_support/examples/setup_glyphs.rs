@@ -3,12 +3,10 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     rasterizer_pipeline::Quarity,
-    vector_instances::VectorInstances,
 };
 use instant::Instant;
 use ui_support::{
-    Flags, Flags, InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
-    SimpleStateSupport, SimpleStateSupport, camera::Camera, camera::Camera, run_support,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport, camera::Camera,
     run_support,
 };
 use winit::event::WindowEvent;

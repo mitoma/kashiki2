@@ -10,11 +10,9 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     rasterizer_pipeline::Quarity,
-    vector_instances::VectorInstances,
 };
 use ui_support::{
-    Flags, Flags, InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
-    SimpleStateSupport, SimpleStateSupport,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     action::ActionProcessorStore,
     camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, World},

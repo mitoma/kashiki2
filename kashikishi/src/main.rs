@@ -27,12 +27,10 @@ use font_rasterizer::{
     glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
     time::set_clock_mode,
-    vector_instances::VectorInstances,
 };
 use log::info;
 use ui_support::{
-    Flags, Flags, InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
-    SimpleStateSupport, SimpleStateSupport,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     action::{ActionProcessor, ActionProcessorStore},
     action_recorder::{ActionRecorder, InMemoryActionRecordRepository},
     camera::{CameraAdjustment, CameraOperation},

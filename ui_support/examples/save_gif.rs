@@ -8,14 +8,12 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     rasterizer_pipeline::Quarity,
-    vector_instances::VectorInstances,
 };
 use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 use ui_support::{
-    Flags, Flags, InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
-    SimpleStateSupport, SimpleStateSupport,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     action::ActionProcessorStore,
     camera::CameraAdjustment,
     generate_image_iter,

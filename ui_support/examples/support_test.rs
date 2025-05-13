@@ -1,8 +1,7 @@
 use font_collector::FontRepository;
 use instant::Duration;
 use ui_support::{
-    Flags, Flags, InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
-    SimpleStateSupport, SimpleStateSupport,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
     run_support,
 };
@@ -17,7 +16,7 @@ use font_rasterizer::{
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,
-    vector_instances::{InstanceAttributes, VectorInstances},
+    vector_instances::InstanceAttributes,
 };
 use log::info;
 use winit::event::{ElementState, MouseButton, WindowEvent};

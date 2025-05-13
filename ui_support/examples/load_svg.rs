@@ -22,11 +22,10 @@ use ui_support::{
 use winit::event::WindowEvent;
 
 pub fn main() {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
-    //env_logger::init();
     pollster::block_on(run());
 }
 
@@ -100,8 +99,8 @@ impl SimpleStateCallback for SingleCharCallback {
         context.register_svg(
             "rice".to_string(),
             //include_str!("../../font_rasterizer/data/sample.svg").to_string(),
-            //include_str!("../../font_rasterizer/data/rice.svg").to_string(),
-            include_str!("../../font_rasterizer/data/stg.svg").to_string(),
+            include_str!("../../font_rasterizer/data/rice.svg").to_string(),
+            //include_str!("../../font_rasterizer/data/stg.svg").to_string(),
         );
 
         let value = InstanceAttributes::new(
