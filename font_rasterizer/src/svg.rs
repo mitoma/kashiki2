@@ -9,6 +9,40 @@ use crate::{
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
+pub struct SvgVertexBuffer {
+    vertex_buffer: VectorVertexBuffer<String>,
+}
+
+impl Default for SvgVertexBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SvgVertexBuffer {
+    fn new() -> Self {
+        Self {
+            vertex_buffer: VectorVertexBuffer::new(),
+        }
+    }
+
+    pub fn append_svg(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        key: &str,
+        svg: &str,
+    ) -> Result<(), FontRasterizerError> {
+        let vector_vertex = svg_to_vector_vertex(svg)?;
+        self.vertex_buffer
+            .append(device, queue, key.to_string(), vector_vertex)
+    }
+
+    pub fn vector_vertex_buffer(&self) -> &VectorVertexBuffer<String> {
+        &self.vertex_buffer
+    }
+}
+
 pub struct SvgBuffers {
     vertex_buffer: VectorVertexBuffer<String>,
     instances: BTreeMap<String, VectorInstances<String>>,

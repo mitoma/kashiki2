@@ -27,6 +27,7 @@ use font_rasterizer::{
     glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
     time::set_clock_mode,
+    vector_instances::VectorInstances,
 };
 use log::info;
 use ui_support::{
@@ -237,6 +238,15 @@ impl SimpleStateCallback for KashikishiCallback {
         // IME のグリフを追加する
         chars.extend(ime_chars());
         context.register_string(chars.into_iter().collect::<String>());
+
+        context.register_svg(
+            caret_char(text_buffer::caret::CaretType::Primary).to_string(),
+            include_str!("../asset/caret.svg").to_string(),
+        );
+        context.register_svg(
+            caret_char(text_buffer::caret::CaretType::Mark).to_string(),
+            include_str!("../../font_rasterizer/data/rice.svg").to_string(),
+        );
 
         // カメラを初期化する
         context.register_post_action(Action::new_command("world", "fit-by-direction"));

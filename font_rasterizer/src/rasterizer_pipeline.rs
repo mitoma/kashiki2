@@ -484,7 +484,11 @@ impl RasterizerPipeline {
                     overlay_render_pass
                         .set_index_buffer(draw_info.index.slice(..), wgpu::IndexFormat::Uint32);
                     overlay_render_pass.set_vertex_buffer(1, instances.slice(..));
-                    overlay_render_pass.draw_indexed(draw_info.index_range.clone(), 0, 0..1);
+                    overlay_render_pass.draw_indexed(
+                        draw_info.index_range.clone(),
+                        0,
+                        0..instance.len() as _,
+                    );
                 }
             }
         }

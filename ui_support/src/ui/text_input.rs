@@ -5,6 +5,7 @@ use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
     context::StateContext, glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
+    vector_instances::VectorInstances,
 };
 
 use crate::{
@@ -101,6 +102,14 @@ impl Model for TextInput {
         [
             self.title_text_edit.glyph_instances(),
             self.input_text_edit.glyph_instances(),
+        ]
+        .concat()
+    }
+
+    fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
+        [
+            self.title_text_edit.vector_instances(),
+            self.input_text_edit.vector_instances(),
         ]
         .concat()
     }

@@ -1,3 +1,5 @@
+use std::vec;
+
 use font_collector::FontRepository;
 use instant::Duration;
 use rokid_3dof::RokidMax;
@@ -12,7 +14,7 @@ use font_rasterizer::{
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,
-    vector_instances::InstanceAttributes,
+    vector_instances::{InstanceAttributes, VectorInstances},
 };
 use ui_support::{
     Flags, Flags, InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,

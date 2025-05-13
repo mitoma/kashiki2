@@ -1,4 +1,4 @@
-use std::sync::mpsc::Sender;
+use std::{fmt::Display, sync::mpsc::Sender};
 
 use crate::{
     buffer::{BufferChar, CellPosition},
@@ -15,6 +15,15 @@ pub struct Caret {
 pub enum CaretType {
     Primary,
     Mark,
+}
+
+impl Display for CaretType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CaretType::Primary => write!(f, "Caret"),
+            CaretType::Mark => write!(f, "Mark"),
+        }
+    }
 }
 
 impl Caret {

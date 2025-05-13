@@ -6,6 +6,7 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     rasterizer_pipeline::Quarity,
+    vector_instances::VectorInstances,
 };
 use log::info;
 use stroke_parser::Action;

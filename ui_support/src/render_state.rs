@@ -8,7 +8,7 @@ use font_rasterizer::{
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
-    svg::svg_to_vector_vertex,
+    svg::SvgVertexBuffer,
     vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
@@ -16,8 +16,7 @@ use image::{DynamicImage, ImageBuffer, Rgba};
 use log::{info, warn};
 
 use crate::{
-    InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
-    easing_value::EasingPointN, easing_value::EasingPointN, metrics_counter::record_start_of_phase,
+    InputResult, RenderData, SimpleStateCallback, easing_value::EasingPointN,
     metrics_counter::record_start_of_phase,
 };
 
@@ -170,7 +169,7 @@ pub(crate) struct RenderState {
 
     rasterizer_pipeline: RasterizerPipeline,
     glyph_vertex_buffer: GlyphVertexBuffer,
-    vector_vertex_buffer: VectorVertexBuffer<String>,
+    svg_vertex_buffer: SvgVertexBuffer,
 
     simple_state_callback: Box<dyn SimpleStateCallback>,
 
@@ -178,7 +177,7 @@ pub(crate) struct RenderState {
     background_image: Option<DynamicImage>,
 
     pub(crate) ui_string_receiver: Receiver<String>,
-    pub(crate) svg_receiver: Receiver<(String, String)>,
+    pub(crate) ui_svg_receiver: Receiver<(String, String)>,
     pub(crate) action_queue_receiver: Receiver<Action>,
     pub(crate) post_action_queue_receiver: Receiver<Action>,
 }
@@ -316,10 +315,10 @@ impl RenderState {
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
         let glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
-        let vector_vertex_buffer = VectorVertexBuffer::default();
+        let svg_vertex_buffer = SvgVertexBuffer::default();
 
         let (ui_string_sender, ui_string_receiver) = std::sync::mpsc::channel();
-        let (svg_sender, svg_receiver) = std::sync::mpsc::channel();
+        let (ui_svg_sender, ui_svg_receiver) = std::sync::mpsc::channel();
         let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
         let (post_action_queue_sender, post_action_queue_receiver) = std::sync::mpsc::channel();
 
@@ -336,7 +335,7 @@ impl RenderState {
             font_repository,
             Senders::new(
                 ui_string_sender,
-                svg_sender,
+                ui_svg_sender,
                 action_queue_sender,
                 post_action_queue_sender,
             ),
@@ -353,14 +352,14 @@ impl RenderState {
             rasterizer_pipeline,
 
             glyph_vertex_buffer,
-            vector_vertex_buffer,
+            svg_vertex_buffer,
             simple_state_callback,
 
             background_color,
             background_image: None,
 
             ui_string_receiver,
-            svg_receiver,
+            ui_svg_receiver,
             action_queue_receiver,
             post_action_queue_receiver,
         }
@@ -466,21 +465,15 @@ impl RenderState {
                 );
             });
         record_start_of_phase("render 0: append svg");
-        self.svg_receiver
+        self.ui_svg_receiver
             .try_recv()
             .into_iter()
-            .for_each(|(id, svg)| {
-                if self.vector_vertex_buffer.has_key(&id) {
-                    // 既に同じキーで svg が登録されている場合は何もしない
-                    warn!("svg key is already registered: {}", id);
-                    return;
-                }
-                let svg = svg_to_vector_vertex(&svg).unwrap();
-                let _ = self.vector_vertex_buffer.append(
+            .for_each(|(key, svg)| {
+                let _ = self.svg_vertex_buffer.append_svg(
                     &self.context.device,
                     &self.context.queue,
-                    id,
-                    svg,
+                    &key,
+                    &svg,
                 );
             });
 
@@ -518,7 +511,10 @@ impl RenderState {
             if vector_instances.is_empty() {
                 None
             } else {
-                Some((&self.vector_vertex_buffer, &vector_instances))
+                Some((
+                    self.svg_vertex_buffer.vector_vertex_buffer(),
+                    &vector_instances,
+                ))
             };
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,

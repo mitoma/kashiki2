@@ -10,6 +10,7 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     rasterizer_pipeline::Quarity,
+    vector_instances::VectorInstances,
 };
 use ui_support::{
     Flags, Flags, InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
@@ -19,7 +20,6 @@ use ui_support::{
     layout_engine::{DefaultWorld, Model, World},
     run_support,
     ui::{ImeInput, TextEdit, caret_char},
-    ui_context::TextContext,
 };
 use winit::event::WindowEvent;
 
@@ -130,7 +130,7 @@ impl SingleCharCallback {
             .for_each(|k| store.register_keybind(k));
 
         let mut world = DefaultWorld::new(window_size);
-        let mut textedit = TextEdit::new(TextContext::default().with_max_col(40));
+        let mut textedit = TextEdit::default();
 
         textedit.editor_operation(&EditorOperation::InsertString(
             include_str!("../asset/initial.txt").to_string(),
