@@ -9,13 +9,13 @@ use wasm_bindgen::prelude::*;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    glyph_instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
 };
 use ui_support::{
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    Flags, Flags, InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
+    SimpleStateSupport, SimpleStateSupport,
     action::ActionProcessorStore,
-    camera::{Camera, CameraAdjustment},
+    camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, World},
     run_support,
     ui::{ImeInput, TextEdit, caret_char},
@@ -233,11 +233,15 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
+    fn render(&mut self) -> RenderData {
         let mut world_instances = self.world.glyph_instances();
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);
-        (self.world.camera(), world_instances)
+        RenderData {
+            camera: self.world.camera(),
+            glyph_instances: world_instances,
+            vector_instances: vec![],
+        }
     }
 
     fn shutdown(&mut self) {}

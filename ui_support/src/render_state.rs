@@ -5,14 +5,19 @@ use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     context::{Senders, StateContext, WindowSize},
+    glyph_instances::GlyphInstances,
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
+    svg::svg_to_vector_vertex,
+    vector_instances::VectorInstances,
+    vector_vertex_buffer::VectorVertexBuffer,
 };
 use image::{DynamicImage, ImageBuffer, Rgba};
-use log::info;
+use log::{info, warn};
 
 use crate::{
-    InputResult, SimpleStateCallback, easing_value::EasingPointN,
+    InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
+    easing_value::EasingPointN, easing_value::EasingPointN, metrics_counter::record_start_of_phase,
     metrics_counter::record_start_of_phase,
 };
 
@@ -165,6 +170,7 @@ pub(crate) struct RenderState {
 
     rasterizer_pipeline: RasterizerPipeline,
     glyph_vertex_buffer: GlyphVertexBuffer,
+    vector_vertex_buffer: VectorVertexBuffer<String>,
 
     simple_state_callback: Box<dyn SimpleStateCallback>,
 
@@ -172,6 +178,7 @@ pub(crate) struct RenderState {
     background_image: Option<DynamicImage>,
 
     pub(crate) ui_string_receiver: Receiver<String>,
+    pub(crate) svg_receiver: Receiver<(String, String)>,
     pub(crate) action_queue_receiver: Receiver<Action>,
     pub(crate) post_action_queue_receiver: Receiver<Action>,
 }
@@ -309,8 +316,10 @@ impl RenderState {
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
         let glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
+        let vector_vertex_buffer = VectorVertexBuffer::default();
 
         let (ui_string_sender, ui_string_receiver) = std::sync::mpsc::channel();
+        let (svg_sender, svg_receiver) = std::sync::mpsc::channel();
         let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
         let (post_action_queue_sender, post_action_queue_receiver) = std::sync::mpsc::channel();
 
@@ -327,6 +336,7 @@ impl RenderState {
             font_repository,
             Senders::new(
                 ui_string_sender,
+                svg_sender,
                 action_queue_sender,
                 post_action_queue_sender,
             ),
@@ -343,12 +353,14 @@ impl RenderState {
             rasterizer_pipeline,
 
             glyph_vertex_buffer,
+            vector_vertex_buffer,
             simple_state_callback,
 
             background_color,
             background_image: None,
 
             ui_string_receiver,
+            svg_receiver,
             action_queue_receiver,
             post_action_queue_receiver,
         }
@@ -453,6 +465,24 @@ impl RenderState {
                     s.chars().collect(),
                 );
             });
+        record_start_of_phase("render 0: append svg");
+        self.svg_receiver
+            .try_recv()
+            .into_iter()
+            .for_each(|(id, svg)| {
+                if self.vector_vertex_buffer.has_key(&id) {
+                    // 既に同じキーで svg が登録されている場合は何もしない
+                    warn!("svg key is already registered: {}", id);
+                    return;
+                }
+                let svg = svg_to_vector_vertex(&svg).unwrap();
+                let _ = self.vector_vertex_buffer.append(
+                    &self.context.device,
+                    &self.context.queue,
+                    id,
+                    svg,
+                );
+            });
 
         record_start_of_phase("render 1: setup encoder");
         let mut encoder =
@@ -471,9 +501,25 @@ impl RenderState {
         let screen_view = self.render_target.get_screen_view()?;
 
         record_start_of_phase("render 3: callback render");
-        let (camera, glyph_instances) = self.simple_state_callback.render();
+        let RenderData {
+            camera,
+            glyph_instances,
+            vector_instances,
+        } = self.simple_state_callback.render();
 
         record_start_of_phase("render 4: run all stage");
+        let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
+            if glyph_instances.is_empty() {
+                None
+            } else {
+                Some((&self.glyph_vertex_buffer, &glyph_instances))
+            };
+        let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
+            if vector_instances.is_empty() {
+                None
+            } else {
+                Some((&self.vector_vertex_buffer, &vector_instances))
+            };
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.context.device,
@@ -482,8 +528,8 @@ impl RenderState {
                 camera.build_view_projection_matrix().into(),
                 camera.build_default_view_projection_matrix().into(),
             ),
-            Some((&self.glyph_vertex_buffer, &glyph_instances)),
-            None,
+            glyph_buffers,
+            vector_buffers,
             screen_view,
         );
 

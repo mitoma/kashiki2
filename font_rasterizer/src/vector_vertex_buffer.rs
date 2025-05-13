@@ -95,6 +95,15 @@ pub struct VectorVertexBuffer<T> {
     index_buffers: Vec<IndexBuffer>,
 }
 
+impl<T> Default for VectorVertexBuffer<T>
+where
+    T: Ord + Debug,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> VectorVertexBuffer<T>
 where
     T: Ord + Debug,
@@ -123,7 +132,11 @@ where
         Ok(draw_info)
     }
 
-    pub(crate) fn append(
+    pub fn has_key(&self, key: &T) -> bool {
+        self.buffer_index.contains_key(key)
+    }
+
+    pub fn append(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,

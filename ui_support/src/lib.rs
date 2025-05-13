@@ -23,6 +23,7 @@ use font_rasterizer::{
     glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
     time::{ClockMode, increment_fixed_clock, set_clock_mode},
+    vector_instances::VectorInstances,
 };
 use render_state::{RenderState, RenderTargetRequest};
 
@@ -403,8 +404,14 @@ pub trait SimpleStateCallback {
     fn update(&mut self, context: &StateContext);
     fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>);
+    fn render(&mut self) -> RenderData;
     fn shutdown(&mut self);
+}
+
+pub struct RenderData<'a> {
+    pub camera: &'a Camera,
+    pub glyph_instances: Vec<&'a GlyphInstances>,
+    pub vector_instances: Vec<&'a VectorInstances<String>>,
 }
 
 pub async fn generate_images<F>(
