@@ -2,7 +2,7 @@ use std::fs::File;
 
 use cgmath::Rotation3;
 use font_collector::FontRepository;
-use image::{codecs::gif::GifEncoder, Delay, Frame};
+use image::{Delay, Frame, codecs::gif::GifEncoder};
 use instant::Duration;
 
 use font_rasterizer::{
@@ -15,8 +15,9 @@ use font_rasterizer::{
 };
 use log::info;
 use ui_support::{
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
-    generate_image_iter, Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
+    generate_image_iter,
 };
 use winit::event::WindowEvent;
 

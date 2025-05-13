@@ -30,14 +30,14 @@ use font_rasterizer::{
 };
 use log::info;
 use ui_support::{
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    Flags, Flags, InputResult, InputResult, RenderData, SimpleStateCallback, SimpleStateCallback,
+    SimpleStateSupport, SimpleStateSupport,
     action::{ActionProcessor, ActionProcessorStore},
     action_recorder::{ActionRecorder, InMemoryActionRecordRepository},
     camera::{CameraAdjustment, CameraOperation},
     layout_engine::{Model, ModelOperation, World},
     run_support,
     ui::{ImeInput, caret_char, ime_chars},
-    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
 };
 use winit::event::WindowEvent;
 
