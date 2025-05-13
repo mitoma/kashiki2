@@ -23,9 +23,14 @@ use log::info;
 use text_buffer::caret::CaretType;
 
 use font_rasterizer::{
-    char_width_calcurator::CharWidthCalculator, color_theme::ColorTheme, context::StateContext,
-    glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction, motion::MotionFlags,
-    time::now_millis, vector_instances::{InstanceAttributes, VectorInstances},
+    char_width_calcurator::CharWidthCalculator,
+    color_theme::ColorTheme,
+    context::StateContext,
+    glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::Direction,
+    motion::MotionFlags,
+    time::now_millis,
+    vector_instances::{InstanceAttributes, VectorInstances},
 };
 
 use crate::layout_engine::{Model, ModelBorder, ModelMode, ModelOperation, ModelOperationResult};

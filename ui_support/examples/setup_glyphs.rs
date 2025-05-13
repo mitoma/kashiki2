@@ -3,7 +3,8 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     glyph_instances::GlyphInstances,
-    rasterizer_pipeline::Quarity, vector_instances::VectorInstances,
+    rasterizer_pipeline::Quarity,
+    vector_instances::VectorInstances,
 };
 use instant::Instant;
 use ui_support::{
