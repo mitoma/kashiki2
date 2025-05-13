@@ -3,7 +3,7 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     glyph_instances::GlyphInstances,
-    rasterizer_pipeline::Quarity,
+    rasterizer_pipeline::Quarity, vector_instances::VectorInstances,
 };
 use instant::Instant;
 use ui_support::{
@@ -89,8 +89,8 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn resize(&mut self, _window_size: WindowSize) {}
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        (&self.camera, Vec::new())
+    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
+        (&self.camera, Vec::new(), vec![])
     }
 
     fn shutdown(&mut self) {}

@@ -396,7 +396,6 @@ impl CharStates {
 
 #[derive(Default)]
 pub(crate) struct CaretStates {
-    pub(crate) default_motion: MotionFlags,
     main_caret: Option<(Caret, ViewElementState)>,
     mark: Option<(Caret, ViewElementState)>,
     removed_carets: BTreeMap<Caret, ViewElementState>,
@@ -414,7 +413,13 @@ impl CaretStates {
         self.main_caret.as_ref().map(|(_, s)| s.position.last())
     }
 
-    pub(crate) fn add_caret(&mut self, c: Caret, color: [f32; 3], device: &Device) {
+    pub(crate) fn add_caret(
+        &mut self,
+        c: Caret,
+        color: [f32; 3],
+        text_context: &TextContext,
+        device: &Device,
+    ) {
         let position = [c.position.row as f32, c.position.col as f32, 0.0];
 
         let mut easing_color = EasingPointN::new(color);
@@ -438,24 +443,38 @@ impl CaretStates {
 
         let caret_instance = InstanceAttributes {
             color,
-            motion: self.default_motion,
+            start_time: now_millis(),
+            motion: text_context.char_easings.add_caret.motion,
+            duration: text_context.char_easings.add_caret.duration,
+            gain: text_context.char_easings.add_caret.gain,
             ..InstanceAttributes::default()
         };
         self.instances.add(c.into(), caret_instance, device);
     }
 
-    pub(crate) fn move_caret(&mut self, from: Caret, to: Caret, device: &Device) {
+    pub(crate) fn move_caret(
+        &mut self,
+        from: Caret,
+        to: Caret,
+        text_context: &TextContext,
+        device: &Device,
+    ) {
         match from.caret_type {
             CaretType::Primary => self.main_caret = Some((to, self.main_caret.take().unwrap().1)),
             CaretType::Mark => self.mark = Some((to, self.mark.take().unwrap().1)),
         }
-        if let Some(instance) = self.instances.remove(&from.into()) {
+
+        if let Some(mut instance) = self.instances.remove(&from.into()) {
+            instance.start_time = now_millis();
+            instance.motion = text_context.char_easings.move_caret.motion;
+            instance.duration = text_context.char_easings.move_caret.duration;
+            instance.gain = text_context.char_easings.move_caret.gain;
             self.instances.add(to.into(), instance, device);
         }
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    pub(crate) fn caret_to_dustbox(&mut self, c: Caret) {
+    pub(crate) fn caret_to_dustbox(&mut self, c: Caret, text_context: &TextContext) {
         match c.caret_type {
             CaretType::Primary => {
                 if let Some((_, mut state)) = self.main_caret.take() {
@@ -469,6 +488,12 @@ impl CaretStates {
                     self.removed_carets.insert(c, state);
                 }
             }
+        }
+        if let Some(attr) = self.instances.get_mut(&c.into()) {
+            attr.start_time = now_millis();
+            attr.motion = text_context.char_easings.remove_caret.motion;
+            attr.duration = text_context.char_easings.remove_caret.duration;
+            attr.gain = text_context.char_easings.remove_caret.gain;
         }
         self.instances.pre_remove(&c.into());
     }

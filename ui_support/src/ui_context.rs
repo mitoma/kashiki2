@@ -90,6 +90,9 @@ pub(crate) struct CharEasings {
     pub(crate) color_easing: CpuEasingConfig,
     pub(crate) scale_easing: CpuEasingConfig,
     pub(crate) motion_gain_easing: CpuEasingConfig,
+    pub(crate) add_caret: GpuEasingConfig,
+    pub(crate) move_caret: GpuEasingConfig,
+    pub(crate) remove_caret: GpuEasingConfig,
 }
 
 impl Default for CharEasings {
@@ -163,6 +166,32 @@ impl Default for CharEasings {
                 duration: Duration::from_millis(500),
                 easing_func: nenobi::functions::sin_in_out,
             },
+            add_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Back, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 0.8,
+            },
+            move_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, false))
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 0.5,
+            },
+            remove_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Bounce, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS | MotionTarget::STRETCH_X_MINUS)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 0.8,
+            },
         }
     }
 }
@@ -183,6 +212,9 @@ impl CharEasings {
             color_easing: CpuEasingConfig::default(),
             scale_easing: CpuEasingConfig::default(),
             motion_gain_easing: CpuEasingConfig::default(),
+            add_caret: GpuEasingConfig::default(),
+            move_caret: GpuEasingConfig::default(),
+            remove_caret: GpuEasingConfig::default(),
         }
     }
 
@@ -206,6 +238,9 @@ impl CharEasings {
             color_easing: CpuEasingConfig::zero_motion(),
             scale_easing: CpuEasingConfig::zero_motion(),
             motion_gain_easing: CpuEasingConfig::zero_motion(),
+            add_caret: ignore_camera_config,
+            move_caret: ignore_camera_config,
+            remove_caret: ignore_camera_config,
         }
     }
 }

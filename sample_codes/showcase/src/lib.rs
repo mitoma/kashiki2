@@ -11,6 +11,7 @@ use font_rasterizer::{
     context::{StateContext, WindowSize},
     glyph_instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
+    vector_instances::VectorInstances,
 };
 use ui_support::{
     Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
@@ -19,7 +20,6 @@ use ui_support::{
     layout_engine::{DefaultWorld, Model, World},
     run_support,
     ui::{ImeInput, TextEdit, caret_char},
-    ui_context::TextContext,
 };
 use winit::event::WindowEvent;
 
@@ -130,7 +130,7 @@ impl SingleCharCallback {
             .for_each(|k| store.register_keybind(k));
 
         let mut world = DefaultWorld::new(window_size);
-        let mut textedit = TextEdit::new(TextContext::default().with_max_col(40));
+        let mut textedit = TextEdit::default();
 
         textedit.editor_operation(&EditorOperation::InsertString(
             include_str!("../asset/initial.txt").to_string(),
@@ -233,11 +233,11 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
+    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
         let mut world_instances = self.world.glyph_instances();
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);
-        (self.world.camera(), world_instances)
+        (self.world.camera(), world_instances, vec![])
     }
 
     fn shutdown(&mut self) {}

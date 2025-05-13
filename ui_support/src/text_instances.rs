@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use text_buffer::{
     buffer::{BufferChar, CellPosition},
-    caret::{self, Caret, CaretType},
+    caret::Caret,
 };
 use wgpu::{Device, Queue};
 

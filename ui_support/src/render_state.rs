@@ -8,8 +8,6 @@ use font_rasterizer::{
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Quarity, RasterizerPipeline},
     svg::SvgVertexBuffer,
-    vector_instances,
-    vector_vertex_buffer::VectorVertexBuffer,
 };
 use image::{DynamicImage, ImageBuffer, Rgba};
 use log::info;
@@ -505,7 +503,7 @@ impl RenderState {
             ),
             Some((&self.glyph_vertex_buffer, &glyph_instances)),
             Some((
-                &self.svg_vertex_buffer.vector_vertex_buffer(),
+                self.svg_vertex_buffer.vector_vertex_buffer(),
                 &vector_instances,
             )),
             screen_view,
