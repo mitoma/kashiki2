@@ -1,6 +1,6 @@
 use cgmath::{InnerSpace, Point3, Vector3};
-
-use font_rasterizer::context::WindowSize;
+use font_rasterizer::{context::WindowSize, time::now_millis};
+use rand::Rng;
 
 use crate::{easing_value::EasingPointN, layout_engine::Model};
 
@@ -21,11 +21,15 @@ pub struct Camera {
     znear: f32,
     zfar: f32,
     eye_quaternion: Option<cgmath::Quaternion<f32>>,
+    viewport_width: f32,
+    viewport_height: f32,
 }
 
 impl Camera {
     pub fn basic(window_size: WindowSize) -> Self {
         let Vector3 { x, y, z } = cgmath::Vector3::unit_y();
+        let viewport_width = window_size.width as f32;
+        let viewport_height = window_size.height as f32;
         Self::new(
             [0.0, 0.0, 1.0].into(),
             [0.0, 0.0, 0.0].into(),
@@ -35,6 +39,8 @@ impl Camera {
             45.0,
             0.1,
             1000.0,
+            viewport_width,
+            viewport_height,
         )
     }
 
@@ -46,6 +52,8 @@ impl Camera {
         fovy: f32,
         znear: f32,
         zfar: f32,
+        viewport_width: f32,
+        viewport_height: f32,
     ) -> Self {
         Self {
             eye,
@@ -56,7 +64,14 @@ impl Camera {
             znear,
             zfar,
             eye_quaternion: None,
+            viewport_width,
+            viewport_height,
         }
+    }
+
+    // 乱数を生成するメソッド (0.0から1.0の範囲)
+    fn get_rand(&self) -> f32 {
+        rand::rng().random_range(0.0..1.0)
     }
 
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
@@ -71,7 +86,22 @@ impl Camera {
             view
         };
 
-        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        let mut proj =
+            cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+
+        // TXAAのためのサブピクセルジッターを追加
+        // TODO: 乱数を使っているがハルトン列のような決定的で一様分布のものを使うと良い
+        if self.viewport_width > 0.0 && self.viewport_height > 0.0 {
+            let rand_x = self.get_rand(); // 0.0 to <1.0
+            let rand_y = self.get_rand(); // 0.0 to <1.0
+
+            let jitter_x_ndc = (rand_x - 0.5) * (1.0 / self.viewport_width);
+            let jitter_y_ndc = (rand_y - 0.5) * (1.0 / self.viewport_height);
+
+            proj[2][0] += jitter_x_ndc;
+            proj[2][1] += jitter_y_ndc;
+        }
+
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
 
