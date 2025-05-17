@@ -105,13 +105,14 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
     let mut paths: Vec<_> = vec![];
 
     for node in tree.root().children() {
+        let transform = node.abs_transform();
         match node {
             usvg::Node::Group(group) => group.children().iter().for_each(|child| {
                 if let usvg::Node::Path(path) = child {
-                    paths.push(path)
+                    paths.push((path, transform));
                 }
             }),
-            usvg::Node::Path(path) => paths.push(path),
+            usvg::Node::Path(path) => paths.push((path, transform)),
             usvg::Node::Image(_image) => todo!(),
             usvg::Node::Text(_text) => todo!(),
         }
@@ -128,24 +129,34 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
     let mut builder =
         VectorVertexBuilder::new().with_options(VertexBuilderOptions::new(center, unit_em));
 
-    for path in paths {
+    for (path, transform) in paths {
         let mut start_to: Option<Point> = None;
         for segment in path.data().segments() {
             log::info!("{:?}", segment);
             match segment {
-                PathSegment::MoveTo(point) => {
+                PathSegment::MoveTo(mut point) => {
+                    transform.map_point(&mut point);
                     builder.move_to(point.x, point.y);
                     start_to = Some(point);
                 }
-                PathSegment::LineTo(point) => builder.line_to(point.x, point.y),
-                PathSegment::QuadTo(point1, point) => {
+                PathSegment::LineTo(mut point) => {
+                    transform.map_point(&mut point);
+                    builder.line_to(point.x, point.y);
+                }
+                PathSegment::QuadTo(mut point1, mut point) => {
+                    transform.map_point(&mut point1);
+                    transform.map_point(&mut point);
                     builder.quad_to(point1.x, point1.y, point.x, point.y);
                 }
-                PathSegment::CubicTo(point1, point2, point) => {
+                PathSegment::CubicTo(mut point1, mut point2, mut point) => {
+                    transform.map_point(&mut point1);
+                    transform.map_point(&mut point2);
+                    transform.map_point(&mut point);
                     builder.curve_to(point1.x, point1.y, point2.x, point2.y, point.x, point.y);
                 }
                 PathSegment::Close => {
                     if let Some(start_to) = start_to {
+                        // start_to は事前に map_point されているので、transform は不要
                         builder.line_to(start_to.x, start_to.y);
                     }
                 }
