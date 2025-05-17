@@ -347,13 +347,14 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn render(&mut self) -> RenderData<'_> {
-        let mut world_instances = self.world.get().glyph_instances();
+        let world = self.world.get();
+        let mut world_instances = world.glyph_instances();
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);
         RenderData {
             camera: self.world.get().camera(),
             glyph_instances: world_instances,
-            vector_instances: vec![],
+            vector_instances: world.vector_instances(),
         }
     }
 
