@@ -243,7 +243,7 @@ impl SimpleStateCallback for KashikishiCallback {
         );
         context.register_svg(
             caret_char(text_buffer::caret::CaretType::Mark).to_string(),
-            include_str!("../../font_rasterizer/data/rice.svg").to_string(),
+            include_str!("../asset/pin.svg").to_string(),
         );
 
         // カメラを初期化する
