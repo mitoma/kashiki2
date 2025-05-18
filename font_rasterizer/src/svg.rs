@@ -5,7 +5,7 @@ use usvg::tiny_skia_path::{PathSegment, Point};
 use crate::{
     errors::FontRasterizerError,
     vector_instances::{InstanceAttributes, VectorInstances},
-    vector_vertex::{VectorVertex, VectorVertexBuilder, VertexBuilderOptions},
+    vector_vertex::{CoordinateSystem, VectorVertex, VectorVertexBuilder, VertexBuilderOptions},
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
@@ -126,8 +126,11 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
         rect.height()
     };
     let unit_em = ratio;
-    let mut builder =
-        VectorVertexBuilder::new().with_options(VertexBuilderOptions::new(center, unit_em));
+    let mut builder = VectorVertexBuilder::new().with_options(VertexBuilderOptions::new(
+        center,
+        unit_em,
+        CoordinateSystem::Svg,
+    ));
 
     for (path, transform) in paths {
         let mut start_to: Option<Point> = None;
