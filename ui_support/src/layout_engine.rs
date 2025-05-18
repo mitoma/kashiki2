@@ -207,11 +207,7 @@ impl DefaultWorld {
 
     fn get_surrounding_model_range(&self) -> Range<usize> {
         let around = 5;
-        let min = if self.focus > around {
-            self.focus - around
-        } else {
-            0
-        };
+        let min = self.focus.saturating_sub(around);
         let max = if self.focus + around < self.models.len() {
             self.focus + around
         } else {
