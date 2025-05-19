@@ -130,6 +130,7 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
         center,
         unit_em,
         CoordinateSystem::Svg,
+        None,
     ));
 
     for (path, transform) in paths {

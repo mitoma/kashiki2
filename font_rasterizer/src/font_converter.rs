@@ -141,6 +141,7 @@ impl GlyphVertexBuilder {
             [center_x, center_y],
             rect_em,
             CoordinateSystem::Font,
+            None,
         ));
 
         if DEBUG_FLAGS.show_glyph_outline {

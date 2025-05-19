@@ -42,14 +42,15 @@ impl VectorVertexBuilder {
         let unit_em: f32 = self.builder_options.unit_em;
         let coordinate_system = self.builder_options.coordinate_system;
         let [center_x, center_y] = coordinate_system.transform(center[0], center[1]);
+        let scale_option = self.builder_options.scale;
 
         let vertex = self
             .vertex
             .iter()
             .map(|InternalVertex { x, y, wait }| {
                 let [x, y] = coordinate_system.transform(*x, *y);
-                let x = (x - center_x) / unit_em;
-                let y = (y - center_y) / unit_em;
+                let [x, y] = [(x - center_x) / unit_em, (y - center_y) / unit_em];
+                let [x, y] = scale_option.map_or([x, y], |[width, height]| [x * width, y * height]);
                 Vertex {
                     position: [x, y],
                     wait: wait.wait(),
@@ -164,6 +165,7 @@ pub(crate) struct VertexBuilderOptions {
     center: [f32; 2],
     unit_em: f32,
     coordinate_system: CoordinateSystem,
+    scale: Option<[f32; 2]>,
 }
 
 impl Default for VertexBuilderOptions {
@@ -172,16 +174,23 @@ impl Default for VertexBuilderOptions {
             center: [0.0, 0.0],
             unit_em: 1.0,
             coordinate_system: CoordinateSystem::Font,
+            scale: None,
         }
     }
 }
 
 impl VertexBuilderOptions {
-    pub fn new(center: [f32; 2], unit_em: f32, coordinate_system: CoordinateSystem) -> Self {
+    pub fn new(
+        center: [f32; 2],
+        unit_em: f32,
+        coordinate_system: CoordinateSystem,
+        scale: Option<[f32; 2]>,
+    ) -> Self {
         Self {
             center,
             unit_em,
             coordinate_system,
+            scale,
         }
     }
 }
