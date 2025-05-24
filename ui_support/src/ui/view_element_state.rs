@@ -421,19 +421,33 @@ impl CaretStates {
         device: &Device,
     ) {
         let position = [c.position.row as f32, c.position.col as f32, 0.0];
-
         let mut easing_color = EasingPointN::new(color);
         easing_color.update_duration_and_easing_func(
-            Duration::from_millis(800),
-            nenobi::functions::sin_in_out,
+            text_context.char_easings.color_easing.duration,
+            text_context.char_easings.color_easing.easing_func,
+        );
+        let mut easing_position = EasingPointN::new(position);
+        easing_position.update_duration_and_easing_func(
+            text_context.char_easings.position_easing.duration,
+            text_context.char_easings.position_easing.easing_func,
+        );
+        let mut easing_scale = EasingPointN::new(text_context.instance_scale());
+        easing_scale.update_duration_and_easing_func(
+            text_context.char_easings.scale_easing.duration,
+            text_context.char_easings.scale_easing.easing_func,
+        );
+        let mut easing_motion_gain = EasingPointN::new([text_context.char_easings.add_char.gain]);
+        easing_motion_gain.update_duration_and_easing_func(
+            text_context.char_easings.motion_gain_easing.duration,
+            text_context.char_easings.motion_gain_easing.easing_func,
         );
         let state = ViewElementState {
-            position: EasingPointN::new(position),
+            position: easing_position,
             in_selection: false,
             base_color: ThemedColor::TextEmphasized,
             color: easing_color,
-            scale: EasingPointN::new([1.0, 1.0]),
-            motion_gain: EasingPointN::new([0.0]),
+            scale: easing_scale,
+            motion_gain: easing_motion_gain,
         };
         if c.caret_type == CaretType::Primary {
             self.main_caret.replace((c, state));
