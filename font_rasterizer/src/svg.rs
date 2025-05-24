@@ -118,12 +118,13 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
         }
     }
 
-    let rect = tree.root().bounding_box();
-    let center = [rect.width() / 2.0, rect.height() / 2.0];
-    let ratio = if rect.width() > rect.height() {
-        rect.width()
+    let size = tree.size();
+
+    let center = [size.width() / 2.0, size.height() / 2.0];
+    let ratio = if size.width() > size.height() {
+        size.width()
     } else {
-        rect.height()
+        size.height()
     };
     let unit_em = ratio;
     let mut builder = VectorVertexBuilder::new().with_options(VertexBuilderOptions::new(

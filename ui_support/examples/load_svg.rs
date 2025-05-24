@@ -1,6 +1,6 @@
 use std::fs::File;
 
-use cgmath::Rotation3;
+use cgmath::One;
 use font_collector::FontRepository;
 use image::{Delay, Frame, codecs::gif::GifEncoder};
 use instant::Duration;
@@ -100,12 +100,11 @@ impl SimpleStateCallback for SingleCharCallback {
             "rice".to_string(),
             //include_str!("../../font_rasterizer/data/sample.svg").to_string(),
             include_str!("../../font_rasterizer/data/rice.svg").to_string(),
-            //include_str!("../../font_rasterizer/data/stg.svg").to_string(),
         );
 
         let value = InstanceAttributes::new(
             (0.0, 0.0, 0.0).into(),
-            cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(180.0)),
+            cgmath::Quaternion::one(),
             [1.0, 1.0],
             [0.5, 0.5],
             context.color_theme.orange().get_color(),
