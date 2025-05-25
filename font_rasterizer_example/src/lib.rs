@@ -16,7 +16,7 @@ use font_rasterizer::{
 };
 use log::info;
 use ui_support::{
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
     run_support,
 };
@@ -161,8 +161,12 @@ impl SimpleStateCallback for SingleCharCallback {
             .update_camera_aspect(&mut self.camera, size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        (&self.camera, self.glyphs.iter().collect())
+    fn render(&mut self) -> RenderData {
+        RenderData {
+            camera: &self.camera,
+            glyph_instances: self.glyphs.iter().collect(),
+            vector_instances: vec![],
+        }
     }
 
     fn shutdown(&mut self) {}

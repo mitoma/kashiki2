@@ -5,16 +5,15 @@ use instant::Duration;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    glyph_instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
 };
 use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 use ui_support::{
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     action::ActionProcessorStore,
-    camera::{Camera, CameraAdjustment},
+    camera::CameraAdjustment,
     generate_image_iter,
     layout_engine::{DefaultWorld, ModelOperation, World},
     ui::TextEdit,
@@ -147,8 +146,12 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        (self.world.camera(), self.world.glyph_instances())
+    fn render(&mut self) -> RenderData {
+        RenderData {
+            camera: self.world.camera(),
+            glyph_instances: self.world.glyph_instances(),
+            vector_instances: vec![],
+        }
     }
 
     fn shutdown(&mut self) {}

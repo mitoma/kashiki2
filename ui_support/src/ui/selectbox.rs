@@ -8,6 +8,7 @@ use text_buffer::action::EditorOperation;
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator, context::StateContext,
     glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
+    vector_instances::VectorInstances,
 };
 
 use crate::{
@@ -317,6 +318,15 @@ impl Model for SelectBox {
             self.title_text_edit.glyph_instances(),
             self.search_text_edit.glyph_instances(),
             self.select_items_text_edit.glyph_instances(),
+        ]
+        .concat()
+    }
+
+    fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
+        [
+            self.title_text_edit.vector_instances(),
+            self.search_text_edit.vector_instances(),
+            self.select_items_text_edit.vector_instances(),
         ]
         .concat()
     }

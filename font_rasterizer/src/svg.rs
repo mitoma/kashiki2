@@ -1,20 +1,47 @@
 use std::collections::BTreeMap;
 
-use log::debug;
-use svg::{
-    node::element::{
-        path::{Command, Data, Position},
-        tag::{Path, Polygon, SVG, Type},
-    },
-    parser::Event,
-};
+use usvg::tiny_skia_path::{PathSegment, Point};
 
 use crate::{
     errors::FontRasterizerError,
     vector_instances::{InstanceAttributes, VectorInstances},
-    vector_vertex::{VectorVertex, VectorVertexBuilder, VertexBuilderOptions},
+    vector_vertex::{CoordinateSystem, VectorVertex, VectorVertexBuilder, VertexBuilderOptions},
     vector_vertex_buffer::VectorVertexBuffer,
 };
+
+pub struct SvgVertexBuffer {
+    vertex_buffer: VectorVertexBuffer<String>,
+}
+
+impl Default for SvgVertexBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SvgVertexBuffer {
+    fn new() -> Self {
+        Self {
+            vertex_buffer: VectorVertexBuffer::new(),
+        }
+    }
+
+    pub fn append_svg(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        key: &str,
+        svg: &str,
+    ) -> Result<(), FontRasterizerError> {
+        let vector_vertex = svg_to_vector_vertex(svg)?;
+        self.vertex_buffer
+            .append(device, queue, key.to_string(), vector_vertex)
+    }
+
+    pub fn vector_vertex_buffer(&self) -> &VectorVertexBuffer<String> {
+        &self.vertex_buffer
+    }
+}
 
 pub struct SvgBuffers {
     vertex_buffer: VectorVertexBuffer<String>,
@@ -69,219 +96,81 @@ impl SvgBuffers {
 }
 
 #[allow(non_upper_case_globals)]
-fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> {
-    let Ok(parser) = svg::read(svg) else {
-        debug!("Failed to parse SVG: {}", svg);
-        return Err(FontRasterizerError::SvgParseError);
+pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerError> {
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).map_err(|err| {
+        log::error!("svg parse error: {:?}", err);
+        FontRasterizerError::SvgParseError
+    })?;
+
+    let paths = collect_paths(tree.root().children());
+
+    let size = tree.size();
+
+    let center = [size.width() / 2.0, size.height() / 2.0];
+    let ratio = if size.width() > size.height() {
+        size.width()
+    } else {
+        size.height()
     };
+    let unit_em = ratio;
+    let mut builder = VectorVertexBuilder::new().with_options(VertexBuilderOptions::new(
+        center,
+        unit_em,
+        CoordinateSystem::Svg,
+        None,
+    ));
 
-    let mut builder = VectorVertexBuilder::new();
-
-    for event in parser {
-        fn abs_position(
-            pos: &Position,
-            current_position: (f32, f32),
-            next_position: (f32, f32),
-        ) -> (f32, f32) {
-            match pos {
-                Position::Absolute => next_position,
-                Position::Relative => (
-                    current_position.0 + next_position.0,
-                    current_position.1 + next_position.1,
-                ),
-            }
-        }
-
-        fn trim_unit(str: &str) -> &str {
-            let units = ["em", "px"];
-            for unit in units.iter() {
-                if let Some(stripped) = str.strip_suffix(unit) {
-                    return stripped;
+    for (path, transform) in paths {
+        let mut start_to: Option<Point> = None;
+        for segment in path.data().segments() {
+            log::info!("{:?}", segment);
+            match segment {
+                PathSegment::MoveTo(mut point) => {
+                    transform.map_point(&mut point);
+                    builder.move_to(point.x, point.y);
+                    start_to = Some(point);
                 }
-            }
-            str
-        }
-
-        match event {
-            Event::Tag(SVG, Type::Start, attributes) => {
-                let width = attributes
-                    .get("width")
-                    .ok_or(FontRasterizerError::SvgParseError)?;
-                let height = attributes
-                    .get("height")
-                    .ok_or(FontRasterizerError::SvgParseError)?;
-                let width = trim_unit(width)
-                    .parse::<f32>()
-                    .map_err(|_| FontRasterizerError::SvgParseError)?;
-                let height = trim_unit(height)
-                    .parse::<f32>()
-                    .map_err(|_| FontRasterizerError::SvgParseError)?;
-                let ratio = if width > height { width } else { height };
-                let unit_em = ratio;
-                let center = [width / 2.0, height / 2.0];
-                builder = builder.with_options(VertexBuilderOptions::new(center, unit_em));
-            }
-            Event::Tag(Path, t, attributes) if t != Type::End => {
-                let data = attributes
-                    .get("d")
-                    .ok_or(FontRasterizerError::SvgParseError)?;
-                let data = Data::parse(data)?;
-                let mut current_position = (0.0, 0.0);
-                let mut start_position: Option<(f32, f32)> = None;
-                for command in data.iter() {
-                    match command {
-                        Command::Move(position, parameters) => {
-                            let (to_x, to_y) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[0], parameters[1]),
-                            );
-                            builder.move_to(to_x, to_y);
-                            current_position = (to_x, to_y);
-                            start_position = Some(current_position);
-                        }
-                        Command::Line(position, parameters) => {
-                            let (to_x, to_y) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[0], parameters[1]),
-                            );
-                            builder.line_to(to_x, to_y);
-                            current_position = (to_x, to_y);
-                        }
-                        Command::HorizontalLine(position, parameters) => {
-                            let (to_x, _) =
-                                abs_position(position, current_position, (parameters[0], 0.0));
-                            builder.line_to(to_x, current_position.1);
-                            current_position = (to_x, current_position.1);
-                        }
-                        Command::VerticalLine(position, parameters) => {
-                            let (_, to_y) =
-                                abs_position(position, current_position, (0.0, parameters[0]));
-                            builder.line_to(current_position.0, to_y);
-                            current_position = (current_position.0, to_y);
-                        }
-                        Command::QuadraticCurve(position, parameters) => {
-                            let (to_x1, to_y1) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[0], parameters[1]),
-                            );
-                            let (to_x, to_y) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[0], parameters[1]),
-                            );
-                            builder.quad_to(to_x1, to_y1, to_x, to_y);
-                            current_position = (to_x, to_y);
-                        }
-                        Command::SmoothQuadraticCurve(position, parameters) => {
-                            // FIXME: SmoothQuadraticCurve としての処理は行わず、QuadraticCurve として処理する
-                            let (to_x1, to_y1) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[0], parameters[1]),
-                            );
-                            let (to_x, to_y) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[0], parameters[1]),
-                            );
-                            builder.quad_to(to_x1, to_y1, to_x, to_y);
-                            current_position = (to_x, to_y);
-                        }
-                        Command::CubicCurve(position, parameters) => {
-                            let (to_x1, to_y1) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[0], parameters[1]),
-                            );
-                            let (to_x2, to_y2) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[2], parameters[3]),
-                            );
-                            let (to_x, to_y) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[4], parameters[5]),
-                            );
-                            builder.curve_to(to_x1, to_y1, to_x2, to_y2, to_x, to_y);
-                            current_position = (to_x, to_y);
-                        }
-                        Command::SmoothCubicCurve(position, parameters) => {
-                            // FIXME: SmoothCubicCurve としての処理は行わず、QuadraticCurve として処理する
-                            let (to_x1, to_y1) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[0], parameters[1]),
-                            );
-                            let (to_x, to_y) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[2], parameters[3]),
-                            );
-                            builder.quad_to(to_x1, to_y1, to_x, to_y);
-                            current_position = (to_x, to_y);
-                        }
-                        Command::EllipticalArc(position, parameters) => {
-                            // FIXME: EllipticalArc は未対応。単に Line として処理する
-                            let (to_x, to_y) = abs_position(
-                                position,
-                                current_position,
-                                (parameters[2], parameters[3]),
-                            );
-                            builder.line_to(to_x, to_y);
-                            current_position = (to_x, to_y);
-                        }
-                        Command::Close => {
-                            if let Some(start_position) = start_position {
-                                builder.line_to(start_position.0, start_position.1);
-                                current_position = start_position;
-                            }
-                        }
+                PathSegment::LineTo(mut point) => {
+                    transform.map_point(&mut point);
+                    builder.line_to(point.x, point.y);
+                }
+                PathSegment::QuadTo(mut point1, mut point) => {
+                    transform.map_point(&mut point1);
+                    transform.map_point(&mut point);
+                    builder.quad_to(point1.x, point1.y, point.x, point.y);
+                }
+                PathSegment::CubicTo(mut point1, mut point2, mut point) => {
+                    transform.map_point(&mut point1);
+                    transform.map_point(&mut point2);
+                    transform.map_point(&mut point);
+                    builder.curve_to(point1.x, point1.y, point2.x, point2.y, point.x, point.y);
+                }
+                PathSegment::Close => {
+                    if let Some(start_to) = start_to {
+                        // start_to は事前に map_point されているので、transform は不要
+                        builder.line_to(start_to.x, start_to.y);
                     }
                 }
             }
-            Event::Tag(Polygon, t, attributes) if t != Type::End => {
-                let points = attributes
-                    .get("points")
-                    .ok_or(FontRasterizerError::SvgParseError)?;
-                let points = points
-                    .trim()
-                    .split(' ')
-                    .map(|point| {
-                        let mut point = point.split(',');
-                        let x = point
-                            .next()
-                            .map(str::trim)
-                            .ok_or(FontRasterizerError::SvgParseError)?
-                            .parse::<f32>()
-                            .map_err(|_| FontRasterizerError::SvgParseError)?;
-                        let y = point
-                            .next()
-                            .map(str::trim)
-                            .ok_or(FontRasterizerError::SvgParseError)?
-                            .parse::<f32>()
-                            .map_err(|_| FontRasterizerError::SvgParseError)?;
-                        Ok((x, y))
-                    })
-                    .collect::<Result<Vec<_>, FontRasterizerError>>()?;
-                let mut point_iter = points.iter();
-                let Some(start_position) = point_iter.next().cloned() else {
-                    continue;
-                };
-
-                builder.move_to(start_position.0, start_position.1);
-                for (x, y) in point_iter {
-                    builder.line_to(*x, *y);
-                }
-                builder.line_to(start_position.0, start_position.1);
-            }
-            _ => {}
         }
     }
     Ok(builder.build())
+}
+
+fn collect_paths(nodes: &[usvg::Node]) -> Vec<(&usvg::Path, usvg::Transform)> {
+    let mut result = vec![];
+    for node in nodes.iter() {
+        let transform = node.abs_transform();
+        match node {
+            usvg::Node::Group(group) => {
+                result.extend(collect_paths(group.children()));
+            }
+            usvg::Node::Path(path) => result.push((path, transform)),
+            usvg::Node::Image(_image) => todo!(),
+            usvg::Node::Text(_text) => todo!(),
+        }
+    }
+    result
 }
 
 #[cfg(test)]
@@ -292,12 +181,22 @@ mod tests {
     fn test_svg_buffers() {
         env_logger::builder().is_test(true).try_init().ok();
         let svg = r#"
-            <svg width="100" height="100">
+            <svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" >
                 <path d="M 10 10 L 90 10 L 90 90 L 10 90 Z" />
                 <polygon points="20,20 80,20 80,80 20,80" />
             </svg>
         "#;
         let result = svg_to_vector_vertex(svg);
+        assert!(result.is_ok());
+        println!("{:?}", result);
+    }
+
+    #[test]
+    fn test_svg_buffers3() {
+        env_logger::builder().is_test(true).try_init().ok();
+        let svg = include_str!("../data/sample.svg");
+        let result = svg_to_vector_vertex(svg);
+        println!("{:?}", result);
         assert!(result.is_ok());
         println!("{:?}", result);
     }

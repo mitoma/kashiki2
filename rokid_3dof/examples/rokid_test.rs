@@ -1,3 +1,5 @@
+use std::vec;
+
 use font_collector::FontRepository;
 use instant::Duration;
 use rokid_3dof::RokidMax;
@@ -15,7 +17,7 @@ use font_rasterizer::{
     vector_instances::InstanceAttributes,
 };
 use ui_support::{
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
     run_support,
 };
@@ -184,8 +186,12 @@ impl SimpleStateCallback for SingleCharCallback {
             .update_camera_aspect(&mut self.camera, window_size);
     }
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        (&self.camera, self.glyphs.iter().collect())
+    fn render(&mut self) -> RenderData {
+        RenderData {
+            camera: &self.camera,
+            glyph_instances: self.glyphs.iter().collect(),
+            vector_instances: vec![],
+        }
     }
 
     fn shutdown(&mut self) {}

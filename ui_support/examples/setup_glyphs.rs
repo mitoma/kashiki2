@@ -2,12 +2,12 @@ use font_collector::{FontCollector, FontRepository};
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    glyph_instances::GlyphInstances,
     rasterizer_pipeline::Quarity,
 };
 use instant::Instant;
 use ui_support::{
-    Flags, InputResult, SimpleStateCallback, SimpleStateSupport, camera::Camera, run_support,
+    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport, camera::Camera,
+    run_support,
 };
 use winit::event::WindowEvent;
 
@@ -89,8 +89,12 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn resize(&mut self, _window_size: WindowSize) {}
 
-    fn render(&mut self) -> (&Camera, Vec<&GlyphInstances>) {
-        (&self.camera, Vec::new())
+    fn render(&mut self) -> RenderData {
+        RenderData {
+            camera: &self.camera,
+            glyph_instances: vec![],
+            vector_instances: vec![],
+        }
     }
 
     fn shutdown(&mut self) {}

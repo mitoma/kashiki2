@@ -40,12 +40,17 @@ impl VectorVertexBuilder {
     pub fn build(self) -> VectorVertex {
         let center: [f32; 2] = self.builder_options.center;
         let unit_em: f32 = self.builder_options.unit_em;
+        let coordinate_system = self.builder_options.coordinate_system;
+        let [center_x, center_y] = coordinate_system.transform(center[0], center[1]);
+        let scale_option = self.builder_options.scale;
+
         let vertex = self
             .vertex
             .iter()
             .map(|InternalVertex { x, y, wait }| {
-                let x = (*x - center[0]) / unit_em;
-                let y = (*y - center[1]) / unit_em;
+                let [x, y] = coordinate_system.transform(*x, *y);
+                let [x, y] = [(x - center_x) / unit_em, (y - center_y) / unit_em];
+                let [x, y] = scale_option.map_or([x, y], |[width, height]| [x * width, y * height]);
                 Vertex {
                     position: [x, y],
                     wait: wait.wait(),
@@ -141,9 +146,26 @@ impl OutlineBuilder for VectorVertexBuilder {
     }
 }
 
+pub enum CoordinateSystem {
+    Svg,  // SVGの座標系 (左上原点, Y軸が下方向)
+    Font, // フォント座標系 (ベースライン原点, Y軸が上方向)
+}
+
+impl CoordinateSystem {
+    #[inline]
+    fn transform(&self, x: f32, y: f32) -> [f32; 2] {
+        match self {
+            CoordinateSystem::Svg => [x, -y],
+            CoordinateSystem::Font => [x, y],
+        }
+    }
+}
+
 pub(crate) struct VertexBuilderOptions {
     center: [f32; 2],
     unit_em: f32,
+    coordinate_system: CoordinateSystem,
+    scale: Option<[f32; 2]>,
 }
 
 impl Default for VertexBuilderOptions {
@@ -151,18 +173,30 @@ impl Default for VertexBuilderOptions {
         Self {
             center: [0.0, 0.0],
             unit_em: 1.0,
+            coordinate_system: CoordinateSystem::Font,
+            scale: None,
         }
     }
 }
 
 impl VertexBuilderOptions {
-    pub fn new(center: [f32; 2], unit_em: f32) -> Self {
-        Self { center, unit_em }
+    pub fn new(
+        center: [f32; 2],
+        unit_em: f32,
+        coordinate_system: CoordinateSystem,
+        scale: Option<[f32; 2]>,
+    ) -> Self {
+        Self {
+            center,
+            unit_em,
+            coordinate_system,
+            scale,
+        }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct VectorVertex {
+pub struct VectorVertex {
     pub(crate) vertex: Vec<Vertex>,
     pub(crate) index: Vec<u32>,
 }

@@ -8,7 +8,7 @@ use crate::{
     char_width_calcurator::CharWidth,
     debug_mode::DEBUG_FLAGS,
     errors::FontRasterizerError,
-    vector_vertex::{VectorVertex, VectorVertexBuilder, VertexBuilderOptions},
+    vector_vertex::{CoordinateSystem, VectorVertex, VectorVertexBuilder, VertexBuilderOptions},
 };
 
 pub(crate) struct FontVertexConverter {
@@ -137,8 +137,12 @@ impl GlyphVertexBuilder {
         let center_x = global_width * (width.to_f32() / 2.0) + global.x_min as f32;
         let center_y = global_height / 2.0 + global.y_min as f32;
 
-        let mut builder =
-            builder.with_options(VertexBuilderOptions::new([center_x, center_y], rect_em));
+        let mut builder = builder.with_options(VertexBuilderOptions::new(
+            [center_x, center_y],
+            rect_em,
+            CoordinateSystem::Font,
+            None,
+        ));
 
         if DEBUG_FLAGS.show_glyph_outline {
             // global

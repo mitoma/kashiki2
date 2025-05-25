@@ -21,7 +21,7 @@ use font_rasterizer::{
 use crate::{
     easing_value::EasingPointN,
     layout_engine::ModelAttributes,
-    text_instances::TextInstances,
+    text_instances::{CaretInstances, TextInstances},
     ui_context::{GpuEasingConfig, RemoveCharMode, TextContext},
 };
 
@@ -396,11 +396,10 @@ impl CharStates {
 
 #[derive(Default)]
 pub(crate) struct CaretStates {
-    pub(crate) default_motion: MotionFlags,
     main_caret: Option<(Caret, ViewElementState)>,
     mark: Option<(Caret, ViewElementState)>,
     removed_carets: BTreeMap<Caret, ViewElementState>,
-    pub(crate) instances: TextInstances,
+    pub(crate) instances: CaretInstances,
 }
 
 impl CaretStates {
@@ -414,21 +413,44 @@ impl CaretStates {
         self.main_caret.as_ref().map(|(_, s)| s.position.last())
     }
 
-    pub(crate) fn add_caret(&mut self, c: Caret, color: [f32; 3], device: &Device) {
-        let position = [c.position.row as f32, c.position.col as f32, 0.0];
+    pub(crate) fn add_caret(
+        &mut self,
+        c: Caret,
+        color: [f32; 3],
+        text_context: &TextContext,
+        device: &Device,
+    ) {
+        let position = self.main_caret_position().unwrap_or([0.0, 0.0, 0.0]);
+        let mut easing_position = EasingPointN::new(position);
+        easing_position.update_duration_and_easing_func(
+            text_context.char_easings.position_easing.duration,
+            text_context.char_easings.position_easing.easing_func,
+        );
 
-        let mut easing_color = EasingPointN::new(color);
+        let mut easing_color = EasingPointN::new(text_context.color_theme.background().get_color());
         easing_color.update_duration_and_easing_func(
-            Duration::from_millis(800),
-            nenobi::functions::sin_in_out,
+            text_context.char_easings.color_easing.duration,
+            text_context.char_easings.color_easing.easing_func,
+        );
+        easing_color.update(color);
+
+        let mut easing_scale = EasingPointN::new(text_context.instance_scale());
+        easing_scale.update_duration_and_easing_func(
+            text_context.char_easings.scale_easing.duration,
+            text_context.char_easings.scale_easing.easing_func,
+        );
+        let mut easing_motion_gain = EasingPointN::new([text_context.char_easings.add_char.gain]);
+        easing_motion_gain.update_duration_and_easing_func(
+            text_context.char_easings.motion_gain_easing.duration,
+            text_context.char_easings.motion_gain_easing.easing_func,
         );
         let state = ViewElementState {
-            position: EasingPointN::new(position),
+            position: easing_position,
             in_selection: false,
             base_color: ThemedColor::TextEmphasized,
             color: easing_color,
-            scale: EasingPointN::new([1.0, 1.0]),
-            motion_gain: EasingPointN::new([0.0]),
+            scale: easing_scale,
+            motion_gain: easing_motion_gain,
         };
         if c.caret_type == CaretType::Primary {
             self.main_caret.replace((c, state));
@@ -438,37 +460,61 @@ impl CaretStates {
 
         let caret_instance = InstanceAttributes {
             color,
-            motion: self.default_motion,
+            start_time: now_millis(),
+            motion: text_context.char_easings.add_caret.motion,
+            duration: text_context.char_easings.add_caret.duration,
+            gain: text_context.char_easings.add_caret.gain,
             ..InstanceAttributes::default()
         };
         self.instances.add(c.into(), caret_instance, device);
     }
 
-    pub(crate) fn move_caret(&mut self, from: Caret, to: Caret, device: &Device) {
+    pub(crate) fn move_caret(
+        &mut self,
+        from: Caret,
+        to: Caret,
+        text_context: &TextContext,
+        device: &Device,
+    ) {
         match from.caret_type {
             CaretType::Primary => self.main_caret = Some((to, self.main_caret.take().unwrap().1)),
             CaretType::Mark => self.mark = Some((to, self.mark.take().unwrap().1)),
         }
-        if let Some(instance) = self.instances.remove(&from.into()) {
+
+        if let Some(mut instance) = self.instances.remove(&from.into()) {
+            instance.start_time = now_millis();
+            instance.motion = text_context.char_easings.move_caret.motion;
+            instance.duration = text_context.char_easings.move_caret.duration;
+            instance.gain = text_context.char_easings.move_caret.gain;
             self.instances.add(to.into(), instance, device);
         }
     }
 
     // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    pub(crate) fn caret_to_dustbox(&mut self, c: Caret) {
+    pub(crate) fn caret_to_dustbox(&mut self, c: Caret, text_context: &TextContext) {
         match c.caret_type {
             CaretType::Primary => {
                 if let Some((_, mut state)) = self.main_caret.take() {
-                    state.position.add((0.0, -1.0, 0.0).into());
+                    state
+                        .color
+                        .update(text_context.color_theme.background().get_color());
                     self.removed_carets.insert(c, state);
                 }
             }
             CaretType::Mark => {
                 if let Some((_, mut state)) = self.mark.take() {
-                    state.position.add((0.0, -1.0, 0.0).into());
+                    state
+                        .color
+                        .update(text_context.color_theme.background().get_color());
                     self.removed_carets.insert(c, state);
                 }
             }
+        }
+        if let Some(attr) = self.instances.get_mut(&c.into()) {
+            attr.start_time = now_millis();
+            attr.motion = text_context.char_easings.remove_caret.motion;
+            attr.duration = text_context.char_easings.remove_caret.duration;
+            attr.gain = text_context.char_easings.remove_caret.gain;
         }
         self.instances.pre_remove(&c.into());
     }
@@ -477,19 +523,30 @@ impl CaretStates {
         &mut self,
         caret_type: CaretType,
         position: [f32; 3],
-        scale: [f32; 2],
+        config: &TextContext,
     ) {
+        #[inline]
+        fn update_view_element_state(
+            state: &mut ViewElementState,
+            position: [f32; 3],
+            config: &TextContext,
+        ) {
+            state.position.update(position);
+            state.scale.update(config.instance_scale());
+            state
+                .color
+                .update(config.color_theme.text_emphasized().get_color());
+        }
+
         match caret_type {
             CaretType::Primary => {
-                if let Some((_, c_pos)) = self.main_caret.as_mut() {
-                    c_pos.position.update(position);
-                    c_pos.scale.update(scale);
+                if let Some((_, state)) = self.main_caret.as_mut() {
+                    update_view_element_state(state, position, config);
                 }
             }
             CaretType::Mark => {
-                if let Some((_, c_pos)) = self.mark.as_mut() {
-                    c_pos.position.update(position);
-                    c_pos.scale.update(scale);
+                if let Some((_, state)) = self.mark.as_mut() {
+                    update_view_element_state(state, position, config);
                 }
             }
         }
