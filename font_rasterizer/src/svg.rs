@@ -102,21 +102,7 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
         FontRasterizerError::SvgParseError
     })?;
 
-    let mut paths: Vec<_> = vec![];
-
-    for node in tree.root().children() {
-        let transform = node.abs_transform();
-        match node {
-            usvg::Node::Group(group) => group.children().iter().for_each(|child| {
-                if let usvg::Node::Path(path) = child {
-                    paths.push((path, transform));
-                }
-            }),
-            usvg::Node::Path(path) => paths.push((path, transform)),
-            usvg::Node::Image(_image) => todo!(),
-            usvg::Node::Text(_text) => todo!(),
-        }
-    }
+    let paths = collect_paths(tree.root().children());
 
     let size = tree.size();
 
@@ -169,6 +155,22 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
         }
     }
     Ok(builder.build())
+}
+
+fn collect_paths(nodes: &[usvg::Node]) -> Vec<(&Box<usvg::Path>, usvg::Transform)> {
+    let mut result = vec![];
+    for node in nodes.iter() {
+        let transform = node.abs_transform();
+        match node {
+            usvg::Node::Group(group) => {
+                result.extend(collect_paths(group.children()));
+            }
+            usvg::Node::Path(path) => result.push((path, transform)),
+            usvg::Node::Image(_image) => todo!(),
+            usvg::Node::Text(_text) => todo!(),
+        }
+    }
+    result
 }
 
 #[cfg(test)]
