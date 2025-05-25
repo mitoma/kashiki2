@@ -168,26 +168,18 @@ impl Default for CharEasings {
             },
             add_caret: GpuEasingConfig {
                 motion: MotionFlags::builder()
-                    .motion_type(MotionType::EaseOut(EasingFuncType::Back, false))
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, false))
                     .motion_detail(MotionDetail::TO_CURRENT)
-                    .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
                     .build(),
                 duration: Duration::from_millis(500),
                 gain: 0.8,
             },
-            move_caret: GpuEasingConfig {
-                motion: MotionFlags::builder()
-                    .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, false))
-                    .motion_detail(MotionDetail::TURN_BACK)
-                    .motion_target(MotionTarget::MOVE_Y_PLUS)
-                    .build(),
-                duration: Duration::from_millis(300),
-                gain: 0.5,
-            },
+            move_caret: GpuEasingConfig::default(),
             remove_caret: GpuEasingConfig {
                 motion: MotionFlags::builder()
-                    .motion_type(MotionType::EaseOut(EasingFuncType::Bounce, false))
-                    .motion_target(MotionTarget::MOVE_Y_MINUS | MotionTarget::STRETCH_X_MINUS)
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS)
                     .build(),
                 duration: Duration::from_millis(500),
                 gain: 0.8,
