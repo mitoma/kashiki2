@@ -157,7 +157,7 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
     Ok(builder.build())
 }
 
-fn collect_paths(nodes: &[usvg::Node]) -> Vec<(&Box<usvg::Path>, usvg::Transform)> {
+fn collect_paths(nodes: &[usvg::Node]) -> Vec<(&usvg::Path, usvg::Transform)> {
     let mut result = vec![];
     for node in nodes.iter() {
         let transform = node.abs_transform();

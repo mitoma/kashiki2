@@ -478,7 +478,7 @@ impl TextEdit {
             self.caret_states.update_state_position_and_scale(
                 CaretType::Primary,
                 position,
-                self.config.instance_scale(),
+                &self.config,
             );
         }
         if let Some(mark_pos) = layout.mark_pos {
@@ -492,7 +492,7 @@ impl TextEdit {
             self.caret_states.update_state_position_and_scale(
                 CaretType::Mark,
                 position,
-                self.config.instance_scale(),
+                &self.config,
             );
         }
     }

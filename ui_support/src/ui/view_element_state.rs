@@ -420,17 +420,20 @@ impl CaretStates {
         text_context: &TextContext,
         device: &Device,
     ) {
-        let position = [c.position.row as f32, c.position.col as f32, 0.0];
-        let mut easing_color = EasingPointN::new(color);
-        easing_color.update_duration_and_easing_func(
-            text_context.char_easings.color_easing.duration,
-            text_context.char_easings.color_easing.easing_func,
-        );
+        let position = self.main_caret_position().unwrap_or([0.0, 0.0, 0.0]);
         let mut easing_position = EasingPointN::new(position);
         easing_position.update_duration_and_easing_func(
             text_context.char_easings.position_easing.duration,
             text_context.char_easings.position_easing.easing_func,
         );
+
+        let mut easing_color = EasingPointN::new(text_context.color_theme.background().get_color());
+        easing_color.update_duration_and_easing_func(
+            text_context.char_easings.color_easing.duration,
+            text_context.char_easings.color_easing.easing_func,
+        );
+        easing_color.update(color);
+
         let mut easing_scale = EasingPointN::new(text_context.instance_scale());
         easing_scale.update_duration_and_easing_func(
             text_context.char_easings.scale_easing.duration,
@@ -492,13 +495,17 @@ impl CaretStates {
         match c.caret_type {
             CaretType::Primary => {
                 if let Some((_, mut state)) = self.main_caret.take() {
-                    state.position.add((0.0, -1.0, 0.0).into());
+                    state
+                        .color
+                        .update(text_context.color_theme.background().get_color());
                     self.removed_carets.insert(c, state);
                 }
             }
             CaretType::Mark => {
                 if let Some((_, mut state)) = self.mark.take() {
-                    state.position.add((0.0, -1.0, 0.0).into());
+                    state
+                        .color
+                        .update(text_context.color_theme.background().get_color());
                     self.removed_carets.insert(c, state);
                 }
             }
@@ -516,19 +523,30 @@ impl CaretStates {
         &mut self,
         caret_type: CaretType,
         position: [f32; 3],
-        scale: [f32; 2],
+        config: &TextContext,
     ) {
+        #[inline]
+        fn update_view_element_state(
+            state: &mut ViewElementState,
+            position: [f32; 3],
+            config: &TextContext,
+        ) {
+            state.position.update(position);
+            state.scale.update(config.instance_scale());
+            state
+                .color
+                .update(config.color_theme.text_emphasized().get_color());
+        }
+
         match caret_type {
             CaretType::Primary => {
-                if let Some((_, c_pos)) = self.main_caret.as_mut() {
-                    c_pos.position.update(position);
-                    c_pos.scale.update(scale);
+                if let Some((_, state)) = self.main_caret.as_mut() {
+                    update_view_element_state(state, position, config);
                 }
             }
             CaretType::Mark => {
-                if let Some((_, c_pos)) = self.mark.as_mut() {
-                    c_pos.position.update(position);
-                    c_pos.scale.update(scale);
+                if let Some((_, state)) = self.mark.as_mut() {
+                    update_view_element_state(state, position, config);
                 }
             }
         }
