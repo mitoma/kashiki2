@@ -7,7 +7,6 @@ mod local_datetime_format;
 mod memos;
 mod rokid_max_ext;
 mod world;
-mod taggable_memos;
 
 use std::{rc::Rc, sync::Mutex};
 
