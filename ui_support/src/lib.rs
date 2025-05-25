@@ -12,6 +12,8 @@ pub mod ui_context;
 
 use log::warn;
 pub use render_state::RenderTargetResponse;
+use text_instances::BorderType;
+use ui::caret_char;
 
 use std::sync::Arc;
 
@@ -494,4 +496,28 @@ pub async fn generate_image_iter(
 
         (image, frame)
     })
+}
+
+#[inline]
+pub fn register_default_caret(state_context: &StateContext) {
+    state_context.register_svg(
+        caret_char(text_buffer::caret::CaretType::Primary).to_string(),
+        include_str!("../asset/caret_primary.svg").to_string(),
+    );
+    state_context.register_svg(
+        caret_char(text_buffer::caret::CaretType::Mark).to_string(),
+        include_str!("../asset/caret_mark.svg").to_string(),
+    );
+}
+
+#[inline]
+pub fn register_default_border(state_context: &StateContext) {
+    state_context.register_svg(
+        BorderType::Horizontal.to_key(),
+        include_str!("../asset/border_horizontal.svg").to_string(),
+    );
+    state_context.register_svg(
+        BorderType::Vertical.to_key(),
+        include_str!("../asset/border_vertical.svg").to_string(),
+    );
 }

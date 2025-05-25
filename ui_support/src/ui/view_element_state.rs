@@ -21,7 +21,7 @@ use font_rasterizer::{
 use crate::{
     easing_value::EasingPointN,
     layout_engine::ModelAttributes,
-    text_instances::{CaretInstances, TextInstances},
+    text_instances::{BorderFragment, BorderInstances, BorderType, CaretInstances, TextInstances},
     ui_context::{GpuEasingConfig, RemoveCharMode, TextContext},
 };
 
@@ -535,7 +535,7 @@ impl CaretStates {
             state.scale.update(config.instance_scale());
             state
                 .color
-                .update(config.color_theme.text_emphasized().get_color());
+                .update(state.base_color.get_color(&config.color_theme));
         }
 
         match caret_type {
@@ -685,5 +685,73 @@ fn calc_rotation(
                 CharWidth::Wide => None,
             }
         }
+    }
+}
+
+/// 罫線の 3 次元上の位置と画面上のインスタンスを管理する構造体
+#[derive(Default)]
+pub(crate) struct BorderStates {
+    elements: BTreeMap<BorderFragment, ViewElementState>,
+    pub(crate) instances: BorderInstances,
+}
+
+const BORDER_TOP: BorderFragment = BorderFragment {
+    border_type: BorderType::Horizontal,
+    position: CellPosition { row: 0, col: 1 },
+};
+
+const BORDER_BOTTOM: BorderFragment = BorderFragment {
+    border_type: BorderType::Horizontal,
+    position: CellPosition { row: 2, col: 1 },
+};
+
+const BORDER_LEFT: BorderFragment = BorderFragment {
+    border_type: BorderType::Vertical,
+    position: CellPosition { row: 1, col: 0 },
+};
+
+const BORDER_RIGHT: BorderFragment = BorderFragment {
+    border_type: BorderType::Vertical,
+    position: CellPosition { row: 1, col: 2 },
+};
+
+impl BorderStates {
+    pub(crate) fn new() -> Self {
+        Self {
+            elements: BTreeMap::default(),
+            instances: BorderInstances::default(),
+        }
+    }
+
+    pub(crate) fn init(&mut self, text_context: &TextContext, device: &Device) {
+        self.add_fragment(BORDER_TOP, text_context, device);
+        self.add_fragment(BORDER_BOTTOM, text_context, device);
+        self.add_fragment(BORDER_LEFT, text_context, device);
+        self.add_fragment(BORDER_RIGHT, text_context, device);
+    }
+
+    fn add_fragment(
+        &mut self,
+        fragment: BorderFragment,
+        text_context: &TextContext,
+        device: &Device,
+    ) {
+        let base_color = ThemedColor::TextEmphasized;
+        let position = [
+            fragment.position.col as f32,
+            fragment.position.row as f32,
+            0.0,
+        ];
+        let state = ViewElementState {
+            base_color,
+            in_selection: false,
+            position: position.into(),
+            color: base_color.get_color(&text_context.color_theme).into(),
+            scale: [1.0, 1.0].into(),
+            motion_gain: [1.0].into(),
+        };
+        self.elements.insert(fragment.clone(), state);
+        self.instances
+            .add(fragment, InstanceAttributes::default(), device);
     }
 }
