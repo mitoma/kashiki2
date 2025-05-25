@@ -520,4 +520,20 @@ pub fn register_default_border(state_context: &StateContext) {
         BorderType::Vertical.to_key(),
         include_str!("../asset/border_vertical.svg").to_string(),
     );
+    state_context.register_svg(
+        BorderType::TopLeft.to_key(),
+        include_str!("../asset/border_top_left.svg").to_string(),
+    );
+    state_context.register_svg(
+        BorderType::TopRight.to_key(),
+        include_str!("../asset/border_top_right.svg").to_string(),
+    );
+    state_context.register_svg(
+        BorderType::BottomLeft.to_key(),
+        include_str!("../asset/border_bottom_left.svg").to_string(),
+    );
+    state_context.register_svg(
+        BorderType::BottomRight.to_key(),
+        include_str!("../asset/border_bottom_right.svg").to_string(),
+    );
 }

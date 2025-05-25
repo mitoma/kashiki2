@@ -283,6 +283,20 @@ impl BorderInstances {
         instances.insert(fragment.to_instance_key(), instance);
     }
 
+    pub(crate) fn get_mut(&mut self, key: &BorderFragment) -> Option<&mut InstanceAttributes> {
+        if let Some(instances) = self.vector_instances.get_mut(&key.border_type) {
+            instances.get_mut(&key.to_instance_key())
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn update(&mut self, device: &Device, queue: &Queue) {
+        for instances in self.vector_instances.values_mut() {
+            instances.update_buffer(device, queue)
+        }
+    }
+
     pub(crate) fn to_instances(&self) -> Vec<&VectorInstances<String>> {
         self.vector_instances.values().collect()
     }

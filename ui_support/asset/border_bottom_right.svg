@@ -5,8 +5,8 @@
     </style>
     <path class="st0" d="
     M4,0
-    v9
-    h1
-    v-9
+    Q4,4 0,4
+    L0,5
+    Q5,5 5,0
     Z" />
 </svg>

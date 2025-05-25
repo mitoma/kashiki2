@@ -34,7 +34,7 @@ use crate::{
 
 use super::{
     caret_char,
-    view_element_state::{CaretStates, CharStates, ViewElementStateUpdateRequest},
+    view_element_state::{BorderStates, CaretStates, CharStates, ViewElementStateUpdateRequest},
 };
 
 pub struct TextEdit {
@@ -48,6 +48,7 @@ pub struct TextEdit {
 
     char_states: CharStates,
     caret_states: CaretStates,
+    border_states: BorderStates,
 
     text_updated: bool,
     config_updated: bool,
@@ -84,6 +85,7 @@ impl Default for TextEdit {
 
             char_states: CharStates::default(),
             caret_states: CaretStates::default(),
+            border_states: BorderStates::default(),
 
             text_updated: true,
             config_updated: true,
@@ -158,14 +160,24 @@ impl Model for TextEdit {
     }
 
     fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
-        if self.config.hyde_caret {
+        let mut result = vec![];
+
+        let caret_instances = if self.config.hyde_caret {
             vec![]
         } else {
             self.caret_states.instances.to_instances()
-        }
+        };
+        let border_instances = self.border_states.instances.to_instances();
+
+        result.extend(caret_instances);
+        result.extend(border_instances);
+
+        result
     }
 
     fn update(&mut self, context: &StateContext) {
+        self.border_states.init(&self.config, &context.device);
+
         let color_theme = &context.color_theme;
         let device = &context.device;
         let queue = &context.queue;
@@ -186,6 +198,7 @@ impl Model for TextEdit {
         self.calc_instance_positions(&context.char_width_calcurator);
         self.char_states.instances.update(device, queue);
         self.caret_states.instances.update(device, queue);
+        self.border_states.instances.update(device, queue);
 
         self.text_updated = false;
         self.config_updated = false;
@@ -495,6 +508,9 @@ impl TextEdit {
                 &self.config,
             );
         }
+
+        self.border_states
+            .update_state([0.0, 0.0, 0.0], bound, &self.config);
     }
 
     #[inline]
@@ -548,6 +564,14 @@ impl TextEdit {
 
         // update chars
         self.char_states.update_instances(
+            update_environment,
+            &model_attributes,
+            char_width_calcurator,
+            &self.config,
+        );
+
+        // update border
+        self.border_states.update_instances(
             update_environment,
             &model_attributes,
             char_width_calcurator,
