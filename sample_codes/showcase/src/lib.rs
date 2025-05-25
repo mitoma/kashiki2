@@ -247,7 +247,7 @@ impl SimpleStateCallback for SingleCharCallback {
         RenderData {
             camera: self.world.camera(),
             glyph_instances: world_instances,
-            vector_instances: vec![],
+            vector_instances: self.world.vector_instances(),
         }
     }
 
