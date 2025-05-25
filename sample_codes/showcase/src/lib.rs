@@ -159,6 +159,15 @@ impl SimpleStateCallback for SingleCharCallback {
         context.register_string(caret_char(text_buffer::caret::CaretType::Primary).to_string());
         context.register_string(caret_char(text_buffer::caret::CaretType::Mark).to_string());
         context.register_string(self.world.chars().into_iter().collect::<String>());
+        context.register_svg(
+            caret_char(text_buffer::caret::CaretType::Primary).to_string(),
+            include_str!("../../../kashikishi/asset/primary_caret.svg").to_string(),
+        );
+        context.register_svg(
+            caret_char(text_buffer::caret::CaretType::Mark).to_string(),
+            include_str!("../../../kashikishi/asset/mark_caret.svg").to_string(),
+        );
+
         [
             Action::new_command_with_argument("system", "change-theme", "light"),
             Action::new_command("edit", "buffer-head"),
