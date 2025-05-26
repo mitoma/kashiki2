@@ -772,64 +772,65 @@ impl BorderStates {
         config: &TextContext,
     ) {
         let [sx, sy] = config.instance_scale();
-        self.elements.get_mut(&BORDER_TOP).map(|state| {
+        if let Some(state) = self.elements.get_mut(&BORDER_TOP) {
             state.position.update([
                 position[0] + (sx * bound[0] / 2.0),
                 position[1] + 1.0,
                 position[2],
             ]);
             state.scale.update([sx * bound[0] + 1.0, sy]);
-        });
-        self.elements.get_mut(&BORDER_BOTTOM).map(|state| {
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_BOTTOM) {
             state.position.update([
                 position[0] + (sx * bound[0] / 2.0),
                 position[1] - bound[1] - 1.0,
                 position[2],
             ]);
             state.scale.update([sx * bound[0] + 1.0, sy]);
-        });
-        self.elements.get_mut(&BORDER_LEFT).map(|state| {
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_LEFT) {
             state.position.update([
                 position[0] - 1.0,
                 position[1] - (sy * bound[1] / 2.0),
                 position[2],
             ]);
             state.scale.update([sx, sy * bound[1] + 1.0]);
-        });
-        self.elements.get_mut(&BORDER_RIGHT).map(|state| {
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_RIGHT) {
             state.position.update([
                 position[0] + bound[0] + 1.0,
                 position[1] - (sy * bound[1] / 2.0),
                 position[2],
             ]);
             state.scale.update([sx, sy * bound[1] + 1.0]);
-        });
-        self.elements.get_mut(&BORDER_TOP_LEFT).map(|state| {
+        }
+
+        if let Some(state) = self.elements.get_mut(&BORDER_TOP_LEFT) {
             state
                 .position
                 .update([position[0] - 1.0, position[1] + 1.0, position[2]]);
             state.scale.update([sx, sy]);
-        });
-        self.elements.get_mut(&BORDER_TOP_RIGHT).map(|state| {
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_TOP_RIGHT) {
             state
                 .position
                 .update([position[0] + bound[0] + 1.0, position[1] + 1.0, position[2]]);
             state.scale.update([sx, sy]);
-        });
-        self.elements.get_mut(&BORDER_BOTTOM_LEFT).map(|state| {
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_BOTTOM_LEFT) {
             state
                 .position
                 .update([position[0] - 1.0, position[1] - bound[1] - 1.0, position[2]]);
             state.scale.update([sx, sy]);
-        });
-        self.elements.get_mut(&BORDER_BOTTOM_RIGHT).map(|state| {
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_BOTTOM_RIGHT) {
             state.position.update([
                 position[0] + bound[0] + 1.0,
                 position[1] - bound[1] - 1.0,
                 position[2],
             ]);
             state.scale.update([sx, sy]);
-        });
+        }
     }
 
     pub(crate) fn update_instances(
