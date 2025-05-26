@@ -771,6 +771,8 @@ impl BorderStates {
         bound: [f32; 2],
         config: &TextContext,
     ) {
+        // TODO: scale の扱いがおかしいので後で修正する。
+        // 現状、グリフの拡大縮小をしたときに罫線の位置とサイズの追従が適切に行えていない。
         let [sx, sy] = config.instance_scale();
         if let Some(state) = self.elements.get_mut(&BORDER_TOP) {
             state.position.update([
@@ -837,8 +839,6 @@ impl BorderStates {
         &mut self,
         update_environment: bool,
         model_attribuetes: &ModelAttributes,
-        char_width_calcurator: &CharWidthCalculator,
-        text_context: &TextContext,
     ) {
         if !self.initialized {
             return;
@@ -850,16 +850,7 @@ impl BorderStates {
                 return;
             }
             if let Some(instance) = self.instances.get_mut(fragment) {
-                update_instance(
-                    instance,
-                    state,
-                    model_attribuetes,
-                    calc_rotation(
-                        fragment.border_type.to_key().chars().next().unwrap(),
-                        text_context,
-                        char_width_calcurator,
-                    ),
-                );
+                update_instance(instance, state, model_attribuetes, None);
             }
         });
     }

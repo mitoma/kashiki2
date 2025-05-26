@@ -571,12 +571,8 @@ impl TextEdit {
         );
 
         // update border
-        self.border_states.update_instances(
-            update_environment,
-            &model_attributes,
-            char_width_calcurator,
-            &self.config,
-        );
+        self.border_states
+            .update_instances(update_environment, &model_attributes);
     }
 
     fn max_display_width(&self) -> usize {
