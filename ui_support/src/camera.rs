@@ -262,7 +262,7 @@ impl CameraController {
         // aspect は width / height
         let (w, h) = target.bound();
         // bound にちょっと余裕を持たせる。
-        let (w, h) = (w + 2.0, h + 2.0);
+        let (w, h) = (w + 3.0, h + 3.0);
         let size = match adjustment {
             // w と h のうち大きい方を使う
             CameraAdjustment::FitBoth | CameraAdjustment::FitBothAndCentering => {
