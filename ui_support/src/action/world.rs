@@ -225,8 +225,8 @@ fn move_to_click_with_mark(arg: &ActionArgument, context: &StateContext, world: 
     }
 }
 
-world_processor!(WorldChangeLayout, "change-layout", chanoge_layout);
-fn chanoge_layout(arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+world_processor!(WorldChangeLayout, "change-layout", change_layout);
+fn change_layout(arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
     match arg {
         ActionArgument::String(layout_name) => {
             let layout = match layout_name.as_str() {
