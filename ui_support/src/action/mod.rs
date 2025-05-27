@@ -91,6 +91,8 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(WorldMoveToClickWithMark));
         self.add_processor(Box::new(WorldChangeLayout));
         self.add_processor(Box::new(WorldToggleMinBound));
+        self.add_processor(Box::new(WorldSetModelBorder));
+        self.add_processor(Box::new(WorldUnsetModelBorder));
     }
 
     pub fn add_lambda_processor(
