@@ -123,5 +123,15 @@
         "namespace": "world",
         "name": "toggle-min-bound",
         "description": "文章の最小サイズを切り替える"
+    },
+    {
+        "namespace": "world",
+        "name": "set-model-border",
+        "description": "モデルに境界線を設定する"
+    },
+    {
+        "namespace": "world",
+        "name": "unset-model-border",
+        "description": "モデルの境界線を解除する"
     }
 ]

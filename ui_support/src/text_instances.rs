@@ -207,3 +207,101 @@ impl CaretInstances {
         self.vector_instances.values().collect()
     }
 }
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub(crate) enum BorderType {
+    // │
+    Vertical,
+    // ─
+    Horizontal,
+    // ┌
+    TopLeft,
+    // ┐
+    TopRight,
+    // └
+    BottomLeft,
+    // ┘
+    BottomRight,
+    /* TODO: ここはこれから使うかな？
+    // ├
+    LeftVertical,
+    // ┤
+    RightVertical,
+    // ┬
+    TopHorizontal,
+    // ┴
+    BottomHorizontal,
+    // ┼
+    CenterHorizontalVertical,
+     */
+}
+
+impl BorderType {
+    pub(crate) fn to_key(&self) -> String {
+        match self {
+            BorderType::Vertical => "vertical".to_string(),
+            BorderType::Horizontal => "horizontal".to_string(),
+            BorderType::TopLeft => "top_left".to_string(),
+            BorderType::TopRight => "top_right".to_string(),
+            BorderType::BottomLeft => "bottom_left".to_string(),
+            BorderType::BottomRight => "bottom_right".to_string(),
+            /*
+            BorderType::LeftVertical => "left_vertical".to_string(),
+            BorderType::RightVertical => "right_vertical".to_string(),
+            BorderType::TopHorizontal => "top_horizontal".to_string(),
+            BorderType::BottomHorizontal => "bottom_horizontal".to_string(),
+            BorderType::CenterHorizontalVertical => "center_horizontal_vertical".to_string(),
+             */
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub(crate) struct BorderFragment {
+    pub(crate) border_type: BorderType,
+    pub(crate) position: CellPosition,
+}
+
+impl BorderFragment {
+    pub(crate) fn to_instance_key(&self) -> InstanceKey {
+        InstanceKey::Position(self.position.row, self.position.col)
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct BorderInstances {
+    vector_instances: BTreeMap<BorderType, VectorInstances<String>>,
+}
+
+impl BorderInstances {
+    pub(crate) fn add(
+        &mut self,
+        fragment: BorderFragment,
+        instance: InstanceAttributes,
+        device: &Device,
+    ) {
+        let instances = self
+            .vector_instances
+            .entry(fragment.border_type.clone())
+            .or_insert_with(|| VectorInstances::new(fragment.border_type.to_key(), device));
+        instances.insert(fragment.to_instance_key(), instance);
+    }
+
+    pub(crate) fn get_mut(&mut self, key: &BorderFragment) -> Option<&mut InstanceAttributes> {
+        if let Some(instances) = self.vector_instances.get_mut(&key.border_type) {
+            instances.get_mut(&key.to_instance_key())
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn update(&mut self, device: &Device, queue: &Queue) {
+        for instances in self.vector_instances.values_mut() {
+            instances.update_buffer(device, queue)
+        }
+    }
+
+    pub(crate) fn to_instances(&self) -> Vec<&VectorInstances<String>> {
+        self.vector_instances.values().collect()
+    }
+}

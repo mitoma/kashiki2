@@ -35,7 +35,7 @@ use ui_support::{
     action_recorder::{ActionRecorder, InMemoryActionRecordRepository},
     camera::{CameraAdjustment, CameraOperation},
     layout_engine::{Model, ModelOperation, World},
-    run_support,
+    register_default_border, register_default_caret, run_support,
     ui::{ImeInput, caret_char, ime_chars},
 };
 use winit::event::WindowEvent;
@@ -237,14 +237,8 @@ impl SimpleStateCallback for KashikishiCallback {
         chars.extend(ime_chars());
         context.register_string(chars.into_iter().collect::<String>());
 
-        context.register_svg(
-            caret_char(text_buffer::caret::CaretType::Primary).to_string(),
-            include_str!("../asset/primary_caret.svg").to_string(),
-        );
-        context.register_svg(
-            caret_char(text_buffer::caret::CaretType::Mark).to_string(),
-            include_str!("../asset/mark_caret.svg").to_string(),
-        );
+        register_default_caret(context);
+        register_default_border(context);
 
         // カメラを初期化する
         context.register_post_action(Action::new_command("world", "fit-by-direction"));

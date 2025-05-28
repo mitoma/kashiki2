@@ -34,7 +34,7 @@ use crate::{
 
 use super::{
     caret_char,
-    view_element_state::{CaretStates, CharStates, ViewElementStateUpdateRequest},
+    view_element_state::{BorderStates, CaretStates, CharStates, ViewElementStateUpdateRequest},
 };
 
 pub struct TextEdit {
@@ -48,6 +48,7 @@ pub struct TextEdit {
 
     char_states: CharStates,
     caret_states: CaretStates,
+    border_states: Option<BorderStates>,
 
     text_updated: bool,
     config_updated: bool,
@@ -84,6 +85,7 @@ impl Default for TextEdit {
 
             char_states: CharStates::default(),
             caret_states: CaretStates::default(),
+            border_states: None,
 
             text_updated: true,
             config_updated: true,
@@ -158,14 +160,24 @@ impl Model for TextEdit {
     }
 
     fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
-        if self.config.hyde_caret {
-            vec![]
-        } else {
-            self.caret_states.instances.to_instances()
+        let mut result = vec![];
+        if !self.config.hyde_caret {
+            result.extend(self.caret_states.instances.to_instances());
+        };
+        if let Some(states) = self.border_states.as_ref() {
+            result.extend(states.instances.to_instances());
         }
+        result
     }
 
     fn update(&mut self, context: &StateContext) {
+        if self.border != ModelBorder::None && self.border_states.is_none() {
+            // border が None 以外のときは border_states を初期化する
+            let mut states = BorderStates::default();
+            states.init(&self.config, &context.device);
+            self.border_states = Some(states);
+        }
+
         let color_theme = &context.color_theme;
         let device = &context.device;
         let queue = &context.queue;
@@ -186,6 +198,9 @@ impl Model for TextEdit {
         self.calc_instance_positions(&context.char_width_calcurator);
         self.char_states.instances.update(device, queue);
         self.caret_states.instances.update(device, queue);
+        if let Some(state) = self.border_states.as_mut() {
+            state.instances.update(device, queue);
+        }
 
         self.text_updated = false;
         self.config_updated = false;
@@ -287,6 +302,11 @@ impl Model for TextEdit {
                 self.config_updated = true;
                 ModelOperationResult::RequireReLayout
             }
+            ModelOperation::SetModelBorder(model_border) => {
+                self.set_border(*model_border);
+                self.config_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
         }
     }
 
@@ -304,6 +324,9 @@ impl Model for TextEdit {
 
     fn set_border(&mut self, border: ModelBorder) {
         self.border = border;
+        if border == ModelBorder::None {
+            self.border_states = None;
+        }
     }
 
     fn border(&self) -> ModelBorder {
@@ -495,6 +518,10 @@ impl TextEdit {
                 &self.config,
             );
         }
+
+        if let Some(state) = self.border_states.as_mut() {
+            state.update_state([0.0, 0.0, 0.0], bound, &self.config);
+        }
     }
 
     #[inline]
@@ -553,6 +580,11 @@ impl TextEdit {
             char_width_calcurator,
             &self.config,
         );
+
+        // update border
+        if let Some(state) = self.border_states.as_mut() {
+            state.update_instances(update_environment, &model_attributes);
+        }
     }
 
     fn max_display_width(&self) -> usize {

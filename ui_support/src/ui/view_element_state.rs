@@ -21,7 +21,7 @@ use font_rasterizer::{
 use crate::{
     easing_value::EasingPointN,
     layout_engine::ModelAttributes,
-    text_instances::{CaretInstances, TextInstances},
+    text_instances::{BorderFragment, BorderInstances, BorderType, CaretInstances, TextInstances},
     ui_context::{GpuEasingConfig, RemoveCharMode, TextContext},
 };
 
@@ -535,7 +535,7 @@ impl CaretStates {
             state.scale.update(config.instance_scale());
             state
                 .color
-                .update(config.color_theme.text_emphasized().get_color());
+                .update(state.base_color.get_color(&config.color_theme));
         }
 
         match caret_type {
@@ -685,5 +685,198 @@ fn calc_rotation(
                 CharWidth::Wide => None,
             }
         }
+    }
+}
+
+const BORDER_TOP: BorderFragment = BorderFragment {
+    border_type: BorderType::Horizontal,
+    position: CellPosition { row: 0, col: 1 },
+};
+
+const BORDER_BOTTOM: BorderFragment = BorderFragment {
+    border_type: BorderType::Horizontal,
+    position: CellPosition { row: 2, col: 1 },
+};
+
+const BORDER_LEFT: BorderFragment = BorderFragment {
+    border_type: BorderType::Vertical,
+    position: CellPosition { row: 1, col: 0 },
+};
+
+const BORDER_RIGHT: BorderFragment = BorderFragment {
+    border_type: BorderType::Vertical,
+    position: CellPosition { row: 1, col: 2 },
+};
+
+const BORDER_TOP_LEFT: BorderFragment = BorderFragment {
+    border_type: BorderType::TopLeft,
+    position: CellPosition { row: 0, col: 0 },
+};
+
+const BORDER_TOP_RIGHT: BorderFragment = BorderFragment {
+    border_type: BorderType::TopRight,
+    position: CellPosition { row: 0, col: 2 },
+};
+
+const BORDER_BOTTOM_LEFT: BorderFragment = BorderFragment {
+    border_type: BorderType::BottomLeft,
+    position: CellPosition { row: 2, col: 0 },
+};
+
+const BORDER_BOTTOM_RIGHT: BorderFragment = BorderFragment {
+    border_type: BorderType::BottomRight,
+    position: CellPosition { row: 2, col: 2 },
+};
+
+/// 罫線の 3 次元上の位置と画面上のインスタンスを管理する構造体
+pub(crate) struct BorderStates {
+    initialized: bool,
+    elements: BTreeMap<BorderFragment, ViewElementState>,
+    pub(crate) instances: BorderInstances,
+}
+
+impl Default for BorderStates {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BorderStates {
+    pub(crate) fn new() -> Self {
+        Self {
+            initialized: false,
+            elements: BTreeMap::default(),
+            instances: BorderInstances::default(),
+        }
+    }
+
+    pub(crate) fn init(&mut self, text_context: &TextContext, device: &Device) {
+        if self.initialized {
+            return;
+        }
+        self.add_fragment(BORDER_TOP, text_context, device);
+        self.add_fragment(BORDER_BOTTOM, text_context, device);
+        self.add_fragment(BORDER_LEFT, text_context, device);
+        self.add_fragment(BORDER_RIGHT, text_context, device);
+        self.add_fragment(BORDER_TOP_LEFT, text_context, device);
+        self.add_fragment(BORDER_TOP_RIGHT, text_context, device);
+        self.add_fragment(BORDER_BOTTOM_LEFT, text_context, device);
+        self.add_fragment(BORDER_BOTTOM_RIGHT, text_context, device);
+        self.initialized = true;
+    }
+
+    pub(crate) fn update_state(
+        &mut self,
+        position: [f32; 3],
+        bound: [f32; 2],
+        config: &TextContext,
+    ) {
+        // TODO: scale の扱いがおかしいので後で修正する。
+        // 現状、グリフの拡大縮小をしたときに罫線の位置とサイズの追従が適切に行えていない。
+        let [sx, sy] = config.instance_scale();
+        if let Some(state) = self.elements.get_mut(&BORDER_TOP) {
+            state.position.update([
+                position[0] + (sx * bound[0] / 2.0),
+                position[1] + 1.0,
+                position[2],
+            ]);
+            state.scale.update([sx * bound[0] + 1.0, sy]);
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_BOTTOM) {
+            state.position.update([
+                position[0] + (sx * bound[0] / 2.0),
+                position[1] - bound[1] - 1.0,
+                position[2],
+            ]);
+            state.scale.update([sx * bound[0] + 1.0, sy]);
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_LEFT) {
+            state.position.update([
+                position[0] - 1.0,
+                position[1] - (sy * bound[1] / 2.0),
+                position[2],
+            ]);
+            state.scale.update([sx, sy * bound[1] + 1.0]);
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_RIGHT) {
+            state.position.update([
+                position[0] + bound[0] + 1.0,
+                position[1] - (sy * bound[1] / 2.0),
+                position[2],
+            ]);
+            state.scale.update([sx, sy * bound[1] + 1.0]);
+        }
+
+        if let Some(state) = self.elements.get_mut(&BORDER_TOP_LEFT) {
+            state
+                .position
+                .update([position[0] - 1.0, position[1] + 1.0, position[2]]);
+            state.scale.update([sx, sy]);
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_TOP_RIGHT) {
+            state
+                .position
+                .update([position[0] + bound[0] + 1.0, position[1] + 1.0, position[2]]);
+            state.scale.update([sx, sy]);
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_BOTTOM_LEFT) {
+            state
+                .position
+                .update([position[0] - 1.0, position[1] - bound[1] - 1.0, position[2]]);
+            state.scale.update([sx, sy]);
+        }
+        if let Some(state) = self.elements.get_mut(&BORDER_BOTTOM_RIGHT) {
+            state.position.update([
+                position[0] + bound[0] + 1.0,
+                position[1] - bound[1] - 1.0,
+                position[2],
+            ]);
+            state.scale.update([sx, sy]);
+        }
+    }
+
+    pub(crate) fn update_instances(
+        &mut self,
+        update_environment: bool,
+        model_attribuetes: &ModelAttributes,
+    ) {
+        if !self.initialized {
+            return;
+        }
+
+        // update fragments
+        self.elements.iter_mut().for_each(|(fragment, state)| {
+            if !update_environment && !state.in_animation() {
+                return;
+            }
+            if let Some(instance) = self.instances.get_mut(fragment) {
+                update_instance(instance, state, model_attribuetes, None);
+            }
+        });
+    }
+
+    fn add_fragment(
+        &mut self,
+        fragment: BorderFragment,
+        text_context: &TextContext,
+        device: &Device,
+    ) {
+        let base_color = ThemedColor::TextEmphasized;
+        let position = [
+            fragment.position.col as f32,
+            fragment.position.row as f32,
+            0.0,
+        ];
+        let state = ViewElementState {
+            base_color,
+            in_selection: false,
+            position: position.into(),
+            color: base_color.get_color(&text_context.color_theme).into(),
+            scale: [1.0, 1.0].into(),
+            motion_gain: [1.0].into(),
+        };
+        self.elements.insert(fragment.clone(), state);
+        self.instances
+            .add(fragment, InstanceAttributes::default(), device);
     }
 }

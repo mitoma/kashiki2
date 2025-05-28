@@ -5,7 +5,7 @@ use font_rasterizer::{context::StateContext, glyph_vertex_buffer::Direction};
 
 use crate::{
     camera::{CameraAdjustment, CameraOperation},
-    layout_engine::{ModelOperation, World, WorldLayout},
+    layout_engine::{ModelBorder, ModelOperation, World, WorldLayout},
 };
 
 use super::{ActionProcessor, InputResult};
@@ -225,8 +225,8 @@ fn move_to_click_with_mark(arg: &ActionArgument, context: &StateContext, world: 
     }
 }
 
-world_processor!(WorldChangeLayout, "change-layout", chanoge_layout);
-fn chanoge_layout(arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+world_processor!(WorldChangeLayout, "change-layout", change_layout);
+fn change_layout(arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
     match arg {
         ActionArgument::String(layout_name) => {
             let layout = match layout_name.as_str() {
@@ -239,4 +239,18 @@ fn chanoge_layout(arg: &ActionArgument, _context: &StateContext, world: &mut dyn
         }
         _ => world.change_layout(world.layout().next()),
     }
+}
+
+world_processor!(WorldSetModelBorder, "set-model-border", set_model_border);
+fn set_model_border(_arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+    world.model_operation(&ModelOperation::SetModelBorder(ModelBorder::Rounded));
+}
+
+world_processor!(
+    WorldUnsetModelBorder,
+    "unset-model-border",
+    unset_model_border
+);
+fn unset_model_border(_arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+    world.model_operation(&ModelOperation::SetModelBorder(ModelBorder::None));
 }

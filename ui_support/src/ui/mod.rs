@@ -122,6 +122,7 @@ impl Model for PlaneTextReader {
             ModelOperation::MoveToClick(_, _, _) => ModelOperationResult::NoCare,
             ModelOperation::MarkAndClick(_, _, _) => ModelOperationResult::NoCare,
             ModelOperation::ToggleMinBound => ModelOperationResult::NoCare,
+            ModelOperation::SetModelBorder(_) => ModelOperationResult::NoCare,
         }
     }
 

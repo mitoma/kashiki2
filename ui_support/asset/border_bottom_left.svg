@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" height="100px" viewBox="0 0 9 9" width="100px"
+    fill="#1f1f1f">
+    <style type="text/css">
+        .st0{fill:#4B4B4B;}
+    </style>
+    <path class="st0" d="
+    M4,0
+    Q4,5 9,5
+    L9,4
+    Q5,4 5,0
+    Z" />
+</svg>
