@@ -222,6 +222,7 @@ pub(crate) enum BorderType {
     BottomLeft,
     // ┘
     BottomRight,
+    /* TODO: ここはこれから使うかな？
     // ├
     LeftVertical,
     // ┤
@@ -232,6 +233,7 @@ pub(crate) enum BorderType {
     BottomHorizontal,
     // ┼
     CenterHorizontalVertical,
+     */
 }
 
 impl BorderType {
@@ -243,11 +245,13 @@ impl BorderType {
             BorderType::TopRight => "top_right".to_string(),
             BorderType::BottomLeft => "bottom_left".to_string(),
             BorderType::BottomRight => "bottom_right".to_string(),
+            /*
             BorderType::LeftVertical => "left_vertical".to_string(),
             BorderType::RightVertical => "right_vertical".to_string(),
             BorderType::TopHorizontal => "top_horizontal".to_string(),
             BorderType::BottomHorizontal => "bottom_horizontal".to_string(),
             BorderType::CenterHorizontalVertical => "center_horizontal_vertical".to_string(),
+             */
         }
     }
 }
