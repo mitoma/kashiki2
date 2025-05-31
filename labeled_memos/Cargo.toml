@@ -1,0 +1,17 @@
+[package]
+name = "labeled_memos"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde.workspace = true
+serde_derive.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+
+[dependencies.uuid]
+features = ["v7", "fast-rng", "macro-diagnostics", "serde"]
+version = "1.8"
+
+[dev-dependencies]
+serde_json.workspace = true
