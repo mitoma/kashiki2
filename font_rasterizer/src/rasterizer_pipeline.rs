@@ -24,8 +24,7 @@ const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
 const SCREEN_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
     include_wgsl!("shader/screen_shader.wgsl");
 const BACKGROUND_IMAGE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
-    // include_wgsl!("shader/background_image_shader.wgsl");
-    include_wgsl!("shader/screen_shader.wgsl");
+    include_wgsl!("shader/background_image_shader.wgsl");
 
 #[derive(Clone, Copy)]
 pub enum Quarity {
@@ -74,6 +73,8 @@ pub struct RasterizerPipeline {
 
     // 2 ステージ目のアウトプット(≒ 3 ステージ目のインプット)
     pub(crate) outline_texture: ScreenTexture,
+
+    pub(crate) txaa_texture: Option<ScreenTexture>,
 
     // バックグラウンド用のテクスチャ
     pub(crate) background_image_texture: Option<BackgroundImageTexture>,
@@ -357,6 +358,8 @@ impl RasterizerPipeline {
             });
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
+        let txaa_texture = ScreenTexture::new(device, (width, height), Some("TXAA Texture"));
+
         Self {
             // overlap
             overlap_texture,
@@ -368,6 +371,9 @@ impl RasterizerPipeline {
             outline_render_pipeline,
             outline_vertex_buffer,
             bg_color,
+
+            // txaa 用のテクスチャ
+            txaa_texture: Some(txaa_texture),
 
             // バックグラウンド
             background_image_texture: None,
@@ -396,6 +402,8 @@ impl RasterizerPipeline {
         self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_buffers, vector_buffers);
         self.outline_stage(encoder, device);
+
+        //self.txaa_stage(encoder, device);
 
         self.screen_background_image_stage(encoder, device, &screen_view);
 
@@ -614,6 +622,50 @@ impl RasterizerPipeline {
             screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
         }
     }
+
+    /*
+    fn txaa_stage(&self, encoder: &mut wgpu::CommandEncoder, device: &wgpu::Device) -> _ {
+        let Some(txaa_texture) = self.txaa_texture.as_ref() else {
+            return;
+        };
+
+        let screen_bind_group = &self
+            .background_image_bind_group
+            .to_bind_group(device, background_image_texture);
+
+        let txaa_view = txaa_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
+        let outline_bind_group = self
+            .outline_bind_group
+            .to_bind_group(device, &self.outline_texture);
+        {
+            let mut txaa_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("TXAA Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &txaa_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            txaa_render_pass.set_pipeline(&self.outline_render_pipeline);
+            txaa_render_pass.set_bind_group(0, &outline_bind_group, &[]);
+            txaa_render_pass
+                .set_vertex_buffer(0, self.outline_vertex_buffer.vertex_buffer.slice(..));
+            txaa_render_pass.set_index_buffer(
+                self.outline_vertex_buffer.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            txaa_render_pass.draw_indexed(self.outline_vertex_buffer.index_range.clone(), 0, 0..1);
+        }
+    }
+     */
 
     pub fn set_background_image(
         &mut self,
