@@ -153,8 +153,8 @@ impl ApplicationHandler for WinitState {
                     let dst = doc.get_element_by_id("kashikishi-area")?;
                     let canvas = web_sys::Element::from(window.canvas()?);
                     dst.append_child(&canvas.clone()).ok()?;
-                    let input = web_sys::Element::from(window.input()?);
-                    dst.append_child(&input).ok()?;
+                    //let input = web_sys::Element::from(window.input()?);
+                    //dst.append_child(&input).ok()?;
                     Some(())
                 })
                 .expect("Couldn't append canvas to document body.");

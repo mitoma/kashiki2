@@ -3209,20 +3209,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "typing_game"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "font_collector",
- "font_rasterizer",
- "log",
- "pollster",
- "stroke_parser",
- "ui_support",
- "winit",
-]
-
-[[package]]
 name = "ui_support"
 version = "0.1.0"
 dependencies = [
