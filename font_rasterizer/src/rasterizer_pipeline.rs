@@ -10,7 +10,7 @@ use crate::{
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_bind_group::ScreenBindGroup,
-    screen_texture::{self, BackgroundImageTexture, ScreenTexture},
+    screen_texture::{self, BackgroundImageTexture, ScreenTexture, TxaaTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
     vector_instances::{InstanceRaw, VectorInstances},
     vector_vertex::Vertex,
@@ -74,7 +74,7 @@ pub struct RasterizerPipeline {
     // 2 ステージ目のアウトプット(≒ 3 ステージ目のインプット)
     pub(crate) outline_texture: ScreenTexture,
 
-    pub(crate) txaa_texture: Option<ScreenTexture>,
+    pub(crate) txaa_texture: Option<TxaaTexture>,
 
     // バックグラウンド用のテクスチャ
     pub(crate) background_image_texture: Option<BackgroundImageTexture>,
@@ -210,7 +210,7 @@ impl RasterizerPipeline {
                 push_constant_ranges: &[],
             });
 
-        let outline_render_pipeline =
+        let outline_render_pipeline: wgpu::RenderPipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Outline Render Pipeline"),
                 layout: Some(&outline_render_pipeline_layout),
@@ -260,10 +260,17 @@ impl RasterizerPipeline {
         let background_image_shader =
             device.create_shader_module(BACKGROUND_IMAGE_SHADER_DESCRIPTOR);
         let background_image_bind_group = BackgroundImageBindGroup::new(device);
+
+        let background_image_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Default Background Image Render Pipeline Layout"),
+                bind_group_layouts: &[&background_image_bind_group.layout],
+                push_constant_ranges: &[],
+            });
         let background_image_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Default Background Image Render Pipeline"),
-                layout: Some(&outline_render_pipeline_layout),
+                layout: Some(&background_image_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &background_image_shader,
                     entry_point: Some("vs_main"),
@@ -311,10 +318,16 @@ impl RasterizerPipeline {
 
         let screen_bind_group = ScreenBindGroup::new(device);
 
+        let screen_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Default Background Image Render Pipeline Layout"),
+                bind_group_layouts: &[&screen_bind_group.layout],
+                push_constant_ranges: &[],
+            });
         let screen_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Default Screen Render Pipeline"),
-                layout: Some(&outline_render_pipeline_layout),
+                layout: Some(&screen_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &screen_shader,
                     entry_point: Some("vs_main"),
@@ -358,7 +371,7 @@ impl RasterizerPipeline {
             });
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
-        let txaa_texture = ScreenTexture::new(device, (width, height), Some("TXAA Texture"));
+        let txaa_texture = TxaaTexture::new(device, (width, height), Some("TXAA Texture"));
 
         Self {
             // overlap
@@ -508,9 +521,11 @@ impl RasterizerPipeline {
             .outline_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let outline_bind_group = self
-            .outline_bind_group
-            .to_bind_group(device, &self.overlap_texture);
+        let outline_bind_group = self.outline_bind_group.to_bind_group(
+            device,
+            &self.overlap_texture,
+            self.txaa_texture.as_ref().unwrap(),
+        );
 
         {
             let mut outline_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -593,7 +608,7 @@ impl RasterizerPipeline {
             .to_bind_group(device, background_image_texture);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Screen Render Pass"),
+                label: Some("Background Screen Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: screen_view,
                     resolve_target: None,
@@ -622,50 +637,6 @@ impl RasterizerPipeline {
             screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
         }
     }
-
-    /*
-    fn txaa_stage(&self, encoder: &mut wgpu::CommandEncoder, device: &wgpu::Device) -> _ {
-        let Some(txaa_texture) = self.txaa_texture.as_ref() else {
-            return;
-        };
-
-        let screen_bind_group = &self
-            .background_image_bind_group
-            .to_bind_group(device, background_image_texture);
-
-        let txaa_view = txaa_texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let outline_bind_group = self
-            .outline_bind_group
-            .to_bind_group(device, &self.outline_texture);
-        {
-            let mut txaa_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("TXAA Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &txaa_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-            txaa_render_pass.set_pipeline(&self.outline_render_pipeline);
-            txaa_render_pass.set_bind_group(0, &outline_bind_group, &[]);
-            txaa_render_pass
-                .set_vertex_buffer(0, self.outline_vertex_buffer.vertex_buffer.slice(..));
-            txaa_render_pass.set_index_buffer(
-                self.outline_vertex_buffer.index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-            txaa_render_pass.draw_indexed(self.outline_vertex_buffer.index_range.clone(), 0, 0..1);
-        }
-    }
-     */
 
     pub fn set_background_image(
         &mut self,

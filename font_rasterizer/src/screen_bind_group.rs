@@ -1,4 +1,4 @@
-use crate::screen_texture::ScreenTexture;
+use crate::screen_texture::{ScreenTexture, TxaaTexture};
 
 /// Screen用の BindGroup。
 /// Outline の Texture をアンチエイリアスする
@@ -27,7 +27,7 @@ impl ScreenBindGroup {
                     count: None,
                 },
             ],
-            label: Some("Outline Bind Group Layout"),
+            label: Some("Screen Bind Group Layout"),
         });
         Self { layout }
     }
@@ -59,7 +59,7 @@ impl ScreenBindGroup {
                     resource: wgpu::BindingResource::Sampler(&sampler),
                 },
             ],
-            label: Some("Outline Bind Group"),
+            label: Some("Screen Bind Group"),
         })
     }
 }
