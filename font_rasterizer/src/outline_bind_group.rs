@@ -1,4 +1,23 @@
+use wgpu::util::DeviceExt;
+
 use crate::screen_texture::{ScreenTexture, TXAA_TEXTURE_FORMAT, TxaaTexture};
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Uniforms {
+    frame_count: u32,
+    // padding が必要らしい。
+    padding: [u32; 3],
+}
+
+impl Default for Uniforms {
+    fn default() -> Self {
+        Self {
+            frame_count: 0,
+            padding: [0; 3],
+        }
+    }
+}
 
 /// アウトライン用の BindGroup。
 /// Overlay 情報の書き込まれた Texture と Sampler のみを受け取る。
@@ -7,6 +26,8 @@ use crate::screen_texture::{ScreenTexture, TXAA_TEXTURE_FORMAT, TxaaTexture};
 /// R, G, B: 色情報
 /// A: 重ね合わせの数
 pub struct OutlineBindGroup {
+    uniforms: Uniforms,
+    buffer: wgpu::Buffer,
     pub(crate) layout: wgpu::BindGroupLayout,
 }
 
@@ -43,10 +64,39 @@ impl OutlineBindGroup {
                     },
                     count: None,
                 },
+                // Uniforms
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
             label: Some("Outline Bind Group Layout"),
         });
-        Self { layout }
+        let uniforms = Uniforms::default();
+        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Outline Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[uniforms]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        Self {
+            uniforms,
+            buffer,
+            layout,
+        }
+    }
+
+    pub fn update(&mut self) {
+        self.uniforms.frame_count += 1;
+    }
+
+    pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
+        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniforms]))
     }
 
     pub fn to_bind_group(
@@ -69,6 +119,10 @@ impl OutlineBindGroup {
                 wgpu::BindGroupEntry {
                     binding: 2,
                     resource: wgpu::BindingResource::TextureView(&aa_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: self.buffer.as_entire_binding(),
                 },
             ],
             label: Some("Outline Bind Group"),

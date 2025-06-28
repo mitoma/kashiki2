@@ -29,6 +29,13 @@ var s_diffuse: sampler;
 @group(0) @binding(2)
 var t_history_bits: texture_storage_2d<r32uint, read_write>;
 
+struct Uniforms {
+    frame_count: u32,
+};
+
+@group(0) @binding(3)
+var<uniform> u_buffer: Uniforms;
+
 // UNIT = 1.0 / 256.0 
 const UNIT :f32 = 0.00390625;
 const HARFUNIT: f32 = 0.001953125;
@@ -153,7 +160,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let ipos: vec2<i32> = vec2<i32>(floor(in.clip_position.xy));
         var pixel_value = textureLoad(t_history_bits, ipos);
         var odd_history_bits = pixel_value.r;
-        odd_history_bits = set_bit(odd_history_bits, 0, current_odd);
+        odd_history_bits = set_bit(odd_history_bits, u_buffer.frame_count % 32, current_odd);
         pixel_value.r = odd_history_bits;
         textureStore(t_history_bits, ipos, pixel_value);
         return vec4<f32>(color.rgb, f32(countOneBits(odd_history_bits)) / 32.0);

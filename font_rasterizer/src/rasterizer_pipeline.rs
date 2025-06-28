@@ -414,6 +414,9 @@ impl RasterizerPipeline {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_buffers, vector_buffers);
+
+        self.outline_bind_group.update();
+        self.outline_bind_group.update_buffer(queue);
         self.outline_stage(encoder, device);
 
         //self.txaa_stage(encoder, device);
