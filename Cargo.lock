@@ -3004,6 +3004,7 @@ dependencies = [
  "apng",
  "arboard",
  "bitflags 2.9.1",
+ "cached",
  "cfg-if",
  "cgmath",
  "console_error_panic_hook",

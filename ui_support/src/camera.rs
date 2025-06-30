@@ -1,8 +1,7 @@
 use cgmath::{InnerSpace, Point3, Vector3};
-use font_rasterizer::{context::WindowSize, time::now_millis};
-use rand::Rng;
+use font_rasterizer::{context::WindowSize, time::frame_count};
 
-use crate::{easing_value::EasingPointN, layout_engine::Model};
+use crate::{easing_value::EasingPointN, halton::halton_sequence, layout_engine::Model};
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -69,11 +68,6 @@ impl Camera {
         }
     }
 
-    // 乱数を生成するメソッド (0.0から1.0の範囲)
-    fn get_rand(&self) -> f32 {
-        rand::rng().random_range(0.0..1.0)
-    }
-
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let view = cgmath::Matrix4::look_at_rh(
             self.eye.current().into(),
@@ -90,16 +84,17 @@ impl Camera {
             cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
 
         // TXAAのためのサブピクセルジッターを追加
-        // TODO: 乱数を使っているがハルトン列のような決定的で一様分布のものを使うと良い
         if self.viewport_width > 0.0 && self.viewport_height > 0.0 {
-            let rand_x = self.get_rand(); // 0.0 to <1.0
-            let rand_y = self.get_rand(); // 0.0 to <1.0
+            let frame_seed = frame_count() % 32 + 1;
 
-            let jitter_x_ndc = (rand_x - 0.5) * (1.0 / self.viewport_width);
-            let jitter_y_ndc = (rand_y - 0.5) * (1.0 / self.viewport_height);
+            // ハルトン列のような決定的で一様分布のもので frame_seed を使って jitter を計算する
+            //let jitter_x = (frame_seed % 4) as f32 * 0.1 * (1.0 / self.viewport_width);
+            //let jitter_y = (frame_seed / 4) as f32 * 0.1 * (1.0 / self.viewport_height);
+            let jitter_x = halton_sequence(2, frame_seed) * (1.0 / self.viewport_width);
+            let jitter_y = halton_sequence(3, frame_seed) * (1.0 / self.viewport_height);
 
-            proj[2][0] += jitter_x_ndc;
-            proj[2][1] += jitter_y_ndc;
+            proj[2][0] += jitter_x;
+            proj[2][1] += jitter_y;
         }
 
         OPENGL_TO_WGPU_MATRIX * proj * view

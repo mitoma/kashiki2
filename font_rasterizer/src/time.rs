@@ -18,6 +18,8 @@ struct SystemClock {
     clock_mode: ClockMode,
     start_time: u128,
     current_time: u128,
+    // StepByStep モードでのフレームカウント
+    frame_count: u32,
 }
 
 impl SystemClock {
@@ -27,6 +29,7 @@ impl SystemClock {
             clock_mode: ClockMode::System,
             start_time,
             current_time: 0,
+            frame_count: 0,
         }
     }
 }
@@ -41,10 +44,17 @@ impl SystemClock {
         (duration % u32::MAX as u128).to_u32().unwrap()
     }
 
+    fn frame_count(&self) -> u32 {
+        self.frame_count
+    }
+
     fn increment(&mut self, duration: Duration) {
         match self.clock_mode {
             ClockMode::System => { /* noop */ }
-            ClockMode::StepByStep => self.current_time = internal_now_millis() - self.start_time,
+            ClockMode::StepByStep => {
+                self.current_time = internal_now_millis() - self.start_time;
+                self.frame_count += 1;
+            }
             ClockMode::Fixed => self.current_time += duration.as_millis(),
         }
     }
@@ -67,6 +77,10 @@ pub fn set_clock_mode(clock_mode: ClockMode) {
 // u32 の範囲を超えたら 0 に巻き戻る(49日ほど)
 pub fn now_millis() -> u32 {
     CLOCK.lock().unwrap().now_millis()
+}
+
+pub fn frame_count() -> u32 {
+    CLOCK.lock().unwrap().frame_count()
 }
 
 pub fn increment_fixed_clock(duration: Duration) {

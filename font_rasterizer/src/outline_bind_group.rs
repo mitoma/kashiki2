@@ -1,6 +1,9 @@
 use wgpu::util::DeviceExt;
 
-use crate::screen_texture::{ScreenTexture, TXAA_TEXTURE_FORMAT, TxaaTexture};
+use crate::{
+    screen_texture::{ScreenTexture, TXAA_TEXTURE_FORMAT, TxaaTexture},
+    time::frame_count,
+};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -92,7 +95,7 @@ impl OutlineBindGroup {
     }
 
     pub fn update(&mut self) {
-        self.uniforms.frame_count += 1;
+        self.uniforms.frame_count = frame_count();
     }
 
     pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
