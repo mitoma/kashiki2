@@ -22,6 +22,7 @@ font_collector = { path = "../font_collector" }
 stroke_parser = { path = "../stroke_parser" }
 text_buffer = { path = "../text_buffer" }
 serde-jsonlines = "0.7.0"
+cached = "0.55.1"
 
 similar = "2.6.0"
 

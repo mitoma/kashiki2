@@ -2,6 +2,7 @@ pub mod action;
 pub mod action_recorder;
 pub mod camera;
 mod easing_value;
+mod halton;
 pub mod layout_engine;
 mod metrics_counter;
 mod render_rate_adjuster;
