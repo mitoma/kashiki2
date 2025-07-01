@@ -1,4 +1,4 @@
-use crate::screen_texture::{ScreenTexture, TxaaTexture};
+use crate::screen_texture::ScreenTexture;
 
 /// Screen用の BindGroup。
 /// Outline の Texture をアンチエイリアスする

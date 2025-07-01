@@ -6,20 +6,11 @@ use crate::{
 };
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Uniforms {
     frame_count: u32,
     // padding が必要らしい。
     padding: [u32; 3],
-}
-
-impl Default for Uniforms {
-    fn default() -> Self {
-        Self {
-            frame_count: 0,
-            padding: [0; 3],
-        }
-    }
 }
 
 /// アウトライン用の BindGroup。

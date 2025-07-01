@@ -43,6 +43,7 @@ impl Camera {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         eye: EasingPointN<3>,    // 視点の位置
         target: EasingPointN<3>, // ターゲットの位置

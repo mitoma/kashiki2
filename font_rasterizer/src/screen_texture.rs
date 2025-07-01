@@ -52,9 +52,9 @@ impl ScreenTexture {
 pub const TXAA_TEXTURE_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::R32Uint;
 
 pub struct TxaaTexture {
-    pub texture: wgpu::Texture,
+    pub _texture: wgpu::Texture,
     pub view: wgpu::TextureView,
-    pub texture_format: wgpu::TextureFormat,
+    pub _texture_format: wgpu::TextureFormat,
 }
 
 impl TxaaTexture {
@@ -83,9 +83,9 @@ impl TxaaTexture {
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         Self {
-            texture,
+            _texture: texture,
             view,
-            texture_format,
+            _texture_format: texture_format,
         }
     }
 }
