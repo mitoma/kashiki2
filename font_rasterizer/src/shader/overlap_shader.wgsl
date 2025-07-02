@@ -134,6 +134,9 @@ struct Uniforms {
 @group(0) @binding(0)
 var<uniform> u_buffer: Uniforms;
 
+@group(0) @binding(1)
+var overlap_count_bits: texture_storage_2d<rgba32uint, read_write>;
+
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec2<f32>,

@@ -1,7 +1,7 @@
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::time::now_millis;
+use crate::{overlap_record_texture::OverlapRecordTexture, time::now_millis};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -34,7 +34,7 @@ impl Default for Uniforms {
 }
 
 impl OverlapBindGroup {
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(device: &wgpu::Device, overlap_record_texture: &OverlapRecordTexture) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 // Uniforms
@@ -45,6 +45,16 @@ impl OverlapBindGroup {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
                         min_binding_size: None,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::StorageTexture {
+                        access: wgpu::StorageTextureAccess::ReadWrite,
+                        format: overlap_record_texture.texture_format,
+                        view_dimension: wgpu::TextureViewDimension::D2,
                     },
                     count: None,
                 },
@@ -60,10 +70,16 @@ impl OverlapBindGroup {
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&overlap_record_texture.view),
+                },
+            ],
             label: Some("Overlap Bind Group"),
         });
 
