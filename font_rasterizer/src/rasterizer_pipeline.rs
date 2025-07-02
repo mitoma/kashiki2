@@ -9,6 +9,7 @@ use crate::{
     glyph_vertex_buffer::GlyphVertexBuffer,
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
+    overlap_record_texture::OverlapRecordTexture,
     screen_bind_group::ScreenBindGroup,
     screen_texture::{self, BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
@@ -60,6 +61,7 @@ pub enum Quarity {
 pub struct RasterizerPipeline {
     // 1 ステージ目(overlap)
     pub overlap_bind_group: OverlapBindGroup,
+    pub(crate) overlap_record_texture: OverlapRecordTexture,
     pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
 
     // 1 ステージ目のアウトプット(≒ 2 ステージ目のインプット)
@@ -131,10 +133,12 @@ impl RasterizerPipeline {
         // overlap
         let overlap_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
+        let overlap_record_texture =
+            OverlapRecordTexture::new(device, (width, height), Some("Overlap Record Texture"));
 
         let overlap_shader = device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR);
 
-        let overlap_bind_group = OverlapBindGroup::new(device);
+        let overlap_bind_group = OverlapBindGroup::new(device, &overlap_record_texture);
 
         let overlap_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -360,6 +364,7 @@ impl RasterizerPipeline {
         Self {
             // overlap
             overlap_texture,
+            overlap_record_texture,
             overlap_bind_group,
             overlap_render_pipeline,
             // outline
@@ -408,6 +413,29 @@ impl RasterizerPipeline {
         glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
         vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
     ) {
+        {
+            let _cleanup_overlap_record_texture_pipeline =
+                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("Cleanup Overlap Record Texture Render Pass"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &self.overlap_record_texture.view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                r: 0.0,
+                                g: 0.0,
+                                b: 0.0,
+                                a: 0.0,
+                            }),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+        }
+
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
         let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Overlap Render Pass"),
