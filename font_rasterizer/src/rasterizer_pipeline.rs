@@ -18,6 +18,8 @@ use crate::{
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
+const CLEANUP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
+    include_wgsl!("shader/cleanup_shader.wgsl");
 const OVERLAP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
     include_wgsl!("shader/overlap_shader.wgsl");
 const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
@@ -59,6 +61,9 @@ pub enum Quarity {
 ///   2 が 3 よりも解像度が高ければオーバーサンプリングでクオリティが高くなり
 ///   その逆であればドット絵の品質になるよう調整
 pub struct RasterizerPipeline {
+    // cleanup
+    pub(crate) cleanup_render_pipeline: wgpu::RenderPipeline,
+
     // 1 ステージ目(overlap)
     pub overlap_bind_group: OverlapBindGroup,
     pub(crate) overlap_record_texture: OverlapRecordTexture,
@@ -162,14 +167,62 @@ impl RasterizerPipeline {
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: overlap_texture.texture_format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::One,
-                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                                operation: wgpu::BlendOperation::Add,
-                            },
-                        }),
+                        blend: Some(wgpu::BlendState::REPLACE),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: None, // 字に表裏はあまり関係ないのでカリングはしない
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    // Requires Features::DEPTH_CLIP_CONTROL
+                    unclipped_depth: false,
+                    // Requires Features::CONSERVATIVE_RASTERIZATION
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                // If the pipeline will be used with a multiview render pass, this
+                // indicates how many array layers the attachments will have.
+                multiview: None,
+                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
+                cache: None,
+            });
+
+        // cleanup
+
+        let cleanup_shader = device.create_shader_module(CLEANUP_SHADER_DESCRIPTOR);
+
+        let cleanup_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Cleanup Render Pipeline Layout"),
+                bind_group_layouts: &[],
+                push_constant_ranges: &[],
+            });
+
+        let cleanup_render_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Cleanup Render Pipeline"),
+                layout: Some(&cleanup_render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &cleanup_shader,
+                    entry_point: Some("vs_main"),
+                    buffers: &[Vertex::desc(), InstanceRaw::desc()],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &cleanup_shader,
+                    entry_point: Some("fs_main"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: overlap_record_texture.texture_format,
+                        blend: None,
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                     compilation_options: Default::default(),
@@ -362,6 +415,9 @@ impl RasterizerPipeline {
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
         Self {
+            // cleanup
+            cleanup_render_pipeline,
+
             // overlap
             overlap_texture,
             overlap_record_texture,
@@ -400,7 +456,7 @@ impl RasterizerPipeline {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_buffers, vector_buffers);
-        self.outline_stage(encoder, device);
+        //self.outline_stage(encoder, device);
 
         self.screen_background_image_stage(encoder, device, &screen_view);
 
@@ -414,7 +470,7 @@ impl RasterizerPipeline {
         vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
     ) {
         {
-            let _cleanup_overlap_record_texture_pipeline =
+            let mut overlap_record_texture_pass =
                 encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("Cleanup Overlap Record Texture Render Pass"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -434,6 +490,7 @@ impl RasterizerPipeline {
                     timestamp_writes: None,
                     occlusion_query_set: None,
                 });
+            overlap_record_texture_pass.set_pipeline(&self.cleanup_render_pipeline);
         }
 
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
@@ -571,7 +628,7 @@ impl RasterizerPipeline {
     ) {
         let screen_bind_group = &self
             .screen_bind_group
-            .to_bind_group(device, &self.outline_texture);
+            .to_bind_group(device, &self.overlap_texture);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
