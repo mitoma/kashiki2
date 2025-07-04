@@ -353,6 +353,15 @@ fn vs_main_minimum(
 const UNIT :f32 = 0.00390625;
 // Fragment shader
 
+// u32 のビット列の指定ビットの値を変更
+fn set_bit(bits: u32, bit_index: u32, value: bool) -> u32 {
+    if value {
+        return bits | (1u << bit_index);
+    } else {
+        return bits & ~(1u << bit_index);
+    }
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // R = ポリゴンの重なった数
@@ -365,8 +374,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // G, B のいずれかが 0 でないとき
     let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
-    if !in_bezier {
+
+    let ipos: vec2<i32> = vec2<i32>(floor(in.clip_position.xy));
+    var pixel_value = textureLoad(overlap_count_bits, ipos);
+    var odd_history_bits = pixel_value.r;
+
+    if in_bezier {
+        odd_history_bits += 1u;
+    }
+
+    pixel_value.r = odd_history_bits;
+    textureStore(overlap_count_bits, ipos, pixel_value);
+
+    if odd_history_bits % 2u == 0u {
         return vec4<f32>(in.color, 0.0);
     }
-    return vec4<f32>(in.color, UNIT);
+    return vec4<f32>(in.color, 1.0);
 }
