@@ -8,7 +8,7 @@ use crate::{
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::GlyphVertexBuffer,
     overlap_bind_group::OverlapBindGroup,
-    overlap_record_texture::{OverlapRecordBuffer, OverlapRecordTexture},
+    overlap_record_texture::OverlapRecordBuffer,
     screen_bind_group::ScreenBindGroup,
     screen_texture::{self, BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
