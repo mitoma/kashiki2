@@ -351,27 +351,11 @@ fn vs_main_minimum(
     return out;
 }
 
-const UNIT :f32 = 0.00390625;
 // Fragment shader
-
-// u32 のビット列の指定ビットの値を変更
-fn set_bit(bits: u32, bit_index: u32, value: bool) -> u32 {
-    if value {
-        return bits | (1u << bit_index);
-    } else {
-        return bits & ~(1u << bit_index);
-    }
-}
-
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // R = ポリゴンの重なった数
     // G, B = ベジエ曲線
-
-    // B が 0 の時はベジエ曲線ではなくて単なるポリゴンとして処理する
-    //if in.color.b == 0.0 {
-        //return vec4<f32>(in.color, UNIT);
-    //}
 
     // G, B のいずれかが 0 でないとき
     let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
@@ -383,10 +367,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if in_bezier {
         increment = 1u;
     }
-    var odd_history_bits = atomicAdd(&overlap_count_bits[pos], increment);
+    // ポリゴンの重なりを記録する(次のステージで使う)
+    atomicAdd(&overlap_count_bits[pos], increment);
 
-    if (odd_history_bits + increment) % 2u == 0u {
-        return vec4<f32>(in.color, 0.0);
-    }
     return vec4<f32>(in.color, 1.0);
 }
