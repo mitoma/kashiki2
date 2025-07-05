@@ -129,13 +129,14 @@ struct Uniforms {
     u_view_proj: mat4x4<f32>,
     u_default_view_proj: mat4x4<f32>,
     u_time: u32,
+    u_width: u32,
 };
 
 @group(0) @binding(0)
 var<uniform> u_buffer: Uniforms;
 
 @group(0) @binding(1)
-var overlap_count_bits: texture_storage_2d<rgba32uint, read_write>;
+var<storage, read_write> overlap_count_bits: array<atomic<u32>>;
 
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
@@ -375,18 +376,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // G, B のいずれかが 0 でないとき
     let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
 
-    let ipos: vec2<i32> = vec2<i32>(floor(in.clip_position.xy));
-    var pixel_value = textureLoad(overlap_count_bits, ipos);
-    var odd_history_bits = pixel_value.r;
+    let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
+    let pos = ipos.x + ipos.y * u_buffer.u_width;
 
+    var increment = 0u;
     if in_bezier {
-        odd_history_bits += 1u;
+        increment = 1u;
     }
+    var odd_history_bits = atomicAdd(&overlap_count_bits[pos], increment);
 
-    pixel_value.r = odd_history_bits;
-    textureStore(overlap_count_bits, ipos, pixel_value);
-
-    if odd_history_bits % 2u == 0u {
+    if (odd_history_bits + increment) % 2u == 0u {
         return vec4<f32>(in.color, 0.0);
     }
     return vec4<f32>(in.color, 1.0);
