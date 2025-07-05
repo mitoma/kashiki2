@@ -1,7 +1,7 @@
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::{overlap_record_texture::OverlapRecordTexture, time::now_millis};
+use crate::{overlap_record_texture::OverlapRecordBuffer, time::now_millis};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -9,8 +9,9 @@ pub struct Uniforms {
     view_proj: [[f32; 4]; 4],
     default_view_proj: [[f32; 4]; 4],
     time: u32,
+    width: u32,
     // padding が必要らしい。正直意味わかんねぇな。
-    padding: [u32; 3],
+    padding: [u32; 2],
 }
 
 /// オーバーラップ用の BindGroup。
@@ -28,19 +29,24 @@ impl Default for Uniforms {
             view_proj: cgmath::Matrix4::identity().into(),
             default_view_proj: cgmath::Matrix4::identity().into(),
             time: now_millis(),
-            padding: [0; 3],
+            width: 0,
+            padding: [0; 2],
         }
     }
 }
 
 impl OverlapBindGroup {
-    pub fn new(device: &wgpu::Device, overlap_record_texture: &OverlapRecordTexture) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        overlap_record_buffer: &OverlapRecordBuffer,
+        width: u32,
+    ) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 // Uniforms
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -51,10 +57,10 @@ impl OverlapBindGroup {
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::StorageTexture {
-                        access: wgpu::StorageTextureAccess::ReadWrite,
-                        format: overlap_record_texture.texture_format,
-                        view_dimension: wgpu::TextureViewDimension::D2,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Storage { read_only: false },
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
                     count: None,
                 },
@@ -62,7 +68,10 @@ impl OverlapBindGroup {
             label: Some("Overlap Bind Group Layout"),
         });
 
-        let uniforms = Uniforms::default();
+        let uniforms = Uniforms {
+            width,
+            ..Default::default()
+        };
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
             contents: bytemuck::cast_slice(&[uniforms]),
@@ -77,7 +86,7 @@ impl OverlapBindGroup {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&overlap_record_texture.view),
+                    resource: overlap_record_buffer.buffer.as_entire_binding(),
                 },
             ],
             label: Some("Overlap Bind Group"),
