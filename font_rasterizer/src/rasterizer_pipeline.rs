@@ -8,7 +8,7 @@ use crate::{
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::GlyphVertexBuffer,
     overlap_bind_group::OverlapBindGroup,
-    overlap_record_texture::OverlapRecordTexture,
+    overlap_record_texture::{OverlapRecordBuffer, OverlapRecordTexture},
     screen_bind_group::ScreenBindGroup,
     screen_texture::{self, BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
@@ -58,12 +58,9 @@ pub enum Quarity {
 ///   2 が 3 よりも解像度が高ければオーバーサンプリングでクオリティが高くなり
 ///   その逆であればドット絵の品質になるよう調整
 pub struct RasterizerPipeline {
-    // cleanup
-    pub(crate) cleanup_render_pipeline: wgpu::RenderPipeline,
-
     // 1 ステージ目(overlap)
     pub overlap_bind_group: OverlapBindGroup,
-    pub(crate) overlap_record_texture: OverlapRecordTexture,
+    pub(crate) overlap_record_buffer: OverlapRecordBuffer,
     pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
 
     // 1 ステージ目のアウトプット(≒ 2 ステージ目のインプット)
@@ -128,12 +125,11 @@ impl RasterizerPipeline {
         // overlap
         let overlap_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
-        let overlap_record_texture =
-            OverlapRecordTexture::new(device, (width, height), Some("Overlap Record Texture"));
+        let overlap_record_buffer = OverlapRecordBuffer::new(device, (width, height));
 
         let overlap_shader = device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR);
 
-        let overlap_bind_group = OverlapBindGroup::new(device, &overlap_record_texture);
+        let overlap_bind_group = OverlapBindGroup::new(device, &overlap_record_buffer, width);
 
         let overlap_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -190,6 +186,7 @@ impl RasterizerPipeline {
 
         let cleanup_shader = device.create_shader_module(CLEANUP_SHADER_DESCRIPTOR);
 
+        /*
         let cleanup_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Cleanup Render Pipeline Layout"),
@@ -240,6 +237,7 @@ impl RasterizerPipeline {
                 // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
                 cache: None,
             });
+             */
 
         let background_image_shader =
             device.create_shader_module(BACKGROUND_IMAGE_SHADER_DESCRIPTOR);
@@ -359,11 +357,11 @@ impl RasterizerPipeline {
 
         Self {
             // cleanup
-            cleanup_render_pipeline,
+            //cleanup_render_pipeline,
 
             // overlap
             overlap_texture,
-            overlap_record_texture,
+            overlap_record_buffer,
             overlap_bind_group,
             overlap_render_pipeline,
 
@@ -392,6 +390,7 @@ impl RasterizerPipeline {
         vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
         screen_view: wgpu::TextureView,
     ) {
+        self.overlap_record_buffer.clear(queue);
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_buffers, vector_buffers);
@@ -407,6 +406,7 @@ impl RasterizerPipeline {
         glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
         vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
     ) {
+        /*
         {
             let mut overlap_record_texture_pass =
                 encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -430,6 +430,7 @@ impl RasterizerPipeline {
                 });
             overlap_record_texture_pass.set_pipeline(&self.cleanup_render_pipeline);
         }
+         */
 
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
         let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

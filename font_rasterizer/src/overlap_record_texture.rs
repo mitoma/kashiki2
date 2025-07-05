@@ -20,8 +20,7 @@ impl OverlapRecordTexture {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: texture_format,
-            usage: wgpu::TextureUsages::STORAGE_BINDING
-                | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         });
 
@@ -32,5 +31,26 @@ impl OverlapRecordTexture {
             view,
             texture_format,
         }
+    }
+}
+
+pub struct OverlapRecordBuffer {
+    pub buffer: wgpu::Buffer,
+}
+
+impl OverlapRecordBuffer {
+    pub fn new(device: &wgpu::Device, size: (u32, u32)) -> Self {
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Overlap Record Buffer"),
+            size: (size.0 * size.1 * 4) as wgpu::BufferAddress, // Assuming 4 bytes per pixel
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        Self { buffer }
+    }
+
+    pub fn clear(&self, queue: &wgpu::Queue) {
+        let size = self.buffer.size();
+        queue.write_buffer(&self.buffer, 0, &vec![0u8; size as usize]);
     }
 }
