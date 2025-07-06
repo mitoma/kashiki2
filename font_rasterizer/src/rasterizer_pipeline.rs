@@ -18,8 +18,6 @@ use crate::{
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
-const CLEANUP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
-    include_wgsl!("shader/cleanup_shader.wgsl");
 const OVERLAP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
     include_wgsl!("shader/overlap_shader.wgsl");
 const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
@@ -251,63 +249,6 @@ impl RasterizerPipeline {
             });
         let outline_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
-        // cleanup
-
-        let cleanup_shader = device.create_shader_module(CLEANUP_SHADER_DESCRIPTOR);
-
-        /*
-        let cleanup_render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Cleanup Render Pipeline Layout"),
-                bind_group_layouts: &[],
-                push_constant_ranges: &[],
-            });
-
-        let cleanup_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Cleanup Render Pipeline"),
-                layout: Some(&cleanup_render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &cleanup_shader,
-                    entry_point: Some("vs_main"),
-                    buffers: &[Vertex::desc(), InstanceRaw::desc()],
-                    compilation_options: Default::default(),
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &cleanup_shader,
-                    entry_point: Some("fs_main"),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: overlap_record_texture.texture_format,
-                        blend: None,
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                    compilation_options: Default::default(),
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: None, // 字に表裏はあまり関係ないのでカリングはしない
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: None,
-                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
-                cache: None,
-            });
-             */
-
         let background_image_shader =
             device.create_shader_module(BACKGROUND_IMAGE_SHADER_DESCRIPTOR);
         let background_image_bind_group = BackgroundImageBindGroup::new(device);
@@ -425,9 +366,6 @@ impl RasterizerPipeline {
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
         Self {
-            // cleanup
-            //cleanup_render_pipeline,
-
             // overlap
             overlap_texture,
             overlap_record_buffer,
@@ -482,32 +420,6 @@ impl RasterizerPipeline {
         glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
         vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
     ) {
-        /*
-        {
-            let mut overlap_record_texture_pass =
-                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Cleanup Overlap Record Texture Render Pass"),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &self.overlap_record_texture.view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.0,
-                                g: 0.0,
-                                b: 0.0,
-                                a: 0.0,
-                            }),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                    timestamp_writes: None,
-                    occlusion_query_set: None,
-                });
-            overlap_record_texture_pass.set_pipeline(&self.cleanup_render_pipeline);
-        }
-         */
-
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
         let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Overlap Render Pass"),
