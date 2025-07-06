@@ -516,14 +516,20 @@ impl RenderState {
                     &vector_instances,
                 ))
             };
+
+        let jitter_count = 3;
+        let view_proj = camera
+            .build_view_projection_matrix_with_jitter(jitter_count)
+            .into_iter()
+            .zip(camera.build_default_view_projection_matrix_with_jitter(jitter_count))
+            .map(|(view_proj, default_view_proj)| (view_proj.into(), default_view_proj.into()))
+            .collect();
+
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.context.device,
             &self.context.queue,
-            (
-                camera.build_view_projection_matrix().into(),
-                camera.build_default_view_projection_matrix().into(),
-            ),
+            view_proj,
             glyph_buffers,
             vector_buffers,
             screen_view,

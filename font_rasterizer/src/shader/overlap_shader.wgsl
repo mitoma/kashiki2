@@ -130,6 +130,7 @@ struct Uniforms {
     u_default_view_proj: mat4x4<f32>,
     u_time: u32,
     u_width: u32,
+    u_aa_phase: u32,
 };
 
 @group(0) @binding(0)
@@ -361,11 +362,11 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
 
     let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = ipos.x + ipos.y * u_buffer.u_width;
+    let pos = ipos.x + ipos.y * u_buffer.u_width * 4u;
 
     // ポリゴンの重なりを記録する(次のステージで使う)
     if in_bezier {
-        atomicAdd(&overlap_count_bits[pos], 1u);
+        atomicAdd(&overlap_count_bits[pos + u_buffer.u_aa_phase], 1u);
     }
 
     return vec4<f32>(in.color, 1.0);

@@ -10,8 +10,9 @@ pub struct Uniforms {
     default_view_proj: [[f32; 4]; 4],
     time: u32,
     width: u32,
+    aa_phase: u32,
     // padding が必要らしい。正直意味わかんねぇな。
-    padding: [u32; 2],
+    padding: [u32; 1],
 }
 
 /// オーバーラップ用の BindGroup。
@@ -30,7 +31,8 @@ impl Default for Uniforms {
             default_view_proj: cgmath::Matrix4::identity().into(),
             time: now_millis(),
             width: 0,
-            padding: [0; 2],
+            aa_phase: 0,
+            padding: [0; 1],
         }
     }
 }
@@ -100,10 +102,11 @@ impl OverlapBindGroup {
         }
     }
 
-    pub fn update(&mut self, view_proj: ([[f32; 4]; 4], [[f32; 4]; 4])) {
+    pub fn update(&mut self, view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]), aa_phase: u32) {
         self.uniforms.view_proj = view_proj.0;
         self.uniforms.default_view_proj = view_proj.1;
         self.uniforms.time = now_millis();
+        self.uniforms.aa_phase = aa_phase;
     }
 
     pub fn update_buffer(&mut self, queue: &wgpu::Queue) {

@@ -145,8 +145,9 @@ pub async fn run(args: Args) {
         callback: Box::new(callback),
         //quarity: Quarity::CappedVeryHigh(1920 * 2, 1200 * 2),
         quarity: Quarity::Middle,
+        //quarity: Quarity::Fixed(640, 480),
         color_theme: COLOR_THEME,
-        flags: Flags::DEFAULT,
+        flags: Flags::EXIT_ON_ESC | Flags::FULL_SCREEN,
         font_repository,
         performance_mode: args.performance_mode,
     };

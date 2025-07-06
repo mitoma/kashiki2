@@ -2,7 +2,7 @@ use cgmath::{InnerSpace, Point3, Vector3};
 
 use font_rasterizer::context::WindowSize;
 
-use crate::{easing_value::EasingPointN, layout_engine::Model};
+use crate::{easing_value::EasingPointN, halton::halton_sequence, layout_engine::Model};
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -21,6 +21,7 @@ pub struct Camera {
     znear: f32,
     zfar: f32,
     eye_quaternion: Option<cgmath::Quaternion<f32>>,
+    window_size: WindowSize,
 }
 
 impl Camera {
@@ -35,6 +36,7 @@ impl Camera {
             45.0,
             0.1,
             1000.0,
+            window_size,
         )
     }
 
@@ -46,6 +48,7 @@ impl Camera {
         fovy: f32,
         znear: f32,
         zfar: f32,
+        window_size: WindowSize,
     ) -> Self {
         Self {
             eye,
@@ -56,6 +59,7 @@ impl Camera {
             znear,
             zfar,
             eye_quaternion: None,
+            window_size,
         }
     }
 
@@ -70,9 +74,25 @@ impl Camera {
         } else {
             view
         };
-
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * view
+    }
+
+    pub fn build_view_projection_matrix_with_jitter(
+        &self,
+        jitter_count: u32,
+    ) -> Vec<cgmath::Matrix4<f32>> {
+        let base_proj = self.build_view_projection_matrix();
+        (0..jitter_count)
+            .map(|i| {
+                let jitter_x = halton_sequence(2, i) * (1.0 / self.window_size.width as f32);
+                let jitter_y = halton_sequence(2, i) * (1.0 / self.window_size.height as f32);
+                let jitter_matrix = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
+                    jitter_x, jitter_y, 0.0,
+                ));
+                OPENGL_TO_WGPU_MATRIX * base_proj * jitter_matrix
+            })
+            .collect()
     }
 
     // カメラの位置に依存しないビュー行列を作る
@@ -84,6 +104,23 @@ impl Camera {
         );
         let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * default_view
+    }
+
+    pub fn build_default_view_projection_matrix_with_jitter(
+        &self,
+        jitter_count: u32,
+    ) -> Vec<cgmath::Matrix4<f32>> {
+        let base_proj = self.build_default_view_projection_matrix();
+        (0..jitter_count)
+            .map(|i| {
+                let jitter_x = halton_sequence(2, i) * (1.0 / self.window_size.width as f32);
+                let jitter_y = halton_sequence(2, i) * (1.0 / self.window_size.height as f32);
+                let jitter_matrix = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
+                    jitter_x, jitter_y, 0.0,
+                ));
+                OPENGL_TO_WGPU_MATRIX * base_proj * jitter_matrix
+            })
+            .collect()
     }
 
     pub fn aspect(&self) -> f32 {

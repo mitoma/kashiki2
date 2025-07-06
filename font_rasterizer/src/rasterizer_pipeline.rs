@@ -398,15 +398,22 @@ impl RasterizerPipeline {
         encoder: &mut wgpu::CommandEncoder,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
+        view_proj: Vec<([[f32; 4]; 4], [[f32; 4]; 4])>,
         glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
         vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
         screen_view: wgpu::TextureView,
     ) {
         self.overlap_record_buffer.clear(queue);
-        self.overlap_bind_group.update(view_proj);
-        self.overlap_bind_group.update_buffer(queue);
-        self.overlap_stage(encoder, glyph_buffers, vector_buffers);
+
+        {
+            for (i, view_proj) in view_proj.iter().enumerate() {
+                self.overlap_bind_group.update(*view_proj, i as u32);
+                self.overlap_bind_group.update_buffer(queue);
+                queue.submit(None);
+                self.overlap_stage(encoder, glyph_buffers, vector_buffers);
+            }
+        }
+
         self.outline_stage(encoder, device);
 
         self.screen_background_image_stage(encoder, device, &screen_view);
@@ -427,12 +434,7 @@ impl RasterizerPipeline {
                 view: &self.overlap_texture.view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 0.0,
-                    }),
+                    load: wgpu::LoadOp::Load,
                     store: wgpu::StoreOp::Store,
                 },
             })],
