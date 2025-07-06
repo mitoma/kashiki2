@@ -3,26 +3,17 @@ use wgpu::util::DeviceExt;
 use crate::{overlap_record_texture::OverlapRecordBuffer, screen_texture::ScreenTexture};
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+#[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Uniforms {
     width: u32,
     // padding が必要らしい。正直意味わかんねぇな。
     padding: [u32; 3],
 }
 
-impl Default for Uniforms {
-    fn default() -> Self {
-        Self {
-            width: 0,
-            padding: [0; 3],
-        }
-    }
-}
-
 /// オーバーラップ用の BindGroup。
 /// Uniforms として現在時刻のみ渡している。
 pub struct OutlineBindGroup {
-    uniforms: Uniforms,
+    _uniforms: Uniforms,
     buffer: wgpu::Buffer,
     pub(crate) layout: wgpu::BindGroupLayout,
 }
@@ -83,7 +74,7 @@ impl OutlineBindGroup {
         });
 
         Self {
-            uniforms,
+            _uniforms: uniforms,
             buffer,
             layout,
         }
