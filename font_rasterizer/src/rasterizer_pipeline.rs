@@ -219,7 +219,7 @@ impl RasterizerPipeline {
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: outline_texture.texture_format,
-                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                        blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                     compilation_options: Default::default(),
