@@ -31,7 +31,7 @@ var s_diffuse: sampler;
 @group(0) @binding(2)
 var<uniform> u_buffer: Uniforms;
 @group(0) @binding(3)
-var<storage, read_write> overlap_count_bits: array<atomic<u32>>;
+var<storage, read_write> overlap_count_bits: array<u32>;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
