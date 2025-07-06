@@ -8,6 +8,7 @@ pub mod font_converter;
 pub mod glyph_instances;
 pub mod glyph_vertex_buffer;
 pub mod motion;
+mod outline_bind_group;
 mod overlap_bind_group;
 mod overlap_record_texture;
 pub mod rasterizer_pipeline;
