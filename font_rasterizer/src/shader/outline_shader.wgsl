@@ -20,12 +20,9 @@ fn vs_main(
 }
 
 // Fragment shader
-
-// Vertex shader
 struct Uniforms {
     u_width: u32,
 };
-
 
 @group(0) @binding(0)
 var t_diffuse: texture_2d<f32>;
@@ -36,73 +33,15 @@ var<uniform> u_buffer: Uniforms;
 @group(0) @binding(3)
 var<storage, read_write> overlap_count_bits: array<atomic<u32>>;
 
-// UNIT = 1.0 / 256.0 
-const UNIT :f32 = 0.00390625;
-const HARFUNIT: f32 = 0.001953125;
-
-// 奇数かどうかを判定する
-fn odd_color(tex_coords: vec2<f32>) -> bool {
-    let color = textureSample(t_diffuse, s_diffuse, tex_coords);
-    let odd_color = color.a % (2.0 * UNIT);
-    return UNIT - HARFUNIT < odd_color && odd_color < UNIT + HARFUNIT;
-}
-
-// 境界線の判定。袋文字を書きたいときに使いそうなので実装だけ残しておく
-// 現在の座標の上下左右のいずれかが描画対象外の場合に true を返す
-fn in_border(tex_coords: vec2<f32>) -> bool {
-    let texture_size = textureDimensions(t_diffuse);
-    let pixel_size = vec2<f32>(1.0 / f32(texture_size.x), 1.0 / f32(texture_size.y));
-    let up_odd = odd_color(vec2(tex_coords.x, tex_coords.y - pixel_size.y));
-    let down_odd = odd_color(vec2(tex_coords.x, tex_coords.y + pixel_size.y));
-    let left_odd = odd_color(vec2(tex_coords.x - pixel_size.x, tex_coords.y));
-    let right_odd = odd_color(vec2(tex_coords.x + pixel_size.y, tex_coords.y));
-    return !(up_odd && down_odd && left_odd && right_odd);
-}
-
-// 境界線のアンチエイリアス
-// 現在の座標および上下左右のいずれかが描画対象外の場合に 0.2 ずつ透明度を色をつける。
-fn antialias(tex_coords: vec2<f32>) -> f32 {
-    let texture_size = textureDimensions(t_diffuse);
-    let pixel_size = vec2<f32>(1.0 / f32(texture_size.x), 1.0 / f32(texture_size.y));
-    let center_odd = odd_color(tex_coords);
-    let up_odd = odd_color(vec2(tex_coords.x, tex_coords.y - pixel_size.y));
-    let down_odd = odd_color(vec2(tex_coords.x, tex_coords.y + pixel_size.y));
-    let left_odd = odd_color(vec2(tex_coords.x - pixel_size.x, tex_coords.y));
-    let right_odd = odd_color(vec2(tex_coords.x + pixel_size.y, tex_coords.y));
-    var result = 0.0;
-    if center_odd {
-        result += 0.2;
-    }
-    if up_odd {
-        result += 0.2;
-    }
-    if down_odd {
-        result += 0.2;
-    }
-    if left_odd {
-        result += 0.2;
-    }
-    if right_odd {
-        result += 0.2;
-    }
-    return result;
-}
-
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // アルファ成分にテクスチャの重なりの情報を持たせている
+    // テクスチャから色を取得
     let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
 
+    // 前のステージで取得したオーバーラップ数を取得
     let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
     let pos = ipos.x + ipos.y * u_buffer.u_width;
-
     let counts = overlap_count_bits[pos];
-
-    // アンチエイリアスの処理。現在は無効化している。
-    //let use_anti_alias = false;
-    //if use_anti_alias {
-    //    return vec4<f32>(color.rgb, antialias(in.tex_coords));
-    //}
 
     // 奇数かどうかを判定し、奇数なら色をつける
     if counts % 2u == 1u {
