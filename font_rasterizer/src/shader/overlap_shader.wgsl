@@ -363,12 +363,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
     let pos = ipos.x + ipos.y * u_buffer.u_width;
 
-    var increment = 0u;
-    if in_bezier {
-        increment = 1u;
-    }
     // ポリゴンの重なりを記録する(次のステージで使う)
-    atomicAdd(&overlap_count_bits[pos], increment);
+    if in_bezier {
+        atomicAdd(&overlap_count_bits[pos], 1u);
+    }
 
     return vec4<f32>(in.color, 1.0);
 }
