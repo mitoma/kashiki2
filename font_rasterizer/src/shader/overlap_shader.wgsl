@@ -358,7 +358,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // G, B = ベジエ曲線
 
     // G, B のいずれかが 0 でないとき
-    let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
+    //let d = distance_to_edge;
+    //let w = fwidth(d);
+    //let alpha = clamp(0.5 - d / w, 0.0, 1.0);
+
+    let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
+    let distance_fwidth = fwidth(distance);
+    let alpha = clamp(0.5 - distance / distance_fwidth, 0.0, 1.0);
+
+    let in_bezier = distance < 0.1;
 
     let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
     let pos = ipos.x + ipos.y * u_buffer.u_width;
@@ -368,5 +376,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         atomicAdd(&overlap_count_bits[pos], 1u);
     }
 
-    return vec4<f32>(in.color, 1.0);
+    return vec4<f32>(in.color, alpha);
 }
