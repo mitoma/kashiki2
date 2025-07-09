@@ -378,3 +378,23 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     return vec4<f32>(in.color, alpha);
 }
+
+// アンチエイリアシングしてないけどまともな品質のやつ
+@fragment
+fn fs_main_org(in: VertexOutput) -> @location(0) vec4<f32> {
+    // R = ポリゴンの重なった数
+    // G, B = ベジエ曲線
+
+    // G, B のいずれかが 0 でないとき
+    let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
+
+    let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
+    let pos = ipos.x + ipos.y * u_buffer.u_width;
+
+    // ポリゴンの重なりを記録する(次のステージで使う)
+    if in_bezier {
+        atomicAdd(&overlap_count_bits[pos], 1u);
+    }
+
+    return vec4<f32>(in.color, 1.0);
+}
