@@ -1,0 +1,63 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/27.0.9 Chrome/134.0.6998.205 Electron/35.4.0 Safari/537.36" version="27.0.9">
+  <diagram id="prtHgNgQTEPvFCAcTncT" name="Page-1">
+    <mxGraphModel dx="1041" dy="1482" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="5jDc4Dm8j5D7pQFxjNfL-1" target="5jDc4Dm8j5D7pQFxjNfL-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-1" value="overlap&lt;div&gt;VERTEX&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="160" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="5jDc4Dm8j5D7pQFxjNfL-2" target="5jDc4Dm8j5D7pQFxjNfL-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-2" value="Font&lt;div&gt;パス/色/位置情報&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="40" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="5jDc4Dm8j5D7pQFxjNfL-4">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="220" y="400" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="5jDc4Dm8j5D7pQFxjNfL-4" target="5jDc4Dm8j5D7pQFxjNfL-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-4" value="overlap&lt;div&gt;FRAGMENT&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="280" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="5jDc4Dm8j5D7pQFxjNfL-6" target="5jDc4Dm8j5D7pQFxjNfL-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-6" value="Texture&lt;div&gt;色情報&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="400" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="5jDc4Dm8j5D7pQFxjNfL-7" target="5jDc4Dm8j5D7pQFxjNfL-17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-7" value="StorageBuffer&lt;div&gt;パスの重なり情報&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="400" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="5jDc4Dm8j5D7pQFxjNfL-10" target="5jDc4Dm8j5D7pQFxjNfL-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-10" value="outline&lt;div&gt;FRAGMENT&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="620" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-13" value="Texture&lt;div&gt;レンダリング結果&lt;/div&gt;&lt;div&gt;（背景透過）&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="910" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-15" value="Texture&lt;div&gt;背景画像&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="390" y="620" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-16" value="outline&lt;div&gt;FRAGMENT&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="1000" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="5jDc4Dm8j5D7pQFxjNfL-17" value="outline&lt;div&gt;FRAGMENT&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="520" width="120" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
