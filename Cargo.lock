@@ -3034,6 +3034,7 @@ dependencies = [
  "bitflags 2.9.1",
  "cfg-if",
  "cgmath",
+ "clap",
  "console_error_panic_hook",
  "console_log",
  "env_logger",

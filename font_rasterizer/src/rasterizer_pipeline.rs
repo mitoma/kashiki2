@@ -1,10 +1,11 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt::Debug, fs};
 
 use image::DynamicImage;
 use wgpu::include_wgsl;
 
 use crate::{
     background_bind_group::BackgroundImageBindGroup,
+    debug_mode::{DEBUG_FLAGS, DebugFlags},
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::GlyphVertexBuffer,
     outline_bind_group::OutlineBindGroup,
@@ -131,11 +132,23 @@ impl RasterizerPipeline {
         };
 
         // overlap
+        let overlap_shader = DEBUG_FLAGS
+            .debug_shader
+            .then(|| {
+                device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("font_rasterizer/src/shader/overlap_shader_debug.wgsl"),
+                    source: wgpu::ShaderSource::Wgsl(
+                        fs::read_to_string("font_rasterizer/src/shader/overlap_shader_debug.wgsl")
+                            .unwrap()
+                            .into(),
+                    ),
+                })
+            })
+            .unwrap_or_else(|| device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR));
+
         let overlap_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
         let overlap_record_buffer = OverlapRecordBuffer::new(device, (width, height));
-
-        let overlap_shader = device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR);
 
         let overlap_bind_group = OverlapBindGroup::new(device, &overlap_record_buffer, width);
 
@@ -191,9 +204,22 @@ impl RasterizerPipeline {
             });
 
         // outline
+        let outline_shader = DEBUG_FLAGS
+            .debug_shader
+            .then(|| {
+                device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("font_rasterizer/src/shader/outline_shader_debug.wgsl"),
+                    source: wgpu::ShaderSource::Wgsl(
+                        fs::read_to_string("font_rasterizer/src/shader/outline_shader_debug.wgsl")
+                            .unwrap()
+                            .into(),
+                    ),
+                })
+            })
+            .unwrap_or_else(|| device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR));
+
         let outline_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Outline Texture"));
-        let outline_shader = device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR);
         let outline_bind_group = OutlineBindGroup::new(device, width);
         let outline_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

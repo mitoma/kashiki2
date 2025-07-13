@@ -1,5 +1,6 @@
 use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use cgmath::One;
+use clap::Parser;
 use font_collector::FontRepository;
 use instant::{Duration, SystemTime};
 
@@ -22,22 +23,30 @@ use winit::event::WindowEvent;
 const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
+#[derive(Parser, Debug, Clone)]
+pub struct Args {
+    /// use high performance mode
+    #[arg(short, long, default_value = "あ")]
+    pub char_of_test: char,
+}
+
 pub fn main() {
+    let args = Args::parse();
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
-    pollster::block_on(run());
+    pollster::block_on(run(args));
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-pub async fn run() {
+pub async fn run(args: Args) {
     let mut font_repository = FontRepository::default();
     font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
     font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
     let window_size = WindowSize::new(512, 512);
-    let callback = SingleCharCallback::new(window_size, 'あ');
+    let callback = SingleCharCallback::new(window_size, args.char_of_test);
     let support = SimpleStateSupport {
         window_icon: None,
         window_title: "Hello".to_string(),
