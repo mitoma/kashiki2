@@ -24,17 +24,17 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MDBOOK_VERSION: 0.4.40
-      WASM_PACK_VERSION: 0.13.0
     steps:
       - uses: actions/checkout@v4
       - name: Install mdBook
         run: |
           curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf -y | sh
           rustup update
+          rustup target add wasm32-unknown-unknown
           cargo install --version ${MDBOOK_VERSION} mdbook
-      - name: Install wasm-pack
+      - name: Install wasm-bindgen and wasm-opt
         run: |
-          cargo install --version ${WASM_PACK_VERSION} wasm-pack
+          cargo install wasm-bindgen-cli wasm-opt
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
