@@ -40,7 +40,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // 前のステージで取得したオーバーラップ数を取得
     let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = ipos.x + ipos.y * u_buffer.u_width;
+    let pos = (ipos.x + ipos.y * u_buffer.u_width) * 2u;
+    let alpha_total = pos + 1u;
+    let alpha_count = pos + 2u;
+
     let counts = overlap_count_bits[pos];
 
     // 奇数かどうかを判定し、奇数なら色をつける
