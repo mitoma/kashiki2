@@ -15,6 +15,7 @@ cgmath = { workspace = true }
 rand = { workspace = true }
 bitflags = { workspace = true }
 cfg-if = { workspace = true }
+smaa = { workspace = true }
 
 nenobi = { git = "https://github.com/mitoma/sandbox", branch = "main" }
 font_rasterizer = { path = "../font_rasterizer" }

@@ -14,6 +14,7 @@ use font_rasterizer::{
 };
 use image::{DynamicImage, ImageBuffer, Rgba};
 use log::info;
+use smaa::{SmaaMode, SmaaTarget};
 
 use crate::{
     InputResult, RenderData, SimpleStateCallback, easing_value::EasingPointN,
@@ -50,6 +51,7 @@ enum RenderTarget {
     Window {
         surface: wgpu::Surface<'static>,
         surface_texture: Option<wgpu::SurfaceTexture>,
+        smaa_target: Option<smaa::SmaaTarget>,
         config: wgpu::SurfaceConfiguration,
     },
     Image {
@@ -68,18 +70,40 @@ impl RenderTarget {
         }
     }
 
-    fn get_screen_view(&mut self) -> Result<wgpu::TextureView, SurfaceError> {
+    fn get_screen_view(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+    ) -> Result<wgpu::TextureView, SurfaceError> {
         match self {
             RenderTarget::Window {
                 surface,
                 surface_texture,
+                smaa_target,
                 ..
             } => {
                 let st = surface.get_current_texture()?;
+
+                let width = st.texture.width();
+                let height = st.texture.height();
+                let format = st.texture.format();
+
                 let texture_view = st
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
                 surface_texture.replace(st);
+
+                if smaa_target.is_none() {
+                    let target =
+                        SmaaTarget::new(&device, &queue, width, height, format, SmaaMode::Smaa1X);
+                    smaa_target.replace(target);
+                }
+
+                if let Some(target) = smaa_target {
+                    let frame = target.start_frame(device, queue, &texture_view);
+                    return Ok(frame.clone());
+                }
+
                 Ok(texture_view)
             }
             RenderTarget::Image {
@@ -256,6 +280,7 @@ impl RenderState {
                 RenderTarget::Window {
                     surface,
                     surface_texture: None,
+                    smaa_target: None,
                     config,
                 }
             }
@@ -400,11 +425,13 @@ impl RenderState {
                 RenderTarget::Window {
                     ref mut surface,
                     ref mut config,
+                    ref mut smaa_target,
                     ..
                 } => {
                     config.width = new_size.width;
                     config.height = new_size.height;
                     surface.configure(&self.context.device, config);
+                    smaa_target.take();
                 }
                 RenderTarget::Image { .. } => {
                     // 何もしない
@@ -491,7 +518,9 @@ impl RenderState {
             .overlap_bind_group
             .update_buffer(&self.context.queue);
         record_start_of_phase("render 2-2: create texture");
-        let screen_view = self.render_target.get_screen_view()?;
+        let screen_view = self
+            .render_target
+            .get_screen_view(&self.context.device, &self.context.queue)?;
 
         record_start_of_phase("render 3: callback render");
         let RenderData {
