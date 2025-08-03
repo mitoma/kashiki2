@@ -1,11 +1,11 @@
-use std::{collections::BTreeMap, fmt::Debug, fs};
+use std::{collections::BTreeMap, fs};
 
 use image::DynamicImage;
 use wgpu::include_wgsl;
 
 use crate::{
     background_bind_group::BackgroundImageBindGroup,
-    debug_mode::{DEBUG_FLAGS, DebugFlags},
+    debug_mode::DEBUG_FLAGS,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::GlyphVertexBuffer,
     outline_bind_group::OutlineBindGroup,
