@@ -136,9 +136,9 @@ impl RasterizerPipeline {
             .debug_shader
             .then(|| {
                 device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                    label: Some("font_rasterizer/src/shader/overlap_shader_debug.wgsl"),
+                    label: Some("font_rasterizer/src/shader/overlap_shader.debug.wgsl"),
                     source: wgpu::ShaderSource::Wgsl(
-                        fs::read_to_string("font_rasterizer/src/shader/overlap_shader_debug.wgsl")
+                        fs::read_to_string("font_rasterizer/src/shader/overlap_shader.debug.wgsl")
                             .unwrap()
                             .into(),
                     ),
@@ -210,7 +210,7 @@ impl RasterizerPipeline {
                 device.create_shader_module(wgpu::ShaderModuleDescriptor {
                     label: Some("font_rasterizer/src/shader/outline_shader_debug.wgsl"),
                     source: wgpu::ShaderSource::Wgsl(
-                        fs::read_to_string("font_rasterizer/src/shader/outline_shader_debug.wgsl")
+                        fs::read_to_string("font_rasterizer/src/shader/outline_shader.debug.wgsl")
                             .unwrap()
                             .into(),
                     ),
