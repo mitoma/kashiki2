@@ -1,0 +1,6 @@
+[env]
+FONT_RASTERIZER_DEBUG = "true"
+
+[tasks.example]
+description = "example task"
+run = "echo 'Hello'"
