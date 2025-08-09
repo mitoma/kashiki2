@@ -44,17 +44,17 @@ impl Buffer {
     }
 
     pub(crate) fn insert_enter(&mut self, caret: &mut Caret) {
-        if let Some(line) = self.lines.get_mut(caret.position.row) {
-            if let Some(mut next_line) = line.insert_enter(caret.position.col) {
-                self.lines
-                    .iter_mut()
-                    .skip(caret.position.row + 1)
-                    .rev()
-                    .for_each(|line| line.update_position(line.row_num + 1, &self.sender));
-                next_line.update_position(caret.position.row + 1, &self.sender);
-                self.lines.insert(caret.position.row + 1, next_line);
-                caret.move_to(caret.position.next_row_first(), &self.sender);
-            }
+        if let Some(line) = self.lines.get_mut(caret.position.row)
+            && let Some(mut next_line) = line.insert_enter(caret.position.col)
+        {
+            self.lines
+                .iter_mut()
+                .skip(caret.position.row + 1)
+                .rev()
+                .for_each(|line| line.update_position(line.row_num + 1, &self.sender));
+            next_line.update_position(caret.position.row + 1, &self.sender);
+            self.lines.insert(caret.position.row + 1, next_line);
+            caret.move_to(caret.position.next_row_first(), &self.sender);
         }
     }
 

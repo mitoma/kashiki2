@@ -69,17 +69,20 @@ impl Editor {
 
     pub fn operation(&mut self, op: &EditorOperation) {
         self.action_width_selection_update(op, |itself| {
-            if EditorOperation::Undo == *op {
-                itself.undo();
-                return;
-            }
-            if EditorOperation::Mark == *op {
-                itself.mark();
-                return;
-            }
-            if EditorOperation::UnMark == *op {
-                itself.unmark();
-                return;
+            match op {
+                EditorOperation::Undo => {
+                    itself.undo();
+                    return;
+                }
+                EditorOperation::Mark => {
+                    itself.mark();
+                    return;
+                }
+                EditorOperation::UnMark => {
+                    itself.unmark();
+                    return;
+                }
+                _ => (),
             }
             let reverse_actions = BufferApplyer::apply_action(
                 &mut itself.buffer,
@@ -197,11 +200,11 @@ impl Editor {
                     main_caret_pos.row = phisical_row;
                     main_caret_pos.col = phisical_col;
                 }
-                if let Some(mark) = mark_pos.as_mut() {
-                    if self.mark.unwrap().position.row == line.row_num {
-                        mark.row = phisical_row;
-                        mark.col = phisical_col;
-                    }
+                if let Some(mark) = mark_pos.as_mut()
+                    && self.mark.unwrap().position.row == line.row_num
+                {
+                    mark.row = phisical_row;
+                    mark.col = phisical_col;
                 }
             }
 

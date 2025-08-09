@@ -4,7 +4,7 @@ use crate::buffer::*;
 use crate::caret::*;
 use crate::editor::ChangeEvent;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum EditorOperation {
     MoveTo(Caret),
 

@@ -157,7 +157,7 @@ impl SimpleStateCallback for SingleCharCallback {
             .update_camera_aspect(&mut self.camera, window_size);
     }
 
-    fn render(&mut self) -> RenderData {
+    fn render(&'_ mut self) -> RenderData<'_> {
         RenderData {
             camera: &self.camera,
             glyph_instances: self.glyphs.iter().collect(),

@@ -89,7 +89,7 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn resize(&mut self, _window_size: WindowSize) {}
 
-    fn render(&mut self) -> RenderData {
+    fn render(&'_ mut self) -> RenderData<'_> {
         RenderData {
             camera: &self.camera,
             glyph_instances: vec![],
