@@ -1,0 +1,12 @@
+[tools]
+"cargo:mdbook" = "latest"
+"cargo:wasm-bindgen-cli" = "latest"
+"cargo:wasm-opt" = "latest"
+
+[tasks.site]
+description = "Build the site"
+run = "./build-sites.sh"
+
+[tasks.dev-site]
+description = "Start the site server"
+run = "./dev-sites.sh"
