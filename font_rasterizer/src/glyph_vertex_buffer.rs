@@ -54,13 +54,12 @@ impl GlyphVertexBuffer {
         c: &char,
         direction: &Direction,
     ) -> Result<DrawInfo, FontRasterizerError> {
-        if direction == &Direction::Vertical {
-            if let Ok(info) = self
+        if direction == &Direction::Vertical
+            && let Ok(info) = self
                 .vector_vertex_buffer
                 .draw_info(&(*c, Direction::Vertical))
-            {
-                return Ok(info);
-            }
+        {
+            return Ok(info);
         }
         self.vector_vertex_buffer
             .draw_info(&(*c, Direction::Horizontal))

@@ -68,12 +68,12 @@ fn inner_get_width(faces: &[FontData], c: char) -> CharWidth {
 }
 
 fn calc_width(c: char, face: &Face) -> Option<CharWidth> {
-    if let Some(glyph_id) = face.glyph_index(c) {
-        if let Some(rect) = face.glyph_bounding_box(glyph_id) {
-            // rect の横幅が face の高さの半分を超える場合は Wide とする
-            if face.height() < rect.width() * 2 {
-                return Some(CharWidth::Wide);
-            }
+    if let Some(glyph_id) = face.glyph_index(c)
+        && let Some(rect) = face.glyph_bounding_box(glyph_id)
+    {
+        // rect の横幅が face の高さの半分を超える場合は Wide とする
+        if face.height() < rect.width() * 2 {
+            return Some(CharWidth::Wide);
         }
     }
     debug!("calc_width:None");

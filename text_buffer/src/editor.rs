@@ -197,11 +197,11 @@ impl Editor {
                     main_caret_pos.row = phisical_row;
                     main_caret_pos.col = phisical_col;
                 }
-                if let Some(mark) = mark_pos.as_mut() {
-                    if self.mark.unwrap().position.row == line.row_num {
-                        mark.row = phisical_row;
-                        mark.col = phisical_col;
-                    }
+                if let Some(mark) = mark_pos.as_mut()
+                    && self.mark.unwrap().position.row == line.row_num
+                {
+                    mark.row = phisical_row;
+                    mark.col = phisical_col;
                 }
             }
 
