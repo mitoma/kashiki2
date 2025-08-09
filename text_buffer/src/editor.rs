@@ -69,17 +69,20 @@ impl Editor {
 
     pub fn operation(&mut self, op: &EditorOperation) {
         self.action_width_selection_update(op, |itself| {
-            if EditorOperation::Undo == *op {
-                itself.undo();
-                return;
-            }
-            if EditorOperation::Mark == *op {
-                itself.mark();
-                return;
-            }
-            if EditorOperation::UnMark == *op {
-                itself.unmark();
-                return;
+            match op {
+                EditorOperation::Undo => {
+                    itself.undo();
+                    return;
+                }
+                EditorOperation::Mark => {
+                    itself.mark();
+                    return;
+                }
+                EditorOperation::UnMark => {
+                    itself.unmark();
+                    return;
+                }
+                _ => (),
             }
             let reverse_actions = BufferApplyer::apply_action(
                 &mut itself.buffer,
