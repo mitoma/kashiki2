@@ -85,10 +85,10 @@ impl TextInstances {
     }
 
     pub(crate) fn pre_remove(&mut self, key: &TextInstancesKey) {
-        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
-            if let Some(instance) = instances.remove(&key.to_instance_key()) {
-                instances.insert(key.to_pre_remove_instance_key(), instance);
-            }
+        if let Some(instances) = self.glyph_instances.get_mut(&key.c)
+            && let Some(instance) = instances.remove(&key.to_instance_key())
+        {
+            instances.insert(key.to_pre_remove_instance_key(), instance);
         }
     }
 
@@ -168,10 +168,10 @@ impl CaretInstances {
     }
 
     pub(crate) fn pre_remove(&mut self, key: &TextInstancesKey) {
-        if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string()) {
-            if let Some(instance) = instances.remove(&key.to_instance_key()) {
-                instances.insert(key.to_pre_remove_instance_key(), instance);
-            }
+        if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string())
+            && let Some(instance) = instances.remove(&key.to_instance_key())
+        {
+            instances.insert(key.to_pre_remove_instance_key(), instance);
         }
     }
 

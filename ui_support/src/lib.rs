@@ -406,7 +406,7 @@ pub trait SimpleStateCallback {
     fn update(&mut self, context: &StateContext);
     fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
     fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
-    fn render(&mut self) -> RenderData;
+    fn render(&'_ mut self) -> RenderData<'_>;
     fn shutdown(&mut self);
 }
 

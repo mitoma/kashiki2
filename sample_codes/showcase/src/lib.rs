@@ -234,7 +234,7 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn render(&mut self) -> RenderData {
+    fn render(&'_ mut self) -> RenderData<'_> {
         let mut world_instances = self.world.glyph_instances();
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);

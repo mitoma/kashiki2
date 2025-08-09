@@ -22,32 +22,32 @@ impl SelectOption {
     }
 
     pub fn option_string(&self, padding: usize) -> String {
-        if self.actions.len() == 1 {
-            if let Action::Command(namespace, name, arg) = &self.actions[0] {
-                match arg {
-                    ActionArgument::String(_)
-                    | ActionArgument::String2(_, _)
-                    | ActionArgument::Integer(_)
-                    | ActionArgument::Float(_)
-                    | ActionArgument::Point(_) => {
-                        return format!(
-                            "{} {padding}{}:{}({})",
-                            self.text,
-                            **namespace,
-                            **name,
-                            arg,
-                            padding = " ".repeat(padding)
-                        );
-                    }
-                    ActionArgument::None => {
-                        return format!(
-                            "{} {padding}{}:{}",
-                            self.text,
-                            **namespace,
-                            **name,
-                            padding = " ".repeat(padding)
-                        );
-                    }
+        if self.actions.len() == 1
+            && let Action::Command(namespace, name, arg) = &self.actions[0]
+        {
+            match arg {
+                ActionArgument::String(_)
+                | ActionArgument::String2(_, _)
+                | ActionArgument::Integer(_)
+                | ActionArgument::Float(_)
+                | ActionArgument::Point(_) => {
+                    return format!(
+                        "{} {padding}{}:{}({})",
+                        self.text,
+                        **namespace,
+                        **name,
+                        arg,
+                        padding = " ".repeat(padding)
+                    );
+                }
+                ActionArgument::None => {
+                    return format!(
+                        "{} {padding}{}:{}",
+                        self.text,
+                        **namespace,
+                        **name,
+                        padding = " ".repeat(padding)
+                    );
                 }
             }
         }

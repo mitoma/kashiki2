@@ -178,10 +178,10 @@ impl ModalWorld for CategorizedMemosWorld {
                 self.add_modal(context, &mut chars, Box::new(add_category_ui(context)));
             }
             "add-category" => {
-                if let ActionArgument::String2(category, _) = argument {
-                    if !self.memos.categories().contains(&category) {
-                        self.memos.add_memo(Some(&category), String::new());
-                    }
+                if let ActionArgument::String2(category, _) = argument
+                    && !self.memos.categories().contains(&category)
+                {
+                    self.memos.add_memo(Some(&category), String::new());
                 }
             }
             "rename-category-select-ui" => {

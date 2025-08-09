@@ -24,7 +24,7 @@ impl FontVertexConverter {
         ["Noto Emoji Regular"].contains(&fontname)
     }
 
-    fn faces(&self) -> Vec<(Face, bool)> {
+    fn faces(&'_ self) -> Vec<(Face<'_>, bool)> {
         self.fonts
             .iter()
             .flat_map(|f| {
@@ -35,9 +35,9 @@ impl FontVertexConverter {
     }
 
     fn get_face_and_glyph_ids(
-        &self,
+        &'_ self,
         c: char,
-    ) -> Result<(Face, bool, CharGlyphIds), FontRasterizerError> {
+    ) -> Result<(Face<'_>, bool, CharGlyphIds), FontRasterizerError> {
         let mut buf = UnicodeBuffer::new();
         buf.set_direction(Direction::TopToBottom);
         buf.add(c, 0);

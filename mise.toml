@@ -1,0 +1,27 @@
+[tasks.kashikishi]
+description = "Run the kashikishi"
+run = "cargo run --bin kashikishi --release"
+
+[tasks.fmt]
+description = "Format the code"
+run = "cargo fmt --all"
+
+[tasks.clippy]
+description = "Run clippy"
+run = "cargo clippy --all -- -D clippy::all"
+
+[tasks.clippy-tests]
+description = "Run clippy for test and examples"
+run = "cargo clippy --tests --examples -- -D clippy::all"
+
+[tasks.clippy-tests-fix]
+description = "Fix clippy error for test and examples"
+run = "cargo clippy --tests --examples --fix"
+
+[tasks.test]
+description = "Run tests"
+run = "cargo test --all"
+
+[tasks.check]
+description = "Run checks"
+depends = ["fmt", "clippy", "clippy-tests", "test"]
