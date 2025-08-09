@@ -1,3 +1,5 @@
+# 残念ながら Windows では `--env wasm` は使えない状況です
+# 理由: wasm-opt が Windows で install できないため
 [tools]
 "cargo:mdbook" = "latest"
 "cargo:wasm-bindgen-cli" = "latest"
