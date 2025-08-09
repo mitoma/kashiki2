@@ -616,9 +616,9 @@ mod tests {
                     .path()
                     .extension()
                     .and_then(|ext| if ext == "png" { Some(entry) } else { None })
-                {
-                    let _ = std::fs::remove_file(f.path());
-                }
+            {
+                let _ = std::fs::remove_file(f.path());
+            }
         });
 
         let segments = paths_to_path_segments(&paths);
