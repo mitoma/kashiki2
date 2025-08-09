@@ -116,7 +116,7 @@ where
         }
     }
 
-    pub(crate) fn draw_info(&self, key: &T) -> Result<DrawInfo, FontRasterizerError> {
+    pub(crate) fn draw_info(&'_ self, key: &T) -> Result<DrawInfo<'_>, FontRasterizerError> {
         let index = self
             .buffer_index
             .get(key)

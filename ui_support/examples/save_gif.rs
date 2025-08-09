@@ -142,7 +142,7 @@ impl SimpleStateCallback for SingleCharCallback {
         self.world.change_window_size(window_size);
     }
 
-    fn render(&mut self) -> RenderData {
+    fn render(&'_ mut self) -> RenderData<'_> {
         RenderData {
             camera: self.world.camera(),
             glyph_instances: self.world.glyph_instances(),

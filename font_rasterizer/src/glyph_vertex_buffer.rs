@@ -50,10 +50,10 @@ impl GlyphVertexBuffer {
     }
 
     pub(crate) fn draw_info(
-        &self,
+        &'_ self,
         c: &char,
         direction: &Direction,
-    ) -> Result<DrawInfo, FontRasterizerError> {
+    ) -> Result<DrawInfo<'_>, FontRasterizerError> {
         if direction == &Direction::Vertical
             && let Ok(info) = self
                 .vector_vertex_buffer
