@@ -611,15 +611,14 @@ mod tests {
             std::fs::create_dir(image_dir_path).unwrap();
         }
         image_dir_path.read_dir().unwrap().for_each(|entry| {
-            if let Ok(entry) = entry {
-                if let Some(f) = entry
+            if let Ok(entry) = entry
+                && let Some(f) = entry
                     .path()
                     .extension()
                     .and_then(|ext| if ext == "png" { Some(entry) } else { None })
                 {
                     let _ = std::fs::remove_file(f.path());
                 }
-            }
         });
 
         let segments = paths_to_path_segments(&paths);
