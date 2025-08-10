@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use font_collector::FontData;
-use rustybuzz::{Direction, Face, UnicodeBuffer, shape, ttf_parser::GlyphId};
+use log::info;
+use rustybuzz::{
+    Direction, Face, UnicodeBuffer, shape,
+    ttf_parser::{GlyphId, Tag},
+};
 use ttf_overlap_remover::OverlapRemoveOutlineBuilder;
 
 use crate::{
@@ -131,11 +135,32 @@ impl GlyphVertexBuilder {
         };
 
         let global = face.global_bounding_box();
+        /*
         let global_width = global.width() as f32;
         let global_height = global.height() as f32;
+         */
         let rect_em = face.units_per_em() as f32;
-        let center_x = global_width * (width.to_f32() / 2.0) + global.x_min as f32;
-        let center_y = global_height / 2.0 + global.y_min as f32;
+        let mut face = face.clone();
+        //let _ = face.set_variation(Tag::from_bytes(b"wdth"), 125.0).unwrap();
+
+        //let center_x = (rect.x_min + rect.x_max) as f32 / 2.0;
+        //let center_y = (rect.y_min + rect.y_max) as f32 / 2.0;
+        let center_x = face.glyph_hor_advance(glyph_id).unwrap() as f32 / 2.0;
+        let center_y = face.capital_height().unwrap() as f32 / 2.0;
+
+        //let center_x = global_width * (width.to_f32() / 2.0) + global.x_min as f32;
+        //let center_y = global_height / 2.0 + global.y_min as f32;
+        // global から center_y までの値を全部 info! で書き出す
+        //info!(
+        //    "global: ({}, {}) - ({}, {})",
+        //    global.x_min, global.y_min, global.x_max, global.y_max
+        //);
+        info!("center: ({}, {}), rect_em: {}", center_x, center_y, rect_em);
+
+        info!(
+            "rect: ({}, {}) - ({}, {})",
+            rect.x_min, rect.y_min, rect.x_max, rect.y_max
+        );
 
         let mut builder = builder.with_options(VertexBuilderOptions::new(
             [center_x, center_y],
