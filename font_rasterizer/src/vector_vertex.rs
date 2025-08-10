@@ -41,8 +41,11 @@ impl VectorVertexBuilder {
         let center: [f32; 2] = self.builder_options.center;
         let unit_em: f32 = self.builder_options.unit_em;
         let coordinate_system = self.builder_options.coordinate_system;
-        let [center_x, center_y] = coordinate_system.transform(center[0], center[1]);
         let scale_option = self.builder_options.scale;
+        let [center_x, center_y] = coordinate_system.transform(center[0], center[1]);
+        let [center_x, center_y] = scale_option.map_or([center_x, center_y], |[width, height]| {
+            [center_x * width, center_y * height]
+        });
 
         let vertex = self
             .vertex
