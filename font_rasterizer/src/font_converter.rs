@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use font_collector::FontData;
-use rustybuzz::{Direction, Face, UnicodeBuffer, shape, ttf_parser::GlyphId};
+use log::info;
+use rustybuzz::{
+    Direction, Face, UnicodeBuffer, shape,
+    ttf_parser::{GlyphId, Tag},
+};
 use ttf_overlap_remover::OverlapRemoveOutlineBuilder;
 
 use crate::{
@@ -21,15 +25,37 @@ impl FontVertexConverter {
     }
 
     fn is_remove_outline_fontname(fontname: &str) -> bool {
-        ["Noto Emoji Regular"].contains(&fontname)
+        // Noto 系の文字を全部オーバーラップ除去対象にしてみる
+        // TODO おそらくひたすら遅くなるはずなのでオーバーラップ除去処理結果をキャッシュする実装を追加したい
+        //["Noto Emoji Regular"].contains(&fontname)
+        fontname.contains("Noto")
     }
 
     fn faces(&'_ self) -> Vec<(Face<'_>, bool)> {
         self.fonts
             .iter()
             .flat_map(|f| {
-                Face::from_slice(&f.binary, f.index)
-                    .map(|face| (face, Self::is_remove_outline_fontname(&f.font_name)))
+                Face::from_slice(&f.binary, f.index).map(|face| {
+                    // variable font の際に wght を Noto 系の Regular で指定されがちな 400 に指定する
+                    // なぜなら、デフォルトだと 100 になってしまっておりやたら細くなってしまうからだ
+                    // TODO 固定の指定ではなくて柔軟に、wght 以外のタグに指定できるようにしていく必要がある
+                    let mut face = face.clone();
+                    if face.is_variable() {
+                        for axis in face.variation_axes() {
+                            info!("variation: {}={}", axis.tag, axis.def_value);
+                        }
+                        for cood in face.variation_coordinates() {
+                            info!("coordinate: {}", cood.get());
+                        }
+
+                        info!("set weight");
+                        let _ = face.set_variation(Tag::from_bytes(b"wght"), 400.0);
+                    } else {
+                        info!("not variable");
+                    }
+
+                    (face, Self::is_remove_outline_fontname(&f.font_name))
+                })
             })
             .collect::<Vec<_>>()
     }
