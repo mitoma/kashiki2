@@ -132,19 +132,18 @@ impl RasterizerPipeline {
         };
 
         // overlap
-        let overlap_shader = DEBUG_FLAGS
-            .debug_shader
-            .then(|| {
-                device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                    label: Some("font_rasterizer/src/shader/overlap_shader.debug.wgsl"),
-                    source: wgpu::ShaderSource::Wgsl(
-                        fs::read_to_string("font_rasterizer/src/shader/overlap_shader.debug.wgsl")
-                            .unwrap()
-                            .into(),
-                    ),
-                })
+        let overlap_shader = if DEBUG_FLAGS.debug_shader {
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("font_rasterizer/src/shader/overlap_shader.debug.wgsl"),
+                source: wgpu::ShaderSource::Wgsl(
+                    fs::read_to_string("font_rasterizer/src/shader/overlap_shader.debug.wgsl")
+                        .unwrap()
+                        .into(),
+                ),
             })
-            .unwrap_or_else(|| device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR));
+        } else {
+            device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR)
+        };
 
         let overlap_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
@@ -204,19 +203,18 @@ impl RasterizerPipeline {
             });
 
         // outline
-        let outline_shader = DEBUG_FLAGS
-            .debug_shader
-            .then(|| {
-                device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                    label: Some("font_rasterizer/src/shader/outline_shader_debug.wgsl"),
-                    source: wgpu::ShaderSource::Wgsl(
-                        fs::read_to_string("font_rasterizer/src/shader/outline_shader.debug.wgsl")
-                            .unwrap()
-                            .into(),
-                    ),
-                })
+        let outline_shader = if DEBUG_FLAGS.debug_shader {
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("font_rasterizer/src/shader/outline_shader_debug.wgsl"),
+                source: wgpu::ShaderSource::Wgsl(
+                    fs::read_to_string("font_rasterizer/src/shader/outline_shader.debug.wgsl")
+                        .unwrap()
+                        .into(),
+                ),
             })
-            .unwrap_or_else(|| device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR));
+        } else {
+            device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR)
+        };
 
         let outline_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Outline Texture"));
