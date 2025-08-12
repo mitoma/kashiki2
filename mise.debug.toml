@@ -11,3 +11,13 @@ description = "Run the aatest"
 run = "./target/release/examples/aa_test"
 run_windows = ".\\target\\release\\examples\\aa_test.exe"
 depends = "build-aatest"
+
+[tasks.build-aasvgtest]
+description = "Run the aasvgtest"
+run = "cargo build --example aa_svg_test --release"
+
+[tasks.run-aasvgtest]
+description = "Run the aasvgtest"
+run = "./target/release/examples/aa_svg_test"
+run_windows = ".\\target\\release\\examples\\aa_svg_test.exe"
+depends = "build-aasvgtest"
