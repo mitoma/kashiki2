@@ -40,7 +40,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // 前のステージで取得したオーバーラップ数を取得
     let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = (ipos.x + ipos.y * u_buffer.u_width) * 2u;
+    let pos = (ipos.x + ipos.y * u_buffer.u_width) * 3u;
     let alpha_total = pos + 1u;
     let alpha_count = pos + 2u;
 
@@ -49,24 +49,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // 奇数かどうかを判定し、奇数なら色をつける
     if counts % 2u == 1u {
         return vec4<f32>(color.rgba);
-    } else {
-        return vec4<f32>(0f, 0f, 0f, 0f);
-    }
-}
-
-@fragment
-fn fs_main_org(in: VertexOutput) -> @location(0) vec4<f32> {
-    // テクスチャから色を取得
-    let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-
-    // 前のステージで取得したオーバーラップ数を取得
-    let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = ipos.x + ipos.y * u_buffer.u_width;
-    let counts = overlap_count_bits[pos];
-
-    // 奇数かどうかを判定し、奇数なら色をつける
-    if counts % 2u == 1u {
-        return vec4<f32>(color.rgb, 1.0);
     } else {
         return vec4<f32>(0f, 0f, 0f, 0f);
     }

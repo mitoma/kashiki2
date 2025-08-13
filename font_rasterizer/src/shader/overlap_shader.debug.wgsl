@@ -354,17 +354,6 @@ fn vs_main_minimum(
 // Fragment shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // R = ポリゴンの重なった数
-    // G, B = ベジエ曲線
-
-    // G, B のいずれかが 0 でないとき
-    //let d = distance_to_edge;
-    //let w = fwidth(d);
-    //let alpha = clamp(0.5 - d / w, 0.0, 1.0);
-
-    //let distance = in.wait.g;
-    //let in_bezier = distance < 0.9;
-    //let alpha = 0.5;
     let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
     let pos = (ipos.x + ipos.y * u_buffer.u_width) * 3u;
     let alpha_total = pos + 1u;
@@ -375,42 +364,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // 変化量。変化量が大きいほど急激なため、アルファ値を考慮しない方がよいと考えられる。
     let distance_fwidth = fwidth(distance);
 
-    if distance_fwidth <= 0.3 {
-        // fwidth が 0 の場合は、距離が変化しないため、アルファ値を 1.0 にする
-        return vec4<f32>(in.color, 1.0);
-    }
-
     let alpha = clamp(0.5 - distance / distance_fwidth, 0.0, 1.0);
 
     let in_bezier = distance < 0.0;
 
-
     // ポリゴンの重なりを記録する(次のステージで使う)
     if in_bezier {
         atomicAdd(&overlap_count_bits[pos], 1u);
-        atomicAdd(&overlap_count_bits[alpha_total], alpha);
+        atomicAdd(&overlap_count_bits[alpha_total], 1u);
         atomicAdd(&overlap_count_bits[alpha_count], 1u);
     }
-
-    return vec4<f32>(in.color, alpha);
-}
-
-// アンチエイリアシングしてないけどまともな品質のやつ
-@fragment
-fn fs_main_org(in: VertexOutput) -> @location(0) vec4<f32> {
-    // R = ポリゴンの重なった数
-    // G, B = ベジエ曲線
-
-    // G, B のいずれかが 0 でないとき
-    let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
-
-    let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = ipos.x + ipos.y * u_buffer.u_width;
-
-    // ポリゴンの重なりを記録する(次のステージで使う)
-    if in_bezier {
-        atomicAdd(&overlap_count_bits[pos], 1u);
-    }
-
-    return vec4<f32>(in.color, 1.0);
+    return vec4<f32>(in.color.rgb, alpha);
 }
