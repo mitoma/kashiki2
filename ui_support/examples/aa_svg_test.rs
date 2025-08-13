@@ -1,3 +1,5 @@
+use std::fs;
+
 use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use cgmath::One;
 use clap::Parser;
@@ -19,30 +21,22 @@ use ui_support::{
 };
 use winit::event::WindowEvent;
 
-#[derive(Parser, Debug, Clone)]
-pub struct Args {
-    /// use high performance mode
-    #[arg(short, long, default_value = "あ")]
-    pub char_of_test: char,
-}
-
 pub fn main() {
-    let args = Args::parse();
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
-    pollster::block_on(run(args));
+    pollster::block_on(run());
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-pub async fn run(args: Args) {
+pub async fn run() {
     let mut font_collector = FontCollector::default();
     font_collector.add_system_fonts();
     let font_repository = FontRepository::new(font_collector);
 
-    let window_size = WindowSize::new(512, 512);
-    let callback = SingleCharCallback::new(window_size, args.char_of_test);
+    let window_size = WindowSize::new(512, 256);
+    let callback = SingleCharCallback::new(window_size);
     let support = SimpleStateSupport {
         window_icon: None,
         window_title: "Hello".to_string(),
@@ -98,6 +92,7 @@ pub async fn run(args: Args) {
         info!("sended image to encoder. frame: {}", idx);
     }
     encoder.finalize();
+    fs::copy(filename, "target/test-svg-aa.png").unwrap();
     info!("finish!");
 }
 
@@ -108,7 +103,7 @@ struct SingleCharCallback {
 }
 
 impl SingleCharCallback {
-    fn new(window_size: WindowSize, target_char: char) -> Self {
+    fn new(window_size: WindowSize) -> Self {
         Self {
             camera: Camera::basic(window_size),
             camera_controller: CameraController::new(10.0),
@@ -119,8 +114,18 @@ impl SingleCharCallback {
 
 impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
-        let value = InstanceAttributes {
-            position: (0.0, 0.0, 0.0).into(),
+        context.register_svg(
+            "bezier".into(),
+            include_str!("../../font_rasterizer/data/test_shapes_bezier.svg").into(),
+        );
+
+        context.register_svg(
+            "tri".into(),
+            include_str!("../../font_rasterizer/data/test_shapes_tri.svg").into(),
+        );
+
+        let tri_value = InstanceAttributes {
+            position: (-0.2, 0.0, 0.0).into(),
             rotation: cgmath::Quaternion::one(),
             world_scale: [1.0, 1.0],
             instance_scale: [0.5, 0.5],
@@ -128,13 +133,23 @@ impl SimpleStateCallback for SingleCharCallback {
             motion: MotionFlags::ZERO_MOTION,
             ..Default::default()
         };
-        context.register_svg(
-            "tri".into(),
-            include_str!("../../font_rasterizer/data/test_shapes_bezier.svg").into(),
-        );
-        let mut instances = VectorInstances::new("tri".to_string(), &context.device);
-        instances.push(value);
-        self.vectors.push(instances);
+        let mut tri_instances = VectorInstances::new("tri".to_string(), &context.device);
+        tri_instances.push(tri_value);
+
+        let bezier_value = InstanceAttributes {
+            position: (0.2, 0.0, 0.0).into(),
+            rotation: cgmath::Quaternion::one(),
+            world_scale: [1.0, 1.0],
+            instance_scale: [0.5, 0.5],
+            color: context.color_theme.text_emphasized().get_color(),
+            motion: MotionFlags::ZERO_MOTION,
+            ..Default::default()
+        };
+        let mut bezier_instances = VectorInstances::new("bezier".to_string(), &context.device);
+        bezier_instances.push(bezier_value);
+
+        self.vectors.push(tri_instances);
+        self.vectors.push(bezier_instances);
         debug!("init!");
     }
 
