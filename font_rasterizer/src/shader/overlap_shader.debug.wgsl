@@ -368,9 +368,12 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let pixel_width_harf = pixel_width / 2;
 
     let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
+    // 隣接ピクセルの距離との差分
+    let distance_fwidth = fwidth(distance);
 
     // u32 max 4294967295 , 65536
-    let alpha = remapClamped(distance, -pixel_width, pixel_width, 1.0, 0.0 );
+    let alpha = remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0 );
+    //let alpha = remapClamped(distance, -distance_fwidth, distance_fwidth, 1.0, 0.0 );
     let alpha_int = clamp(u32(alpha * f32(65536)), 0, 65536);
     
     let in_bezier = distance < pixel_width;
