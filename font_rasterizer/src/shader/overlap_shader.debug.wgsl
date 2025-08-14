@@ -360,34 +360,34 @@ fn remapClamped(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) ->
 // Fragment shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    let is_bezier = (in.wait.r == 1.0);
+
     let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
     let pos = (ipos.x + ipos.y * u_buffer.u_width) * 3u;
     let alpha_total = pos + 1u;
     let alpha_count = pos + 2u;
     let pixel_width = 1.0 / f32(u_buffer.u_width);
 
-    let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
-    // 隣接ピクセルの距離との差分
-    let distance_fwidth = fwidth(distance);
+    if is_bezier {
+        // Bezier curveの場合の処理
+        let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
+        // 隣接ピクセルの距離との差分
+        let distance_fwidth = fwidth(distance);
+        let alpha = remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0);
+        let alpha_int = clamp(u32(alpha * 65536f), 0u, 65536u);
+        let in_bezier = distance < pixel_width;
 
-    // u32 max 4294967295 , 65536
-    let alpha = remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0);
-    //let alpha = remapClamped(distance, -distance_fwidth, distance_fwidth, 1.0, 0.0 );
-    let alpha_int = clamp(u32(alpha * 65536f), 0u, 65536u);
-
-    let in_bezier = distance < pixel_width;
-    let in_triangle = in.wait.r != 1.0;
-
-    atomicAdd(&overlap_count_bits[pos], 1u);
-    atomicAdd(&overlap_count_bits[alpha_total], 1u);
-
-    // ポリゴンの重なりを記録する(次のステージで使う)
-    if in_bezier || in_triangle {
-        if in_triangle {
-            atomicAdd(&overlap_count_bits[alpha_count], 65536u);
-        } else {
+        if in_bezier {
+            atomicAdd(&overlap_count_bits[pos], 1u);
+            atomicAdd(&overlap_count_bits[alpha_total], 1u);
             atomicAdd(&overlap_count_bits[alpha_count], alpha_int);
         }
+    } else {
+        // 三角形の場合の処理
+        let in_triangle = in.wait.r != 1.0;
+        atomicAdd(&overlap_count_bits[pos], 1u);
+        atomicAdd(&overlap_count_bits[alpha_total], 1u);
+        atomicAdd(&overlap_count_bits[alpha_count], 65536u);
     }
 
     return vec4<f32>(in.color.rgb, 1.0);
