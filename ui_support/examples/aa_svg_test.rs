@@ -2,7 +2,6 @@ use std::fs;
 
 use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use cgmath::One;
-use clap::Parser;
 use font_collector::{FontCollector, FontRepository};
 use instant::{Duration, SystemTime};
 
@@ -110,64 +109,50 @@ impl SingleCharCallback {
             vectors: Vec::new(),
         }
     }
+
+    fn register_and_add_svg(
+        &mut self,
+        context: &StateContext,
+        key: &str,
+        svg: &str,
+        position: (f32, f32, f32),
+    ) {
+        context.register_svg(key.into(), svg.into());
+        let value = InstanceAttributes {
+            position: position.into(),
+            rotation: cgmath::Quaternion::one(),
+            world_scale: [1.0, 1.0],
+            instance_scale: [0.5, 0.5],
+            color: context.color_theme.text_emphasized().get_color(),
+            motion: MotionFlags::ZERO_MOTION,
+            ..Default::default()
+        };
+        let mut instances = VectorInstances::new(key.to_string(), &context.device);
+        instances.push(value);
+        self.vectors.push(instances);
+    }
 }
 
 impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
-        {
-            context.register_svg(
-                "tri".into(),
-                include_str!("../../font_rasterizer/data/test_shapes_tri.svg").into(),
-            );
-            let tri_value = InstanceAttributes {
-                position: (-0.2, 0.0, 0.0).into(),
-                rotation: cgmath::Quaternion::one(),
-                world_scale: [1.0, 1.0],
-                instance_scale: [0.5, 0.5],
-                color: context.color_theme.text_emphasized().get_color(),
-                motion: MotionFlags::ZERO_MOTION,
-                ..Default::default()
-            };
-            let mut tri_instances = VectorInstances::new("tri".to_string(), &context.device);
-            tri_instances.push(tri_value);
-            self.vectors.push(tri_instances);
-        }
-        {
-            context.register_svg(
-                "tri2".into(),
-                include_str!("../../font_rasterizer/data/test_shapes_tri2.svg").into(),
-            );
-            let tri2_value = InstanceAttributes {
-                position: (-0.6, 0.0, 0.0).into(),
-                rotation: cgmath::Quaternion::one(),
-                world_scale: [1.0, 1.0],
-                instance_scale: [0.5, 0.5],
-                color: context.color_theme.text_emphasized().get_color(),
-                motion: MotionFlags::ZERO_MOTION,
-                ..Default::default()
-            };
-            let mut tri2_instances = VectorInstances::new("tri2".to_string(), &context.device);
-            tri2_instances.push(tri2_value);
-            self.vectors.push(tri2_instances);
-        }
-        {
-            context.register_svg(
-                "bezier".into(),
-                include_str!("../../font_rasterizer/data/test_shapes_bezier.svg").into(),
-            );
-            let bezier_value = InstanceAttributes {
-                position: (0.2, 0.0, 0.0).into(),
-                rotation: cgmath::Quaternion::one(),
-                world_scale: [1.0, 1.0],
-                instance_scale: [0.5, 0.5],
-                color: context.color_theme.text_emphasized().get_color(),
-                motion: MotionFlags::ZERO_MOTION,
-                ..Default::default()
-            };
-            let mut bezier_instances = VectorInstances::new("bezier".to_string(), &context.device);
-            bezier_instances.push(bezier_value);
-            self.vectors.push(bezier_instances);
-        }
+        self.register_and_add_svg(
+            context,
+            "tri",
+            include_str!("../../font_rasterizer/data/test_shapes_tri.svg"),
+            (-0.2, 0.0, 0.0),
+        );
+        self.register_and_add_svg(
+            context,
+            "tri2",
+            include_str!("../../font_rasterizer/data/test_shapes_tri2.svg"),
+            (-0.6, 0.0, 0.0),
+        );
+        self.register_and_add_svg(
+            context,
+            "bezier",
+            include_str!("../../font_rasterizer/data/test_shapes_bezier.svg"),
+            (0.2, 0.0, 0.0),
+        );
 
         debug!("init!");
     }
