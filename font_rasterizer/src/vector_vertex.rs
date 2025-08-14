@@ -220,7 +220,7 @@ pub(crate) struct Vertex {
     pub(crate) position: [f32; 2],
     // ベジエ曲線を描くために 3 頂点のうちどれを制御点、どれを始点・終点と区別するかを表す。
     // 典型的には [0, 0], または [0, 1] が始点か終点。[1, 0] 制御点となる。
-    pub(crate) wait: [f32; 2],
+    pub(crate) wait: [f32; 3],
 }
 
 impl Vertex {
@@ -240,7 +240,7 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
             ],
         }
@@ -265,11 +265,11 @@ impl FlipFlop {
     }
 
     #[inline]
-    fn wait(&self) -> [f32; 2] {
+    fn wait(&self) -> [f32; 3] {
         match self {
-            FlipFlop::Flip => [0.0, 0.0],
-            FlipFlop::Flop => [0.0, 1.0],
-            FlipFlop::Control => [1.0, 0.0],
+            FlipFlop::Flip => [1.0, 0.0, 0.0],
+            FlipFlop::Flop => [1.0, 0.0, 1.0],
+            FlipFlop::Control => [1.0, 1.0, 0.0],
         }
     }
 }

@@ -141,7 +141,7 @@ var<storage, read_write> overlap_count_bits: array<atomic<u32>>;
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec2<f32>,
-    @location(1) wait: vec2<f32>,
+    @location(1) wait: vec3<f32>,
 };
 
 struct InstancesInput {
@@ -309,7 +309,7 @@ fn vs_main(
     }
 
     var out: VertexOutput;
-    out.wait = vec3<f32>(1f, model.wait.xy);
+    out.wait = model.wait;
     out.color = instances.color;
     if ignore_camera {
         //out.clip_position = instance_matrix * moved;
@@ -340,7 +340,7 @@ fn vs_main_minimum(
     var moved = vec4<f32>(model.position.x, model.position.y, 0.0, 1.0);
 
     var out: VertexOutput;
-    out.wait = vec3<f32>(1f, model.wait.xy);
+    out.wait = model.wait;
     out.color = instances.color;
     if ignore_camera {
         //out.clip_position = instance_matrix * moved;
@@ -367,12 +367,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let alpha = clamp(0.5 - distance / distance_fwidth, 0.0, 1.0);
 
     let in_bezier = distance < 0.0;
+    let in_triangle = in.wait.r != 1.0;
 
     // ポリゴンの重なりを記録する(次のステージで使う)
     if in_bezier {
         atomicAdd(&overlap_count_bits[pos], 1u);
         atomicAdd(&overlap_count_bits[alpha_total], 1u);
         atomicAdd(&overlap_count_bits[alpha_count], 1u);
+    }
+
+    if in_triangle {
+        return vec4<f32>(in.color.rgb, 1.0);
     }
     return vec4<f32>(in.color.rgb, alpha);
 }
