@@ -373,7 +373,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
         // 隣接ピクセルの距離との差分
         let distance_fwidth = fwidth(distance);
-        let alpha = remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0);
+        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0) - 0.5) * 2.0;
         let alpha_int = clamp(u32(alpha * 65536f), 0u, 65536u);
         let in_bezier = distance < pixel_width;
 
@@ -384,10 +384,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
     } else {
         // 三角形の場合の処理
-        let in_triangle = in.wait.r != 1.0;
+        // distance は 1f に近づく。
+        let distance = 1.0 - in.wait.r;
+        // 隣接ピクセルの距離との差分
+        let distance_fwidth = fwidth(distance);
+        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 0.0, 1.0) - 0.5) * 2.0;
+
+        let in_triangle = distance < pixel_width;
+        let alpha_int = clamp(u32(alpha * 65536f), 0u, 65536u);
+            // 三角形の中にいる場合はカウントを増やす
         atomicAdd(&overlap_count_bits[pos], 1u);
         atomicAdd(&overlap_count_bits[alpha_total], 1u);
-        atomicAdd(&overlap_count_bits[alpha_count], 65536u);
+        atomicAdd(&overlap_count_bits[alpha_count], alpha_int);
     }
 
     return vec4<f32>(in.color.rgb, 1.0);
