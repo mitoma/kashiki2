@@ -45,16 +45,20 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let alpha_count = pos + 2u;
 
     let counts = overlap_count_bits[pos];
-    let alpha = clamp(f32(overlap_count_bits[alpha_count] / overlap_count_bits[alpha_total]) / 65536, 0.0, 1.0);
+    let alpha = clamp(f32(overlap_count_bits[alpha_count] / overlap_count_bits[alpha_total]) / 65536f, 0.0, 1.0);
 
     // 奇数かどうかを判定し、奇数なら色をつける
     if counts % 2u == 1u {
         return vec4<f32>(color.rgb, alpha);
     } else {
+        return vec4<f32>(color.rgb, 1.0 - alpha);
+        //return vec4<f32>(0f, 0f, 0f, 0f);
+        /*
         if alpha != 0.0 {
-            return vec4<f32>(color.rgb, (1.0 - alpha) * 2);
+            return vec4<f32>(color.rgb, (1.0 - alpha));
         } else {
             return vec4<f32>(0f, 0f, 0f, 0f);
         }
+         */
     }
 }

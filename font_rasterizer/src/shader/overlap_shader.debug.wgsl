@@ -353,8 +353,8 @@ fn vs_main_minimum(
 }
 
 fn remapClamped(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
-  let clampedValue = clamp(value, inMin, inMax);
-  return outMin + (clampedValue - inMin) * (outMax - outMin) / (inMax - inMin);
+    let clampedValue = clamp(value, inMin, inMax);
+    return outMin + (clampedValue - inMin) * (outMax - outMin) / (inMax - inMin);
 }
 
 // Fragment shader
@@ -365,17 +365,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let alpha_total = pos + 1u;
     let alpha_count = pos + 2u;
     let pixel_width = 1.0 / f32(u_buffer.u_width);
-    let pixel_width_harf = pixel_width / 2;
 
     let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
     // 隣接ピクセルの距離との差分
     let distance_fwidth = fwidth(distance);
 
     // u32 max 4294967295 , 65536
-    let alpha = remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0 );
+    let alpha = remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0);
     //let alpha = remapClamped(distance, -distance_fwidth, distance_fwidth, 1.0, 0.0 );
-    let alpha_int = clamp(u32(alpha * f32(65536)), 0, 65536);
-    
+    let alpha_int = clamp(u32(alpha * 65536f), 0u, 65536u);
+
     let in_bezier = distance < pixel_width;
     let in_triangle = in.wait.r != 1.0;
 
@@ -385,7 +384,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // ポリゴンの重なりを記録する(次のステージで使う)
     if in_bezier || in_triangle {
         if in_triangle {
-            atomicAdd(&overlap_count_bits[alpha_count], 65536);
+            atomicAdd(&overlap_count_bits[alpha_count], 65536u);
         } else {
             atomicAdd(&overlap_count_bits[alpha_count], alpha_int);
         }
