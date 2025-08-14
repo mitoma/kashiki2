@@ -160,6 +160,7 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) wait: vec3<f32>,
     @location(1) color: vec3<f32>,
+    @location(2) pixel_width: f32,
 };
 
 @vertex
@@ -351,6 +352,11 @@ fn vs_main_minimum(
     return out;
 }
 
+fn remapClamped(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
+  let clampedValue = clamp(value, inMin, inMax);
+  return outMin + (clampedValue - inMin) * (outMax - outMin) / (inMax - inMin);
+}
+
 // Fragment shader
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -358,26 +364,29 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let pos = (ipos.x + ipos.y * u_buffer.u_width) * 3u;
     let alpha_total = pos + 1u;
     let alpha_count = pos + 2u;
+    let pixel_width = 1.0 / f32(u_buffer.u_width);
+    let pixel_width_harf = pixel_width / 2;
 
     let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
 
-    // 変化量。変化量が大きいほど急激なため、アルファ値を考慮しない方がよいと考えられる。
-    let distance_fwidth = fwidth(distance);
-
-    let alpha = clamp(0.5 - distance / distance_fwidth, 0.0, 1.0);
-
-    let in_bezier = distance < 0.0;
+    // u32 max 4294967295 , 65536
+    let alpha = remapClamped(distance, -pixel_width, pixel_width, 1.0, 0.0 );
+    let alpha_int = clamp(u32(alpha * f32(65536)), 0, 65536);
+    
+    let in_bezier = distance < pixel_width;
     let in_triangle = in.wait.r != 1.0;
 
+    atomicAdd(&overlap_count_bits[pos], 1u);
+    atomicAdd(&overlap_count_bits[alpha_total], 1u);
+
     // ポリゴンの重なりを記録する(次のステージで使う)
-    if in_bezier {
-        atomicAdd(&overlap_count_bits[pos], 1u);
-        atomicAdd(&overlap_count_bits[alpha_total], 1u);
-        atomicAdd(&overlap_count_bits[alpha_count], 1u);
+    if in_bezier || in_triangle {
+        if in_triangle {
+            atomicAdd(&overlap_count_bits[alpha_count], 65536);
+        } else {
+            atomicAdd(&overlap_count_bits[alpha_count], alpha_int);
+        }
     }
 
-    if in_triangle {
-        return vec4<f32>(in.color.rgb, 1.0);
-    }
-    return vec4<f32>(in.color.rgb, alpha);
+    return vec4<f32>(in.color.rgb, 1.0);
 }
