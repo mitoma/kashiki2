@@ -135,9 +135,6 @@ struct Uniforms {
 @group(0) @binding(0)
 var<uniform> u_buffer: Uniforms;
 
-@group(0) @binding(1)
-var<storage, read_write> overlap_count_bits: array<atomic<u32>>;
-
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec2<f32>,
@@ -351,50 +348,30 @@ fn vs_main_minimum(
     return out;
 }
 
-// Fragment shader
+// マルチターゲット用のフラグメントシェーダーアウトプット
+struct FragmentOutput {
+    @location(0) color: vec4<f32>,
+    @location(1) count: vec4<f32>,
+}
+
+// Fragment shader (マルチターゲット版)
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // R = ポリゴンの重なった数
-    // G, B = ベジエ曲線
-
-    // G, B のいずれかが 0 でないとき
-    //let d = distance_to_edge;
-    //let w = fwidth(d);
-    //let alpha = clamp(0.5 - d / w, 0.0, 1.0);
-
+fn fs_main(in: VertexOutput) -> FragmentOutput {
     let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
     let distance_fwidth = fwidth(distance);
     let alpha = clamp(0.5 - distance / distance_fwidth, 0.0, 1.0);
 
     let in_bezier = distance < 0.1;
 
-    let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = ipos.x + ipos.y * u_buffer.u_width;
-
-    // ポリゴンの重なりを記録する(次のステージで使う)
+    var output: FragmentOutput;
+    output.color = vec4<f32>(in.color, alpha);
+    
+    // ベジエ曲線内かどうかで重なり回数をカウント
     if in_bezier {
-        atomicAdd(&overlap_count_bits[pos], 1u);
+        output.count = vec4<f32>(1.0/255.0, 0.0, 0.0, 1.0); // 8ビット精度に合わせて正規化
+    } else {
+        output.count = vec4<f32>(0.0, 0.0, 0.0, 0.0);
     }
-
-    return vec4<f32>(in.color, alpha);
-}
-
-// アンチエイリアシングしてないけどまともな品質のやつ
-@fragment
-fn fs_main_org(in: VertexOutput) -> @location(0) vec4<f32> {
-    // R = ポリゴンの重なった数
-    // G, B = ベジエ曲線
-
-    // G, B のいずれかが 0 でないとき
-    let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
-
-    let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = ipos.x + ipos.y * u_buffer.u_width;
-
-    // ポリゴンの重なりを記録する(次のステージで使う)
-    if in_bezier {
-        atomicAdd(&overlap_count_bits[pos], 1u);
-    }
-
-    return vec4<f32>(in.color, 1.0);
+    
+    return output;
 }

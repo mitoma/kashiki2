@@ -10,7 +10,6 @@ use crate::{
     glyph_vertex_buffer::GlyphVertexBuffer,
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
-    overlap_record_texture::OverlapRecordBuffer,
     screen_bind_group::ScreenBindGroup,
     screen_texture::{self, BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
@@ -62,11 +61,12 @@ pub enum Quarity {
 pub struct RasterizerPipeline {
     // 1 ステージ目(overlap)
     pub overlap_bind_group: OverlapBindGroup,
-    pub(crate) overlap_record_buffer: OverlapRecordBuffer,
     pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
 
     // 1 ステージ目のアウトプット(≒ 2 ステージ目のインプット)
     pub(crate) overlap_texture: ScreenTexture,
+    // 重なり回数記録用のテクスチャ（マルチターゲット用）
+    pub(crate) overlap_count_texture: ScreenTexture,
 
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
@@ -147,9 +147,16 @@ impl RasterizerPipeline {
 
         let overlap_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
-        let overlap_record_buffer = OverlapRecordBuffer::new(device, (width, height));
 
-        let overlap_bind_group = OverlapBindGroup::new(device, &overlap_record_buffer, width);
+        // 重なり回数記録用のテクスチャ（RGBA8Unorm フォーマットを使用してブレンド可能にする）
+        let overlap_count_texture = screen_texture::ScreenTexture::new_with_format(
+            device,
+            (width, height),
+            wgpu::TextureFormat::Rgba8Unorm,
+            Some("Overlap Count Texture"),
+        );
+
+        let overlap_bind_group = OverlapBindGroup::new(device, width);
 
         let overlap_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -171,11 +178,29 @@ impl RasterizerPipeline {
                 fragment: Some(wgpu::FragmentState {
                     module: &overlap_shader,
                     entry_point: Some("fs_main"),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: overlap_texture.texture_format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
+                    targets: &[
+                        Some(wgpu::ColorTargetState {
+                            format: overlap_texture.texture_format,
+                            blend: Some(wgpu::BlendState::REPLACE),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        }),
+                        Some(wgpu::ColorTargetState {
+                            format: overlap_count_texture.texture_format,
+                            blend: Some(wgpu::BlendState {
+                                color: wgpu::BlendComponent {
+                                    src_factor: wgpu::BlendFactor::One,
+                                    dst_factor: wgpu::BlendFactor::One,
+                                    operation: wgpu::BlendOperation::Add,
+                                },
+                                alpha: wgpu::BlendComponent {
+                                    src_factor: wgpu::BlendFactor::One,
+                                    dst_factor: wgpu::BlendFactor::One,
+                                    operation: wgpu::BlendOperation::Add,
+                                },
+                            }),
+                            write_mask: wgpu::ColorWrites::RED,
+                        }),
+                    ],
                     compilation_options: Default::default(),
                 }),
                 primitive: wgpu::PrimitiveState {
@@ -392,7 +417,7 @@ impl RasterizerPipeline {
         Self {
             // overlap
             overlap_texture,
-            overlap_record_buffer,
+            overlap_count_texture,
             overlap_bind_group,
             overlap_render_pipeline,
 
@@ -427,7 +452,7 @@ impl RasterizerPipeline {
         vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
         screen_view: wgpu::TextureView,
     ) {
-        self.overlap_record_buffer.clear(queue);
+        // マルチターゲットでは事前のクリアは不要
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_buffers, vector_buffers);
@@ -447,20 +472,36 @@ impl RasterizerPipeline {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
         let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Overlap Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &self.overlap_texture.view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 0.0,
-                    }),
-                    store: wgpu::StoreOp::Store,
-                },
-                depth_slice: None,
-            })],
+            color_attachments: &[
+                Some(wgpu::RenderPassColorAttachment {
+                    view: &self.overlap_texture.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                }),
+                Some(wgpu::RenderPassColorAttachment {
+                    view: &self.overlap_count_texture.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                }),
+            ],
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
@@ -540,7 +581,7 @@ impl RasterizerPipeline {
         let outline_bind_group = self.outline_bind_group.to_bind_group(
             device,
             &self.overlap_texture,
-            &self.overlap_record_buffer,
+            &self.overlap_count_texture,
         );
 
         {

@@ -1,7 +1,7 @@
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::{overlap_record_texture::OverlapRecordBuffer, time::now_millis};
+use crate::time::now_millis;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -36,11 +36,7 @@ impl Default for Uniforms {
 }
 
 impl OverlapBindGroup {
-    pub fn new(
-        device: &wgpu::Device,
-        overlap_record_buffer: &OverlapRecordBuffer,
-        width: u32,
-    ) -> Self {
+    pub fn new(device: &wgpu::Device, width: u32) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 // Uniforms
@@ -49,16 +45,6 @@ impl OverlapBindGroup {
                     visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
                         has_dynamic_offset: false,
                         min_binding_size: None,
                     },
@@ -79,16 +65,10 @@ impl OverlapBindGroup {
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: overlap_record_buffer.buffer.as_entire_binding(),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: buffer.as_entire_binding(),
+            }],
             label: Some("Overlap Bind Group"),
         });
 
