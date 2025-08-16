@@ -378,8 +378,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
         // 隣接ピクセルの距離との差分
         let distance_fwidth = fwidth(distance);
-        let alpha = (remapClamped(distance, -distance_fwidth, distance_fwidth, 1.0, 0.0) - 0.5) * 2.0;
-        let in_bezier = distance < 0.0;
+        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0) - 0.5) * 2.0;
+        let in_bezier = distance < distance_fwidth / 2.0;
 
         if in_bezier {
             output.count.r = UNIT;
@@ -391,9 +391,13 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         let distance = 1.0 - in.wait.r;
         // 隣接ピクセルの距離との差分
         let distance_fwidth = fwidth(distance);
-        let alpha = (remapClamped(distance, -distance_fwidth, distance_fwidth, 0.0, 1.0) - 0.5) * 2.0;
+        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 0.0, 1.0) - 0.5) * 2.0;
         output.count.r = UNIT;
-        output.count.g = alpha / ALPHA_STEP;
+        if in.wait.g > 0.0 {
+            output.count.g = 1.0 / ALPHA_STEP;
+        } else {
+            output.count.g = alpha / ALPHA_STEP;
+        }
     }
 
     return output;
