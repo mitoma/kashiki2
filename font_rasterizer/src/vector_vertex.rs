@@ -92,8 +92,8 @@ impl VectorVertexBuilder {
             wait: FlipFlop::Control,
         });
         self.vertex.push(InternalVertex {
-            x: x,
-            y: y,
+            x,
+            y,
             wait: FlipFlop::Control,
         });
 
