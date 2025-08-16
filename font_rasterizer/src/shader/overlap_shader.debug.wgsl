@@ -361,7 +361,7 @@ fn remapClamped(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) ->
 }
 
 const UNIT :f32 = 0.00390625;
-const ALPHA_STEP: f32 = 64f;
+const ALPHA_STEP: f32 = 16f;
 
 // Fragment shader (マルチターゲット版)
 @fragment
@@ -378,8 +378,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
         // 隣接ピクセルの距離との差分
         let distance_fwidth = fwidth(distance);
-        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0) - 0.5) * 2.0;
-        let in_bezier = distance < pixel_width;
+        let alpha = (remapClamped(distance, -distance_fwidth, distance_fwidth, 1.0, 0.0) - 0.5) * 2.0;
+        let in_bezier = distance < 0.0;
 
         if in_bezier {
             output.count.r = UNIT;
@@ -391,7 +391,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         let distance = 1.0 - in.wait.r;
         // 隣接ピクセルの距離との差分
         let distance_fwidth = fwidth(distance);
-        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 0.0, 1.0) - 0.5) * 2.0;
+        let alpha = (remapClamped(distance, -distance_fwidth, distance_fwidth, 0.0, 1.0) - 0.5) * 2.0;
         output.count.r = UNIT;
         output.count.g = alpha / ALPHA_STEP;
     }
