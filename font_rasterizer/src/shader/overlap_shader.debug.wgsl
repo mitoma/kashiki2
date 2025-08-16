@@ -360,6 +360,9 @@ fn remapClamped(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) ->
     return outMin + (clampedValue - inMin) * (outMax - outMin) / (inMax - inMin);
 }
 
+const UNIT :f32 = 0.00390625;
+const ALPHA_STEP: f32 = 64f;
+
 // Fragment shader (マルチターゲット版)
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
@@ -379,7 +382,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         let in_bezier = distance < pixel_width;
 
         if in_bezier {
-            output.count = vec4<f32>(1.0 / 255.0, 0.0, 0.0, 1.0); // 8ビット精度に合わせて正規化
+            output.count.r = UNIT;
+            output.count.g = alpha / ALPHA_STEP;
         }
     } else {
         // 三角形の場合の処理
@@ -388,7 +392,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         // 隣接ピクセルの距離との差分
         let distance_fwidth = fwidth(distance);
         let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 0.0, 1.0) - 0.5) * 2.0;
-        output.count = vec4<f32>(1.0 / 255.0, 0.0, 0.0, 1.0); // 8ビット精度に合わせて正規化
+        output.count.r = UNIT;
+        output.count.g = alpha / ALPHA_STEP;
     }
 
     return output;
