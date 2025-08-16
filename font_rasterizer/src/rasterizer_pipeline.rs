@@ -152,7 +152,7 @@ impl RasterizerPipeline {
         let overlap_count_texture = screen_texture::ScreenTexture::new_with_format(
             device,
             (width, height),
-            wgpu::TextureFormat::Rgba8Unorm,
+            wgpu::TextureFormat::Bgra8Unorm,
             Some("Overlap Count Texture"),
         );
 
@@ -198,7 +198,7 @@ impl RasterizerPipeline {
                                     operation: wgpu::BlendOperation::Add,
                                 },
                             }),
-                            write_mask: wgpu::ColorWrites::RED,
+                            write_mask: wgpu::ColorWrites::ALL,
                         }),
                     ],
                     compilation_options: Default::default(),
