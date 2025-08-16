@@ -20,7 +20,7 @@ const BUFFER_SIZE: u64 = 1_048_576;
 
 const ZERO_VERTEX: Vertex = Vertex {
     position: [0.0, 0.0],
-    wait: [0.0, 0.0],
+    wait: [0.0, 0.0, 0.0],
 };
 
 struct VertexBuffer {

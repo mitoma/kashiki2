@@ -39,3 +39,4 @@ arboard = { workspace = true }
 [dev-dependencies]
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
 rayon = "1.10"
+clap = { version = "4.5.17", features = ["derive"] }
