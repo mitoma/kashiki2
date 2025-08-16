@@ -387,15 +387,21 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         }
     } else {
         // 三角形の場合の処理
-        // distance は 1f に近づく。
-        let distance = 1.0 - in.wait.r;
-        // 隣接ピクセルの距離との差分
-        let distance_fwidth = fwidth(distance);
-        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 0.0, 1.0) - 0.5) * 2.0;
-        output.count.r = UNIT;
         if in.wait.g > 0.0 {
+            // ベジエ曲線と対になる、原点, 始点, 終点をつなぐ三角形。アンチエイリアシングの配慮が不要。
+            output.count.r = UNIT;
             output.count.g = 1.0 / ALPHA_STEP;
         } else {
+            // グリフのアウトラインとなる直線を表す三角形。アンチエイリアシングの配慮が必要。
+            // distance は 1f に近づく。
+            let distance = 1.0 - in.wait.r;
+            // 隣接ピクセルの距離との差分
+            let distance_fwidth = fwidth(distance);
+            // ここの処理はグリフの本来期待した形状とは異なるレンダリングをする可能性が高い。
+            // distance_fwidth / 2.0 < distance < distance_fwidth / 2.0 の範囲で map するのが適切だと考えられるが
+            // 改修範囲が VectorVertex に及ぶと考えられるので一旦扱わない。
+            let alpha = (remapClamped(distance, -distance_fwidth, distance_fwidth, 0.0, 1.0) - 0.5) * 2.0;
+            output.count.r = UNIT;
             output.count.g = alpha / ALPHA_STEP;
         }
     }

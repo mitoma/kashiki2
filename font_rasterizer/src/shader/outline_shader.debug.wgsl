@@ -54,7 +54,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     if counts % 2u == 1u {
         return vec4<f32>(color.rgb, alpha);
     } else {
-        if alpha > UNIT {
+        if alpha > 0.0 {
             return vec4<f32>(color.rgb, 1f - alpha);
         } else {
             return vec4<f32>(0f, 0f, 0f, 0f);
