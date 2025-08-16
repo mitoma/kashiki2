@@ -135,9 +135,6 @@ struct Uniforms {
 @group(0) @binding(0)
 var<uniform> u_buffer: Uniforms;
 
-@group(0) @binding(1)
-var<storage, read_write> overlap_count_bits: array<atomic<u32>>;
-
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec2<f32>,
@@ -341,7 +338,7 @@ fn vs_main_minimum(
     var moved = vec4<f32>(model.position.x, model.position.y, 0.0, 1.0);
 
     var out: VertexOutput;
-    out.wait = model.wait;
+    out.wait = vec3<f32>(1f, model.wait.xy);
     out.color = instances.color;
     if ignore_camera {
         //out.clip_position = instance_matrix * moved;
@@ -352,21 +349,26 @@ fn vs_main_minimum(
     return out;
 }
 
+// マルチターゲット用のフラグメントシェーダーアウトプット
+struct FragmentOutput {
+    @location(0) color: vec4<f32>,
+    @location(1) count: vec4<f32>,
+}
+
 fn remapClamped(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
     let clampedValue = clamp(value, inMin, inMax);
     return outMin + (clampedValue - inMin) * (outMax - outMin) / (inMax - inMin);
 }
 
-// Fragment shader
+// Fragment shader (マルチターゲット版)
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexOutput) -> FragmentOutput {
     let is_bezier = (in.wait.r == 1.0);
 
-    let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = (ipos.x + ipos.y * u_buffer.u_width) * 3u;
-    let alpha_total = pos + 1u;
-    let alpha_count = pos + 2u;
     let pixel_width = 1.0 / f32(u_buffer.u_width);
+
+    var output: FragmentOutput;
+    output.color = vec4<f32>(in.color.rgb, 1f);
 
     if is_bezier {
         // Bezier curveの場合の処理
@@ -374,13 +376,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         // 隣接ピクセルの距離との差分
         let distance_fwidth = fwidth(distance);
         let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0) - 0.5) * 2.0;
-        let alpha_int = clamp(u32(alpha * 65536f), 0u, 65536u);
         let in_bezier = distance < pixel_width;
 
         if in_bezier {
-            atomicAdd(&overlap_count_bits[pos], 1u);
-            atomicAdd(&overlap_count_bits[alpha_total], 1u);
-            atomicAdd(&overlap_count_bits[alpha_count], alpha_int);
+            output.count = vec4<f32>(1.0 / 255.0, 0.0, 0.0, 1.0); // 8ビット精度に合わせて正規化
         }
     } else {
         // 三角形の場合の処理
@@ -389,14 +388,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         // 隣接ピクセルの距離との差分
         let distance_fwidth = fwidth(distance);
         let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 0.0, 1.0) - 0.5) * 2.0;
-
-        let in_triangle = distance < pixel_width;
-        let alpha_int = clamp(u32(alpha * 65536f), 0u, 65536u);
-            // 三角形の中にいる場合はカウントを増やす
-        atomicAdd(&overlap_count_bits[pos], 1u);
-        atomicAdd(&overlap_count_bits[alpha_total], 1u);
-        atomicAdd(&overlap_count_bits[alpha_count], alpha_int);
+        output.count = vec4<f32>(1.0 / 255.0, 0.0, 0.0, 1.0); // 8ビット精度に合わせて正規化
     }
 
-    return vec4<f32>(in.color.rgb, 1.0);
+    return output;
 }
