@@ -1,3 +1,5 @@
+use std::fs;
+
 use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use cgmath::One;
 use clap::Parser;
@@ -105,6 +107,7 @@ pub async fn run(args: Args) {
         info!("sended image to encoder. frame: {}", idx);
     }
     encoder.finalize();
+    fs::copy(filename, "target/test-font-aa.png").unwrap();
     info!("finish!");
 }
 
