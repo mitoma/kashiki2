@@ -10,6 +10,15 @@ pub struct ScreenTexture {
 impl ScreenTexture {
     pub fn new(device: &wgpu::Device, size: (u32, u32), label: Option<&str>) -> Self {
         let texture_format = wgpu::TextureFormat::Bgra8UnormSrgb;
+        Self::new_with_format(device, size, texture_format, label)
+    }
+
+    pub fn new_with_format(
+        device: &wgpu::Device,
+        size: (u32, u32),
+        texture_format: wgpu::TextureFormat,
+        label: Option<&str>,
+    ) -> Self {
         let size = wgpu::Extent3d {
             width: size.0,
             height: size.1,

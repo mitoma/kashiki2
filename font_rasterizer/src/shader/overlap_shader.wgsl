@@ -135,13 +135,10 @@ struct Uniforms {
 @group(0) @binding(0)
 var<uniform> u_buffer: Uniforms;
 
-@group(0) @binding(1)
-var<storage, read_write> overlap_count_bits: array<atomic<u32>>;
-
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec2<f32>,
-    @location(1) wait: vec2<f32>,
+    @location(1) wait: vec3<f32>,
 };
 
 struct InstancesInput {
@@ -160,6 +157,7 @@ struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) wait: vec3<f32>,
     @location(1) color: vec3<f32>,
+    @location(2) pixel_width: f32,
 };
 
 @vertex
@@ -309,7 +307,7 @@ fn vs_main(
     }
 
     var out: VertexOutput;
-    out.wait = vec3<f32>(1f, model.wait.xy);
+    out.wait = model.wait;
     out.color = instances.color;
     if ignore_camera {
         //out.clip_position = instance_matrix * moved;
@@ -351,50 +349,56 @@ fn vs_main_minimum(
     return out;
 }
 
-// Fragment shader
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // R = ポリゴンの重なった数
-    // G, B = ベジエ曲線
-
-    // G, B のいずれかが 0 でないとき
-    //let d = distance_to_edge;
-    //let w = fwidth(d);
-    //let alpha = clamp(0.5 - d / w, 0.0, 1.0);
-
-    let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
-    let distance_fwidth = fwidth(distance);
-    let alpha = clamp(0.5 - distance / distance_fwidth, 0.0, 1.0);
-
-    let in_bezier = distance < 0.1;
-
-    let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = ipos.x + ipos.y * u_buffer.u_width;
-
-    // ポリゴンの重なりを記録する(次のステージで使う)
-    if in_bezier {
-        atomicAdd(&overlap_count_bits[pos], 1u);
-    }
-
-    return vec4<f32>(in.color, alpha);
+// マルチターゲット用のフラグメントシェーダーアウトプット
+struct FragmentOutput {
+    @location(0) color: vec4<f32>,
+    @location(1) count: vec4<f32>,
 }
 
-// アンチエイリアシングしてないけどまともな品質のやつ
+fn remapClamped(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
+    let clampedValue = clamp(value, inMin, inMax);
+    return outMin + (clampedValue - inMin) * (outMax - outMin) / (inMax - inMin);
+}
+
+const UNIT :f32 = 0.00390625;
+const ALPHA_STEP: f32 = 16f;
+
+// Fragment shader (マルチターゲット版)
 @fragment
-fn fs_main_org(in: VertexOutput) -> @location(0) vec4<f32> {
-    // R = ポリゴンの重なった数
-    // G, B = ベジエ曲線
+fn fs_main(in: VertexOutput) -> FragmentOutput {
+    let is_bezier = (in.wait.r == 1.0);
 
-    // G, B のいずれかが 0 でないとき
-    let in_bezier = pow((in.wait.g / 2.0 + in.wait.b), 2.0) < in.wait.b;
+    let pixel_width = 1.0 / f32(u_buffer.u_width);
 
-    let ipos: vec2<u32> = vec2<u32>(floor(in.clip_position.xy));
-    let pos = ipos.x + ipos.y * u_buffer.u_width;
+    var output: FragmentOutput;
+    output.color = vec4<f32>(in.color.rgb, 1f);
 
-    // ポリゴンの重なりを記録する(次のステージで使う)
-    if in_bezier {
-        atomicAdd(&overlap_count_bits[pos], 1u);
+    if is_bezier {
+        // Bezier curveの場合の処理
+        let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
+        // 隣接ピクセルの距離との差分
+        let distance_fwidth = fwidth(distance);
+        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0) - 0.5) * 2.0;
+        let in_bezier = distance < distance_fwidth / 2.0;
+
+        if in_bezier {
+            output.count.r = UNIT;
+            output.count.g = alpha / ALPHA_STEP;
+        }
+    } else {
+        // 三角形の場合の処理
+        // distance は 1f に近づく。
+        let distance = 1.0 - in.wait.r;
+        // 隣接ピクセルの距離との差分
+        let distance_fwidth = fwidth(distance);
+        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 0.0, 1.0) - 0.5) * 2.0;
+        output.count.r = UNIT;
+        if in.wait.g > 0.0 {
+            output.count.g = 1.0 / ALPHA_STEP;
+        } else {
+            output.count.g = alpha / ALPHA_STEP;
+        }
     }
 
-    return vec4<f32>(in.color, 1.0);
+    return output;
 }
