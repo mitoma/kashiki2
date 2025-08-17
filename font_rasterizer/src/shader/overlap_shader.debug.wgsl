@@ -355,11 +355,6 @@ struct FragmentOutput {
     @location(1) count: vec4<f32>,
 }
 
-fn remapClamped(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
-    let clampedValue = clamp(value, inMin, inMax);
-    return outMin + (clampedValue - inMin) * (outMax - outMin) / (inMax - inMin);
-}
-
 const UNIT :f32 = 0.00390625;
 const ALPHA_STEP: f32 = 16f;
 
@@ -392,7 +387,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
 
     if is_bezier {
         // Bezier curveの場合の処理
-        let alpha = remapClamped(bezier_distance, -bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, 1.0, 0.0);
+        // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
+        let alpha = 1.0 - smoothstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
         let in_bezier = bezier_distance < bezier_distance_fwidth / 2.0;
 
         if in_bezier {
@@ -404,7 +400,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         }
     } else {
         // 三角形の場合の処理
-        let alpha = remapClamped(triangle_distance, 0.5 - triangle_distance_fwidth / 2.0, 0.5 + triangle_distance_fwidth / 2.0, 1.0, 0.0);
+        // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
+        let alpha = 1.0 - smoothstep(0.5 - triangle_distance_fwidth / 2.0, 0.5 + triangle_distance_fwidth / 2.0, triangle_distance);
 
         if in.wait.g > 0.0 /* ベジエの補助的な三角形 */ {
             output.count.r = UNIT;
