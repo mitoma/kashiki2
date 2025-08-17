@@ -74,11 +74,27 @@ impl VectorVertexBuilder {
 
     pub fn line_to(&mut self, x: f32, y: f32) {
         let wait = self.next_wait();
+
+        let [center_x, center_y]: [f32; 2] = self.builder_options.center;
+
+        // 原点, 始点, 終点の三角形用の頂点を登録
+        let current = self.vertex.last().unwrap();
+        self.vertex.push(InternalVertex {
+            x: current.x * 2.0 - center_x,
+            y: current.y * 2.0 - center_y,
+            wait: current.wait,
+        });
+        self.vertex.push(InternalVertex {
+            x: x * 2.0 - center_x,
+            y: y * 2.0 - center_y,
+            wait,
+        });
+
         self.vertex.push(InternalVertex { x, y, wait });
         self.index.push(0);
-        self.index.push(self.current_index);
         self.index.push(self.current_index + 1);
-        self.current_index += 1;
+        self.index.push(self.current_index + 2);
+        self.current_index += 3;
     }
 
     pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {

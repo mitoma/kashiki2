@@ -364,6 +364,9 @@ const UNIT :f32 = 0.00390625;
 const ALPHA_STEP: f32 = 16f;
 
 // Fragment shader (マルチターゲット版)
+// R: 原点 が 0 。それ以外が 1
+// G: Flip/Flop で、原点以外で 0.0, 1.0 のどちらかの値を取る。ベジエ曲線の距離計算に用いられる。
+// B: 制御点。ベジエ曲線の制御点が 1.0 。直線の制御点の場合も 1.0 になる。
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
     let is_bezier = (in.wait.r == 1.0);
@@ -373,13 +376,24 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     var output: FragmentOutput;
     output.color = vec4<f32>(in.color.rgb, 1f);
 
+    // 処理の内容的には以降の if 文の中で行えば済む処理だが
+    // WebGPU は fwidth は実行パスの分岐先でだけ呼び出されると正しい結果を返せないとエラーを返すのでここで実行する。
+
+    // Bezier curve のSDF距離計算
+    let bezier_distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
+    // 隣接ピクセルの距離との差分
+    let bezier_distance_fwidth = fwidth(bezier_distance);
+
+    // 直線のSDF距離計算
+    // distance は 1f に近づく。
+    let triangle_distance = in.wait.r;
+    // 隣接ピクセルの距離との差分
+    let triangle_distance_fwidth = fwidth(triangle_distance);
+
     if is_bezier {
         // Bezier curveの場合の処理
-        let distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
-        // 隣接ピクセルの距離との差分
-        let distance_fwidth = fwidth(distance);
-        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 1.0, 0.0) - 0.5) * 2.0;
-        let in_bezier = distance < distance_fwidth / 2.0;
+        let alpha = remapClamped(bezier_distance, -bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, 1.0, 0.0);
+        let in_bezier = bezier_distance < bezier_distance_fwidth / 2.0;
 
         if in_bezier {
             output.count.r = UNIT;
@@ -387,11 +401,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         }
     } else {
         // 三角形の場合の処理
-        // distance は 1f に近づく。
-        let distance = 1.0 - in.wait.r;
-        // 隣接ピクセルの距離との差分
-        let distance_fwidth = fwidth(distance);
-        let alpha = (remapClamped(distance, -distance_fwidth / 2.0, distance_fwidth / 2.0, 0.0, 1.0) - 0.5) * 2.0;
+        let alpha = remapClamped(triangle_distance, 0.5 - triangle_distance_fwidth / 2.0, 0.5 + triangle_distance_fwidth / 2.0, 1.0, 0.0);
+
         output.count.r = UNIT;
         if in.wait.g > 0.0 {
             output.count.g = 1.0 / ALPHA_STEP;
