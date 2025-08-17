@@ -397,17 +397,25 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
 
         if in_bezier {
             output.count.r = UNIT;
-            output.count.g = alpha / ALPHA_STEP;
+            if alpha != 1.0 {
+                output.count.g = alpha / ALPHA_STEP;
+                output.count.b = UNIT;
+            }
         }
     } else {
         // 三角形の場合の処理
         let alpha = remapClamped(triangle_distance, 0.5 - triangle_distance_fwidth / 2.0, 0.5 + triangle_distance_fwidth / 2.0, 1.0, 0.0);
 
-        output.count.r = UNIT;
-        if in.wait.g > 0.0 {
-            output.count.g = 1.0 / ALPHA_STEP;
+        if in.wait.g > 0.0 /* ベジエの補助的な三角形 */ {
+            output.count.r = UNIT;
         } else {
-            output.count.g = alpha / ALPHA_STEP;
+            if alpha == 1.0 {
+                output.count.r = UNIT;
+            } else if alpha > UNIT * 2.0 {
+                output.count.r = UNIT;
+                output.count.g = alpha / ALPHA_STEP;
+                output.count.b = UNIT;
+            }
         }
     }
 
