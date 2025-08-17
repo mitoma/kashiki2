@@ -45,24 +45,24 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let overlap_count = textureSample(t_overlap_count, s_diffuse, in.tex_coords);
 
     let count_value = overlap_count.r;
-    let counts = u32(count_value * 255.0 + HARFUNIT); // 8ビットから整数に復元
+    let counts = u32(count_value * 256.0 + HARFUNIT); // 8ビットから整数に復元
 
     let alpha_accum = overlap_count.g;
-    let alpha_counts = u32(overlap_count.b * 255.0 + HARFUNIT); // 8ビットから整数に復元
-    let alpha = clamp(alpha_accum / f32(alpha_counts) * ALPHA_STEP, 0.0, 1.0);
+    let alpha_counts = u32(overlap_count.b * 256.0 + HARFUNIT); // 8ビットから整数に復元
+    let alpha = clamp(alpha_accum * ALPHA_STEP / f32(alpha_counts), 0.0, 1.0);
 
     // 奇数かどうかを判定し、奇数なら色をつける
     if counts % 2u == 1u {
-        if alpha == 0.0 {
+        if alpha_counts == 0u {
             return vec4<f32>(color.rgb, 1f);
         } else {
             return vec4<f32>(color.rgb, alpha);
         }
     } else {
-        if alpha > UNIT {
-            return vec4<f32>(color.rgb, 1f - alpha);
-        } else {
+        if alpha_counts == 0u {
             return vec4<f32>(0f, 0f, 0f, 0f);
+        } else {
+            return vec4<f32>(color.rgb, 1f - alpha);
         }
     }
 }

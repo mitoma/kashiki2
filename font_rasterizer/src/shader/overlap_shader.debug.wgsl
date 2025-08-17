@@ -411,7 +411,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         } else {
             if alpha == 1.0 {
                 output.count.r = UNIT;
-            } else if alpha > UNIT * 2.0 {
+            } else if alpha > UNIT * ALPHA_STEP {
                 output.count.r = UNIT;
                 output.count.g = alpha / ALPHA_STEP;
                 output.count.b = UNIT;
