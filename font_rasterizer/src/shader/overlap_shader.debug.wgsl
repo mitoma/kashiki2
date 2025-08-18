@@ -362,9 +362,27 @@ const ALPHA_STEP: f32 = 16f;
 // R: 原点 が 0 。それ以外が 1
 // G: Flip/Flop で、原点以外で 0.0, 1.0 のどちらかの値を取る。ベジエ曲線の距離計算に用いられる。
 // B: 制御点。ベジエ曲線の制御点が 1.0 。直線の制御点の場合も 1.0 になる。
+//
+// wait一覧
+// 原点 (0.0, 0.0, 0.0)
+// 
+// ベジエ曲線
+// 始点   (1.0, 0.0, (Flip/Flop))
+// 終点   (1.0, 0.0, (Flip/Flop))
+// 制御点 (1.0, 1.0, 0.0)
+//
+// 直線(ベジエ)
+// 原点   (0.0, 0.0, 0.0)
+// 始点   (1.0, 1.0, 0.0)
+// 終点   (1.0, 1.0, 0.0)
+//
+// 直線(エッジ)
+// 原点   (0.0, 0.0, 0.0)
+// 始点   (1.0, 0.0, (Flip/Flop))
+// 終点   (1.0, 0.0, (Flip/Flop))
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
-    let is_bezier = (in.wait.r == 1.0);
+    let is_bezier = (in.wait.r == 1.0) && (in.wait.g != 0.0);
 
     let pixel_width = 1.0 / f32(u_buffer.u_width);
 
@@ -403,12 +421,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
         let alpha = 1.0 - smoothstep(0.5 - triangle_distance_fwidth / 2.0, 0.5 + triangle_distance_fwidth / 2.0, triangle_distance);
 
-        if in.wait.g > 0.0 /* ベジエの補助的な三角形 */ {
+        if in.wait.b == 0.0 /* ベジエの補助的な三角形 */ {
             output.count.r = UNIT;
-        } else {
+        } else if in.wait.g == 0.0 /* 通常の直線 */ {
             if alpha == 1.0 {
                 output.count.r = UNIT;
-            } else if alpha > UNIT {
+            } else if alpha != 0.0 {
                 output.count.r = UNIT;
                 output.count.g = alpha / ALPHA_STEP;
                 output.count.b = UNIT;
