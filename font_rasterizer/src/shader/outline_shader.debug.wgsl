@@ -35,7 +35,7 @@ var t_overlap_count: texture_2d<f32>;
 
 const UNIT :f32 = 0.00390625;
 const HARFUNIT: f32 = 0.001953125;
-const ALPHA_STEP: f32 = 16f;
+const ALPHA_STEP: f32 = 32f;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
