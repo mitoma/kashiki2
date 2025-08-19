@@ -25,11 +25,35 @@ use winit::event::WindowEvent;
 const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum QuarityArg {
+    VeryHigh,
+    High,
+    Middle,
+    Low,
+    VeryLow,
+}
+
+impl QuarityArg {
+    pub fn to_rasterizer_pipeline(&self) -> Quarity {
+        match self {
+            QuarityArg::VeryHigh => Quarity::VeryHigh,
+            QuarityArg::High => Quarity::High,
+            QuarityArg::Middle => Quarity::Middle,
+            QuarityArg::Low => Quarity::Low,
+            QuarityArg::VeryLow => Quarity::VeryLow,
+        }
+    }
+}
+
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
     /// use high performance mode
     #[arg(short, long, default_value = "あ")]
     pub char_of_test: char,
+
+    #[arg(short, long, default_value = "middle")]
+    pub quarity: QuarityArg,
 }
 
 pub fn main() {
@@ -57,7 +81,7 @@ pub async fn run(args: Args) {
         window_title: "Hello".to_string(),
         window_size,
         callback: Box::new(callback),
-        quarity: Quarity::Middle,
+        quarity: args.quarity.to_rasterizer_pipeline(),
         color_theme: ColorTheme::SolarizedBlackback,
         flags: Flags::DEFAULT,
         font_repository,
