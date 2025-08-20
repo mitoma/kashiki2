@@ -356,7 +356,10 @@ struct FragmentOutput {
 }
 
 const UNIT :f32 = 0.00390625;
-const ALPHA_STEP: f32 = 16f;
+const ALPHA_STEP: f32 = 32f;
+
+const NEAR_ZERO = 1e-6;
+const NEAR_ONE = 1.0 - 1e-6;
 
 // Fragment shader (マルチターゲット版)
 // R: 原点 が 0 。それ以外が 1
@@ -382,7 +385,7 @@ const ALPHA_STEP: f32 = 16f;
 // 終点   (1.0, 0.0, (Flip/Flop))
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
-    let is_bezier = (in.wait.r == 1.0) && (in.wait.g != 0.0);
+    let is_bezier = (in.wait.r > NEAR_ONE) && (in.wait.g != 0.0);
 
     let pixel_width = 1.0 / f32(u_buffer.u_width);
 
@@ -393,7 +396,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     // WebGPU は fwidth は実行パスの分岐先でだけ呼び出されると正しい結果を返せないとエラーを返すのでここで実行する。
 
     // Bezier curve のSDF距離計算
-    let bezier_distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
+    let bezier_distance = pow((in.wait.g * 0.5 + in.wait.b), 2.0) - in.wait.b;
     // 隣接ピクセルの距離との差分
     let bezier_distance_fwidth = fwidth(bezier_distance);
 
@@ -424,7 +427,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         if in.wait.b == 0.0 /* ベジエの補助的な三角形 */ {
             output.count.r = UNIT;
         } else if in.wait.g == 0.0 /* 通常の直線 */ {
-            if alpha == 1.0 {
+            if alpha > NEAR_ONE {
                 output.count.r = UNIT;
             } else if alpha != 0.0 {
                 output.count.r = UNIT;
