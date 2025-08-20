@@ -356,7 +356,7 @@ struct FragmentOutput {
 }
 
 const UNIT :f32 = 0.00390625;
-const ALPHA_STEP: f32 = 32f;
+const ALPHA_STEP: f32 = 8f;
 
 const NEAR_ZERO = 1e-6;
 const NEAR_ONE = 1.0 - 1e-6;
