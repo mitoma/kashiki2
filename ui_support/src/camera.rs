@@ -1,8 +1,7 @@
 use cgmath::{InnerSpace, Point3, Vector3};
+use font_rasterizer::{context::WindowSize, time::frame_count};
 
-use font_rasterizer::context::WindowSize;
-
-use crate::{easing_value::EasingPointN, layout_engine::Model};
+use crate::{easing_value::EasingPointN, halton::halton_sequence, layout_engine::Model};
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -21,11 +20,15 @@ pub struct Camera {
     znear: f32,
     zfar: f32,
     eye_quaternion: Option<cgmath::Quaternion<f32>>,
+    viewport_width: f32,
+    viewport_height: f32,
 }
 
 impl Camera {
     pub fn basic(window_size: WindowSize) -> Self {
         let Vector3 { x, y, z } = cgmath::Vector3::unit_y();
+        let viewport_width = window_size.width as f32;
+        let viewport_height = window_size.height as f32;
         Self::new(
             [0.0, 0.0, 1.0].into(),
             [0.0, 0.0, 0.0].into(),
@@ -35,9 +38,12 @@ impl Camera {
             45.0,
             0.1,
             1000.0,
+            viewport_width,
+            viewport_height,
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         eye: EasingPointN<3>,    // 視点の位置
         target: EasingPointN<3>, // ターゲットの位置
@@ -46,6 +52,8 @@ impl Camera {
         fovy: f32,
         znear: f32,
         zfar: f32,
+        viewport_width: f32,
+        viewport_height: f32,
     ) -> Self {
         Self {
             eye,
@@ -56,6 +64,8 @@ impl Camera {
             znear,
             zfar,
             eye_quaternion: None,
+            viewport_width,
+            viewport_height,
         }
     }
 
@@ -71,7 +81,23 @@ impl Camera {
             view
         };
 
-        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        let mut proj =
+            cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+
+        // TXAAのためのサブピクセルジッターを追加
+        if self.viewport_width > 0.0 && self.viewport_height > 0.0 {
+            let frame_seed = frame_count() % 32 + 1;
+
+            // ハルトン列のような決定的で一様分布のもので frame_seed を使って jitter を計算する
+            //let jitter_x = (frame_seed % 4) as f32 * 0.1 * (1.0 / self.viewport_width);
+            //let jitter_y = (frame_seed / 4) as f32 * 0.1 * (1.0 / self.viewport_height);
+            let jitter_x = halton_sequence(2, frame_seed) * (1.0 / self.viewport_width);
+            let jitter_y = halton_sequence(3, frame_seed) * (1.0 / self.viewport_height);
+
+            proj[2][0] += jitter_x;
+            proj[2][1] += jitter_y;
+        }
+
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
 

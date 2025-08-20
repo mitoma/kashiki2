@@ -10,7 +10,7 @@ use crate::{
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
     screen_bind_group::ScreenBindGroup,
-    screen_texture::{self, BackgroundImageTexture, ScreenTexture},
+    screen_texture::{self, BackgroundImageTexture, ScreenTexture, TxaaTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
     vector_instances::{InstanceRaw, VectorInstances},
     vector_vertex::Vertex,
@@ -24,8 +24,7 @@ const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
 const SCREEN_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
     include_wgsl!("shader/screen_shader.wgsl");
 const BACKGROUND_IMAGE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
-    // include_wgsl!("shader/background_image_shader.wgsl");
-    include_wgsl!("shader/screen_shader.wgsl");
+    include_wgsl!("shader/background_image_shader.wgsl");
 
 #[derive(Clone, Copy)]
 pub enum Quarity {
@@ -74,6 +73,8 @@ pub struct RasterizerPipeline {
 
     // 2 ステージ目のアウトプット(≒ 3 ステージ目のインプット)
     pub(crate) outline_texture: ScreenTexture,
+
+    pub(crate) txaa_texture: Option<TxaaTexture>,
 
     // バックグラウンド用のテクスチャ
     pub(crate) background_image_texture: Option<BackgroundImageTexture>,
@@ -209,7 +210,7 @@ impl RasterizerPipeline {
                 push_constant_ranges: &[],
             });
 
-        let outline_render_pipeline =
+        let outline_render_pipeline: wgpu::RenderPipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Outline Render Pipeline"),
                 layout: Some(&outline_render_pipeline_layout),
@@ -259,10 +260,17 @@ impl RasterizerPipeline {
         let background_image_shader =
             device.create_shader_module(BACKGROUND_IMAGE_SHADER_DESCRIPTOR);
         let background_image_bind_group = BackgroundImageBindGroup::new(device);
+
+        let background_image_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Default Background Image Render Pipeline Layout"),
+                bind_group_layouts: &[&background_image_bind_group.layout],
+                push_constant_ranges: &[],
+            });
         let background_image_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Default Background Image Render Pipeline"),
-                layout: Some(&outline_render_pipeline_layout),
+                layout: Some(&background_image_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &background_image_shader,
                     entry_point: Some("vs_main"),
@@ -310,10 +318,16 @@ impl RasterizerPipeline {
 
         let screen_bind_group = ScreenBindGroup::new(device);
 
+        let screen_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Default Background Image Render Pipeline Layout"),
+                bind_group_layouts: &[&screen_bind_group.layout],
+                push_constant_ranges: &[],
+            });
         let screen_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Default Screen Render Pipeline"),
-                layout: Some(&outline_render_pipeline_layout),
+                layout: Some(&screen_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &screen_shader,
                     entry_point: Some("vs_main"),
@@ -357,6 +371,8 @@ impl RasterizerPipeline {
             });
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
+        let txaa_texture = TxaaTexture::new(device, (width, height), Some("TXAA Texture"));
+
         Self {
             // overlap
             overlap_texture,
@@ -368,6 +384,9 @@ impl RasterizerPipeline {
             outline_render_pipeline,
             outline_vertex_buffer,
             bg_color,
+
+            // txaa 用のテクスチャ
+            txaa_texture: Some(txaa_texture),
 
             // バックグラウンド
             background_image_texture: None,
@@ -395,7 +414,12 @@ impl RasterizerPipeline {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_buffers, vector_buffers);
+
+        self.outline_bind_group.update();
+        self.outline_bind_group.update_buffer(queue);
         self.outline_stage(encoder, device);
+
+        //self.txaa_stage(encoder, device);
 
         self.screen_background_image_stage(encoder, device, &screen_view);
 
@@ -501,9 +525,11 @@ impl RasterizerPipeline {
             .outline_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let outline_bind_group = self
-            .outline_bind_group
-            .to_bind_group(device, &self.overlap_texture);
+        let outline_bind_group = self.outline_bind_group.to_bind_group(
+            device,
+            &self.overlap_texture,
+            self.txaa_texture.as_ref().unwrap(),
+        );
 
         {
             let mut outline_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -588,7 +614,7 @@ impl RasterizerPipeline {
             .to_bind_group(device, background_image_texture);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Screen Render Pass"),
+                label: Some("Background Screen Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: screen_view,
                     resolve_target: None,
