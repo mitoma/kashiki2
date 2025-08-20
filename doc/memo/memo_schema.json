@@ -1,0 +1,30 @@
+{
+    "current_workspace_id": "{UUID v7}",
+    "workspaces": [
+        {
+            "id": "{UUID v7}",
+            "name": "Default Workspace",
+            "selected_labels": [
+                "未整理"
+            ],
+            "memos_order": [
+                "{UUID v7}",
+                "{UUID v7}"
+            ],
+            "created_at": "2023-10-01T12:00:00Z",
+            "updated_at": "2023-10-01T12:00:00Z"
+        }
+    ],
+    "memos": [
+        {
+            "id": "{UUID v7}",
+            "title": "Memo Title",
+            "content": "This is a sample memo content.",
+            "labels": [
+                "未整理"
+            ],
+            "created_at": "2023-10-01T12:00:00Z",
+            "updated_at": "2023-10-01T12:00:00Z"
+        }
+    ]
+}

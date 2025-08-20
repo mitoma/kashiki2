@@ -10,6 +10,7 @@ members = [
     "sample_codes/*",
     "kashikishi",
     "ttf_overlap_remover",
+    "labeled_memos",
 ]
 resolver = "2"
 
@@ -42,6 +43,7 @@ rand = "0.9"
 cfg-if = "1.0"
 arboard = "3.5.0"
 dirs = "6.0.0"
+chrono = { version = "0.4.38", features = ["serde"] }
 
 [profile.release-optimized]
 inherits = "release"
