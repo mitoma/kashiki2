@@ -143,18 +143,7 @@ impl GlyphVertexBuilder {
         face: &Face,
         remove_overlap: bool,
     ) -> Result<VectorVertex, FontRasterizerError> {
-        let mut builder = VectorVertexBuilder::new();
-        let rect = if remove_overlap {
-            let mut overlap_builder = OverlapRemoveOutlineBuilder::default();
-            let rect = face
-                .outline_glyph(glyph_id, &mut overlap_builder)
-                .ok_or(FontRasterizerError::NoOutlineGlyph(glyph_id))?;
-            overlap_builder.outline(&mut builder);
-            rect
-        } else {
-            face.outline_glyph(glyph_id, &mut builder)
-                .ok_or(FontRasterizerError::NoOutlineGlyph(glyph_id))?
-        };
+        let builder = VectorVertexBuilder::new();
 
         let rect_em = face.units_per_em() as f32;
         let center_x = face.glyph_hor_advance(glyph_id).unwrap() as f32 / 2.0;
@@ -166,6 +155,18 @@ impl GlyphVertexBuilder {
             CoordinateSystem::Font,
             None,
         ));
+
+        let rect = if remove_overlap {
+            let mut overlap_builder = OverlapRemoveOutlineBuilder::default();
+            let rect = face
+                .outline_glyph(glyph_id, &mut overlap_builder)
+                .ok_or(FontRasterizerError::NoOutlineGlyph(glyph_id))?;
+            overlap_builder.outline(&mut builder);
+            rect
+        } else {
+            face.outline_glyph(glyph_id, &mut builder)
+                .ok_or(FontRasterizerError::NoOutlineGlyph(glyph_id))?
+        };
 
         if DEBUG_FLAGS.show_glyph_outline {
             let global = face.global_bounding_box();

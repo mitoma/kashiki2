@@ -355,18 +355,37 @@ struct FragmentOutput {
     @location(1) count: vec4<f32>,
 }
 
-fn remapClamped(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
-    let clampedValue = clamp(value, inMin, inMax);
-    return outMin + (clampedValue - inMin) * (outMax - outMin) / (inMax - inMin);
-}
-
 const UNIT :f32 = 0.00390625;
-const ALPHA_STEP: f32 = 16f;
+const ALPHA_STEP: f32 = 8f;
+
+const NEAR_ZERO = 1e-6;
+const NEAR_ONE = 1.0 - 1e-6;
 
 // Fragment shader (マルチターゲット版)
+// R: 原点 が 0 。それ以外が 1
+// G: Flip/Flop で、原点以外で 0.0, 1.0 のどちらかの値を取る。ベジエ曲線の距離計算に用いられる。
+// B: 制御点。ベジエ曲線の制御点が 1.0 。直線の制御点の場合も 1.0 になる。
+//
+// wait一覧
+// 原点 (0.0, 0.0, 0.0)
+// 
+// ベジエ曲線
+// 始点   (1.0, 0.0, (Flip/Flop))
+// 終点   (1.0, 0.0, (Flip/Flop))
+// 制御点 (1.0, 1.0, 0.0)
+//
+// 直線(ベジエ)
+// 原点   (0.0, 0.0, 0.0)
+// 始点   (1.0, 1.0, 0.0)
+// 終点   (1.0, 1.0, 0.0)
+//
+// 直線(エッジ)
+// 原点   (0.0, 0.0, 0.0)
+// 始点   (1.0, 0.0, (Flip/Flop))
+// 終点   (1.0, 0.0, (Flip/Flop))
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
-    let is_bezier = (in.wait.r == 1.0);
+    let is_bezier = (in.wait.r > NEAR_ONE) && (in.wait.g != 0.0);
 
     let pixel_width = 1.0 / f32(u_buffer.u_width);
 
@@ -377,34 +396,44 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     // WebGPU は fwidth は実行パスの分岐先でだけ呼び出されると正しい結果を返せないとエラーを返すのでここで実行する。
 
     // Bezier curve のSDF距離計算
-    let bezier_distance = pow((in.wait.g / 2.0 + in.wait.b), 2.0) - in.wait.b;
+    let bezier_distance = pow((in.wait.g * 0.5 + in.wait.b), 2.0) - in.wait.b;
     // 隣接ピクセルの距離との差分
     let bezier_distance_fwidth = fwidth(bezier_distance);
 
     // 直線のSDF距離計算
     // distance は 1f に近づく。
-    let triangle_distance = 1.0 - in.wait.r;
+    let triangle_distance = in.wait.r;
     // 隣接ピクセルの距離との差分
     let triangle_distance_fwidth = fwidth(triangle_distance);
 
     if is_bezier {
         // Bezier curveの場合の処理
-        let alpha = (remapClamped(bezier_distance, -bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, 1.0, 0.0) - 0.5) * 2.0;
+        // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
+        let alpha = 1.0 - smoothstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
         let in_bezier = bezier_distance < bezier_distance_fwidth / 2.0;
 
         if in_bezier {
             output.count.r = UNIT;
-            output.count.g = alpha / ALPHA_STEP;
+            if alpha != 1.0 {
+                output.count.g = alpha / ALPHA_STEP;
+                output.count.b = UNIT;
+            }
         }
     } else {
         // 三角形の場合の処理
-        let alpha = (remapClamped(triangle_distance, -triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, 0.0, 1.0) - 0.5) * 2.0;
+        // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
+        let alpha = 1.0 - smoothstep(0.5 - triangle_distance_fwidth / 2.0, 0.5 + triangle_distance_fwidth / 2.0, triangle_distance);
 
-        output.count.r = UNIT;
-        if in.wait.g > 0.0 {
-            output.count.g = 1.0 / ALPHA_STEP;
-        } else {
-            output.count.g = alpha / ALPHA_STEP;
+        if in.wait.b == 0.0 /* ベジエの補助的な三角形 */ {
+            output.count.r = UNIT;
+        } else if in.wait.g == 0.0 /* 通常の直線 */ {
+            if alpha > NEAR_ONE {
+                output.count.r = UNIT;
+            } else if alpha != 0.0 {
+                output.count.r = UNIT;
+                output.count.g = alpha / ALPHA_STEP;
+                output.count.b = UNIT;
+            }
         }
     }
 

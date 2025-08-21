@@ -25,17 +25,41 @@ use winit::event::WindowEvent;
 const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum QuarityArg {
+    VeryHigh,
+    High,
+    Middle,
+    Low,
+    VeryLow,
+}
+
+impl QuarityArg {
+    pub fn to_rasterizer_pipeline(&self) -> Quarity {
+        match self {
+            QuarityArg::VeryHigh => Quarity::VeryHigh,
+            QuarityArg::High => Quarity::High,
+            QuarityArg::Middle => Quarity::Middle,
+            QuarityArg::Low => Quarity::Low,
+            QuarityArg::VeryLow => Quarity::VeryLow,
+        }
+    }
+}
+
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
     /// use high performance mode
     #[arg(short, long, default_value = "あ")]
     pub char_of_test: char,
+
+    #[arg(short, long, default_value = "middle")]
+    pub quarity: QuarityArg,
 }
 
 pub fn main() {
     let args = Args::parse();
     env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Debug)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
     pollster::block_on(run(args));
@@ -46,7 +70,9 @@ pub async fn run(args: Args) {
     let mut font_collector = FontCollector::default();
     font_collector.add_system_fonts();
     let mut font_repository = FontRepository::new(font_collector);
-    //font_repository.add_fallback_font_from_system("Noto Sans JP");
+    //font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N");
+    //font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N-R");
+    font_repository.add_fallback_font_from_system("Noto Sans JP");
     font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
     font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
@@ -57,7 +83,7 @@ pub async fn run(args: Args) {
         window_title: "Hello".to_string(),
         window_size,
         callback: Box::new(callback),
-        quarity: Quarity::Middle,
+        quarity: args.quarity.to_rasterizer_pipeline(),
         color_theme: ColorTheme::SolarizedBlackback,
         flags: Flags::DEFAULT,
         font_repository,
