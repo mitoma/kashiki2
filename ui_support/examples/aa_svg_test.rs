@@ -139,19 +139,32 @@ impl SimpleStateCallback for SingleCharCallback {
             context,
             "tri",
             include_str!("../../font_rasterizer/data/test_shapes_tri.svg"),
-            (-0.2, 0.0, 0.0),
+            (-0.2, -0.2, 0.0),
         );
         self.register_and_add_svg(
             context,
             "tri2",
             include_str!("../../font_rasterizer/data/test_shapes_tri2.svg"),
-            (-0.6, 0.0, 0.0),
+            (-0.6, -0.2, 0.0),
         );
         self.register_and_add_svg(
             context,
             "bezier",
             include_str!("../../font_rasterizer/data/test_shapes_bezier.svg"),
-            (0.2, 0.0, 0.0),
+            (0.2, -0.2, 0.0),
+        );
+        self.register_and_add_svg(
+            context,
+            "bezier2",
+            include_str!("../../font_rasterizer/data/test_shapes_bezier2.svg"),
+            (0.6, -0.2, 0.0),
+        );
+
+        self.register_and_add_svg(
+            context,
+            "square",
+            include_str!("../../font_rasterizer/data/test_shapes_square.svg"),
+            (-0.6, 0.2, 0.0),
         );
 
         debug!("init!");
