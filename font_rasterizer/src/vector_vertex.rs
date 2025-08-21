@@ -1,5 +1,5 @@
 use bezier_converter::CubicBezier;
-use log::debug;
+use log::{debug, info};
 use rustybuzz::ttf_parser::OutlineBuilder;
 
 pub(crate) struct VectorVertexBuilder {
@@ -74,16 +74,68 @@ impl VectorVertexBuilder {
 
     pub fn line_to(&mut self, x: f32, y: f32) {
         let wait = self.next_wait();
+
+        let [center_x, center_y]: [f32; 2] = self.builder_options.center;
+
+        // 原点, 始点, 終点の三角形用の頂点を登録
+        let current = self.vertex.last().unwrap();
+        self.vertex.push(InternalVertex {
+            x: current.x * 2.0 - center_x,
+            y: current.y * 2.0 - center_y,
+            wait: current.wait,
+        });
+        self.vertex.push(InternalVertex {
+            x: x * 2.0 - center_x,
+            y: y * 2.0 - center_y,
+            wait,
+        });
+
         self.vertex.push(InternalVertex { x, y, wait });
         self.index.push(0);
-        self.index.push(self.current_index);
         self.index.push(self.current_index + 1);
-        self.current_index += 1;
+        self.index.push(self.current_index + 2);
+        self.current_index += 3;
+    }
+
+    // 定性的に 200.0 を閾値にしている
+    const BEZIER_THRESHOLD: f32 = 200.0;
+    // ベジエ曲線が直線に近似できるかどうかを判定する
+    fn is_narrow_bezier(x1: f32, y1: f32, cx: f32, cy: f32, x2: f32, y2: f32) -> bool {
+        let line_vec = (x2 - x1, y2 - y1);
+        let d1 = (cx - x1) * line_vec.1 - (cy - y1) * line_vec.0;
+        let d2 = (x2 - cx) * line_vec.1 - (y2 - cy) * line_vec.0;
+        d1.abs() < Self::BEZIER_THRESHOLD && d2.abs() < Self::BEZIER_THRESHOLD
     }
 
     pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        let current = self.vertex.last().unwrap();
+
+        // (current.x, current.y) と (x, y) でなす線分上に (x1, y1) が一定の誤差内で存在する時には line_to として処理する
+        if Self::is_narrow_bezier(current.x, current.y, x1, y1, x, y) {
+            info!(
+                "quad_to: (x1, y1) is on the line to (x, y), use line_to instead. cx: {}, cy: {}, x1: {}, y1: {}, x: {}, y: {}",
+                current.x, current.y, x1, y1, x, y
+            );
+            self.line_to(x, y);
+            return;
+        }
+
         let wait = self.next_wait();
 
+        // 原点, 始点, 終点の三角形用の頂点を登録
+        let current = self.vertex.last().unwrap();
+        self.vertex.push(InternalVertex {
+            x: current.x,
+            y: current.y,
+            wait: FlipFlop::Control,
+        });
+        self.vertex.push(InternalVertex {
+            x,
+            y,
+            wait: FlipFlop::Control,
+        });
+
+        // ベジエ曲線用の制御点と終点を登録
         self.vertex.push(InternalVertex {
             x: x1,
             y: y1,
@@ -91,15 +143,16 @@ impl VectorVertexBuilder {
         });
         self.vertex.push(InternalVertex { x, y, wait });
 
+        // 原点, 始点, 終点の三角形
         self.index.push(0);
-        self.index.push(self.current_index);
+        self.index.push(self.current_index + 1);
         self.index.push(self.current_index + 2);
 
         // ベジエ曲線
         self.index.push(self.current_index);
-        self.index.push(self.current_index + 1);
-        self.index.push(self.current_index + 2);
-        self.current_index += 2;
+        self.index.push(self.current_index + 3);
+        self.index.push(self.current_index + 4);
+        self.current_index += 4;
     }
 
     pub fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
@@ -220,7 +273,7 @@ pub(crate) struct Vertex {
     pub(crate) position: [f32; 2],
     // ベジエ曲線を描くために 3 頂点のうちどれを制御点、どれを始点・終点と区別するかを表す。
     // 典型的には [0, 0], または [0, 1] が始点か終点。[1, 0] 制御点となる。
-    pub(crate) wait: [f32; 2],
+    pub(crate) wait: [f32; 3],
 }
 
 impl Vertex {
@@ -240,7 +293,7 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x2,
+                    format: wgpu::VertexFormat::Float32x3,
                 },
             ],
         }
@@ -265,11 +318,11 @@ impl FlipFlop {
     }
 
     #[inline]
-    fn wait(&self) -> [f32; 2] {
+    fn wait(&self) -> [f32; 3] {
         match self {
-            FlipFlop::Flip => [0.0, 0.0],
-            FlipFlop::Flop => [0.0, 1.0],
-            FlipFlop::Control => [1.0, 0.0],
+            FlipFlop::Flip => [1.0, 0.0, 0.0],
+            FlipFlop::Flop => [1.0, 0.0, 1.0],
+            FlipFlop::Control => [1.0, 1.0, 0.0],
         }
     }
 }

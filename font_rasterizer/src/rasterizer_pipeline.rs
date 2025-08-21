@@ -1,10 +1,11 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fs};
 
 use image::DynamicImage;
 use wgpu::include_wgsl;
 
 use crate::{
     background_bind_group::BackgroundImageBindGroup,
+    debug_mode::DEBUG_FLAGS,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::GlyphVertexBuffer,
     outline_bind_group::OutlineBindGroup,
@@ -64,11 +65,13 @@ pub struct RasterizerPipeline {
 
     // 1 ステージ目のアウトプット(≒ 2 ステージ目のインプット)
     pub(crate) overlap_texture: ScreenTexture,
+    // 重なり回数記録用のテクスチャ（マルチターゲット用）
+    pub(crate) overlap_count_texture: ScreenTexture,
 
-    // 2 ステージ目(outline)
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
     pub(crate) outline_vertex_buffer: ScreenVertexBuffer,
+
     // 背景色。 2 ステージ目で使われる。
     pub bg_color: wgpu::Color,
 
@@ -129,12 +132,31 @@ impl RasterizerPipeline {
         };
 
         // overlap
+        let overlap_shader = if DEBUG_FLAGS.debug_shader {
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("font_rasterizer/src/shader/overlap_shader.debug.wgsl"),
+                source: wgpu::ShaderSource::Wgsl(
+                    fs::read_to_string("font_rasterizer/src/shader/overlap_shader.debug.wgsl")
+                        .unwrap()
+                        .into(),
+                ),
+            })
+        } else {
+            device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR)
+        };
+
         let overlap_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
 
-        let overlap_shader = device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR);
+        // 重なり回数記録用のテクスチャ（RGBA8Unorm フォーマットを使用してブレンド可能にする）
+        let overlap_count_texture = screen_texture::ScreenTexture::new_with_format(
+            device,
+            (width, height),
+            wgpu::TextureFormat::Bgra8Unorm,
+            Some("Overlap Count Texture"),
+        );
 
-        let overlap_bind_group = OverlapBindGroup::new(device);
+        let overlap_bind_group = OverlapBindGroup::new(device, width);
 
         let overlap_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -156,18 +178,29 @@ impl RasterizerPipeline {
                 fragment: Some(wgpu::FragmentState {
                     module: &overlap_shader,
                     entry_point: Some("fs_main"),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: overlap_texture.texture_format,
-                        blend: Some(wgpu::BlendState {
-                            color: wgpu::BlendComponent::REPLACE,
-                            alpha: wgpu::BlendComponent {
-                                src_factor: wgpu::BlendFactor::One,
-                                dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                                operation: wgpu::BlendOperation::Add,
-                            },
+                    targets: &[
+                        Some(wgpu::ColorTargetState {
+                            format: overlap_texture.texture_format,
+                            blend: Some(wgpu::BlendState::REPLACE),
+                            write_mask: wgpu::ColorWrites::ALL,
                         }),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
+                        Some(wgpu::ColorTargetState {
+                            format: overlap_count_texture.texture_format,
+                            blend: Some(wgpu::BlendState {
+                                color: wgpu::BlendComponent {
+                                    src_factor: wgpu::BlendFactor::One,
+                                    dst_factor: wgpu::BlendFactor::One,
+                                    operation: wgpu::BlendOperation::Add,
+                                },
+                                alpha: wgpu::BlendComponent {
+                                    src_factor: wgpu::BlendFactor::One,
+                                    dst_factor: wgpu::BlendFactor::One,
+                                    operation: wgpu::BlendOperation::Add,
+                                },
+                            }),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        }),
+                    ],
                     compilation_options: Default::default(),
                 }),
                 primitive: wgpu::PrimitiveState {
@@ -195,13 +228,22 @@ impl RasterizerPipeline {
             });
 
         // outline
+        let outline_shader = if DEBUG_FLAGS.debug_shader {
+            device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some("font_rasterizer/src/shader/outline_shader_debug.wgsl"),
+                source: wgpu::ShaderSource::Wgsl(
+                    fs::read_to_string("font_rasterizer/src/shader/outline_shader.debug.wgsl")
+                        .unwrap()
+                        .into(),
+                ),
+            })
+        } else {
+            device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR)
+        };
+
         let outline_texture =
             screen_texture::ScreenTexture::new(device, (width, height), Some("Outline Texture"));
-
-        let outline_shader = device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR);
-
-        let outline_bind_group = OutlineBindGroup::new(device);
-
+        let outline_bind_group = OutlineBindGroup::new(device, width);
         let outline_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Outline Render Pipeline Layout"),
@@ -224,7 +266,7 @@ impl RasterizerPipeline {
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: outline_texture.texture_format,
-                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                        blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                     compilation_options: Default::default(),
@@ -259,10 +301,18 @@ impl RasterizerPipeline {
         let background_image_shader =
             device.create_shader_module(BACKGROUND_IMAGE_SHADER_DESCRIPTOR);
         let background_image_bind_group = BackgroundImageBindGroup::new(device);
+
+        let background_image_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Background Image Render Pipeline Layout"),
+                bind_group_layouts: &[&background_image_bind_group.layout],
+                push_constant_ranges: &[],
+            });
+
         let background_image_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Default Background Image Render Pipeline"),
-                layout: Some(&outline_render_pipeline_layout),
+                layout: Some(&background_image_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &background_image_shader,
                     entry_point: Some("vs_main"),
@@ -310,10 +360,17 @@ impl RasterizerPipeline {
 
         let screen_bind_group = ScreenBindGroup::new(device);
 
+        let screen_render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Screen Render Pipeline Layout"),
+                bind_group_layouts: &[&screen_bind_group.layout],
+                push_constant_ranges: &[],
+            });
+
         let screen_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Default Screen Render Pipeline"),
-                layout: Some(&outline_render_pipeline_layout),
+                layout: Some(&screen_render_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &screen_shader,
                     entry_point: Some("vs_main"),
@@ -360,13 +417,16 @@ impl RasterizerPipeline {
         Self {
             // overlap
             overlap_texture,
+            overlap_count_texture,
             overlap_bind_group,
             overlap_render_pipeline,
+
             // outline
             outline_texture,
             outline_bind_group,
-            outline_render_pipeline,
             outline_vertex_buffer,
+            outline_render_pipeline,
+
             bg_color,
 
             // バックグラウンド
@@ -392,6 +452,7 @@ impl RasterizerPipeline {
         vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
         screen_view: wgpu::TextureView,
     ) {
+        // マルチターゲットでは事前のクリアは不要
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
         self.overlap_stage(encoder, glyph_buffers, vector_buffers);
@@ -411,20 +472,36 @@ impl RasterizerPipeline {
         let overlap_bind_group = &self.overlap_bind_group.bind_group;
         let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Overlap Render Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &self.overlap_texture.view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 0.0,
-                    }),
-                    store: wgpu::StoreOp::Store,
-                },
-                depth_slice: None,
-            })],
+            color_attachments: &[
+                Some(wgpu::RenderPassColorAttachment {
+                    view: &self.overlap_texture.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                }),
+                Some(wgpu::RenderPassColorAttachment {
+                    view: &self.overlap_count_texture.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
+                            a: 0.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                }),
+            ],
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
@@ -501,9 +578,11 @@ impl RasterizerPipeline {
             .outline_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let outline_bind_group = self
-            .outline_bind_group
-            .to_bind_group(device, &self.overlap_texture);
+        let outline_bind_group = self.outline_bind_group.to_bind_group(
+            device,
+            &self.overlap_texture,
+            &self.overlap_count_texture,
+        );
 
         {
             let mut outline_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -580,43 +659,38 @@ impl RasterizerPipeline {
         device: &wgpu::Device,
         screen_view: &wgpu::TextureView,
     ) {
+        let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Screen Render Pass"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: screen_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(self.bg_color),
+                    store: wgpu::StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
         let Some(background_image_texture) = self.background_image_texture.as_ref() else {
             return;
         };
+
         let screen_bind_group = &self
             .background_image_bind_group
             .to_bind_group(device, background_image_texture);
-        {
-            let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Screen Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: screen_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.0,
-                            g: 0.0,
-                            b: 0.0,
-                            a: 0.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-            screen_render_pass.set_pipeline(&self.background_image_render_pipeline);
-            screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
-            screen_render_pass
-                .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
-            screen_render_pass.set_index_buffer(
-                self.screen_vertex_buffer.index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-            screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
-        }
+
+        screen_render_pass.set_pipeline(&self.background_image_render_pipeline);
+        screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
+        screen_render_pass.set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
+        screen_render_pass.set_index_buffer(
+            self.screen_vertex_buffer.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+        screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
     }
 
     pub fn set_background_image(

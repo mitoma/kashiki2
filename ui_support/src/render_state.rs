@@ -454,28 +454,23 @@ impl RenderState {
 
     pub(crate) fn render(&mut self) -> Result<RenderTargetResponse, wgpu::SurfaceError> {
         record_start_of_phase("render 0: append glyph");
-        self.ui_string_receiver
-            .try_recv()
-            .into_iter()
-            .for_each(|s| {
-                let _ = self.glyph_vertex_buffer.append_chars(
-                    &self.context.device,
-                    &self.context.queue,
-                    s.chars().collect(),
-                );
-            });
+        while let Ok(s) = self.ui_string_receiver.try_recv() {
+            let _ = self.glyph_vertex_buffer.append_chars(
+                &self.context.device,
+                &self.context.queue,
+                s.chars().collect(),
+            );
+        }
+
         record_start_of_phase("render 0: append svg");
-        self.ui_svg_receiver
-            .try_recv()
-            .into_iter()
-            .for_each(|(key, svg)| {
-                let _ = self.svg_vertex_buffer.append_svg(
-                    &self.context.device,
-                    &self.context.queue,
-                    &key,
-                    &svg,
-                );
-            });
+        while let Ok((key, svg)) = self.ui_svg_receiver.try_recv() {
+            let _ = self.svg_vertex_buffer.append_svg(
+                &self.context.device,
+                &self.context.queue,
+                &key,
+                &svg,
+            );
+        }
 
         record_start_of_phase("render 1: setup encoder");
         let mut encoder =

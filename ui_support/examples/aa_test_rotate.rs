@@ -10,7 +10,7 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
     glyph_instances::GlyphInstances,
-    motion::MotionFlags,
+    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     vector_instances::InstanceAttributes,
 };
@@ -59,7 +59,7 @@ pub struct Args {
 pub fn main() {
     let args = Args::parse();
     env_logger::builder()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
     pollster::block_on(run(args));
@@ -70,11 +70,11 @@ pub async fn run(args: Args) {
     let mut font_collector = FontCollector::default();
     font_collector.add_system_fonts();
     let mut font_repository = FontRepository::new(font_collector);
-    //font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N");
-    //font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N-R");
+    font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N");
+    font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N-R");
     font_repository.add_fallback_font_from_system("Noto Sans JP");
-    font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
-    font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
+    //font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
+    //font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
     let window_size = WindowSize::new(512, 512);
     let callback = SingleCharCallback::new(window_size, args.char_of_test);
@@ -91,7 +91,7 @@ pub async fn run(args: Args) {
     };
 
     info!("start generate images");
-    let num_of_frame = 1;
+    let num_of_frame = 256;
 
     info!("start apng encode");
 
@@ -163,7 +163,15 @@ impl SimpleStateCallback for SingleCharCallback {
             world_scale: [1.0, 1.0],
             instance_scale: [0.5, 0.5],
             color: context.color_theme.text_emphasized().get_color(),
-            motion: MotionFlags::ZERO_MOTION,
+            //motion: MotionFlags::random_motion(),
+            motion: MotionFlags::builder()
+                .motion_detail(MotionDetail::TURN_BACK)
+                .motion_type(MotionType::EaseInOut(EasingFuncType::Liner, true))
+                .motion_target(MotionTarget::ROTATE_Y_PLUS)
+                .build(),
+
+            gain: 1.0,
+            duration: Duration::from_secs(100),
             ..Default::default()
         };
         let mut instance = GlyphInstances::new(self.target_char, &context.device);
