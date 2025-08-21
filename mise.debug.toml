@@ -4,20 +4,20 @@ FONT_RASTERIZER_DEBUG_SHADER = "true"
 
 [tasks.build-aatest]
 description = "Run the aatest"
-run = "cargo build --example aa_test --release"
+run = "cargo build --example aa_test"
 
 [tasks.run-aatest]
 description = "Run the aatest"
-run = "./target/release/examples/aa_test"
-run_windows = ".\\target\\release\\examples\\aa_test.exe"
+run = "./target/debug/examples/aa_test"
+run_windows = ".\\target\\debug\\examples\\aa_test.exe"
 depends = "build-aatest"
 
 [tasks.build-aasvgtest]
 description = "Run the aasvgtest"
-run = "cargo build --example aa_svg_test --release"
+run = "cargo build --example aa_svg_test"
 
 [tasks.run-aasvgtest]
 description = "Run the aasvgtest"
-run = "./target/release/examples/aa_svg_test"
-run_windows = ".\\target\\release\\examples\\aa_svg_test.exe"
+run = "./target/debug/examples/aa_svg_test"
+run_windows = ".\\target\\debug\\examples\\aa_svg_test.exe"
 depends = "build-aasvgtest"
