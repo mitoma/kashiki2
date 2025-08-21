@@ -418,6 +418,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 output.count.g = alpha / ALPHA_STEP;
                 output.count.b = UNIT;
             }
+        } else {
+            discard; // Bezier curve の外側は描画しない
         }
     } else {
         // 三角形の場合の処理
@@ -433,6 +435,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                 output.count.r = UNIT;
                 output.count.g = alpha / ALPHA_STEP;
                 output.count.b = UNIT;
+            } else {
+                discard; // 直線の外側は描画しない
             }
         }
     }
