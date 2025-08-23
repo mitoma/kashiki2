@@ -1,10 +1,12 @@
 [tools]
 
+# sites 用に必要なツールのインストール
 "aqua:WebAssembly/binaryen" = "latest"
 "aqua:mdbook" = "latest"
 "cargo:wasm-bindgen-cli" = "latest"
 
 [tasks.build-sites]
+description = "Showcase 用のプロジェクトをビルドする"
 run = "cargo build --target wasm32-unknown-unknown --release -p showcase"
 
 [tasks.bindgen-sites]
@@ -12,7 +14,7 @@ description = "Run wasm-bindgen"
 run = "wasm-bindgen target/wasm32-unknown-unknown/release/showcase.wasm --target web --out-dir site/src/wasm/showcase"
 depends = ["build-sites"]
 
-[tasks.wasm-opt-sites]
+[tasks.opt-sites]
 description = "Run wasm-opt"
 run = "wasm-opt -Oz -o site/src/wasm/showcase/showcase_bg.wasm site/src/wasm/showcase/showcase_bg.wasm"
 depends = ["bindgen-sites"]
@@ -20,7 +22,13 @@ depends = ["bindgen-sites"]
 [tasks.dev-sites]
 description = "Run the development server"
 run = "mdbook serve site --open"
-depends = ["wasm-opt-sites"]
+depends = ["bindgen-sites"]
+
+[tasks.dev-sites-opt]
+description = "Run the development server"
+run = "mdbook serve site --open"
+depends = ["opt-sites"]
+
 
 [tasks.kashikishi]
 description = "Run the kashikishi"
