@@ -73,8 +73,8 @@ pub async fn run(args: Args) {
     font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N");
     font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N-R");
     font_repository.add_fallback_font_from_system("Noto Sans JP");
-    //font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
-    //font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
+    font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
+    font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
     let window_size = WindowSize::new(512, 512);
     let callback = SingleCharCallback::new(window_size, args.char_of_test);
