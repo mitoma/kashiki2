@@ -307,6 +307,11 @@ impl Model for TextEdit {
                 self.config_updated = true;
                 ModelOperationResult::RequireReLayout
             }
+            ModelOperation::SetMaxCol(new_max_col) => {
+                self.config.max_col = *new_max_col;
+                self.config_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
         }
     }
 

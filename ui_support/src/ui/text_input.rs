@@ -50,9 +50,10 @@ impl TextInput {
         };
         let input_text_edit = {
             let mut text_edit = TextEdit::default();
-            let mut new_context = TextContext::default();
-            new_context.direction = context.global_direction;
-            text_edit.set_config(new_context);
+            text_edit.set_config(TextContext {
+                direction: context.global_direction,
+                ..Default::default()
+            });
             if let Some(input) = default_input.as_ref() {
                 text_edit.editor_operation(&EditorOperation::InsertString(input.to_owned()));
             }

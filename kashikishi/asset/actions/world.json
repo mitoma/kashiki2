@@ -133,5 +133,10 @@
         "namespace": "world",
         "name": "unset-model-border",
         "description": "モデルの境界線を解除する"
+    },
+    {
+        "namespace": "world",
+        "name": "change-max-col-ui",
+        "description": "一行の文字数を変更する"
     }
 ]

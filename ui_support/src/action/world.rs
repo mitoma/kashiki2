@@ -1,11 +1,13 @@
-use stroke_parser::{ActionArgument, CommandName, CommandNamespace};
+use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{context::StateContext, glyph_vertex_buffer::Direction};
 
 use crate::{
+    action::add_model_to_world,
     camera::{CameraAdjustment, CameraOperation},
     layout_engine::{ModelBorder, ModelOperation, World, WorldLayout},
+    ui::TextInput,
 };
 
 use super::{ActionProcessor, InputResult};
@@ -253,4 +255,30 @@ world_processor!(
 );
 fn unset_model_border(_arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
     world.model_operation(&ModelOperation::SetModelBorder(ModelBorder::None));
+}
+
+world_processor!(WorldChangeMaxColUi, "change-max-col-ui", change_max_col_ui);
+fn change_max_col_ui(_arg: &ActionArgument, context: &StateContext, world: &mut dyn World) {
+    log::info!("fooo");
+    let modal = TextInput::new(
+        context,
+        "変更後の文字数を指定してください".into(),
+        Some("60".into()),
+        Action::new_command("world", "change-max-col"),
+    );
+    add_model_to_world(context, world, Box::new(modal));
+}
+
+world_processor!(WorldChangeMaxCol, "change-max-col", change_max_col);
+fn change_max_col(arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+    log::info!("Changing max col. {}", arg);
+    match arg {
+        ActionArgument::String2(new_max_col, _) => {
+            let new_max_col = new_max_col.parse::<usize>().unwrap_or(60);
+            world.model_operation(&ModelOperation::SetMaxCol(new_max_col));
+        }
+        _ => {
+            // Handle invalid argument
+        }
+    }
 }

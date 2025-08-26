@@ -548,6 +548,7 @@ pub enum ModelOperation {
     MoveToClick(f32, f32, Matrix4<f32>),
     MarkAndClick(f32, f32, Matrix4<f32>),
     SetModelBorder(ModelBorder),
+    SetMaxCol(usize),
 }
 
 pub enum ModelOperationResult {

@@ -9,9 +9,12 @@ pub use world::*;
 use std::{collections::BTreeMap, rc::Rc, sync::Mutex};
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
-use font_rasterizer::context::StateContext;
+use font_rasterizer::{context::StateContext, glyph_vertex_buffer::Direction};
 
-use crate::layout_engine::World;
+use crate::{
+    camera::CameraAdjustment,
+    layout_engine::{Model, World},
+};
 
 use super::InputResult;
 
@@ -93,6 +96,8 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(WorldToggleMinBound));
         self.add_processor(Box::new(WorldSetModelBorder));
         self.add_processor(Box::new(WorldUnsetModelBorder));
+        self.add_processor(Box::new(WorldChangeMaxColUi));
+        self.add_processor(Box::new(WorldChangeMaxCol));
     }
 
     pub fn add_lambda_processor(
@@ -212,4 +217,22 @@ impl ActionProcessor
     ) -> InputResult {
         (self.f)(arg, context, world)
     }
+}
+
+// util
+
+pub(crate) fn add_model_to_world(
+    context: &StateContext,
+    world: &mut dyn World,
+    model: Box<dyn Model>,
+) {
+    context.register_string(model.to_string());
+    world.add_next(model);
+    world.re_layout();
+    let adjustment = if context.global_direction == Direction::Horizontal {
+        CameraAdjustment::FitWidth
+    } else {
+        CameraAdjustment::FitHeight
+    };
+    world.look_next(adjustment);
 }

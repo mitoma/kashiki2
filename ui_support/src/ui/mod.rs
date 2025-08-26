@@ -123,6 +123,7 @@ impl Model for PlaneTextReader {
             ModelOperation::MarkAndClick(_, _, _) => ModelOperationResult::NoCare,
             ModelOperation::ToggleMinBound => ModelOperationResult::NoCare,
             ModelOperation::SetModelBorder(_) => ModelOperationResult::NoCare,
+            ModelOperation::SetMaxCol(_) => ModelOperationResult::NoCare,
         }
     }
 
