@@ -50,6 +50,9 @@ impl TextInput {
         };
         let input_text_edit = {
             let mut text_edit = TextEdit::default();
+            let mut new_context = TextContext::default();
+            new_context.direction = context.global_direction;
+            text_edit.set_config(new_context);
             if let Some(input) = default_input.as_ref() {
                 text_edit.editor_operation(&EditorOperation::InsertString(input.to_owned()));
             }
@@ -95,7 +98,12 @@ impl Model for TextInput {
     }
 
     fn bound(&self) -> (f32, f32) {
-        self.input_text_edit.bound()
+        let (title_width, title_height) = self.title_text_edit.bound();
+        let (input_width, input_height) = self.input_text_edit.bound();
+        match self.input_text_edit.direction() {
+            Direction::Horizontal => (title_width.max(input_width), title_height + input_height),
+            Direction::Vertical => (title_width + input_width, title_height.max(input_height)),
+        }
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
