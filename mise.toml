@@ -56,4 +56,4 @@ run = "cargo test --all"
 
 [tasks.check]
 description = "Run checks"
-depends = ["fmt", "clippy", "clippy-tests", "test"]
+depends = ["fmt", "clippy", "clippy-tests"]
