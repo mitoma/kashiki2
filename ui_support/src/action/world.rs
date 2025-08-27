@@ -282,3 +282,13 @@ fn change_max_col(arg: &ActionArgument, _context: &StateContext, world: &mut dyn
         }
     }
 }
+
+world_processor!(WorldIncreaseMaxCol, "increase-max-col", increase_max_col);
+fn increase_max_col(_arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+    world.model_operation(&ModelOperation::IncreaseMaxCol);
+}
+
+world_processor!(WorldDecreaseMaxCol, "decrease-max-col", decrease_max_col);
+fn decrease_max_col(_arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+    world.model_operation(&ModelOperation::DecreaseMaxCol);
+}

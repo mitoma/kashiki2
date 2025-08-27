@@ -95,6 +95,8 @@ S-WheelDown world:look-next
 C-ClickMiddle world:reset-zoom
 C-WheelUp     world:forward
 C-WheelDown   world:back
+A-WheelUp     world:increase-max-col
+A-WheelDown   world:decrease-max-col
 
 # mode change
 F1 mode:help

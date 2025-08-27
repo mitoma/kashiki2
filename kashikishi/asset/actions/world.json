@@ -111,6 +111,16 @@
     },
     {
         "namespace": "world",
+        "name": "increase-max-col",
+        "description": "一行の文字数を増やす"
+    },
+    {
+        "namespace": "world",
+        "name": "decrease-max-col",
+        "description": "一行の文字数を減らす"
+    },
+    {
+        "namespace": "world",
         "name": "copy-display",
         "description": "画面に表示されたインデントで文章をコピー"
     },

@@ -98,6 +98,8 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(WorldUnsetModelBorder));
         self.add_processor(Box::new(WorldChangeMaxColUi));
         self.add_processor(Box::new(WorldChangeMaxCol));
+        self.add_processor(Box::new(WorldIncreaseMaxCol));
+        self.add_processor(Box::new(WorldDecreaseMaxCol));
     }
 
     pub fn add_lambda_processor(

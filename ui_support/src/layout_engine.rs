@@ -549,6 +549,8 @@ pub enum ModelOperation {
     MarkAndClick(f32, f32, Matrix4<f32>),
     SetModelBorder(ModelBorder),
     SetMaxCol(usize),
+    IncreaseMaxCol,
+    DecreaseMaxCol,
 }
 
 pub enum ModelOperationResult {
