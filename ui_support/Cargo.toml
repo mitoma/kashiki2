@@ -24,6 +24,9 @@ text_buffer = { path = "../text_buffer" }
 serde-jsonlines = "0.7.0"
 
 similar = "2.6.0"
+#tree-sitter = "0.24"
+#tree-sitter-highlight = "0.24"
+tree-sitter-md = { version = "0.3.2", features = ["parser"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1"
@@ -33,6 +36,11 @@ wgpu = { workspace = true, features = ["webgl"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 
+#[dependencies.tree-sitter-md]
+#features = ["parser"]
+#git = "https://github.com/tree-sitter-grammars/tree-sitter-markdown.git"
+#tag = "v0.5.0"
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = { workspace = true }
 
@@ -40,3 +48,6 @@ arboard = { workspace = true }
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
 rayon = "1.10"
 clap = { version = "4.5.17", features = ["derive"] }
+
+[build-dependencies]
+cc = "1.2.36"
