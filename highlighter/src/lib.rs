@@ -2,6 +2,7 @@ pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
 
+#[derive(Debug, Clone)]
 pub struct CallbackArguments {
     pub language: String,
     pub kind_stack: Vec<String>,
@@ -16,12 +17,12 @@ fn byte_to_char_position(text: &str, byte_pos: usize) -> usize {
         .count()
 }
 
-pub fn markdown_highlight(target_string: &str, callback: fn(CallbackArguments)) {
+pub fn markdown_highlight(target_string: &str, callback: impl Fn(&CallbackArguments)) {
     let mut parser = md_parser();
     let tree = parser.parse(target_string, None).unwrap();
     let cursor = tree.root_node().walk();
     let context = HighlightContext::new(target_string);
-    walk(context, &mut cursor.clone(), callback);
+    walk(context, &mut cursor.clone(), &callback);
 }
 
 #[derive(Clone, Debug)]
@@ -72,7 +73,7 @@ impl<'a> HighlightContext<'a> {
 fn walk<'a>(
     context: HighlightContext<'a>,
     cursor: &mut tree_sitter::TreeCursor,
-    callback: fn(CallbackArguments),
+    callback: &impl Fn(&CallbackArguments),
 ) {
     let mut context = context.clone();
 
@@ -86,7 +87,7 @@ fn walk<'a>(
             let start_byte = current_node.start_byte() + context.target_string_byte_offset;
             let end_byte = current_node.end_byte() + context.target_string_byte_offset;
 
-            callback(CallbackArguments {
+            callback(&CallbackArguments {
                 language,
                 kind_stack: current_stack,
                 start: byte_to_char_position(context.target_string, start_byte),
@@ -257,20 +258,30 @@ public class HelloWorld {
 goodbye!
 "#;
 
-        markdown_highlight(
-            target_string,
-            |CallbackArguments {
-                 language,
-                 kind_stack,
-                 start,
-                 end,
-             }| {
-                let indent = "  ".repeat(kind_stack.len());
-                println!("{}-----", indent);
-                println!("{}lang: \"{}\"", indent, language);
-                println!("{}Kind stack: {:?}", indent, kind_stack);
-                println!("{}Start: {}, End: {}", indent, start, end);
-            },
-        );
+        markdown_highlight(target_string, |callback_arguments| {
+            let indent = "  ".repeat(callback_arguments.kind_stack.len());
+            println!("{}-----", indent);
+            println!("{}lang: \"{}\"", indent, callback_arguments.language);
+            println!("{}Kind stack: {:?}", indent, callback_arguments.kind_stack);
+            println!(
+                "{}Start: {}, End: {}",
+                indent, callback_arguments.start, callback_arguments.end
+            );
+            if callback_arguments.language == "rust"
+                && callback_arguments
+                    .kind_stack
+                    .ends_with(&["function_item".into(), "identifier".into()])
+            {
+                println!(
+                    "{}Matched text: {}",
+                    indent,
+                    target_string
+                        .chars()
+                        .skip(callback_arguments.start)
+                        .take(callback_arguments.end - callback_arguments.start)
+                        .collect::<String>()
+                );
+            }
+        });
     }
 }
