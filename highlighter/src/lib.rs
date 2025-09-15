@@ -202,6 +202,8 @@ fn go_parser() -> tree_sitter::Parser {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+
     use super::*;
 
     #[test]
@@ -282,5 +284,33 @@ goodbye!
                 }
             },
         );
+    }
+
+    #[test]
+    fn test_utf8() {
+        let target_string = "やさしい🐖**健康料理**365日";
+        let has_strong = Mutex::new(false);
+        markdown_highlight(
+            target_string,
+            |CallbackArguments {
+                 kind_stack,
+                 start,
+                 end,
+                 ..
+             }| {
+                if kind_stack.ends_with(&["strong_emphasis".into()]) {
+                    *has_strong.lock().unwrap() = true;
+                    assert_eq!(
+                        "**健康料理**",
+                        target_string
+                            .chars()
+                            .skip(start)
+                            .take(end - start)
+                            .collect::<String>()
+                    );
+                }
+            },
+        );
+        assert!(*has_strong.lock().unwrap());
     }
 }
