@@ -1,0 +1,11 @@
+[package]
+name = "highlighter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tree-sitter = "0.25.9"
+tree-sitter-rust = "0.24.0"
+tree-sitter-java = "0.23.5"
+tree-sitter-go = "0.25.0"
+tree-sitter-md = "0.3.2"
