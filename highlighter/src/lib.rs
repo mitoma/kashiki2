@@ -9,6 +9,13 @@ pub struct CallbackArguments {
     pub end: usize,
 }
 
+// バイト位置から文字位置に変換するヘルパー関数
+fn byte_to_char_position(text: &str, byte_pos: usize) -> usize {
+    text.char_indices()
+        .take_while(|(i, _)| *i < byte_pos)
+        .count()
+}
+
 pub fn markdown_highlight(target_string: &str, callback: fn(CallbackArguments)) {
     let mut parser = md_parser();
     let tree = parser.parse(target_string, None).unwrap();
@@ -18,8 +25,8 @@ pub fn markdown_highlight(target_string: &str, callback: fn(CallbackArguments)) 
 }
 
 #[derive(Clone, Debug)]
-struct HighlightContext {
-    target_string: String,
+struct HighlightContext<'a> {
+    target_string: &'a str,
     target_string_byte_offset: usize,
     in_inline: bool,
     depth: usize,
@@ -27,10 +34,10 @@ struct HighlightContext {
     language_suggestion: String,
 }
 
-impl HighlightContext {
-    fn new(target_string: &str) -> Self {
+impl<'a> HighlightContext<'a> {
+    fn new(target_string: &'a str) -> Self {
         Self {
-            target_string: target_string.to_string(),
+            target_string,
             target_string_byte_offset: 0,
             in_inline: false,
             depth: 0,
@@ -62,8 +69,8 @@ impl HighlightContext {
     }
 }
 
-fn walk(
-    context: HighlightContext,
+fn walk<'a>(
+    context: HighlightContext<'a>,
     cursor: &mut tree_sitter::TreeCursor,
     callback: fn(CallbackArguments),
 ) {
@@ -75,11 +82,15 @@ fn walk(
             let language = context.language_suggestion.clone();
             let mut current_stack = context.kind_stack.clone();
             current_stack.push(current_node.kind().to_string());
+
+            let start_byte = current_node.start_byte() + context.target_string_byte_offset;
+            let end_byte = current_node.end_byte() + context.target_string_byte_offset;
+
             callback(CallbackArguments {
-                language: language,
+                language,
                 kind_stack: current_stack,
-                start: current_node.start_byte() + context.target_string_byte_offset,
-                end: current_node.end_byte() + context.target_string_byte_offset,
+                start: byte_to_char_position(context.target_string, start_byte),
+                end: byte_to_char_position(context.target_string, end_byte),
             });
         }
 
@@ -96,7 +107,9 @@ fn walk(
                     .unwrap();
                 let mut inner_cursor = tree.root_node().walk();
                 walk(
-                    context.with_kind(current_node.kind()),
+                    context
+                        .with_kind(current_node.kind())
+                        .with_byte_offset(cursor.node().start_byte()),
                     &mut inner_cursor,
                     callback,
                 );
@@ -244,13 +257,8 @@ public class HelloWorld {
 goodbye!
 "#;
 
-        let mut parser = md_parser();
-        let tree = parser.parse(target_string, None).unwrap();
-        let cursor = tree.root_node().walk();
-        let context = HighlightContext::new(target_string);
-        walk(
-            context,
-            &mut cursor.clone(),
+        markdown_highlight(
+            target_string,
             |CallbackArguments {
                  language,
                  kind_stack,
