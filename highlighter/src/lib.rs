@@ -2,50 +2,112 @@ pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
 
-fn walk(target_string: &str, cursor: &mut tree_sitter::TreeCursor, indent: usize, in_inline: bool) {
+#[derive(Clone, Debug)]
+struct HighlightContext {
+    target_string: String,
+    in_inline: bool,
+    depth: usize,
+    kind_stack: Vec<String>,
+    language_suggestion: Option<String>,
+}
+
+impl HighlightContext {
+    fn new(target_string: &str) -> Self {
+        Self {
+            target_string: target_string.to_string(),
+            in_inline: false,
+            depth: 0,
+            kind_stack: vec![],
+            language_suggestion: None,
+        }
+    }
+
+    fn with_kind(&self, kind: &str) -> Self {
+        let mut new_context = self.clone();
+        new_context.kind_stack.push(kind.to_string());
+        new_context.depth += 1;
+        if kind == "inline" {
+            new_context.in_inline = true;
+        }
+        new_context
+    }
+
+    fn with_language_suggestion(&self, lang: &str) -> Self {
+        let mut new_context = self.clone();
+        new_context.language_suggestion = Some(lang.to_string());
+        new_context
+    }
+
+    fn without_language_suggestion(&self) -> Self {
+        let mut new_context = self.clone();
+        new_context.language_suggestion = None;
+        new_context
+    }
+}
+
+fn walk(context: HighlightContext, cursor: &mut tree_sitter::TreeCursor) {
+    let mut context = context.clone();
+
+    let current_node = cursor.node();
+    println!("{}{:?}", "  ".repeat(context.depth), context.kind_stack);
     println!(
         "{}{:?} {:?} {:?}",
-        "  ".repeat(indent),
-        cursor.node().kind(),
-        cursor.node().start_position(),
-        cursor.node().end_position()
+        "  ".repeat(context.depth),
+        current_node.kind(),
+        current_node.start_position(),
+        current_node.end_position()
     );
 
     let mut require_children = true;
-    match cursor.node().kind() {
-        "inline" if !in_inline => {
+    match current_node.kind() {
+        "inline" if !context.in_inline => {
             let mut parser = md_inline_parser();
             let tree = parser
                 .parse(
-                    &target_string[cursor.node().start_byte()..cursor.node().end_byte()],
+                    &context.target_string[cursor.node().start_byte()..cursor.node().end_byte()],
                     None,
                 )
                 .unwrap();
             let mut inner_cursor = tree.root_node().walk();
-            walk(target_string, &mut inner_cursor, indent + 1, true);
+            walk(context.with_kind(current_node.kind()), &mut inner_cursor);
             require_children = false;
         }
         "code_fence_content" => {
-            let mut parser = rust_parser();
+            let mut parser = match context.language_suggestion.as_deref() {
+                Some("rust") => rust_parser(),
+                Some("java") => java_parser(),
+                Some("go") => go_parser(),
+                _ => {
+                    return;
+                }
+            };
             let tree = parser
                 .parse(
-                    &target_string[cursor.node().start_byte()..cursor.node().end_byte()],
+                    &context.target_string[cursor.node().start_byte()..cursor.node().end_byte()],
                     None,
                 )
                 .unwrap();
             let mut inner_cursor = tree.root_node().walk();
-            walk(target_string, &mut inner_cursor, indent + 1, true);
+            walk(context.with_kind(current_node.kind()), &mut inner_cursor);
+            require_children = false;
+        }
+        "info_string" => {
+            let language_node = current_node.child(0).unwrap();
+            let lang = &context.target_string[language_node.start_byte()..language_node.end_byte()]
+                .to_string();
+            context = context.with_language_suggestion(lang);
             require_children = false;
         }
         _ => {}
     }
 
     if require_children && cursor.goto_first_child() {
-        walk(target_string, cursor, indent + 1, in_inline);
+        walk(context.with_kind(current_node.kind()), cursor);
         cursor.goto_parent();
     }
     if cursor.goto_next_sibling() {
-        walk(target_string, cursor, indent, in_inline);
+        //println!("language_suggestion: {:?}", context.language_suggestion);
+        walk(context, cursor);
     }
 }
 
@@ -130,12 +192,23 @@ fn main() {
     }
 ```
 
+Go Java
+
+```java
+public class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+    }
+}
+```
+
 goodbye!
 "#;
 
         let mut parser = md_parser();
         let tree = parser.parse(target_string, None).unwrap();
         let cursor = tree.root_node().walk();
-        walk(target_string, &mut cursor.clone(), 0, false);
+        let context = HighlightContext::new(target_string);
+        walk(context, &mut cursor.clone());
     }
 }
