@@ -20,7 +20,7 @@ pub fn markdown_highlight(target_string: &str, callback: fn(CallbackArguments)) 
 #[derive(Clone, Debug)]
 struct HighlightContext {
     target_string: String,
-    target_string_offset: usize,
+    target_string_byte_offset: usize,
     in_inline: bool,
     depth: usize,
     kind_stack: Vec<String>,
@@ -31,7 +31,7 @@ impl HighlightContext {
     fn new(target_string: &str) -> Self {
         Self {
             target_string: target_string.to_string(),
-            target_string_offset: 0,
+            target_string_byte_offset: 0,
             in_inline: false,
             depth: 0,
             kind_stack: vec![],
@@ -55,9 +55,9 @@ impl HighlightContext {
         new_context
     }
 
-    fn with_offset(&self, offset: usize) -> Self {
+    fn with_byte_offset(&self, byte_offset: usize) -> Self {
         let mut new_context = self.clone();
-        new_context.target_string_offset += offset;
+        new_context.target_string_byte_offset += byte_offset;
         new_context
     }
 }
@@ -78,8 +78,8 @@ fn walk(
             callback(CallbackArguments {
                 language: language,
                 kind_stack: current_stack,
-                start: current_node.start_byte() + context.target_string_offset,
-                end: current_node.end_byte() + context.target_string_offset,
+                start: current_node.start_byte() + context.target_string_byte_offset,
+                end: current_node.end_byte() + context.target_string_byte_offset,
             });
         }
 
@@ -122,7 +122,7 @@ fn walk(
                 walk(
                     context
                         .with_kind(current_node.kind())
-                        .with_offset(cursor.node().start_byte()),
+                        .with_byte_offset(cursor.node().start_byte()),
                     &mut inner_cursor,
                     callback,
                 );
