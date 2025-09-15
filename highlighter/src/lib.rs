@@ -2,23 +2,40 @@ pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
 
+pub struct CallbackArguments {
+    pub language: String,
+    pub kind_stack: Vec<String>,
+    pub start: usize,
+    pub end: usize,
+}
+
+pub fn markdown_highlight(target_string: &str, callback: fn(CallbackArguments)) {
+    let mut parser = md_parser();
+    let tree = parser.parse(target_string, None).unwrap();
+    let cursor = tree.root_node().walk();
+    let context = HighlightContext::new(target_string);
+    walk(context, &mut cursor.clone(), callback);
+}
+
 #[derive(Clone, Debug)]
 struct HighlightContext {
     target_string: String,
+    target_string_offset: usize,
     in_inline: bool,
     depth: usize,
     kind_stack: Vec<String>,
-    language_suggestion: Option<String>,
+    language_suggestion: String,
 }
 
 impl HighlightContext {
     fn new(target_string: &str) -> Self {
         Self {
             target_string: target_string.to_string(),
+            target_string_offset: 0,
             in_inline: false,
             depth: 0,
             kind_stack: vec![],
-            language_suggestion: None,
+            language_suggestion: "markdown".to_string(),
         }
     }
 
@@ -34,16 +51,39 @@ impl HighlightContext {
 
     fn with_language_suggestion(&self, lang: &str) -> Self {
         let mut new_context = self.clone();
-        new_context.language_suggestion = Some(lang.to_string());
+        new_context.language_suggestion = lang.to_string();
+        new_context
+    }
+
+    fn with_offset(&self, offset: usize) -> Self {
+        let mut new_context = self.clone();
+        new_context.target_string_offset += offset;
         new_context
     }
 }
 
-fn walk(context: HighlightContext, cursor: &mut tree_sitter::TreeCursor) {
+fn walk(
+    context: HighlightContext,
+    cursor: &mut tree_sitter::TreeCursor,
+    callback: fn(CallbackArguments),
+) {
     let mut context = context.clone();
 
     loop {
         let current_node = cursor.node();
+        {
+            let language = context.language_suggestion.clone();
+            let mut current_stack = context.kind_stack.clone();
+            current_stack.push(current_node.kind().to_string());
+            callback(CallbackArguments {
+                language: language,
+                kind_stack: current_stack,
+                start: current_node.start_byte() + context.target_string_offset,
+                end: current_node.end_byte() + context.target_string_offset,
+            });
+        }
+
+        /*
         println!("{}{:?}", "  ".repeat(context.depth), context.kind_stack);
         println!(
             "{}{:?} {:?} {:?}",
@@ -52,6 +92,7 @@ fn walk(context: HighlightContext, cursor: &mut tree_sitter::TreeCursor) {
             current_node.start_position(),
             current_node.end_position()
         );
+         */
 
         let mut require_children = true;
         match current_node.kind() {
@@ -65,14 +106,18 @@ fn walk(context: HighlightContext, cursor: &mut tree_sitter::TreeCursor) {
                     )
                     .unwrap();
                 let mut inner_cursor = tree.root_node().walk();
-                walk(context.with_kind(current_node.kind()), &mut inner_cursor);
+                walk(
+                    context.with_kind(current_node.kind()),
+                    &mut inner_cursor,
+                    callback,
+                );
                 require_children = false;
             }
             "code_fence_content" => {
-                let mut parser = match context.language_suggestion.as_deref() {
-                    Some("rust") => rust_parser(),
-                    Some("java") => java_parser(),
-                    Some("go") => go_parser(),
+                let mut parser = match context.language_suggestion.as_str() {
+                    "rust" => rust_parser(),
+                    "java" => java_parser(),
+                    "go" => go_parser(),
                     _ => {
                         return;
                     }
@@ -85,7 +130,13 @@ fn walk(context: HighlightContext, cursor: &mut tree_sitter::TreeCursor) {
                     )
                     .unwrap();
                 let mut inner_cursor = tree.root_node().walk();
-                walk(context.with_kind(current_node.kind()), &mut inner_cursor);
+                walk(
+                    context
+                        .with_kind(current_node.kind())
+                        .with_offset(cursor.node().start_byte()),
+                    &mut inner_cursor,
+                    callback,
+                );
                 require_children = false;
             }
             "info_string" => {
@@ -100,7 +151,7 @@ fn walk(context: HighlightContext, cursor: &mut tree_sitter::TreeCursor) {
         }
 
         if require_children && cursor.goto_first_child() {
-            walk(context.with_kind(current_node.kind()), cursor);
+            walk(context.with_kind(current_node.kind()), cursor, callback);
             cursor.goto_parent();
         }
         if !cursor.goto_next_sibling() {
@@ -208,6 +259,21 @@ goodbye!
         let tree = parser.parse(target_string, None).unwrap();
         let cursor = tree.root_node().walk();
         let context = HighlightContext::new(target_string);
-        walk(context, &mut cursor.clone());
+        walk(
+            context,
+            &mut cursor.clone(),
+            |CallbackArguments {
+                 language,
+                 kind_stack,
+                 start,
+                 end,
+             }| {
+                let indent = "  ".repeat(kind_stack.len());
+                println!("{}-----", indent);
+                println!("{}lang: \"{}\"", indent, language);
+                println!("{}Kind stack: {:?}", indent, kind_stack);
+                println!("{}Start: {}, End: {}", indent, start, end);
+            },
+        );
     }
 }
