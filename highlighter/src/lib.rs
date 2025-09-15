@@ -83,17 +83,6 @@ fn walk(
             });
         }
 
-        /*
-        println!("{}{:?}", "  ".repeat(context.depth), context.kind_stack);
-        println!(
-            "{}{:?} {:?} {:?}",
-            "  ".repeat(context.depth),
-            current_node.kind(),
-            current_node.start_position(),
-            current_node.end_position()
-        );
-         */
-
         let mut require_children = true;
         match current_node.kind() {
             "inline" if !context.in_inline => {
