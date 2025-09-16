@@ -426,6 +426,41 @@ impl TextEdit {
                 ChangeEvent::RemoveCaret(c) => {
                     self.caret_states.caret_to_dustbox(c, &self.config);
                 }
+                ChangeEvent::UpdateCharAttribute(buffer_char, char_attribute) => {
+                    let request = match char_attribute {
+                        text_buffer::editor::CharAttribute::Default => {
+                            &ViewElementStateUpdateRequest {
+                                base_color: Some(ThemedColor::Text),
+                                ..Default::default()
+                            }
+                        }
+                        text_buffer::editor::CharAttribute::Color(i) => {
+                            let base_color = match i % 7 {
+                                0 => ThemedColor::Yellow,
+                                1 => ThemedColor::Orange,
+                                2 => ThemedColor::Red,
+                                3 => ThemedColor::Magenta,
+                                4 => ThemedColor::Violet,
+                                5 => ThemedColor::Blue,
+                                6 => ThemedColor::Cyan,
+                                7 => ThemedColor::Green,
+                                _ => ThemedColor::Text,
+                            };
+                            &ViewElementStateUpdateRequest {
+                                base_color: Some(base_color),
+                                position: Some([1.0, 0.0, 0.0]),
+                                scale: Some([
+                                    self.config.instance_scale()[0] * 1.2,
+                                    self.config.instance_scale()[1] * 1.2,
+                                ]),
+                                ..Default::default()
+                            }
+                        }
+                    };
+
+                    self.char_states
+                        .update_state(&buffer_char, request, &self.config);
+                }
             }
         }
         // editor のイベントを処理した後に textedit 特有の Operation を処理する

@@ -1,6 +1,10 @@
 use std::fmt::Display;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::mpsc::Sender;
+
+use highlighter::CallbackArguments;
+use highlighter::markdown_highlight;
 
 use super::action::*;
 use super::buffer::*;
@@ -92,8 +96,60 @@ impl Editor {
                 &itself.sender,
             );
             itself.undo_list.push(reverse_actions);
+            let buffer_str = itself.to_buffer_string();
 
             if op.is_unmark_operation() {
+                let mut position = 0;
+                let char_with_positions = Mutex::new(vec![]);
+
+                for line in itself.buffer.lines.iter() {
+                    for c in line.chars.iter() {
+                        char_with_positions.lock().unwrap().push((
+                            position,
+                            c,
+                            CharAttribute::Default,
+                        ));
+                        position += 1;
+                    }
+                    position += 1;
+                }
+
+                markdown_highlight(
+                    &buffer_str,
+                    |CallbackArguments {
+                         language,
+                         kind_stack,
+                         start,
+                         end,
+                     }| {
+                        let mut next_attr = if language == "markdown"
+                            && kind_stack.ends_with(&["atx_heading".into()])
+                        {
+                            CharAttribute::Color(0)
+                        } else if kind_stack
+                            .ends_with(&["function_item".into(), "identifier".into()])
+                        {
+                            CharAttribute::Color(1)
+                        } else if kind_stack.ends_with(&["link_destination".into()]) {
+                            CharAttribute::Color(3)
+                        } else {
+                            CharAttribute::Default
+                        };
+                        for (position, c, attr) in char_with_positions.lock().unwrap().iter_mut() {
+                            if *position >= start && *position < end && *attr == CharAttribute::Default {
+                                *attr = next_attr;
+                            }
+                        }
+                    },
+                );
+
+                for (_position, c, attr) in char_with_positions.lock().unwrap().iter() {
+                    itself
+                        .sender
+                        .send(ChangeEvent::UpdateCharAttribute(**c, *attr))
+                        .unwrap();
+                }
+
                 itself.unmark();
             }
         });
@@ -373,6 +429,13 @@ pub enum ChangeEvent {
     AddCaret(Caret),
     MoveCaret { from: Caret, to: Caret },
     RemoveCaret(Caret),
+    UpdateCharAttribute(BufferChar, CharAttribute),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub enum CharAttribute {
+    Default,
+    Color(usize),
 }
 
 #[cfg(test)]

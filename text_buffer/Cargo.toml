@@ -5,6 +5,7 @@ authors = ["mitoma <mutetheradio@gmail.com>"]
 edition = "2024"
 
 [dependencies]
+highlighter = { path = "../highlighter" }
 
 [dev-dependencies]
 indoc = "2"
