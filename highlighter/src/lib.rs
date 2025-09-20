@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 #[derive(Debug, Clone)]
 pub struct CallbackArguments {
     pub language: String,
@@ -28,20 +30,12 @@ impl KindStack {
         self.kind_keys().ends_with(suffix)
     }
 
-    pub fn start(&self, depth: usize) -> usize {
+    pub fn range(&self, depth: usize) -> Range<usize> {
         self.0
             .len()
             .checked_sub(1 + depth)
-            .map(|i| self.0[i].start)
-            .unwrap_or(0)
-    }
-
-    pub fn end(&self, depth: usize) -> usize {
-        self.0
-            .len()
-            .checked_sub(1 + depth)
-            .map(|i| self.0[i].end)
-            .unwrap_or(0)
+            .map(|i| self.0[i].range.clone())
+            .unwrap_or(0..0)
     }
 }
 
@@ -63,22 +57,21 @@ pub fn markdown_highlight(target_string: &str, callback: impl Fn(CallbackArgumen
 #[derive(Clone, Debug)]
 struct KindAndRange {
     kind: String,
-    start: usize,
-    end: usize,
+    range: Range<usize>,
 }
 
 impl KindAndRange {
     fn new(context: &HighlightContext, node: &tree_sitter::Node) -> Self {
         Self {
             kind: node.kind().to_string(),
-            start: byte_to_char_position(
+            range: byte_to_char_position(
                 context.target_string,
                 context.target_string_byte_offset + node.start_byte(),
-            ),
-            end: byte_to_char_position(
-                context.target_string,
-                context.target_string_byte_offset + node.end_byte(),
-            ),
+            )
+                ..byte_to_char_position(
+                    context.target_string,
+                    context.target_string_byte_offset + node.end_byte(),
+                ),
         }
     }
 }
@@ -343,20 +336,13 @@ fn main() {
                 println!("{}-----", indent);
                 println!("{}lang: \"{}\"", indent, language);
                 println!("{}Kind stack: {}", indent, kind_stack.kind_keys());
-                println!(
-                    "{}Start: {}, End: {}",
-                    indent,
-                    kind_stack.start(0),
-                    kind_stack.end(0)
-                );
+                println!("{}Range: {:?}", indent, kind_stack.range(0));
                 if language == "rust" && kind_stack.ends_with("function_item.identifier") {
                     println!(
                         "{}Matched text: {}",
                         indent,
-                        target_string
-                            .chars()
-                            .skip(kind_stack.start(0))
-                            .take(kind_stack.end(0) - kind_stack.start(0))
+                        target_string.chars().collect::<Vec<_>>()[kind_stack.range(0)]
+                            .iter()
                             .collect::<String>()
                     );
                 }
@@ -373,10 +359,8 @@ fn main() {
                 *has_strong.lock().unwrap() = true;
                 assert_eq!(
                     "**健康料理**",
-                    target_string
-                        .chars()
-                        .skip(kind_stack.start(0))
-                        .take(kind_stack.end(0) - kind_stack.start(0))
+                    target_string.chars().collect::<Vec<_>>()[kind_stack.range(0)]
+                        .iter()
                         .collect::<String>()
                 );
             }

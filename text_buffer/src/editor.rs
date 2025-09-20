@@ -141,13 +141,9 @@ impl Editor {
                         } else {
                             (CharAttribute::Default, 0)
                         };
-                        let start = kind_stack.start(depth);
-                        let end = kind_stack.end(depth);
+                        let range = kind_stack.range(depth);
                         for (position, _c, attr) in char_with_positions.lock().unwrap().iter_mut() {
-                            if *position >= start
-                                && *position < end
-                                && *attr == CharAttribute::Default
-                            {
+                            if range.contains(position) && *attr == CharAttribute::Default {
                                 *attr = next_attr;
                             }
                         }
