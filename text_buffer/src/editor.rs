@@ -131,6 +131,12 @@ impl Editor {
                                 (CharAttribute::Color(3), 1)
                             } else if kind_stack.ends_with("atx_heading.atx_h5_marker") {
                                 (CharAttribute::Color(4), 1)
+                            } else if kind_stack.ends_with("strong_emphasis") {
+                                (CharAttribute::Color(8), 0)
+                            } else if kind_stack.ends_with("block_quote") {
+                                (CharAttribute::Color(9), 0)
+                            } else if kind_stack.ends_with("code_span") {
+                                (CharAttribute::Color(8), 0)
                             } else {
                                 (CharAttribute::Default, 0)
                             }

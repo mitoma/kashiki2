@@ -435,7 +435,7 @@ impl TextEdit {
                             }
                         }
                         text_buffer::editor::CharAttribute::Color(i) => {
-                            let base_color = match i % 7 {
+                            let base_color = match i % 10 {
                                 0 => ThemedColor::Yellow,
                                 1 => ThemedColor::Orange,
                                 2 => ThemedColor::Red,
@@ -444,6 +444,8 @@ impl TextEdit {
                                 5 => ThemedColor::Blue,
                                 6 => ThemedColor::Cyan,
                                 7 => ThemedColor::Green,
+                                8 => ThemedColor::TextEmphasized,
+                                9 => ThemedColor::TextComment,
                                 _ => ThemedColor::Text,
                             };
                             &ViewElementStateUpdateRequest {
