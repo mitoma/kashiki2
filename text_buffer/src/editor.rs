@@ -122,7 +122,7 @@ impl Editor {
                          start,
                          end,
                      }| {
-                        let mut next_attr = if language == "markdown"
+                        let next_attr = if language == "markdown"
                             && kind_stack.ends_with(&["atx_heading".into()])
                         {
                             CharAttribute::Color(0)
@@ -135,8 +135,11 @@ impl Editor {
                         } else {
                             CharAttribute::Default
                         };
-                        for (position, c, attr) in char_with_positions.lock().unwrap().iter_mut() {
-                            if *position >= start && *position < end && *attr == CharAttribute::Default {
+                        for (position, _c, attr) in char_with_positions.lock().unwrap().iter_mut() {
+                            if *position >= start
+                                && *position < end
+                                && *attr == CharAttribute::Default
+                            {
                                 *attr = next_attr;
                             }
                         }
