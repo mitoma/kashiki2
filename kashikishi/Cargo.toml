@@ -24,5 +24,5 @@ stroke_parser = { path = "../stroke_parser" }
 rokid_3dof = { path = "../rokid_3dof" }
 ui_support = { path = "../ui_support" }
 
-chrono = { version = "0.4.38", features = ["serde"] }
-clap = { version = "4.5.17", features = ["derive"] }
+chrono = { version = "0.4.42", features = ["serde"] }
+clap = { version = "4.5.48", features = ["derive"] }
