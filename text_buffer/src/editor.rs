@@ -119,22 +119,30 @@ impl Editor {
                     |CallbackArguments {
                          language,
                          kind_stack,
-                         start,
-                         end,
                      }| {
-                        let next_attr = if language == "markdown"
-                            && kind_stack.ends_with(&["atx_heading".into()])
-                        {
-                            CharAttribute::Color(0)
-                        } else if kind_stack
-                            .ends_with(&["function_item".into(), "identifier".into()])
-                        {
-                            CharAttribute::Color(1)
-                        } else if kind_stack.ends_with(&["link_destination".into()]) {
-                            CharAttribute::Color(3)
+                        let (next_attr, depth) = if language == "markdown" {
+                            if kind_stack.ends_with("atx_heading.atx_h1_marker") {
+                                (CharAttribute::Color(0), 1)
+                            } else if kind_stack.ends_with("atx_heading.atx_h2_marker") {
+                                (CharAttribute::Color(1), 1)
+                            } else if kind_stack.ends_with("atx_heading.atx_h3_marker") {
+                                (CharAttribute::Color(2), 1)
+                            } else if kind_stack.ends_with("atx_heading.atx_h4_marker") {
+                                (CharAttribute::Color(3), 1)
+                            } else if kind_stack.ends_with("atx_heading.atx_h5_marker") {
+                                (CharAttribute::Color(4), 1)
+                            } else {
+                                (CharAttribute::Default, 0)
+                            }
+                        } else if kind_stack.ends_with("function_item.identifier") {
+                            (CharAttribute::Color(1), 0)
+                        } else if kind_stack.ends_with("link_destination") {
+                            (CharAttribute::Color(3), 0)
                         } else {
-                            CharAttribute::Default
+                            (CharAttribute::Default, 0)
                         };
+                        let start = kind_stack.start(depth);
+                        let end = kind_stack.end(depth);
                         for (position, _c, attr) in char_with_positions.lock().unwrap().iter_mut() {
                             if *position >= start
                                 && *position < end

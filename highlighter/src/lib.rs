@@ -1,9 +1,48 @@
 #[derive(Debug, Clone)]
 pub struct CallbackArguments {
     pub language: String,
-    pub kind_stack: Vec<String>,
-    pub start: usize,
-    pub end: usize,
+    pub kind_stack: KindStack,
+}
+
+#[derive(Debug, Clone)]
+pub struct KindStack(Vec<KindAndRange>);
+
+impl KindStack {
+    fn push(&mut self, kind: KindAndRange) {
+        self.0.push(kind);
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn kind_keys(&self) -> String {
+        self.0
+            .iter()
+            .map(|k| k.kind.clone())
+            .collect::<Vec<String>>()
+            .join(".")
+    }
+
+    pub fn ends_with(&self, suffix: &str) -> bool {
+        self.kind_keys().ends_with(suffix)
+    }
+
+    pub fn start(&self, depth: usize) -> usize {
+        self.0
+            .len()
+            .checked_sub(1 + depth)
+            .map(|i| self.0[i].start)
+            .unwrap_or(0)
+    }
+
+    pub fn end(&self, depth: usize) -> usize {
+        self.0
+            .len()
+            .checked_sub(1 + depth)
+            .map(|i| self.0[i].end)
+            .unwrap_or(0)
+    }
 }
 
 // バイト位置から文字位置に変換するヘルパー関数
@@ -22,12 +61,35 @@ pub fn markdown_highlight(target_string: &str, callback: impl Fn(CallbackArgumen
 }
 
 #[derive(Clone, Debug)]
+struct KindAndRange {
+    kind: String,
+    start: usize,
+    end: usize,
+}
+
+impl KindAndRange {
+    fn new(context: &HighlightContext, node: &tree_sitter::Node) -> Self {
+        Self {
+            kind: node.kind().to_string(),
+            start: byte_to_char_position(
+                context.target_string,
+                context.target_string_byte_offset + node.start_byte(),
+            ),
+            end: byte_to_char_position(
+                context.target_string,
+                context.target_string_byte_offset + node.end_byte(),
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 struct HighlightContext<'a> {
     target_string: &'a str,
     target_string_byte_offset: usize,
     in_inline: bool,
     depth: usize,
-    kind_stack: Vec<String>,
+    kind_stack: KindStack,
     language_suggestion: String,
 }
 
@@ -38,16 +100,16 @@ impl<'a> HighlightContext<'a> {
             target_string_byte_offset: 0,
             in_inline: false,
             depth: 0,
-            kind_stack: vec![],
+            kind_stack: KindStack(Vec::new()),
             language_suggestion: "markdown".to_string(),
         }
     }
 
-    fn with_kind(&self, kind: &str) -> Self {
+    fn with_kind(&self, kind: &KindAndRange) -> Self {
         let mut new_context = self.clone();
-        new_context.kind_stack.push(kind.to_string());
+        new_context.kind_stack.push(kind.clone());
         new_context.depth += 1;
-        if kind == "inline" {
+        if kind.kind == "inline" {
             new_context.in_inline = true;
         }
         new_context
@@ -78,16 +140,11 @@ fn walk<'a>(
         {
             let language = context.language_suggestion.clone();
             let mut current_stack = context.kind_stack.clone();
-            current_stack.push(current_node.kind().to_string());
-
-            let start_byte = current_node.start_byte() + context.target_string_byte_offset;
-            let end_byte = current_node.end_byte() + context.target_string_byte_offset;
+            current_stack.push(KindAndRange::new(&context, &current_node));
 
             callback(CallbackArguments {
                 language,
-                kind_stack: current_stack,
-                start: byte_to_char_position(context.target_string, start_byte),
-                end: byte_to_char_position(context.target_string, end_byte),
+                kind_stack: current_stack.clone(),
             });
         }
 
@@ -105,7 +162,7 @@ fn walk<'a>(
                 let mut inner_cursor = tree.root_node().walk();
                 walk(
                     context
-                        .with_kind(current_node.kind())
+                        .with_kind(&KindAndRange::new(&context, &current_node))
                         .with_byte_offset(cursor.node().start_byte()),
                     &mut inner_cursor,
                     callback,
@@ -131,7 +188,7 @@ fn walk<'a>(
                 let mut inner_cursor = tree.root_node().walk();
                 walk(
                     context
-                        .with_kind(current_node.kind())
+                        .with_kind(&KindAndRange::new(&context, &current_node))
                         .with_byte_offset(cursor.node().start_byte()),
                     &mut inner_cursor,
                     callback,
@@ -150,7 +207,11 @@ fn walk<'a>(
         }
 
         if require_children && cursor.goto_first_child() {
-            walk(context.with_kind(current_node.kind()), cursor, callback);
+            walk(
+                context.with_kind(&KindAndRange::new(&context, &current_node)),
+                cursor,
+                callback,
+            );
             cursor.goto_parent();
         }
         if !cursor.goto_next_sibling() {
@@ -256,29 +317,46 @@ public class HelloWorld {
 goodbye!
 "#;
 
+        let target_string = r#"
+# Hello, world!
+
+## Google Map!
+
+This is a **bold** text and *italic* text.
+
+```rust
+fn main() {
+    let mut x = 1 + 2 * (3 / 4);
+    test_add();
+    println!("Hello, world!");
+}
+```
+"#;
+
         markdown_highlight(
             target_string,
             |CallbackArguments {
                  language,
                  kind_stack,
-                 start,
-                 end,
              }| {
                 let indent = "  ".repeat(kind_stack.len());
                 println!("{}-----", indent);
                 println!("{}lang: \"{}\"", indent, language);
-                println!("{}Kind stack: {:?}", indent, kind_stack.join("."));
-                println!("{}Start: {}, End: {}", indent, start, end);
-                if language == "rust"
-                    && kind_stack.ends_with(&["function_item".into(), "identifier".into()])
-                {
+                println!("{}Kind stack: {}", indent, kind_stack.kind_keys());
+                println!(
+                    "{}Start: {}, End: {}",
+                    indent,
+                    kind_stack.start(0),
+                    kind_stack.end(0)
+                );
+                if language == "rust" && kind_stack.ends_with("function_item.identifier") {
                     println!(
                         "{}Matched text: {}",
                         indent,
                         target_string
                             .chars()
-                            .skip(start)
-                            .take(end - start)
+                            .skip(kind_stack.start(0))
+                            .take(kind_stack.end(0) - kind_stack.start(0))
                             .collect::<String>()
                     );
                 }
@@ -290,27 +368,19 @@ goodbye!
     fn test_utf8() {
         let target_string = "やさしい🐖**健康料理**365日";
         let has_strong = Mutex::new(false);
-        markdown_highlight(
-            target_string,
-            |CallbackArguments {
-                 kind_stack,
-                 start,
-                 end,
-                 ..
-             }| {
-                if kind_stack.ends_with(&["strong_emphasis".into()]) {
-                    *has_strong.lock().unwrap() = true;
-                    assert_eq!(
-                        "**健康料理**",
-                        target_string
-                            .chars()
-                            .skip(start)
-                            .take(end - start)
-                            .collect::<String>()
-                    );
-                }
-            },
-        );
+        markdown_highlight(target_string, |CallbackArguments { kind_stack, .. }| {
+            if kind_stack.ends_with("strong_emphasis") {
+                *has_strong.lock().unwrap() = true;
+                assert_eq!(
+                    "**健康料理**",
+                    target_string
+                        .chars()
+                        .skip(kind_stack.start(0))
+                        .take(kind_stack.end(0) - kind_stack.start(0))
+                        .collect::<String>()
+                );
+            }
+        });
         assert!(*has_strong.lock().unwrap());
     }
 }
