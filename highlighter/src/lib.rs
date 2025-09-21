@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{ops::Range, sync::Mutex, vec};
 
 #[derive(Debug, Clone)]
 pub struct CallbackArguments {
@@ -46,12 +46,20 @@ fn byte_to_char_position(text: &str, byte_pos: usize) -> usize {
         .count()
 }
 
-pub fn markdown_highlight(target_string: &str, callback: impl Fn(CallbackArguments)) {
+fn markdown_highlight_callback(target_string: &str, callback: impl Fn(CallbackArguments)) {
     let mut parser = md_parser();
     let tree = parser.parse(target_string, None).unwrap();
     let cursor = tree.root_node().walk();
     let context = HighlightContext::new(target_string);
     walk(context, &mut cursor.clone(), &callback);
+}
+
+pub fn markdown_highlight(target_string: &str) -> Vec<CallbackArguments> {
+    let result = Mutex::new(vec![]);
+    markdown_highlight_callback(target_string, |args| {
+        result.lock().unwrap().push(args);
+    });
+    result.lock().unwrap().to_vec()
 }
 
 #[derive(Clone, Debug)]
@@ -118,6 +126,53 @@ impl<'a> HighlightContext<'a> {
         let mut new_context = self.clone();
         new_context.target_string_byte_offset += byte_offset;
         new_context
+    }
+}
+
+/// TreeCursorを使って深さ優先探索でノードを走査するイテレーター
+pub struct TreeCursorIterator<'a> {
+    cursor: tree_sitter::TreeCursor<'a>,
+    first_iteration: bool,
+}
+
+impl<'a> TreeCursorIterator<'a> {
+    pub fn new(cursor: tree_sitter::TreeCursor<'a>) -> Self {
+        Self {
+            cursor,
+            first_iteration: true,
+        }
+    }
+}
+
+impl<'a> Iterator for TreeCursorIterator<'a> {
+    type Item = tree_sitter::Node<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // 初回は現在位置のノードを返す
+        if self.first_iteration {
+            self.first_iteration = false;
+            return Some(self.cursor.node());
+        }
+
+        // 子ノードがあれば下降
+        if self.cursor.goto_first_child() {
+            return Some(self.cursor.node());
+        }
+
+        // 兄弟ノードがあれば移動
+        if self.cursor.goto_next_sibling() {
+            return Some(self.cursor.node());
+        }
+
+        // 親に戻りながら兄弟ノードを探す
+        while self.cursor.goto_parent() {
+            if self.cursor.goto_next_sibling() {
+                return Some(self.cursor.node());
+            }
+        }
+
+        // すべてのノードを走査完了
+        None
     }
 }
 
@@ -326,7 +381,7 @@ fn main() {
 ```
 "#;
 
-        markdown_highlight(
+        markdown_highlight_callback(
             target_string,
             |CallbackArguments {
                  language,
@@ -354,7 +409,7 @@ fn main() {
     fn test_utf8() {
         let target_string = "やさしい🐖**健康料理**365日";
         let has_strong = Mutex::new(false);
-        markdown_highlight(target_string, |CallbackArguments { kind_stack, .. }| {
+        markdown_highlight_callback(target_string, |CallbackArguments { kind_stack, .. }| {
             if kind_stack.ends_with("strong_emphasis") {
                 *has_strong.lock().unwrap() = true;
                 assert_eq!(
@@ -366,5 +421,34 @@ fn main() {
             }
         });
         assert!(*has_strong.lock().unwrap());
+    }
+
+    #[test]
+    fn test_iter() {
+        let target_string = r#"
+# Hello, world!
+
+This is a **bold** text.
+"#;
+
+        let mut parser = md_parser();
+        let tree = parser.parse(target_string, None).unwrap();
+        let cursor = tree.root_node().walk();
+
+        let iter = TreeCursorIterator::new(cursor);
+        let nodes: Vec<_> = iter.collect();
+
+        // ルートノードから開始して、深さ優先で走査されることを確認
+        assert!(!nodes.is_empty());
+        assert_eq!(nodes[0].kind(), "document");
+
+        // 各ノードが適切に走査されることを確認
+        for node in &nodes {
+            println!(
+                "Node kind: {}, text: {:?}",
+                node.kind(),
+                &target_string[node.start_byte()..node.end_byte()]
+            );
+        }
     }
 }
