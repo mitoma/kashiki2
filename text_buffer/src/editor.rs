@@ -96,77 +96,8 @@ impl Editor {
                 &itself.sender,
             );
             itself.undo_list.push(reverse_actions);
-            let buffer_str = itself.to_buffer_string();
-
             if op.is_unmark_operation() {
-                let mut position = 0;
-                let mut char_with_positions = vec![];
-
-                for line in itself.buffer.lines.iter() {
-                    for c in line.chars.iter() {
-                        char_with_positions.push((position, c, CharAttribute::Default));
-                        position += 1;
-                    }
-                    position += 1;
-                }
-
-                for CallbackArguments {
-                    language,
-                    kind_stack,
-                } in markdown_highlight(&buffer_str)
-                {
-                    let (next_attr, depth) = if language == "markdown" {
-                        if kind_stack.ends_with("atx_heading.atx_h1_marker") {
-                            (CharAttribute::Color(0), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h2_marker") {
-                            (CharAttribute::Color(1), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h3_marker") {
-                            (CharAttribute::Color(2), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h4_marker") {
-                            (CharAttribute::Color(3), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h5_marker") {
-                            (CharAttribute::Color(4), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h6_marker") {
-                            (CharAttribute::Color(5), 1)
-                        } else if kind_stack.ends_with("strong_emphasis") {
-                            (CharAttribute::Color(8), 0)
-                        } else if kind_stack.ends_with("block_quote") {
-                            (CharAttribute::Color(9), 0)
-                        } else if kind_stack.ends_with("code_span") {
-                            (CharAttribute::Color(8), 0)
-                        } else if kind_stack.ends_with("list_marker_plus")
-                            || kind_stack.ends_with("list_marker_minus")
-                            || kind_stack.ends_with("list_marker_star")
-                            || kind_stack.ends_with("list_marker_dot")
-                            || kind_stack.ends_with("list_marker_parenthesis")
-                            || kind_stack.ends_with("thematic_break")
-                        {
-                            (CharAttribute::Color(0), 0)
-                        } else {
-                            (CharAttribute::Default, 0)
-                        }
-                    } else if kind_stack.ends_with("function_item.identifier") {
-                        (CharAttribute::Color(1), 0)
-                    } else if kind_stack.ends_with("link_destination") {
-                        (CharAttribute::Color(3), 0)
-                    } else {
-                        (CharAttribute::Default, 0)
-                    };
-                    let range = kind_stack.range(depth);
-                    for (position, _c, attr) in char_with_positions.iter_mut() {
-                        if range.contains(position) && *attr == CharAttribute::Default {
-                            *attr = next_attr;
-                        }
-                    }
-                }
-
-                for (_position, c, attr) in char_with_positions.iter() {
-                    itself
-                        .sender
-                        .send(ChangeEvent::UpdateCharAttribute(**c, *attr))
-                        .unwrap();
-                }
-
+                itself.highlight();
                 itself.unmark();
             }
         });
@@ -199,6 +130,74 @@ impl Editor {
                 .send(ChangeEvent::RemoveCaret(current_mark))
                 .unwrap();
             self.mark = None;
+        }
+    }
+
+    fn highlight(&self) {
+        let mut char_with_positions: Vec<_> = self
+            .buffer
+            .lines
+            .iter()
+            .flat_map(|line| line.chars.iter())
+            .enumerate()
+            .map(|(position, c)| (position, c, CharAttribute::Default))
+            .collect();
+
+        for CallbackArguments {
+            language,
+            kind_stack,
+        } in markdown_highlight(&self.to_buffer_string())
+        {
+            let (next_attr, depth) = if language == "markdown" {
+                if kind_stack.ends_with("atx_heading.atx_h1_marker") {
+                    (CharAttribute::Color(0), 1)
+                } else if kind_stack.ends_with("atx_heading.atx_h2_marker") {
+                    (CharAttribute::Color(1), 1)
+                } else if kind_stack.ends_with("atx_heading.atx_h3_marker") {
+                    (CharAttribute::Color(2), 1)
+                } else if kind_stack.ends_with("atx_heading.atx_h4_marker") {
+                    (CharAttribute::Color(3), 1)
+                } else if kind_stack.ends_with("atx_heading.atx_h5_marker") {
+                    (CharAttribute::Color(4), 1)
+                } else if kind_stack.ends_with("atx_heading.atx_h6_marker") {
+                    (CharAttribute::Color(5), 1)
+                } else if kind_stack.ends_with("strong_emphasis") {
+                    (CharAttribute::Color(8), 0)
+                } else if kind_stack.ends_with("block_quote") {
+                    (CharAttribute::Color(9), 0)
+                } else if kind_stack.ends_with("code_span") {
+                    (CharAttribute::Color(8), 0)
+                } else if kind_stack.ends_with("list_marker_plus")
+                    || kind_stack.ends_with("list_marker_minus")
+                    || kind_stack.ends_with("list_marker_star")
+                    || kind_stack.ends_with("list_marker_dot")
+                    || kind_stack.ends_with("list_marker_parenthesis")
+                    || kind_stack.ends_with("thematic_break")
+                {
+                    (CharAttribute::Color(0), 0)
+                } else {
+                    (CharAttribute::Default, 0)
+                }
+            } else if kind_stack.ends_with("function_item.identifier") {
+                (CharAttribute::Color(1), 0)
+            } else if kind_stack.ends_with("link_destination") {
+                (CharAttribute::Color(3), 0)
+            } else {
+                (CharAttribute::Default, 0)
+            };
+
+            let range = kind_stack.range(depth);
+            for (position, _c, attr) in char_with_positions.iter_mut() {
+                if range.contains(position) && *attr == CharAttribute::Default {
+                    *attr = next_attr;
+                }
+            }
+        }
+
+        for (_position, c, attr) in char_with_positions.iter() {
+            self.sender
+                .send(ChangeEvent::UpdateCharAttribute(**c, *attr))
+                .unwrap();
         }
     }
 
