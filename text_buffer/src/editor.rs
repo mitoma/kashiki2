@@ -134,6 +134,14 @@ impl Editor {
                             (CharAttribute::Color(9), 0)
                         } else if kind_stack.ends_with("code_span") {
                             (CharAttribute::Color(8), 0)
+                        } else if kind_stack.ends_with("list_marker_plus")
+                            || kind_stack.ends_with("list_marker_minus")
+                            || kind_stack.ends_with("list_marker_star")
+                            || kind_stack.ends_with("list_marker_dot")
+                            || kind_stack.ends_with("list_marker_parenthesis")
+                            || kind_stack.ends_with("thematic_break")
+                        {
+                            (CharAttribute::Color(0), 0)
                         } else {
                             (CharAttribute::Default, 0)
                         }
