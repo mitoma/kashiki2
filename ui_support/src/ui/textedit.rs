@@ -12,7 +12,7 @@ use text_buffer::{
     action::EditorOperation,
     buffer::CellPosition,
     caret::{Caret, CaretType},
-    editor::{ChangeEvent, CharWidthResolver, Editor, PhisicalLayout},
+    editor::{ChangeEvent, CharAttribute, CharWidthResolver, Editor, PhisicalLayout},
 };
 
 use font_rasterizer::{
@@ -426,38 +426,26 @@ impl TextEdit {
                 ChangeEvent::RemoveCaret(c) => {
                     self.caret_states.caret_to_dustbox(c, &self.config);
                 }
-                ChangeEvent::UpdateCharAttribute(buffer_char, char_attribute) => {
-                    let request = match char_attribute {
-                        text_buffer::editor::CharAttribute::Default => {
-                            &ViewElementStateUpdateRequest {
-                                base_color: Some(ThemedColor::Text),
-                                ..Default::default()
-                            }
-                        }
-                        text_buffer::editor::CharAttribute::Color(i) => {
-                            let base_color = match i % 10 {
-                                0 => ThemedColor::Yellow,
-                                1 => ThemedColor::Orange,
-                                2 => ThemedColor::Red,
-                                3 => ThemedColor::Magenta,
-                                4 => ThemedColor::Violet,
-                                5 => ThemedColor::Blue,
-                                6 => ThemedColor::Cyan,
-                                7 => ThemedColor::Green,
-                                8 => ThemedColor::TextEmphasized,
-                                9 => ThemedColor::TextComment,
-                                _ => ThemedColor::Text,
-                            };
-                            &ViewElementStateUpdateRequest {
-                                base_color: Some(base_color),
-                                position: Some([1.0, 0.0, 0.0]),
-                                scale: Some([
-                                    self.config.instance_scale()[0] * 1.2,
-                                    self.config.instance_scale()[1] * 1.2,
-                                ]),
-                                ..Default::default()
-                            }
-                        }
+                ChangeEvent::UpdateCharAttribute(buffer_char, CharAttribute { color, .. }) => {
+                    let color = match color {
+                        text_buffer::editor::Color::Default => ThemedColor::Text,
+                        text_buffer::editor::Color::Emphasis => ThemedColor::TextEmphasized,
+                        text_buffer::editor::Color::Comment => ThemedColor::TextComment,
+                        text_buffer::editor::Color::Yellow => ThemedColor::Yellow,
+                        text_buffer::editor::Color::Orange => ThemedColor::Orange,
+                        text_buffer::editor::Color::Red => ThemedColor::Red,
+                        text_buffer::editor::Color::Magenta => ThemedColor::Magenta,
+                        text_buffer::editor::Color::Violet => ThemedColor::Violet,
+                        text_buffer::editor::Color::Blue => ThemedColor::Blue,
+                        text_buffer::editor::Color::Cyan => ThemedColor::Cyan,
+                        text_buffer::editor::Color::Green => ThemedColor::Green,
+                    };
+
+                    // TODO decoration の対応
+
+                    let request = &ViewElementStateUpdateRequest {
+                        base_color: Some(color),
+                        ..Default::default()
                     };
 
                     self.char_states

@@ -139,36 +139,42 @@ impl Editor {
                 .into_iter()
                 .map(|(category, range)| {
                     let attr = match category.as_str() {
-                        "comment" => CharAttribute::Color(0),
-                        "constant.builtin" => CharAttribute::Color(1),
-                        "escape" => CharAttribute::Color(2),
-                        "markdown.emphasis" => CharAttribute::Color(3),
-                        "markdown.list" => CharAttribute::Color(4),
-                        "markdown.literal" => CharAttribute::Color(5),
-                        "markdown.reference" => CharAttribute::Color(6),
-                        "markdown.strong" => CharAttribute::Color(7),
-                        "markdown.title" => CharAttribute::Color(3),
-                        "markdown.uri" => CharAttribute::Color(9),
-                        "number" => CharAttribute::Color(10),
-                        "string" => CharAttribute::Color(11),
-                        "attribute" => CharAttribute::Color(12),
-                        "function" => CharAttribute::Color(13),
-                        "function.macro" => CharAttribute::Color(14),
-                        "function.method" => CharAttribute::Color(15),
-                        "identifier" => CharAttribute::Color(16),
-                        "keyword" => CharAttribute::Color(17),
-                        "label" => CharAttribute::Color(18),
-                        "operator" => CharAttribute::Color(19),
-                        "property" => CharAttribute::Color(20),
-                        "punctuation.bracket" => CharAttribute::Color(21),
-                        "type" => CharAttribute::Color(22),
-                        "variable.builtin" => CharAttribute::Color(23),
-                        "variable.parameter" => CharAttribute::Color(24),
-                        _ => CharAttribute::Default,
+                        "markdown.emphasis" => CharAttribute::new(Color::Cyan, Decoration::None),
+                        "markdown.list" => CharAttribute::new(Color::Cyan, Decoration::None),
+                        "markdown.literal" => CharAttribute::new(Color::Cyan, Decoration::None),
+                        "markdown.reference" => {
+                            CharAttribute::new(Color::Magenta, Decoration::None)
+                        }
+                        "markdown.strong" => CharAttribute::new(Color::Green, Decoration::None),
+                        "markdown.title" => CharAttribute::new(Color::Green, Decoration::None),
+                        "markdown.uri" => CharAttribute::new(Color::Magenta, Decoration::None),
+                        "comment" => CharAttribute::new(Color::Comment, Decoration::None),
+                        "constant" => CharAttribute::new(Color::Emphasis, Decoration::None),
+                        "constant.builtin" => CharAttribute::new(Color::Emphasis, Decoration::None),
+                        "escape" => CharAttribute::new(Color::Comment, Decoration::None),
+                        "string.escape" => CharAttribute::new(Color::Yellow, Decoration::None),
+                        "number" => CharAttribute::new(Color::Cyan, Decoration::None),
+                        "string" => CharAttribute::new(Color::Green, Decoration::None),
+                        "attribute" => CharAttribute::new(Color::Yellow, Decoration::None),
+                        "function" => CharAttribute::new(Color::Blue, Decoration::None),
+                        "function.builtin" => CharAttribute::new(Color::Cyan, Decoration::None),
+                        "function.macro" => CharAttribute::new(Color::Cyan, Decoration::None),
+                        "function.method" => CharAttribute::new(Color::Cyan, Decoration::None),
+                        "identifier" => CharAttribute::new(Color::Magenta, Decoration::None),
+                        "keyword" => CharAttribute::new(Color::Blue, Decoration::None),
+                        "label" => CharAttribute::new(Color::Comment, Decoration::None),
+                        "operator" => CharAttribute::new(Color::Orange, Decoration::None),
+                        "property" => CharAttribute::new(Color::Yellow, Decoration::None),
+                        "punctuation.bracket" => CharAttribute::new(Color::Cyan, Decoration::None),
+                        "type" => CharAttribute::new(Color::Green, Decoration::None),
+                        "type.builtin" => CharAttribute::new(Color::Green, Decoration::None),
+                        "variable.builtin" => CharAttribute::new(Color::Yellow, Decoration::None),
+                        "variable.parameter" => CharAttribute::new(Color::Yellow, Decoration::None),
+                        _ => CharAttribute::default(),
                     };
                     (range, attr)
                 })
-                .filter(|(_, attr)| *attr != CharAttribute::Default)
+                .filter(|(_, attr)| *attr != CharAttribute::default())
                 .collect();
 
         // 範囲の開始位置でソート
@@ -180,7 +186,7 @@ impl Editor {
 
         for line in self.buffer.lines.iter() {
             for c in line.chars.iter() {
-                let mut attr = CharAttribute::Default;
+                let mut attr = CharAttribute::default();
 
                 // 現在の位置に適用されるハイライトを検索
                 while highlight_index < highlight_ranges.len() {
@@ -188,7 +194,7 @@ impl Editor {
                     if range.start > position {
                         break;
                     }
-                    if range.contains(&position) && attr == CharAttribute::Default {
+                    if range.contains(&position) && attr == CharAttribute::default() {
                         attr = *highlight_attr;
                     }
                     if range.end <= position {
@@ -456,9 +462,50 @@ pub enum ChangeEvent {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub enum CharAttribute {
+pub enum Color {
     Default,
-    Color(usize),
+    Emphasis,
+    Comment,
+    Yellow,
+    Orange,
+    Red,
+    Magenta,
+    Violet,
+    Blue,
+    Cyan,
+    Green,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub enum Decoration {
+    None,
+    Bold,
+    Italic,
+    Underline,
+    Strikethrough,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub struct CharAttribute {
+    pub color: Color,
+    pub decoration: Decoration,
+}
+
+pub const DEFAULT_CHAR_ATTRIBUTE: CharAttribute = CharAttribute {
+    color: Color::Default,
+    decoration: Decoration::None,
+};
+
+impl Default for CharAttribute {
+    fn default() -> Self {
+        DEFAULT_CHAR_ATTRIBUTE
+    }
+}
+
+impl CharAttribute {
+    fn new(color: Color, decoration: Decoration) -> Self {
+        Self { color, decoration }
+    }
 }
 
 #[cfg(test)]

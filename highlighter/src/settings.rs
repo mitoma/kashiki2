@@ -15,6 +15,7 @@ impl HighlightSettings {
             include_str!("../asset/markdown.json"),
             include_str!("../asset/json.json"),
             include_str!("../asset/rust.json"),
+            include_str!("../asset/java.json"),
         ])
     }
 
