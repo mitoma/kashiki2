@@ -6,35 +6,36 @@ pub struct CallbackArguments {
     pub kind_stack: KindStack,
 }
 
-#[derive(Debug, Clone)]
-pub struct KindStack(Vec<KindAndRange>);
+#[derive(Debug, Clone, Default)]
+pub struct KindStack {
+    kinds: Vec<KindAndRange>,
+    path: String,
+}
 
 impl KindStack {
     fn push(&mut self, kind: KindAndRange) {
-        self.0.push(kind);
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn kind_keys(&self) -> String {
-        self.0
+        self.kinds.push(kind);
+        self.path = self
+            .kinds
             .iter()
             .map(|k| k.kind.clone())
             .collect::<Vec<String>>()
-            .join(".")
+            .join(".");
+    }
+
+    fn len(&self) -> usize {
+        self.kinds.len()
     }
 
     pub fn ends_with(&self, suffix: &str) -> bool {
-        self.kind_keys().ends_with(suffix)
+        self.path.ends_with(suffix)
     }
 
     pub fn range(&self, depth: usize) -> Range<usize> {
-        self.0
+        self.kinds
             .len()
             .checked_sub(1 + depth)
-            .map(|i| self.0[i].range.clone())
+            .map(|i| self.kinds[i].range.clone())
             .unwrap_or(0..0)
     }
 }
@@ -101,7 +102,7 @@ impl<'a> HighlightContext<'a> {
             target_string_byte_offset: 0,
             in_inline: false,
             depth: 0,
-            kind_stack: KindStack(Vec::new()),
+            kind_stack: KindStack::default(),
             language_suggestion: "markdown".to_string(),
         }
     }
@@ -390,7 +391,7 @@ fn main() {
                 let indent = "  ".repeat(kind_stack.len());
                 println!("{}-----", indent);
                 println!("{}lang: \"{}\"", indent, language);
-                println!("{}Kind stack: {}", indent, kind_stack.kind_keys());
+                println!("{}Kind stack: {}", indent, kind_stack.path);
                 println!("{}Range: {:?}", indent, kind_stack.range(0));
                 if language == "rust" && kind_stack.ends_with("function_item.identifier") {
                     println!(
