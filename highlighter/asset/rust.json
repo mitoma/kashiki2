@@ -370,6 +370,20 @@
     {
         "name": "operator",
         "language": "rust",
-        "key_definitions": []
+        "key_definitions": [
+            {
+                "key": "*",
+                "depth": 0
+            },
+            {
+                "key": "&",
+                "depth": 0
+            },
+            {
+                "key": "'",
+                "depth": 0
+            }
+
+        ]
     }
 ]

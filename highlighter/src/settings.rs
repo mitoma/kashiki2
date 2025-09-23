@@ -37,16 +37,27 @@ impl HighlightSettings {
         &self,
         arg: &CallbackArguments,
     ) -> Option<(String, Range<usize>)> {
+        let mut result: Vec<(usize, (String, Range<usize>))> = vec![];
+
         for def in &self.definitions {
             for key_def in def.key_definitions.iter() {
                 if def.language == arg.language {
                     if arg.kind_stack.ends_with(&key_def.key) {
-                        return Some((def.name.clone(), arg.kind_stack.range(key_def.depth)));
+                        // key_def.key の . の数をスコアとし、結果を result に格納し、スコアの高いものを結果として返す
+                        let score = key_def.key.matches('.').count();
+                        result.push((
+                            score,
+                            (def.name.clone(), arg.kind_stack.range(key_def.depth)),
+                        ));
                     }
                 }
             }
         }
-        None
+        if let Some((_, res)) = result.into_iter().max_by_key(|(score, _)| *score) {
+            return Some(res);
+        } else {
+            None
+        }
     }
 
     pub fn categories(&self) -> Vec<String> {

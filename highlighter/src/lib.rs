@@ -32,7 +32,7 @@ impl KindStack {
     }
 
     pub fn ends_with(&self, suffix: &str) -> bool {
-        self.path.ends_with(suffix)
+        self.path.ends_with(&format!(".{}", suffix))
     }
 
     pub fn range(&self, depth: usize) -> Range<usize> {
@@ -492,22 +492,9 @@ This is a **bold** text.
         let settings = HighlightSettings::default();
 
         let target_string = r#"
-# Hello, world!
-
-**bold** text and *italic* text.
-
-```json
-{
-    "key": "value",
-    "array": [1, 2, 3],
-    "hoge": true,
-    "moge": null
-}
-```
-
-```rust
-for i in 0..10 {
-    println!("Number: {}", i as usize);
+```go
+func main() {
+    var s = []string{"foo", "bar", "zoo"}
 }
 ```
 "#;
