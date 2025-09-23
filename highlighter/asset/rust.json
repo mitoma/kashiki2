@@ -58,5 +58,318 @@
                 "depth": 0
             }
         ]
+    },
+    {
+        "name": "type",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "type_identifier",
+                "depth": 0
+            },
+            {
+                "key": "primitive_type",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "property",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "field_identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "identifier",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "function",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "function_item.identifier",
+                "depth": 1
+            },
+            {
+                "key": "function_signature_item.identifier",
+                "depth": 1
+            },
+            {
+                "key": "call_expression.identifier",
+                "depth": 1
+            },
+            {
+                "key": "generic_function.identifier",
+                "depth": 1
+            }
+        ]
+    },
+    {
+        "name": "function.method",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "call_expression.field_expression.field_identifier",
+                "depth": 2
+            },
+            {
+                "key": "generic_function.field_expression.field_identifier",
+                "depth": 2
+            }
+        ]
+    },
+    {
+        "name": "function.macro",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "macro_invocation.identifier",
+                "depth": 1
+            }
+        ]
+    },
+    {
+        "name": "keyword",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "crate",
+                "depth": 0
+            },
+            {
+                "key": "mutable_specifier",
+                "depth": 0
+            },
+            {
+                "key": "self",
+                "depth": 0
+            },
+            {
+                "key": "super",
+                "depth": 0
+            },
+            {
+                "key": "as",
+                "depth": 0
+            },
+            {
+                "key": "async",
+                "depth": 0
+            },
+            {
+                "key": "await",
+                "depth": 0
+            },
+            {
+                "key": "break",
+                "depth": 0
+            },
+            {
+                "key": "const",
+                "depth": 0
+            },
+            {
+                "key": "continue",
+                "depth": 0
+            },
+            {
+                "key": "default",
+                "depth": 0
+            },
+            {
+                "key": "dyn",
+                "depth": 0
+            },
+            {
+                "key": "else",
+                "depth": 0
+            },
+            {
+                "key": "enum",
+                "depth": 0
+            },
+            {
+                "key": "extern",
+                "depth": 0
+            },
+            {
+                "key": "fn",
+                "depth": 0
+            },
+            {
+                "key": "for",
+                "depth": 0
+            },
+            {
+                "key": "gen",
+                "depth": 0
+            },
+            {
+                "key": "if",
+                "depth": 0
+            },
+            {
+                "key": "impl",
+                "depth": 0
+            },
+            {
+                "key": "in",
+                "depth": 0
+            },
+            {
+                "key": "let",
+                "depth": 0
+            },
+            {
+                "key": "loop",
+                "depth": 0
+            },
+            {
+                "key": "macro_rules!",
+                "depth": 0
+            },
+            {
+                "key": "match",
+                "depth": 0
+            },
+            {
+                "key": "mod",
+                "depth": 0
+            },
+            {
+                "key": "move",
+                "depth": 0
+            },
+            {
+                "key": "pub",
+                "depth": 0
+            },
+            {
+                "key": "raw",
+                "depth": 0
+            },
+            {
+                "key": "ref",
+                "depth": 0
+            },
+            {
+                "key": "return",
+                "depth": 0
+            },
+            {
+                "key": "static",
+                "depth": 0
+            },
+            {
+                "key": "struct",
+                "depth": 0
+            },
+            {
+                "key": "trait",
+                "depth": 0
+            },
+            {
+                "key": "type",
+                "depth": 0
+            },
+            {
+                "key": "union",
+                "depth": 0
+            },
+            {
+                "key": "unsafe",
+                "depth": 0
+            },
+            {
+                "key": "use",
+                "depth": 0
+            },
+            {
+                "key": "where",
+                "depth": 0
+            },
+            {
+                "key": "while",
+                "depth": 0
+            },
+            {
+                "key": "yield",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "variable.builtin",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "self",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "variable.parameter",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "parameter.identifier",
+                "depth": 1
+            }
+        ]
+    },
+    {
+        "name": "label",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "lifetime.identifier",
+                "depth": 1
+            }
+        ]
+    },
+    {
+        "name": "attribute",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "attribute_item",
+                "depth": 0
+            },
+            {
+                "key": "inner_attribute_item",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "punctuation.bracket",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "type_arguments",
+                "depth": 0
+            },
+            {
+                "key": "type_parameters",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "operator",
+        "language": "rust",
+        "key_definitions": []
     }
 ]

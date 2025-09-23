@@ -496,6 +496,11 @@ This is a **bold** text.
 }
 ```
 
+```rust
+for i in 0..10 {
+    println!("Number: {}", i as usize);
+}
+```
 "#;
 
         let result = markdown_highlight(target_string, &settings);
