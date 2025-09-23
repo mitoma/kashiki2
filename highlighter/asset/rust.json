@@ -1,0 +1,62 @@
+[
+    {
+        "name": "string",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "char_literal",
+                "depth": 0
+            },
+            {
+                "key": "string_literal",
+                "depth": 0
+            },
+            {
+                "key": "raw_string_literal",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "constant.builtin",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "boolean_literal",
+                "depth": 0
+            },
+            {
+                "key": "integer_literal",
+                "depth": 0
+            },
+            {
+                "key": "float_literal",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "escape",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "escape_sequence",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "comment",
+        "language": "rust",
+        "key_definitions": [
+            {
+                "key": "line_comment",
+                "depth": 0
+            },
+            {
+                "key": "block_comment",
+                "depth": 0
+            }
+        ]
+    }
+]
