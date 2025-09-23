@@ -2890,7 +2890,6 @@ dependencies = [
 name = "text_buffer"
 version = "0.1.0"
 dependencies = [
- "highlighter",
  "indoc",
 ]
 
@@ -3136,6 +3135,7 @@ dependencies = [
  "env_logger",
  "font_collector",
  "font_rasterizer",
+ "highlighter",
  "image",
  "instant",
  "log",

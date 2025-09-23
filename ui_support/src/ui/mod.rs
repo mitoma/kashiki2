@@ -383,6 +383,53 @@ pub fn ime_chars() -> [char; 2] {
     ['[', ']']
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub enum Color {
+    Default,
+    Emphasis,
+    Comment,
+    Yellow,
+    Orange,
+    Red,
+    Magenta,
+    Violet,
+    Blue,
+    Cyan,
+    Green,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub enum Decoration {
+    None,
+    Bold,
+    Italic,
+    Underline,
+    Strikethrough,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub struct CharAttribute {
+    pub color: Color,
+    pub decoration: Decoration,
+}
+
+pub const DEFAULT_CHAR_ATTRIBUTE: CharAttribute = CharAttribute {
+    color: Color::Default,
+    decoration: Decoration::None,
+};
+
+impl Default for CharAttribute {
+    fn default() -> Self {
+        DEFAULT_CHAR_ATTRIBUTE
+    }
+}
+
+impl CharAttribute {
+    pub fn new(color: Color, decoration: Decoration) -> Self {
+        Self { color, decoration }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::split_preedit_string;

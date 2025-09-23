@@ -2,9 +2,6 @@ use std::fmt::Display;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 
-use highlighter::markdown_highlight;
-use highlighter::settings::HighlightSettings;
-
 use super::action::*;
 use super::buffer::*;
 use super::caret::*;
@@ -95,8 +92,8 @@ impl Editor {
                 &itself.sender,
             );
             itself.undo_list.push(reverse_actions);
+
             if op.is_unmark_operation() {
-                itself.highlight();
                 itself.unmark();
             }
         });
@@ -132,91 +129,16 @@ impl Editor {
         }
     }
 
-    fn highlight(&self) {
-        // ハイライト情報を取得し、範囲順にソート
-        let mut highlight_ranges: Vec<_> =
-            markdown_highlight(&self.to_buffer_string(), &HighlightSettings::default())
-                .into_iter()
-                .map(|(category, range)| {
-                    let attr = match category.as_str() {
-                        "markdown.emphasis" => CharAttribute::new(Color::Cyan, Decoration::None),
-                        "markdown.list" => CharAttribute::new(Color::Cyan, Decoration::None),
-                        "markdown.literal" => CharAttribute::new(Color::Cyan, Decoration::None),
-                        "markdown.reference" => {
-                            CharAttribute::new(Color::Magenta, Decoration::None)
-                        }
-                        "markdown.strong" => CharAttribute::new(Color::Green, Decoration::None),
-                        "markdown.title" => CharAttribute::new(Color::Green, Decoration::None),
-                        "markdown.uri" => CharAttribute::new(Color::Magenta, Decoration::None),
-                        "comment" => CharAttribute::new(Color::Comment, Decoration::None),
-                        "constant" => CharAttribute::new(Color::Blue, Decoration::None),
-                        "constant.builtin" => CharAttribute::new(Color::Blue, Decoration::None),
-                        "escape" => CharAttribute::new(Color::Comment, Decoration::None),
-                        "string.escape" => CharAttribute::new(Color::Comment, Decoration::None),
-                        "number" => CharAttribute::new(Color::Green, Decoration::None),
-                        "string" => CharAttribute::new(Color::Green, Decoration::None),
-                        "attribute" => CharAttribute::new(Color::Yellow, Decoration::None),
-                        "function" => CharAttribute::new(Color::Cyan, Decoration::None),
-                        "function.builtin" => CharAttribute::new(Color::Cyan, Decoration::None),
-                        "function.macro" => CharAttribute::new(Color::Cyan, Decoration::None),
-                        "function.method" => CharAttribute::new(Color::Cyan, Decoration::None),
-                        "identifier" => CharAttribute::new(Color::Cyan, Decoration::None),
-                        "keyword" => CharAttribute::new(Color::Blue, Decoration::None),
-                        "label" => CharAttribute::new(Color::Comment, Decoration::None),
-                        "operator" => CharAttribute::new(Color::Emphasis, Decoration::None),
-                        "property" => CharAttribute::new(Color::Yellow, Decoration::None),
-                        "punctuation.bracket" => CharAttribute::new(Color::Cyan, Decoration::None),
-                        "type" => CharAttribute::new(Color::Green, Decoration::None),
-                        "type.builtin" => CharAttribute::new(Color::Green, Decoration::None),
-                        "variable" => CharAttribute::new(Color::Yellow, Decoration::None),
-                        "variable.builtin" => CharAttribute::new(Color::Yellow, Decoration::None),
-                        "variable.parameter" => CharAttribute::new(Color::Yellow, Decoration::None),
-                        _ => CharAttribute::default(),
-                    };
-                    (range, attr)
-                })
-                .filter(|(_, attr)| *attr != CharAttribute::default())
-                .collect();
-
-        // 範囲の開始位置でソート
-        highlight_ranges.sort_by_key(|(range, _)| range.start);
-
-        // 一回のループで処理
-        let mut position = 0;
-        let mut highlight_index = 0;
-
-        for line in self.buffer.lines.iter() {
-            for c in line.chars.iter() {
-                let mut attr = CharAttribute::default();
-
-                // 現在の位置に適用されるハイライトを検索
-                while highlight_index < highlight_ranges.len() {
-                    let (range, highlight_attr) = &highlight_ranges[highlight_index];
-                    if range.start > position {
-                        break;
-                    }
-                    if range.contains(&position) && attr == CharAttribute::default() {
-                        attr = *highlight_attr;
-                    }
-                    if range.end <= position {
-                        highlight_index += 1;
-                    } else {
-                        break;
-                    }
-                }
-
-                self.sender
-                    .send(ChangeEvent::UpdateCharAttribute(*c, attr))
-                    .unwrap();
-
-                position += 1;
-            }
-            position += 1; // 改行文字分
-        }
-    }
-
     pub fn to_buffer_string(&self) -> String {
         self.buffer.to_buffer_string()
+    }
+
+    pub fn buffer_chars(&self) -> Vec<Vec<BufferChar>> {
+        self.buffer
+            .lines
+            .iter()
+            .map(|line| line.chars.clone())
+            .collect()
     }
 
     fn selection(&self) -> Vec<BufferChar> {
@@ -459,54 +381,6 @@ pub enum ChangeEvent {
     AddCaret(Caret),
     MoveCaret { from: Caret, to: Caret },
     RemoveCaret(Caret),
-    UpdateCharAttribute(BufferChar, CharAttribute),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub enum Color {
-    Default,
-    Emphasis,
-    Comment,
-    Yellow,
-    Orange,
-    Red,
-    Magenta,
-    Violet,
-    Blue,
-    Cyan,
-    Green,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub enum Decoration {
-    None,
-    Bold,
-    Italic,
-    Underline,
-    Strikethrough,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub struct CharAttribute {
-    pub color: Color,
-    pub decoration: Decoration,
-}
-
-pub const DEFAULT_CHAR_ATTRIBUTE: CharAttribute = CharAttribute {
-    color: Color::Default,
-    decoration: Decoration::None,
-};
-
-impl Default for CharAttribute {
-    fn default() -> Self {
-        DEFAULT_CHAR_ATTRIBUTE
-    }
-}
-
-impl CharAttribute {
-    fn new(color: Color, decoration: Decoration) -> Self {
-        Self { color, decoration }
-    }
 }
 
 #[cfg(test)]

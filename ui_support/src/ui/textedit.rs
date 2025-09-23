@@ -12,7 +12,7 @@ use text_buffer::{
     action::EditorOperation,
     buffer::CellPosition,
     caret::{Caret, CaretType},
-    editor::{ChangeEvent, CharAttribute, CharWidthResolver, Editor, PhisicalLayout},
+    editor::{ChangeEvent, CharWidthResolver, Editor, PhisicalLayout},
 };
 
 use font_rasterizer::{
@@ -29,6 +29,7 @@ use crate::{
     layout_engine::{
         Model, ModelAttributes, ModelBorder, ModelMode, ModelOperation, ModelOperationResult,
     },
+    ui::{CharAttribute, Color, Decoration},
     ui_context::TextContext,
 };
 
@@ -193,6 +194,9 @@ impl Model for TextEdit {
             let layout = self.calc_phisical_layout(context.char_width_calcurator.clone());
             let bound = self.calc_bound(&layout);
             self.calc_position(&context.char_width_calcurator, &layout, bound);
+
+            // ここがハイライト候補だがセレクションが適切に動作しないので要検討
+            self.highlight();
         }
 
         self.calc_instance_positions(&context.char_width_calcurator);
@@ -426,31 +430,6 @@ impl TextEdit {
                 ChangeEvent::RemoveCaret(c) => {
                     self.caret_states.caret_to_dustbox(c, &self.config);
                 }
-                ChangeEvent::UpdateCharAttribute(buffer_char, CharAttribute { color, .. }) => {
-                    let color = match color {
-                        text_buffer::editor::Color::Default => ThemedColor::Text,
-                        text_buffer::editor::Color::Emphasis => ThemedColor::TextEmphasized,
-                        text_buffer::editor::Color::Comment => ThemedColor::TextComment,
-                        text_buffer::editor::Color::Yellow => ThemedColor::Yellow,
-                        text_buffer::editor::Color::Orange => ThemedColor::Orange,
-                        text_buffer::editor::Color::Red => ThemedColor::Red,
-                        text_buffer::editor::Color::Magenta => ThemedColor::Magenta,
-                        text_buffer::editor::Color::Violet => ThemedColor::Violet,
-                        text_buffer::editor::Color::Blue => ThemedColor::Blue,
-                        text_buffer::editor::Color::Cyan => ThemedColor::Cyan,
-                        text_buffer::editor::Color::Green => ThemedColor::Green,
-                    };
-
-                    // TODO decoration の対応
-
-                    let request = &ViewElementStateUpdateRequest {
-                        base_color: Some(color),
-                        ..Default::default()
-                    };
-
-                    self.char_states
-                        .update_state(&buffer_char, request, &self.config);
-                }
             }
         }
         // editor のイベントを処理した後に textedit 特有の Operation を処理する
@@ -652,6 +631,115 @@ impl TextEdit {
 
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
         self.world_scale = world_scale;
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn highlight(&mut self) {}
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline]
+    fn highlight(&mut self) {
+        // ハイライト情報を取得し、範囲順にソート
+        let mut highlight_ranges: Vec<_> = highlighter::markdown_highlight(
+            &self.editor.to_buffer_string(),
+            &highlighter::settings::HighlightSettings::default(),
+        )
+        .into_iter()
+        .map(|(category, range)| {
+            let attr = match category.as_str() {
+                "markdown.emphasis" => CharAttribute::new(Color::Cyan, Decoration::None),
+                "markdown.list" => CharAttribute::new(Color::Cyan, Decoration::None),
+                "markdown.literal" => CharAttribute::new(Color::Cyan, Decoration::None),
+                "markdown.reference" => CharAttribute::new(Color::Magenta, Decoration::None),
+                "markdown.strong" => CharAttribute::new(Color::Green, Decoration::None),
+                "markdown.title" => CharAttribute::new(Color::Green, Decoration::None),
+                "markdown.uri" => CharAttribute::new(Color::Magenta, Decoration::None),
+                "comment" => CharAttribute::new(Color::Comment, Decoration::None),
+                "constant" => CharAttribute::new(Color::Blue, Decoration::None),
+                "constant.builtin" => CharAttribute::new(Color::Blue, Decoration::None),
+                "escape" => CharAttribute::new(Color::Comment, Decoration::None),
+                "string.escape" => CharAttribute::new(Color::Comment, Decoration::None),
+                "number" => CharAttribute::new(Color::Green, Decoration::None),
+                "string" => CharAttribute::new(Color::Green, Decoration::None),
+                "attribute" => CharAttribute::new(Color::Yellow, Decoration::None),
+                "function" => CharAttribute::new(Color::Cyan, Decoration::None),
+                "function.builtin" => CharAttribute::new(Color::Cyan, Decoration::None),
+                "function.macro" => CharAttribute::new(Color::Cyan, Decoration::None),
+                "function.method" => CharAttribute::new(Color::Cyan, Decoration::None),
+                "identifier" => CharAttribute::new(Color::Cyan, Decoration::None),
+                "keyword" => CharAttribute::new(Color::Blue, Decoration::None),
+                "label" => CharAttribute::new(Color::Comment, Decoration::None),
+                "operator" => CharAttribute::new(Color::Emphasis, Decoration::None),
+                "property" => CharAttribute::new(Color::Yellow, Decoration::None),
+                "punctuation.bracket" => CharAttribute::new(Color::Cyan, Decoration::None),
+                "type" => CharAttribute::new(Color::Green, Decoration::None),
+                "type.builtin" => CharAttribute::new(Color::Green, Decoration::None),
+                "variable" => CharAttribute::new(Color::Yellow, Decoration::None),
+                "variable.builtin" => CharAttribute::new(Color::Yellow, Decoration::None),
+                "variable.parameter" => CharAttribute::new(Color::Yellow, Decoration::None),
+                _ => CharAttribute::default(),
+            };
+            (range, attr)
+        })
+        .filter(|(_, attr)| *attr != CharAttribute::default())
+        .collect();
+
+        // 範囲の開始位置でソート
+        highlight_ranges.sort_by_key(|(range, _)| range.start);
+
+        // 一回のループで処理
+        let mut position = 0;
+        let mut highlight_index = 0;
+
+        for line in self.editor.buffer_chars().iter() {
+            for c in line.iter() {
+                let mut attr = CharAttribute::default();
+
+                // 現在の位置に適用されるハイライトを検索
+                while highlight_index < highlight_ranges.len() {
+                    let (range, highlight_attr) = &highlight_ranges[highlight_index];
+                    if range.start > position {
+                        break;
+                    }
+                    if range.contains(&position) && attr == CharAttribute::default() {
+                        attr = *highlight_attr;
+                    }
+                    if range.end <= position {
+                        highlight_index += 1;
+                    } else {
+                        break;
+                    }
+                }
+
+                let CharAttribute { color, .. } = attr;
+
+                let color = match color {
+                    Color::Default => ThemedColor::Text,
+                    Color::Emphasis => ThemedColor::TextEmphasized,
+                    Color::Comment => ThemedColor::TextComment,
+                    Color::Yellow => ThemedColor::Yellow,
+                    Color::Orange => ThemedColor::Orange,
+                    Color::Red => ThemedColor::Red,
+                    Color::Magenta => ThemedColor::Magenta,
+                    Color::Violet => ThemedColor::Violet,
+                    Color::Blue => ThemedColor::Blue,
+                    Color::Cyan => ThemedColor::Cyan,
+                    Color::Green => ThemedColor::Green,
+                };
+
+                // TODO decoration の対応
+
+                let request = &ViewElementStateUpdateRequest {
+                    base_color: Some(color),
+                    ..Default::default()
+                };
+
+                self.char_states.update_state(&c, request, &self.config);
+
+                position += 1;
+            }
+            position += 1; // 改行文字分
+        }
     }
 }
 

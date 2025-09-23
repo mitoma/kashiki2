@@ -175,9 +175,15 @@ impl CharStates {
         if let Some(c_pos) = self.chars.get_mut(c) {
             if let Some(base_color) = update_request.base_color {
                 c_pos.base_color = base_color;
-                c_pos
-                    .color
-                    .update(base_color.get_color(&text_context.color_theme));
+                let color = if c_pos.in_selection {
+                    c_pos
+                        .base_color
+                        .get_selection_color(&text_context.color_theme)
+                } else {
+                    c_pos.base_color.get_color(&text_context.color_theme)
+                };
+
+                c_pos.color.update(color);
             }
             if let Some(position) = update_request.position {
                 c_pos.position.update(position);
