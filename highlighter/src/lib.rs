@@ -5,13 +5,13 @@ use crate::settings::HighlightSettings;
 pub mod settings;
 
 #[derive(Debug, Clone)]
-pub struct CallbackArguments {
+struct CallbackArguments {
     pub language: String,
     pub kind_stack: KindStack,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct KindStack {
+struct KindStack {
     kinds: Vec<KindAndRange>,
     path: String,
 }
@@ -59,7 +59,7 @@ fn markdown_highlight_callback(target_string: &str, callback: impl Fn(CallbackAr
     walk(context, &mut cursor.clone(), &callback);
 }
 
-pub fn markdown_highlight(target_string: &str) -> Vec<CallbackArguments> {
+fn markdown_highlight_inner(target_string: &str) -> Vec<CallbackArguments> {
     let result = Mutex::new(vec![]);
     markdown_highlight_callback(target_string, |args| {
         result.lock().unwrap().push(args);
@@ -67,11 +67,11 @@ pub fn markdown_highlight(target_string: &str) -> Vec<CallbackArguments> {
     result.lock().unwrap().to_vec()
 }
 
-pub fn markdown_highlight2(
+pub fn markdown_highlight(
     target_string: &str,
     settings: &HighlightSettings,
 ) -> Vec<(String, Range<usize>)> {
-    markdown_highlight(target_string)
+    markdown_highlight_inner(target_string)
         .iter()
         .filter_map(|arg| {
             println!("arg: {:?}", arg.kind_stack.path);
@@ -501,7 +501,7 @@ This is a **bold** text.
 
 "#;
 
-        let result = markdown_highlight2(target_string, &settings);
+        let result = markdown_highlight(target_string, &settings);
         println!("result: {:?}", result);
         let categories = {
             let mut c = settings.categories();

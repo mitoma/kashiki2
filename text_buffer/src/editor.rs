@@ -2,7 +2,7 @@ use std::fmt::Display;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 
-use highlighter::markdown_highlight2;
+use highlighter::markdown_highlight;
 use highlighter::settings::HighlightSettings;
 
 use super::action::*;
@@ -135,7 +135,7 @@ impl Editor {
     fn highlight(&self) {
         // ハイライト情報を取得し、範囲順にソート
         let mut highlight_ranges: Vec<_> =
-            markdown_highlight2(&self.to_buffer_string(), &HighlightSettings::default())
+            markdown_highlight(&self.to_buffer_string(), &HighlightSettings::default())
                 .into_iter()
                 .map(|(category, range)| {
                     let attr = match category.as_str() {
