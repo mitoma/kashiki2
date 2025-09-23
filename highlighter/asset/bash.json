@@ -1,0 +1,168 @@
+[
+    {
+        "name": "string",
+        "language": "bash",
+        "key_definitions": [
+            {
+                "key": "string",
+                "depth": 0
+            },
+            {
+                "key": "raw_string",
+                "depth": 0
+            },
+            {
+                "key": "heredoc_body",
+                "depth": 0
+            },
+            {
+                "key": "heredoc_start",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "function",
+        "language": "bash",
+        "key_definitions": [
+            {
+                "key": "command_name",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "property",
+        "language": "bash",
+        "key_definitions": [
+            {
+                "key": "variable_name",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "keyword",
+        "language": "bash",
+        "key_definitions": [
+            {
+                "key": "case",
+                "depth": 0
+            },
+            {
+                "key": "do",
+                "depth": 0
+            },
+            {
+                "key": "done",
+                "depth": 0
+            },
+            {
+                "key": "elif",
+                "depth": 0
+            },
+            {
+                "key": "else",
+                "depth": 0
+            },
+            {
+                "key": "esac",
+                "depth": 0
+            },
+            {
+                "key": "export",
+                "depth": 0
+            },
+            {
+                "key": "fi",
+                "depth": 0
+            },
+            {
+                "key": "for",
+                "depth": 0
+            },
+            {
+                "key": "function",
+                "depth": 0
+            },
+            {
+                "key": "if",
+                "depth": 0
+            },
+            {
+                "key": "in",
+                "depth": 0
+            },
+            {
+                "key": "select",
+                "depth": 0
+            },
+            {
+                "key": "then",
+                "depth": 0
+            },
+            {
+                "key": "unset",
+                "depth": 0
+            },
+            {
+                "key": "until",
+                "depth": 0
+            },
+            {
+                "key": "while",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "comment",
+        "language": "bash",
+        "key_definitions": [
+            {
+                "key": "comment",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "function_definition.name",
+        "language": "bash",
+        "key_definitions": [
+            {
+                "key": "function_definition",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "operator",
+        "language": "bash",
+        "key_definitions": [
+            {
+                "key": "$",
+                "depth": 0
+            },
+            {
+                "key": "&&",
+                "depth": 0
+            },
+            {
+                "key": ">",
+                "depth": 0
+            },
+            {
+                "key": ">>",
+                "depth": 0
+            },
+            {
+                "key": "<",
+                "depth": 0
+            },
+            {
+                "key": "|",
+                "depth": 0
+            }
+        ]
+    }
+]

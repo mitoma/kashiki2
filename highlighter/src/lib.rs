@@ -238,6 +238,7 @@ fn walk<'a>(
                     "java" => java_parser(),
                     "go" => go_parser(),
                     "json" => json_parser(),
+                    "bash" => bash_parser(),
                     _ => {
                         return;
                     }
@@ -329,6 +330,14 @@ fn json_parser() -> tree_sitter::Parser {
     let mut parser = tree_sitter::Parser::new();
     parser
         .set_language(&tree_sitter_json::LANGUAGE.into())
+        .unwrap();
+    parser
+}
+
+fn bash_parser() -> tree_sitter::Parser {
+    let mut parser = tree_sitter::Parser::new();
+    parser
+        .set_language(&tree_sitter_bash::LANGUAGE.into())
         .unwrap();
     parser
 }

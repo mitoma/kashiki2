@@ -16,6 +16,8 @@ impl HighlightSettings {
             include_str!("../asset/json.json"),
             include_str!("../asset/rust.json"),
             include_str!("../asset/java.json"),
+            include_str!("../asset/go.json"),
+            include_str!("../asset/bash.json"),
         ])
     }
 
