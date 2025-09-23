@@ -2,8 +2,8 @@ use std::fmt::Display;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 
-use highlighter::CallbackArguments;
-use highlighter::markdown_highlight;
+use highlighter::markdown_highlight2;
+use highlighter::settings::HighlightSettings;
 
 use super::action::*;
 use super::buffer::*;
@@ -134,56 +134,29 @@ impl Editor {
 
     fn highlight(&self) {
         // ハイライト情報を取得し、範囲順にソート
-        let mut highlight_ranges: Vec<_> = markdown_highlight(&self.to_buffer_string())
-            .into_iter()
-            .map(
-                |CallbackArguments {
-                     language,
-                     kind_stack,
-                 }| {
-                    let (attr, depth) = if language == "markdown" {
-                        if kind_stack.ends_with("atx_heading.atx_h1_marker") {
-                            (CharAttribute::Color(0), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h2_marker") {
-                            (CharAttribute::Color(1), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h3_marker") {
-                            (CharAttribute::Color(2), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h4_marker") {
-                            (CharAttribute::Color(3), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h5_marker") {
-                            (CharAttribute::Color(4), 1)
-                        } else if kind_stack.ends_with("atx_heading.atx_h6_marker") {
-                            (CharAttribute::Color(5), 1)
-                        } else if kind_stack.ends_with("strong_emphasis") {
-                            (CharAttribute::Color(8), 0)
-                        } else if kind_stack.ends_with("block_quote") {
-                            (CharAttribute::Color(9), 0)
-                        } else if kind_stack.ends_with("code_span") {
-                            (CharAttribute::Color(8), 0)
-                        } else if kind_stack.ends_with("list_marker_plus")
-                            || kind_stack.ends_with("list_marker_minus")
-                            || kind_stack.ends_with("list_marker_star")
-                            || kind_stack.ends_with("list_marker_dot")
-                            || kind_stack.ends_with("list_marker_parenthesis")
-                            || kind_stack.ends_with("thematic_break")
-                        {
-                            (CharAttribute::Color(0), 0)
-                        } else {
-                            (CharAttribute::Default, 0)
-                        }
-                    } else if kind_stack.ends_with("function_item.identifier") {
-                        (CharAttribute::Color(1), 0)
-                    } else if kind_stack.ends_with("link_destination") {
-                        (CharAttribute::Color(3), 0)
-                    } else {
-                        (CharAttribute::Default, 0)
+        let mut highlight_ranges: Vec<_> =
+            markdown_highlight2(&self.to_buffer_string(), &HighlightSettings::default())
+                .into_iter()
+                .map(|(category, range)| {
+                    let attr = match category.as_str() {
+                        "comment" => CharAttribute::Color(0),
+                        "constant.builtin" => CharAttribute::Color(1),
+                        "escape" => CharAttribute::Color(2),
+                        "markdown.emphasis" => CharAttribute::Color(3),
+                        "markdown.list" => CharAttribute::Color(4),
+                        "markdown.literal" => CharAttribute::Color(5),
+                        "markdown.reference" => CharAttribute::Color(6),
+                        "markdown.strong" => CharAttribute::Color(7),
+                        "markdown.title" => CharAttribute::Color(3),
+                        "markdown.uri" => CharAttribute::Color(9),
+                        "number" => CharAttribute::Color(10),
+                        "string" => CharAttribute::Color(11),
+                        _ => CharAttribute::Default,
                     };
-                    let range = kind_stack.range(depth);
                     (range, attr)
-                },
-            )
-            .filter(|(_, attr)| *attr != CharAttribute::Default)
-            .collect();
+                })
+                .filter(|(_, attr)| *attr != CharAttribute::Default)
+                .collect();
 
         // 範囲の開始位置でソート
         highlight_ranges.sort_by_key(|(range, _)| range.start);

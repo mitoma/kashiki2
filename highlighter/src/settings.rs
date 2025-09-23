@@ -10,6 +10,13 @@ pub struct HighlightSettings {
 }
 
 impl HighlightSettings {
+    pub fn default() -> Self {
+        Self::load_settings(&[
+            include_str!("../asset/markdown.json"),
+            include_str!("../asset/json.json"),
+        ])
+    }
+
     pub fn load_settings(setting_strings: &[&str]) -> Self {
         let mut result = HighlightSettings {
             definitions: vec![],

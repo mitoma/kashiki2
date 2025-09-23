@@ -1,5 +1,7 @@
 use std::{ops::Range, sync::Mutex, vec};
 
+use crate::settings::HighlightSettings;
+
 pub mod settings;
 
 #[derive(Debug, Clone)]
@@ -63,6 +65,19 @@ pub fn markdown_highlight(target_string: &str) -> Vec<CallbackArguments> {
         result.lock().unwrap().push(args);
     });
     result.lock().unwrap().to_vec()
+}
+
+pub fn markdown_highlight2(
+    target_string: &str,
+    settings: &HighlightSettings,
+) -> Vec<(String, Range<usize>)> {
+    markdown_highlight(target_string)
+        .iter()
+        .filter_map(|arg| {
+            println!("arg: {:?}", arg.kind_stack.path);
+            settings.args_to_definition(arg)
+        })
+        .collect()
 }
 
 #[derive(Clone, Debug)]
@@ -325,6 +340,8 @@ fn json_parser() -> tree_sitter::Parser {
 mod tests {
     use std::sync::Mutex;
 
+    use crate::settings::HighlightSettings;
+
     use super::*;
 
     #[test]
@@ -462,5 +479,35 @@ This is a **bold** text.
                 &target_string[node.start_byte()..node.end_byte()]
             );
         }
+    }
+
+    #[test]
+    fn test_highlight_settings() {
+        let settings = HighlightSettings::default();
+
+        let target_string = r#"
+# Hello, world!
+
+**bold** text and *italic* text.
+
+```json
+{
+    "key": "value",
+    "array": [1, 2, 3],
+    "hoge": true,
+    "moge": null
+}
+```
+
+"#;
+
+        let result = markdown_highlight2(target_string, &settings);
+        println!("result: {:?}", result);
+        let categories = {
+            let mut c = settings.categories();
+            c.sort();
+            c
+        };
+        println!("categories: {:?}", categories);
     }
 }

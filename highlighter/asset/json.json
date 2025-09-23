@@ -1,15 +1,5 @@
 [
     {
-        "name": "json.key",
-        "language": "json",
-        "key_definitions": [
-            {
-                "key": "pair.key",
-                "depth": 0
-            }
-        ]
-    },
-    {
         "name": "string",
         "language": "json",
         "key_definitions": [
