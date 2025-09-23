@@ -1,4 +1,4 @@
-use std::{ops::Range, sync::Mutex, vec};
+use std::{ops::Range, sync::mpsc};
 
 use crate::settings::HighlightSettings;
 
@@ -59,23 +59,20 @@ fn markdown_highlight_callback(target_string: &str, callback: impl Fn(CallbackAr
     walk(context, &mut cursor.clone(), &callback);
 }
 
-fn markdown_highlight_inner(target_string: &str) -> Vec<CallbackArguments> {
-    let result = Mutex::new(vec![]);
-    markdown_highlight_callback(target_string, |args| {
-        result.lock().unwrap().push(args);
-    });
-    result.lock().unwrap().to_vec()
-}
-
 pub fn markdown_highlight(
     target_string: &str,
     settings: &HighlightSettings,
 ) -> Vec<(String, Range<usize>)> {
-    markdown_highlight_inner(target_string)
-        .iter()
+    let (tx, rx) = mpsc::channel();
+    markdown_highlight_callback(target_string, |args| {
+        tx.send(args).unwrap();
+    });
+    // rx 側でイテレーションを終了させるためにtxをドロップする
+    drop(tx);
+    rx.iter()
         .filter_map(|arg| {
             println!("arg: {:?}", arg.kind_stack.path);
-            settings.args_to_definition(arg)
+            settings.args_to_definition(&arg)
         })
         .collect()
 }

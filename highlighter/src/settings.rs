@@ -14,6 +14,7 @@ impl HighlightSettings {
         Self::load_settings(&[
             include_str!("../asset/markdown.json"),
             include_str!("../asset/json.json"),
+            include_str!("../asset/rust.json"),
         ])
     }
 
@@ -29,7 +30,10 @@ impl HighlightSettings {
         result
     }
 
-    pub fn args_to_definition(&self, arg: &CallbackArguments) -> Option<(String, Range<usize>)> {
+    pub(crate) fn args_to_definition(
+        &self,
+        arg: &CallbackArguments,
+    ) -> Option<(String, Range<usize>)> {
         for def in &self.definitions {
             for key_def in def.key_definitions.iter() {
                 if def.language == arg.language {
