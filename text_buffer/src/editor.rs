@@ -1,6 +1,5 @@
 use std::fmt::Display;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::sync::mpsc::Sender;
 
 use highlighter::CallbackArguments;
@@ -137,61 +136,66 @@ impl Editor {
         // ハイライト情報を取得し、範囲順にソート
         let mut highlight_ranges: Vec<_> = markdown_highlight(&self.to_buffer_string())
             .into_iter()
-            .map(|CallbackArguments { language, kind_stack }| {
-                let (attr, depth) = if language == "markdown" {
-                    if kind_stack.ends_with("atx_heading.atx_h1_marker") {
-                        (CharAttribute::Color(0), 1)
-                    } else if kind_stack.ends_with("atx_heading.atx_h2_marker") {
-                        (CharAttribute::Color(1), 1)
-                    } else if kind_stack.ends_with("atx_heading.atx_h3_marker") {
-                        (CharAttribute::Color(2), 1)
-                    } else if kind_stack.ends_with("atx_heading.atx_h4_marker") {
-                        (CharAttribute::Color(3), 1)
-                    } else if kind_stack.ends_with("atx_heading.atx_h5_marker") {
-                        (CharAttribute::Color(4), 1)
-                    } else if kind_stack.ends_with("atx_heading.atx_h6_marker") {
-                        (CharAttribute::Color(5), 1)
-                    } else if kind_stack.ends_with("strong_emphasis") {
-                        (CharAttribute::Color(8), 0)
-                    } else if kind_stack.ends_with("block_quote") {
-                        (CharAttribute::Color(9), 0)
-                    } else if kind_stack.ends_with("code_span") {
-                        (CharAttribute::Color(8), 0)
-                    } else if kind_stack.ends_with("list_marker_plus")
-                        || kind_stack.ends_with("list_marker_minus")
-                        || kind_stack.ends_with("list_marker_star")
-                        || kind_stack.ends_with("list_marker_dot")
-                        || kind_stack.ends_with("list_marker_parenthesis")
-                        || kind_stack.ends_with("thematic_break")
-                    {
-                        (CharAttribute::Color(0), 0)
+            .map(
+                |CallbackArguments {
+                     language,
+                     kind_stack,
+                 }| {
+                    let (attr, depth) = if language == "markdown" {
+                        if kind_stack.ends_with("atx_heading.atx_h1_marker") {
+                            (CharAttribute::Color(0), 1)
+                        } else if kind_stack.ends_with("atx_heading.atx_h2_marker") {
+                            (CharAttribute::Color(1), 1)
+                        } else if kind_stack.ends_with("atx_heading.atx_h3_marker") {
+                            (CharAttribute::Color(2), 1)
+                        } else if kind_stack.ends_with("atx_heading.atx_h4_marker") {
+                            (CharAttribute::Color(3), 1)
+                        } else if kind_stack.ends_with("atx_heading.atx_h5_marker") {
+                            (CharAttribute::Color(4), 1)
+                        } else if kind_stack.ends_with("atx_heading.atx_h6_marker") {
+                            (CharAttribute::Color(5), 1)
+                        } else if kind_stack.ends_with("strong_emphasis") {
+                            (CharAttribute::Color(8), 0)
+                        } else if kind_stack.ends_with("block_quote") {
+                            (CharAttribute::Color(9), 0)
+                        } else if kind_stack.ends_with("code_span") {
+                            (CharAttribute::Color(8), 0)
+                        } else if kind_stack.ends_with("list_marker_plus")
+                            || kind_stack.ends_with("list_marker_minus")
+                            || kind_stack.ends_with("list_marker_star")
+                            || kind_stack.ends_with("list_marker_dot")
+                            || kind_stack.ends_with("list_marker_parenthesis")
+                            || kind_stack.ends_with("thematic_break")
+                        {
+                            (CharAttribute::Color(0), 0)
+                        } else {
+                            (CharAttribute::Default, 0)
+                        }
+                    } else if kind_stack.ends_with("function_item.identifier") {
+                        (CharAttribute::Color(1), 0)
+                    } else if kind_stack.ends_with("link_destination") {
+                        (CharAttribute::Color(3), 0)
                     } else {
                         (CharAttribute::Default, 0)
-                    }
-                } else if kind_stack.ends_with("function_item.identifier") {
-                    (CharAttribute::Color(1), 0)
-                } else if kind_stack.ends_with("link_destination") {
-                    (CharAttribute::Color(3), 0)
-                } else {
-                    (CharAttribute::Default, 0)
-                };
-                let range = kind_stack.range(depth);
-                (range, attr)
-            })
+                    };
+                    let range = kind_stack.range(depth);
+                    (range, attr)
+                },
+            )
             .filter(|(_, attr)| *attr != CharAttribute::Default)
             .collect();
-        
+
         // 範囲の開始位置でソート
         highlight_ranges.sort_by_key(|(range, _)| range.start);
 
         // 一回のループで処理
         let mut position = 0;
         let mut highlight_index = 0;
-        
+
         for line in self.buffer.lines.iter() {
             for c in line.chars.iter() {
                 let mut attr = CharAttribute::Default;
-                
+
                 // 現在の位置に適用されるハイライトを検索
                 while highlight_index < highlight_ranges.len() {
                     let (range, highlight_attr) = &highlight_ranges[highlight_index];
@@ -207,11 +211,11 @@ impl Editor {
                         break;
                     }
                 }
-                
+
                 self.sender
                     .send(ChangeEvent::UpdateCharAttribute(*c, attr))
                     .unwrap();
-                
+
                 position += 1;
             }
             position += 1; // 改行文字分

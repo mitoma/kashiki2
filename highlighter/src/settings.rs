@@ -1,45 +1,67 @@
-use std::ops::Range;
+use std::{collections::HashSet, ops::Range};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::CallbackArguments;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HighlightSettings {
+    pub definitions: Vec<HighlightCategoryDefinition>,
+}
+
+impl HighlightSettings {
+    pub fn load_settings(setting_strings: &[&str]) -> Self {
+        let mut result = HighlightSettings {
+            definitions: vec![],
+        };
+        for setting_string in setting_strings {
+            let defs: Vec<HighlightCategoryDefinition> =
+                serde_json::from_str(setting_string).unwrap();
+            result.definitions.extend(defs);
+        }
+        result
+    }
+
+    pub fn args_to_definition(&self, arg: &CallbackArguments) -> Option<(String, Range<usize>)> {
+        for def in &self.definitions {
+            for key_def in def.key_definitions.iter() {
+                if def.language == arg.language {
+                    if arg.kind_stack.ends_with(&key_def.key) {
+                        return Some((def.name.clone(), arg.kind_stack.range(key_def.depth)));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    pub fn categories(&self) -> Vec<String> {
+        self.definitions
+            .iter()
+            .map(|d| &d.name)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .cloned()
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct HighlightCategoryDefinition {
     pub name: String,
     pub language: String,
     pub key_definitions: Vec<KeyDefinition>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct KeyDefinition {
     pub key: String,
     pub depth: usize,
 }
 
-pub fn load_definitions(config_string: &str) -> Vec<HighlightCategoryDefinition> {
-    serde_json::from_str(config_string).unwrap()
-}
-
-pub fn args_to_definition(
-    definitions: Vec<HighlightCategoryDefinition>,
-    arg: CallbackArguments,
-) -> Option<(String, Range<usize>)> {
-    for def in definitions {
-        if def.language == arg.language {
-            for key_def in def.key_definitions.iter() {
-                if arg.kind_stack.ends_with(&key_def.key) {
-                    return Some((def.name.clone(), arg.kind_stack.range(key_def.depth)));
-                }
-            }
-        }
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::settings::load_definitions;
+    use crate::settings::HighlightSettings;
 
     #[test]
     fn test_load_definitions() {
@@ -55,7 +77,8 @@ mod tests {
             }
         ]
 "#;
-        let definitions = load_definitions(config_string);
+        let settings = HighlightSettings::load_settings(&[config_string]);
+        let definitions = settings.definitions;
         assert_eq!(definitions.len(), 1);
         assert_eq!(definitions[0].name, "function");
         assert_eq!(definitions[0].language, "rust");
