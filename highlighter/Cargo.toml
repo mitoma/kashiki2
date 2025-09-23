@@ -9,3 +9,7 @@ tree-sitter-rust = "0.24.0"
 tree-sitter-java = "0.23.5"
 tree-sitter-go = "0.25.0"
 tree-sitter-md = "0.5.1"
+tree-sitter-json = "0.24.8"
+
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
