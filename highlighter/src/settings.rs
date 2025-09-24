@@ -9,8 +9,8 @@ pub struct HighlightSettings {
     pub definitions: Vec<HighlightCategoryDefinition>,
 }
 
-impl HighlightSettings {
-    pub fn default() -> Self {
+impl Default for HighlightSettings {
+    fn default() -> Self {
         Self::load_settings(&[
             include_str!("../asset/markdown.json"),
             include_str!("../asset/json.json"),
@@ -20,7 +20,9 @@ impl HighlightSettings {
             include_str!("../asset/bash.json"),
         ])
     }
+}
 
+impl HighlightSettings {
     pub fn load_settings(setting_strings: &[&str]) -> Self {
         let mut result = HighlightSettings {
             definitions: vec![],
@@ -41,20 +43,18 @@ impl HighlightSettings {
 
         for def in &self.definitions {
             for key_def in def.key_definitions.iter() {
-                if def.language == arg.language {
-                    if arg.kind_stack.ends_with(&key_def.key) {
-                        // key_def.key の . の数をスコアとし、結果を result に格納し、スコアの高いものを結果として返す
-                        let score = key_def.key.matches('.').count();
-                        result.push((
-                            score,
-                            (def.name.clone(), arg.kind_stack.range(key_def.depth)),
-                        ));
-                    }
+                if def.language == arg.language && arg.kind_stack.ends_with(&key_def.key) {
+                    // key_def.key の . の数をスコアとし、結果を result に格納し、スコアの高いものを結果として返す
+                    let score = key_def.key.matches('.').count();
+                    result.push((
+                        score,
+                        (def.name.clone(), arg.kind_stack.range(key_def.depth)),
+                    ));
                 }
             }
         }
         if let Some((_, res)) = result.into_iter().max_by_key(|(score, _)| *score) {
-            return Some(res);
+            Some(res)
         } else {
             None
         }

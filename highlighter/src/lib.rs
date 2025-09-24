@@ -27,10 +27,6 @@ impl KindStack {
             .join(".");
     }
 
-    fn len(&self) -> usize {
-        self.kinds.len()
-    }
-
     pub fn ends_with(&self, suffix: &str) -> bool {
         self.path.ends_with(&format!(".{}", suffix))
     }
@@ -400,29 +396,13 @@ public class HelloWorld {
 goodbye!
 "#;
 
-        let target_string = r#"
-# Hello, world!
-
-## Google Map!
-
-This is a **bold** text and *italic* text.
-
-```rust
-fn main() {
-    let mut x = 1 + 2 * (3 / 4);
-    test_add();
-    println!("Hello, world!");
-}
-```
-"#;
-
         markdown_highlight_callback(
             target_string,
             |CallbackArguments {
                  language,
                  kind_stack,
              }| {
-                let indent = "  ".repeat(kind_stack.len());
+                let indent = "  ".repeat(kind_stack.kinds.len());
                 println!("{}-----", indent);
                 println!("{}lang: \"{}\"", indent, language);
                 println!("{}Kind stack: {}", indent, kind_stack.path);

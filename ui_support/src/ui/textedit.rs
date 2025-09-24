@@ -734,7 +734,7 @@ impl TextEdit {
                     ..Default::default()
                 };
 
-                self.char_states.update_state(&c, request, &self.config);
+                self.char_states.update_state(c, request, &self.config);
 
                 position += 1;
             }
