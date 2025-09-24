@@ -24,7 +24,7 @@ use text_buffer::caret::CaretType;
 
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
-    color_theme::ColorTheme,
+    color_theme::{ColorTheme, ThemedColor},
     context::StateContext,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
@@ -409,12 +409,12 @@ pub enum Decoration {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct CharAttribute {
-    pub color: Color,
+    pub color: ThemedColor,
     pub decoration: Decoration,
 }
 
 pub const DEFAULT_CHAR_ATTRIBUTE: CharAttribute = CharAttribute {
-    color: Color::Default,
+    color: ThemedColor::Text,
     decoration: Decoration::None,
 };
 
@@ -425,7 +425,7 @@ impl Default for CharAttribute {
 }
 
 impl CharAttribute {
-    pub fn new(color: Color, decoration: Decoration) -> Self {
+    pub fn new(color: ThemedColor, decoration: Decoration) -> Self {
         Self { color, decoration }
     }
 }

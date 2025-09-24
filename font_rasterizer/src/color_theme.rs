@@ -253,7 +253,7 @@ impl SolarizedColor {
 }
 
 // テーマの色を取得するための列挙型
-#[derive(Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub enum ThemedColor {
     Text,
     TextComment,

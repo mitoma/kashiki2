@@ -29,7 +29,7 @@ use crate::{
     layout_engine::{
         Model, ModelAttributes, ModelBorder, ModelMode, ModelOperation, ModelOperationResult,
     },
-    ui::{CharAttribute, Color, Decoration},
+    ui::{CharAttribute, Decoration},
     ui_context::TextContext,
 };
 
@@ -647,36 +647,36 @@ impl TextEdit {
         .into_iter()
         .map(|(category, range)| {
             let attr = match category.as_str() {
-                "markdown.emphasis" => CharAttribute::new(Color::Cyan, Decoration::None),
-                "markdown.list" => CharAttribute::new(Color::Cyan, Decoration::None),
-                "markdown.literal" => CharAttribute::new(Color::Cyan, Decoration::None),
-                "markdown.reference" => CharAttribute::new(Color::Magenta, Decoration::None),
-                "markdown.strong" => CharAttribute::new(Color::Green, Decoration::None),
-                "markdown.title" => CharAttribute::new(Color::Green, Decoration::None),
-                "markdown.uri" => CharAttribute::new(Color::Magenta, Decoration::None),
-                "comment" => CharAttribute::new(Color::Comment, Decoration::None),
-                "constant" => CharAttribute::new(Color::Blue, Decoration::None),
-                "constant.builtin" => CharAttribute::new(Color::Blue, Decoration::None),
-                "escape" => CharAttribute::new(Color::Comment, Decoration::None),
-                "string.escape" => CharAttribute::new(Color::Comment, Decoration::None),
-                "number" => CharAttribute::new(Color::Green, Decoration::None),
-                "string" => CharAttribute::new(Color::Green, Decoration::None),
-                "attribute" => CharAttribute::new(Color::Yellow, Decoration::None),
-                "function" => CharAttribute::new(Color::Cyan, Decoration::None),
-                "function.builtin" => CharAttribute::new(Color::Cyan, Decoration::None),
-                "function.macro" => CharAttribute::new(Color::Cyan, Decoration::None),
-                "function.method" => CharAttribute::new(Color::Cyan, Decoration::None),
-                "identifier" => CharAttribute::new(Color::Cyan, Decoration::None),
-                "keyword" => CharAttribute::new(Color::Blue, Decoration::None),
-                "label" => CharAttribute::new(Color::Comment, Decoration::None),
-                "operator" => CharAttribute::new(Color::Emphasis, Decoration::None),
-                "property" => CharAttribute::new(Color::Yellow, Decoration::None),
-                "punctuation.bracket" => CharAttribute::new(Color::Cyan, Decoration::None),
-                "type" => CharAttribute::new(Color::Green, Decoration::None),
-                "type.builtin" => CharAttribute::new(Color::Green, Decoration::None),
-                "variable" => CharAttribute::new(Color::Yellow, Decoration::None),
-                "variable.builtin" => CharAttribute::new(Color::Yellow, Decoration::None),
-                "variable.parameter" => CharAttribute::new(Color::Yellow, Decoration::None),
+                "markdown.emphasis" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "markdown.list" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "markdown.literal" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "markdown.reference" => CharAttribute::new(ThemedColor::Magenta, Decoration::None),
+                "markdown.strong" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "markdown.title" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "markdown.uri" => CharAttribute::new(ThemedColor::Magenta, Decoration::None),
+                "comment" => CharAttribute::new(ThemedColor::TextComment, Decoration::None),
+                "constant" => CharAttribute::new(ThemedColor::Blue, Decoration::None),
+                "constant.builtin" => CharAttribute::new(ThemedColor::Blue, Decoration::None),
+                "escape" => CharAttribute::new(ThemedColor::TextComment, Decoration::None),
+                "string.escape" => CharAttribute::new(ThemedColor::TextComment, Decoration::None),
+                "number" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "string" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "attribute" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                "function" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "function.builtin" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "function.macro" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "function.method" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "identifier" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "keyword" => CharAttribute::new(ThemedColor::Blue, Decoration::None),
+                "label" => CharAttribute::new(ThemedColor::TextComment, Decoration::None),
+                "operator" => CharAttribute::new(ThemedColor::TextEmphasized, Decoration::None),
+                "property" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                "punctuation.bracket" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "type" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "type.builtin" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "variable" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                "variable.builtin" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                "variable.parameter" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
                 _ => CharAttribute::default(),
             };
             (range, attr)
@@ -711,23 +711,8 @@ impl TextEdit {
                     }
                 }
 
-                let CharAttribute { color, .. } = attr;
-
-                let color = match color {
-                    Color::Default => ThemedColor::Text,
-                    Color::Emphasis => ThemedColor::TextEmphasized,
-                    Color::Comment => ThemedColor::TextComment,
-                    Color::Yellow => ThemedColor::Yellow,
-                    Color::Orange => ThemedColor::Orange,
-                    Color::Red => ThemedColor::Red,
-                    Color::Magenta => ThemedColor::Magenta,
-                    Color::Violet => ThemedColor::Violet,
-                    Color::Blue => ThemedColor::Blue,
-                    Color::Cyan => ThemedColor::Cyan,
-                    Color::Green => ThemedColor::Green,
-                };
-
                 // TODO decoration の対応
+                let CharAttribute { color, .. } = attr;
 
                 let request = &ViewElementStateUpdateRequest {
                     base_color: Some(color),
