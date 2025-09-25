@@ -1,0 +1,60 @@
+[
+    {
+        "name": "string",
+        "language": "json",
+        "key_definitions": [
+            {
+                "key": "string",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "number",
+        "language": "json",
+        "key_definitions": [
+            {
+                "key": "number",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "constant.builtin",
+        "language": "json",
+        "key_definitions": [
+            {
+                "key": "null",
+                "depth": 0
+            },
+            {
+                "key": "true",
+                "depth": 0
+            },
+            {
+                "key": "false",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "escape",
+        "language": "json",
+        "key_definitions": [
+            {
+                "key": "escape_sequence",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "comment",
+        "language": "json",
+        "key_definitions": [
+            {
+                "key": "comment",
+                "depth": 0
+            }
+        ]
+    }
+]

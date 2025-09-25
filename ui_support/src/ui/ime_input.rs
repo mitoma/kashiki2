@@ -10,7 +10,7 @@ use font_rasterizer::{
 use crate::{
     layout_engine::Model,
     ui::textedit::TextEditOperation,
-    ui_context::{CharEasings, TextContext},
+    ui_context::{CharEasings, HighlightMode, TextContext},
 };
 
 use super::textedit::TextEdit;
@@ -35,6 +35,7 @@ impl ImeInput {
             max_col: usize::MAX, // IME は基本的に改行しないので大きな値を設定
             min_bound: Point2::new(1.0, 10.0),
             hyde_caret: true,
+            highlight_mode: HighlightMode::None,
             ..Default::default()
         };
         let mut text_edit = TextEdit::default();

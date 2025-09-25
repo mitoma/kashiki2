@@ -83,6 +83,7 @@ C-Key8    world:fit-height
 C-Z Space world:look-next
 C-Z P     world:look-prev
 A-S-W     world:copy-display
+A-S-M     world:toggle-highlight-mode
 
 # マウス系のショートカット
 ClickLeft   world:move-to-click

@@ -1,0 +1,152 @@
+[
+    {
+        "name": "markdown.title",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "atx_h1_marker",
+                "depth": 1
+            },
+            {
+                "key": "atx_h2_marker",
+                "depth": 1
+            },
+            {
+                "key": "atx_h3_marker",
+                "depth": 1
+            },
+            {
+                "key": "atx_h4_marker",
+                "depth": 1
+            },
+            {
+                "key": "atx_h5_marker",
+                "depth": 1
+            },
+            {
+                "key": "atx_h6_marker",
+                "depth": 1
+            }
+        ]
+    },
+    {
+        "name": "markdown.literal",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "link_title",
+                "depth": 0
+            },
+            {
+                "key": "code_span",
+                "depth": 0
+            },
+            {
+                "key": "indented_code_block",
+                "depth": 0
+            },
+            {
+                "key": "thematic_break",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "markdown.list",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "list_marker_plus",
+                "depth": 0
+            },
+            {
+                "key": "list_marker_minus",
+                "depth": 0
+            },
+            {
+                "key": "list_marker_star",
+                "depth": 0
+            },
+            {
+                "key": "list_marker_dot",
+                "depth": 0
+            },
+            {
+                "key": "list_marker_parenthesis",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "markdown.emphasis",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "emphasis",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "markdown.strong",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "strong_emphasis",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "markdown.uri",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "link_destination",
+                "depth": 0
+            },
+            {
+                "key": "uri_autolink",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "markdown.reference",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "link_label",
+                "depth": 0
+            },
+            {
+                "key": "link_text",
+                "depth": 0
+            },
+            {
+                "key": "image_description",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "markdown.checked",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "task_list_marker_checked",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "markdown.unchecked",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "task_list_marker_unchecked",
+                "depth": 0
+            }
+        ]
+    }
+]

@@ -35,6 +35,7 @@ wasm-bindgen-futures = "0.4"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = { workspace = true }
+highlighter = { path = "../highlighter" }
 
 [dev-dependencies]
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }

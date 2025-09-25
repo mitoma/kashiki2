@@ -1,0 +1,428 @@
+[
+    {
+        "name": "string",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "character_literal",
+                "depth": 0
+            },
+            {
+                "key": "string_literal",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "string.escape",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "escape_sequence",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "number",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "hex_integer_literal",
+                "depth": 0
+            },
+            {
+                "key": "decimal_integer_literal",
+                "depth": 0
+            },
+            {
+                "key": "octal_integer_literal",
+                "depth": 0
+            },
+            {
+                "key": "decimal_floating_point_literal",
+                "depth": 0
+            },
+            {
+                "key": "hex_floating_point_literal",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "constant.builtin",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "true",
+                "depth": 0
+            },
+            {
+                "key": "false",
+                "depth": 0
+            },
+            {
+                "key": "null_literal",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "comment",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "line_comment",
+                "depth": 0
+            },
+            {
+                "key": "block_comment",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "type",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "type_identifier",
+                "depth": 0
+            },
+            {
+                "key": "interface_declaration.identifier",
+                "depth": 0
+            },
+            {
+                "key": "class_declaration.identifier",
+                "depth": 0
+            },
+            {
+                "key": "enum_declaration.identifier",
+                "depth": 0
+            },
+            {
+                "key": "constructor_declaration.identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "type.builtin",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "boolean_type",
+                "depth": 0
+            },
+            {
+                "key": "integral_type",
+                "depth": 0
+            },
+            {
+                "key": "floating_point_type",
+                "depth": 0
+            },
+            {
+                "key": "void_type",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "variable",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "variable.builtin",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "this",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "function.method",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "method_declaration.identifier",
+                "depth": 0
+            },
+            {
+                "key": "method_invocation.identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "function.builtin",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "super",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "attribute",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "annotation.identifier",
+                "depth": 0
+            },
+            {
+                "key": "marker_annotation.identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "constant",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "keyword",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "abstract",
+                "depth": 0
+            },
+            {
+                "key": "assert",
+                "depth": 0
+            },
+            {
+                "key": "break",
+                "depth": 0
+            },
+            {
+                "key": "case",
+                "depth": 0
+            },
+            {
+                "key": "catch",
+                "depth": 0
+            },
+            {
+                "key": "class",
+                "depth": 0
+            },
+            {
+                "key": "continue",
+                "depth": 0
+            },
+            {
+                "key": "default",
+                "depth": 0
+            },
+            {
+                "key": "do",
+                "depth": 0
+            },
+            {
+                "key": "else",
+                "depth": 0
+            },
+            {
+                "key": "enum",
+                "depth": 0
+            },
+            {
+                "key": "exports",
+                "depth": 0
+            },
+            {
+                "key": "extends",
+                "depth": 0
+            },
+            {
+                "key": "final",
+                "depth": 0
+            },
+            {
+                "key": "finally",
+                "depth": 0
+            },
+            {
+                "key": "for",
+                "depth": 0
+            },
+            {
+                "key": "if",
+                "depth": 0
+            },
+            {
+                "key": "implements",
+                "depth": 0
+            },
+            {
+                "key": "import",
+                "depth": 0
+            },
+            {
+                "key": "instanceof",
+                "depth": 0
+            },
+            {
+                "key": "interface",
+                "depth": 0
+            },
+            {
+                "key": "module",
+                "depth": 0
+            },
+            {
+                "key": "native",
+                "depth": 0
+            },
+            {
+                "key": "new",
+                "depth": 0
+            },
+            {
+                "key": "non-sealed",
+                "depth": 0
+            },
+            {
+                "key": "open",
+                "depth": 0
+            },
+            {
+                "key": "opens",
+                "depth": 0
+            },
+            {
+                "key": "package",
+                "depth": 0
+            },
+            {
+                "key": "permits",
+                "depth": 0
+            },
+            {
+                "key": "private",
+                "depth": 0
+            },
+            {
+                "key": "protected",
+                "depth": 0
+            },
+            {
+                "key": "provides",
+                "depth": 0
+            },
+            {
+                "key": "public",
+                "depth": 0
+            },
+            {
+                "key": "record",
+                "depth": 0
+            },
+            {
+                "key": "requires",
+                "depth": 0
+            },
+            {
+                "key": "return",
+                "depth": 0
+            },
+            {
+                "key": "sealed",
+                "depth": 0
+            },
+            {
+                "key": "static",
+                "depth": 0
+            },
+            {
+                "key": "strictfp",
+                "depth": 0
+            },
+            {
+                "key": "switch",
+                "depth": 0
+            },
+            {
+                "key": "synchronized",
+                "depth": 0
+            },
+            {
+                "key": "throw",
+                "depth": 0
+            },
+            {
+                "key": "throws",
+                "depth": 0
+            },
+            {
+                "key": "to",
+                "depth": 0
+            },
+            {
+                "key": "transient",
+                "depth": 0
+            },
+            {
+                "key": "transitive",
+                "depth": 0
+            },
+            {
+                "key": "try",
+                "depth": 0
+            },
+            {
+                "key": "uses",
+                "depth": 0
+            },
+            {
+                "key": "volatile",
+                "depth": 0
+            },
+            {
+                "key": "when",
+                "depth": 0
+            },
+            {
+                "key": "while",
+                "depth": 0
+            },
+            {
+                "key": "with",
+                "depth": 0
+            },
+            {
+                "key": "yield",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "operator",
+        "language": "java",
+        "key_definitions": [
+            {
+                "key": "@",
+                "depth": 0
+            }
+        ]
+    }
+]

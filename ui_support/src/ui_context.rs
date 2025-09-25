@@ -250,6 +250,14 @@ pub struct TextContext {
     pub(crate) color_theme: ColorTheme,
     pub(crate) psychedelic: bool,
     pub(crate) hyde_caret: bool,
+    pub(crate) highlight_mode: HighlightMode,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HighlightMode {
+    None,
+    Markdown,
+    Language(String),
 }
 
 const TEXT_CONTEXT_ZERO_BOUND: Point2<f32> = Point2::new(0.0, 0.0);
@@ -272,6 +280,7 @@ impl Default for TextContext {
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
             hyde_caret: false,
+            highlight_mode: HighlightMode::None,
         }
     }
 }

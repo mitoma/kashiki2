@@ -1,0 +1,404 @@
+[
+    {
+        "name": "string",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "interpreted_string_literal",
+                "depth": 0
+            },
+            {
+                "key": "raw_string_literal",
+                "depth": 0
+            },
+            {
+                "key": "rune_literal",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "escape",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "escape_sequence",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "number",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "int_literal",
+                "depth": 0
+            },
+            {
+                "key": "float_literal",
+                "depth": 0
+            },
+            {
+                "key": "imaginary_literal",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "constant.builtin",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "true",
+                "depth": 0
+            },
+            {
+                "key": "false",
+                "depth": 0
+            },
+            {
+                "key": "nil",
+                "depth": 0
+            },
+            {
+                "key": "iota",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "comment",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "comment",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "type",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "type_identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "property",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "field_identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "variable",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "function",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "function_declaration.identifier",
+                "depth": 0
+            },
+            {
+                "key": "call_expression.identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "function.builtin",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "call_expression.identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "function.method",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "method_declaration.field_identifier",
+                "depth": 0
+            },
+            {
+                "key": "call_expression.selector_expression.field_identifier",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "keyword",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "break",
+                "depth": 0
+            },
+            {
+                "key": "case",
+                "depth": 0
+            },
+            {
+                "key": "chan",
+                "depth": 0
+            },
+            {
+                "key": "const",
+                "depth": 0
+            },
+            {
+                "key": "continue",
+                "depth": 0
+            },
+            {
+                "key": "default",
+                "depth": 0
+            },
+            {
+                "key": "defer",
+                "depth": 0
+            },
+            {
+                "key": "else",
+                "depth": 0
+            },
+            {
+                "key": "fallthrough",
+                "depth": 0
+            },
+            {
+                "key": "for",
+                "depth": 0
+            },
+            {
+                "key": "func",
+                "depth": 0
+            },
+            {
+                "key": "go",
+                "depth": 0
+            },
+            {
+                "key": "goto",
+                "depth": 0
+            },
+            {
+                "key": "if",
+                "depth": 0
+            },
+            {
+                "key": "import",
+                "depth": 0
+            },
+            {
+                "key": "interface",
+                "depth": 0
+            },
+            {
+                "key": "map",
+                "depth": 0
+            },
+            {
+                "key": "package",
+                "depth": 0
+            },
+            {
+                "key": "range",
+                "depth": 0
+            },
+            {
+                "key": "return",
+                "depth": 0
+            },
+            {
+                "key": "select",
+                "depth": 0
+            },
+            {
+                "key": "struct",
+                "depth": 0
+            },
+            {
+                "key": "switch",
+                "depth": 0
+            },
+            {
+                "key": "type",
+                "depth": 0
+            },
+            {
+                "key": "var",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "operator",
+        "language": "go",
+        "key_definitions": [
+            {
+                "key": "--",
+                "depth": 0
+            },
+            {
+                "key": "-",
+                "depth": 0
+            },
+            {
+                "key": "-=",
+                "depth": 0
+            },
+            {
+                "key": ":=",
+                "depth": 0
+            },
+            {
+                "key": "!",
+                "depth": 0
+            },
+            {
+                "key": "!=",
+                "depth": 0
+            },
+            {
+                "key": "...",
+                "depth": 0
+            },
+            {
+                "key": "*",
+                "depth": 0
+            },
+            {
+                "key": "*=",
+                "depth": 0
+            },
+            {
+                "key": "/",
+                "depth": 0
+            },
+            {
+                "key": "/=",
+                "depth": 0
+            },
+            {
+                "key": "&",
+                "depth": 0
+            },
+            {
+                "key": "&&",
+                "depth": 0
+            },
+            {
+                "key": "&=",
+                "depth": 0
+            },
+            {
+                "key": "%",
+                "depth": 0
+            },
+            {
+                "key": "%=",
+                "depth": 0
+            },
+            {
+                "key": "^",
+                "depth": 0
+            },
+            {
+                "key": "^=",
+                "depth": 0
+            },
+            {
+                "key": "+",
+                "depth": 0
+            },
+            {
+                "key": "++",
+                "depth": 0
+            },
+            {
+                "key": "+=",
+                "depth": 0
+            },
+            {
+                "key": "<-",
+                "depth": 0
+            },
+            {
+                "key": "<",
+                "depth": 0
+            },
+            {
+                "key": "<<",
+                "depth": 0
+            },
+            {
+                "key": "<<=",
+                "depth": 0
+            },
+            {
+                "key": "<=",
+                "depth": 0
+            },
+            {
+                "key": "=",
+                "depth": 0
+            },
+            {
+                "key": "==",
+                "depth": 0
+            },
+            {
+                "key": ">",
+                "depth": 0
+            },
+            {
+                "key": ">=",
+                "depth": 0
+            },
+            {
+                "key": ">>",
+                "depth": 0
+            },
+            {
+                "key": ">>=",
+                "depth": 0
+            },
+            {
+                "key": "|",
+                "depth": 0
+            },
+            {
+                "key": "|=",
+                "depth": 0
+            },
+            {
+                "key": "||",
+                "depth": 0
+            },
+            {
+                "key": "~",
+                "depth": 0
+            }
+        ]
+    }
+]

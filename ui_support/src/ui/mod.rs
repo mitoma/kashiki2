@@ -24,7 +24,7 @@ use text_buffer::caret::CaretType;
 
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
-    color_theme::ColorTheme,
+    color_theme::{ColorTheme, ThemedColor},
     context::StateContext,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
@@ -126,6 +126,7 @@ impl Model for PlaneTextReader {
             ModelOperation::SetMaxCol(_) => ModelOperationResult::NoCare,
             ModelOperation::IncreaseMaxCol => ModelOperationResult::NoCare,
             ModelOperation::DecreaseMaxCol => ModelOperationResult::NoCare,
+            ModelOperation::ToggleHighlightMode => ModelOperationResult::NoCare,
         }
     }
 
@@ -381,6 +382,38 @@ pub fn caret_char(caret_type: CaretType) -> char {
 #[inline]
 pub fn ime_chars() -> [char; 2] {
     ['[', ']']
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub enum Decoration {
+    None,
+    Bold,
+    Italic,
+    Underline,
+    Strikethrough,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+pub struct CharAttribute {
+    pub color: ThemedColor,
+    pub decoration: Decoration,
+}
+
+pub const DEFAULT_CHAR_ATTRIBUTE: CharAttribute = CharAttribute {
+    color: ThemedColor::Text,
+    decoration: Decoration::None,
+};
+
+impl Default for CharAttribute {
+    fn default() -> Self {
+        DEFAULT_CHAR_ATTRIBUTE
+    }
+}
+
+impl CharAttribute {
+    pub fn new(color: ThemedColor, decoration: Decoration) -> Self {
+        Self { color, decoration }
+    }
 }
 
 #[cfg(test)]

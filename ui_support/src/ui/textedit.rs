@@ -29,7 +29,8 @@ use crate::{
     layout_engine::{
         Model, ModelAttributes, ModelBorder, ModelMode, ModelOperation, ModelOperationResult,
     },
-    ui_context::TextContext,
+    ui::{CharAttribute, Decoration},
+    ui_context::{HighlightMode, TextContext},
 };
 
 use super::{
@@ -193,6 +194,9 @@ impl Model for TextEdit {
             let layout = self.calc_phisical_layout(context.char_width_calcurator.clone());
             let bound = self.calc_bound(&layout);
             self.calc_position(&context.char_width_calcurator, &layout, bound);
+
+            // ここがハイライト候補だがセレクションが適切に動作しないので要検討
+            self.highlight();
         }
 
         self.calc_instance_positions(&context.char_width_calcurator);
@@ -319,6 +323,17 @@ impl Model for TextEdit {
             }
             ModelOperation::DecreaseMaxCol => {
                 self.config.max_col -= 1;
+                self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::ToggleHighlightMode => {
+                self.config.highlight_mode = match self.config.highlight_mode {
+                    HighlightMode::None => HighlightMode::Markdown,
+                    HighlightMode::Markdown | HighlightMode::Language(_) => {
+                        self.reset_highlight();
+                        HighlightMode::None
+                    }
+                };
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
@@ -627,6 +642,119 @@ impl TextEdit {
 
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
         self.world_scale = world_scale;
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn highlight(&mut self) {}
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[inline]
+    fn highlight(&mut self) {
+        use crate::ui_context::HighlightMode;
+
+        if self.config.highlight_mode != HighlightMode::Markdown {
+            return;
+        }
+
+        // ハイライト情報を取得し、範囲順にソート
+        let mut highlight_ranges: Vec<_> = highlighter::markdown_highlight(
+            &self.editor.to_buffer_string(),
+            &highlighter::settings::HighlightSettings::default(),
+        )
+        .into_iter()
+        .map(|(category, range)| {
+            let attr = match category.as_str() {
+                "markdown.emphasis" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "markdown.list" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "markdown.literal" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "markdown.reference" => CharAttribute::new(ThemedColor::Magenta, Decoration::None),
+                "markdown.strong" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "markdown.title" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "markdown.uri" => CharAttribute::new(ThemedColor::Magenta, Decoration::None),
+                "markdown.checked" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "markdown.unchecked" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                "comment" => CharAttribute::new(ThemedColor::TextComment, Decoration::None),
+                "constant" => CharAttribute::new(ThemedColor::Blue, Decoration::None),
+                "constant.builtin" => CharAttribute::new(ThemedColor::Blue, Decoration::None),
+                "escape" => CharAttribute::new(ThemedColor::TextComment, Decoration::None),
+                "string.escape" => CharAttribute::new(ThemedColor::TextComment, Decoration::None),
+                "number" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "string" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "attribute" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                "function" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "function.builtin" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "function.macro" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "function.method" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "identifier" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "keyword" => CharAttribute::new(ThemedColor::Blue, Decoration::None),
+                "label" => CharAttribute::new(ThemedColor::TextComment, Decoration::None),
+                "operator" => CharAttribute::new(ThemedColor::TextEmphasized, Decoration::None),
+                "property" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                "punctuation.bracket" => CharAttribute::new(ThemedColor::Cyan, Decoration::None),
+                "type" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "type.builtin" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "variable" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                "variable.builtin" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                "variable.parameter" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
+                _ => CharAttribute::default(),
+            };
+            (range, attr)
+        })
+        .filter(|(_, attr)| *attr != CharAttribute::default())
+        .collect();
+
+        // 範囲の開始位置でソート
+        highlight_ranges.sort_by_key(|(range, _)| range.start);
+
+        // 一回のループで処理
+        let mut position = 0;
+        let mut highlight_index = 0;
+
+        for line in self.editor.buffer_chars().iter() {
+            for c in line.iter() {
+                let mut attr = CharAttribute::default();
+
+                // 現在の位置に適用されるハイライトを検索
+                while highlight_index < highlight_ranges.len() {
+                    let (range, highlight_attr) = &highlight_ranges[highlight_index];
+                    if range.start > position {
+                        break;
+                    }
+                    if range.contains(&position) && attr == CharAttribute::default() {
+                        attr = *highlight_attr;
+                    }
+                    if range.end <= position {
+                        highlight_index += 1;
+                    } else {
+                        break;
+                    }
+                }
+
+                // TODO decoration の対応
+                let CharAttribute { color, .. } = attr;
+
+                let request = &ViewElementStateUpdateRequest {
+                    base_color: Some(color),
+                    ..Default::default()
+                };
+
+                self.char_states.update_state(c, request, &self.config);
+
+                position += 1;
+            }
+            position += 1; // 改行文字分
+        }
+    }
+
+    #[inline]
+    fn reset_highlight(&mut self) {
+        let default_text = &ViewElementStateUpdateRequest {
+            base_color: Some(ThemedColor::Text),
+            ..Default::default()
+        };
+        self.editor.buffer_chars().iter().flatten().for_each(|c| {
+            self.char_states.update_state(c, default_text, &self.config);
+        });
     }
 }
 

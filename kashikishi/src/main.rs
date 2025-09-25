@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 /* ↑は Windows で実行する時にコマンドプロンプトが開かないようにするためのもの。 */
 mod action_repository;
+#[allow(dead_code)]
 mod categorized_memos;
 mod kashikishi_actions;
 mod local_datetime_format;

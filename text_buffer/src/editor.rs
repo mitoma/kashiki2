@@ -133,6 +133,14 @@ impl Editor {
         self.buffer.to_buffer_string()
     }
 
+    pub fn buffer_chars(&self) -> Vec<Vec<BufferChar>> {
+        self.buffer
+            .lines
+            .iter()
+            .map(|line| line.chars.clone())
+            .collect()
+    }
+
     fn selection(&self) -> Vec<BufferChar> {
         let Some(mark) = self.mark else {
             return Vec::new();
