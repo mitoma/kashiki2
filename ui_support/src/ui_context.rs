@@ -280,7 +280,7 @@ impl Default for TextContext {
             color_theme: ColorTheme::SolarizedDark,
             psychedelic: false,
             hyde_caret: false,
-            highlight_mode: HighlightMode::Markdown,
+            highlight_mode: HighlightMode::None,
         }
     }
 }
