@@ -128,5 +128,25 @@
                 "depth": 0
             }
         ]
+    },
+    {
+        "name": "markdown.checked",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "task_list_marker_checked",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "markdown.unchecked",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "task_list_marker_unchecked",
+                "depth": 0
+            }
+        ]
     }
 ]

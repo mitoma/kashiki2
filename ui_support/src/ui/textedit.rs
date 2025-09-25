@@ -671,6 +671,8 @@ impl TextEdit {
                 "markdown.strong" => CharAttribute::new(ThemedColor::Green, Decoration::None),
                 "markdown.title" => CharAttribute::new(ThemedColor::Green, Decoration::None),
                 "markdown.uri" => CharAttribute::new(ThemedColor::Magenta, Decoration::None),
+                "markdown.checked" => CharAttribute::new(ThemedColor::Green, Decoration::None),
+                "markdown.unchecked" => CharAttribute::new(ThemedColor::Yellow, Decoration::None),
                 "comment" => CharAttribute::new(ThemedColor::TextComment, Decoration::None),
                 "constant" => CharAttribute::new(ThemedColor::Blue, Decoration::None),
                 "constant.builtin" => CharAttribute::new(ThemedColor::Blue, Decoration::None),
