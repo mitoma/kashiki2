@@ -292,3 +292,12 @@ world_processor!(WorldDecreaseMaxCol, "decrease-max-col", decrease_max_col);
 fn decrease_max_col(_arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
     world.model_operation(&ModelOperation::DecreaseMaxCol);
 }
+
+world_processor!(
+    WorldToggleHighlightMode,
+    "toggle-highlight-mode",
+    toggle_highlight_mode
+);
+fn toggle_highlight_mode(_arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
+    world.model_operation(&ModelOperation::ToggleHighlightMode);
+}

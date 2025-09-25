@@ -30,7 +30,7 @@ use crate::{
         Model, ModelAttributes, ModelBorder, ModelMode, ModelOperation, ModelOperationResult,
     },
     ui::{CharAttribute, Decoration},
-    ui_context::TextContext,
+    ui_context::{HighlightMode, TextContext},
 };
 
 use super::{
@@ -323,6 +323,17 @@ impl Model for TextEdit {
             }
             ModelOperation::DecreaseMaxCol => {
                 self.config.max_col -= 1;
+                self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::ToggleHighlightMode => {
+                self.config.highlight_mode = match self.config.highlight_mode {
+                    HighlightMode::None => HighlightMode::Markdown,
+                    HighlightMode::Markdown | HighlightMode::Language(_) => {
+                        self.reset_highlight();
+                        HighlightMode::None
+                    }
+                };
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
@@ -731,6 +742,17 @@ impl TextEdit {
             }
             position += 1; // 改行文字分
         }
+    }
+
+    #[inline]
+    fn reset_highlight(&mut self) {
+        let default_text = &ViewElementStateUpdateRequest {
+            base_color: Some(ThemedColor::Text),
+            ..Default::default()
+        };
+        self.editor.buffer_chars().iter().flatten().for_each(|c| {
+            self.char_states.update_state(c, default_text, &self.config);
+        });
     }
 }
 

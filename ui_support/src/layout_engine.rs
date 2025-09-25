@@ -551,6 +551,7 @@ pub enum ModelOperation {
     SetMaxCol(usize),
     IncreaseMaxCol,
     DecreaseMaxCol,
+    ToggleHighlightMode,
 }
 
 pub enum ModelOperationResult {

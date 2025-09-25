@@ -148,5 +148,10 @@
         "namespace": "world",
         "name": "change-max-col-ui",
         "description": "一行の文字数を変更する"
+    },
+    {
+        "namespace": "world",
+        "name": "toggle-highlight-mode",
+        "description": "ハイライトモードを切り替える"
     }
 ]

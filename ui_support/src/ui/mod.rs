@@ -126,6 +126,7 @@ impl Model for PlaneTextReader {
             ModelOperation::SetMaxCol(_) => ModelOperationResult::NoCare,
             ModelOperation::IncreaseMaxCol => ModelOperationResult::NoCare,
             ModelOperation::DecreaseMaxCol => ModelOperationResult::NoCare,
+            ModelOperation::ToggleHighlightMode => ModelOperationResult::NoCare,
         }
     }
 
