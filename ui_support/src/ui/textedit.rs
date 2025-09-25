@@ -639,6 +639,12 @@ impl TextEdit {
     #[cfg(not(target_arch = "wasm32"))]
     #[inline]
     fn highlight(&mut self) {
+        use crate::ui_context::HighlightMode;
+
+        if self.config.highlight_mode != HighlightMode::Markdown {
+            return;
+        }
+
         // ハイライト情報を取得し、範囲順にソート
         let mut highlight_ranges: Vec<_> = highlighter::markdown_highlight(
             &self.editor.to_buffer_string(),

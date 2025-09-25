@@ -13,7 +13,7 @@ use font_rasterizer::{
 
 use crate::{
     layout_engine::{Model, ModelBorder, ModelMode},
-    ui_context::{CharEasings, GpuEasingConfig, TextContext},
+    ui_context::{CharEasings, GpuEasingConfig, HighlightMode, TextContext},
 };
 
 use super::{select_option::SelectOption, textedit::TextEdit};
@@ -51,6 +51,7 @@ impl SelectBox {
                 ..Default::default()
             },
             hyde_caret: true,
+            highlight_mode: HighlightMode::None,
             min_bound: (0.0, 0.0).into(),
             direction,
             ..Default::default()

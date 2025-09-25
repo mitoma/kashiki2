@@ -10,7 +10,7 @@ use font_rasterizer::{
 
 use crate::{
     layout_engine::{Model, ModelBorder, ModelMode},
-    ui_context::{CharEasings, TextContext},
+    ui_context::{CharEasings, HighlightMode, TextContext},
 };
 
 use super::textedit::TextEdit;
@@ -30,6 +30,7 @@ impl TextInput {
             max_col: usize::MAX,
             char_easings: CharEasings::zero_motion(),
             hyde_caret: true,
+            highlight_mode: HighlightMode::None,
             direction,
             ..Default::default()
         }
