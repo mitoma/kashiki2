@@ -385,21 +385,6 @@ pub fn ime_chars() -> [char; 2] {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub enum Color {
-    Default,
-    Emphasis,
-    Comment,
-    Yellow,
-    Orange,
-    Red,
-    Magenta,
-    Violet,
-    Blue,
-    Cyan,
-    Green,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub enum Decoration {
     None,
     Bold,
