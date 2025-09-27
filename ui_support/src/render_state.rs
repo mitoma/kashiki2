@@ -482,9 +482,7 @@ impl RenderState {
 
         // run all stage
         record_start_of_phase("render 2: update buffer");
-        self.rasterizer_pipeline
-            .overlap_bind_group
-            .update_buffer(&self.context.queue);
+        self.rasterizer_pipeline.update_buffer(&self.context.queue);
         record_start_of_phase("render 2-2: create texture");
         let screen_view = self.render_target.get_screen_view()?;
 

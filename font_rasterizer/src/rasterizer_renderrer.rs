@@ -22,7 +22,7 @@ const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
 
 pub struct RasterizerRenderrer {
     // 1 ステージ目(overlap)
-    pub overlap_bind_group: OverlapBindGroup,
+    pub(crate) overlap_bind_group: OverlapBindGroup,
     pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
 
     // 1 ステージ目のアウトプット(≒ 2 ステージ目のインプット)
@@ -217,7 +217,7 @@ impl RasterizerRenderrer {
         }
     }
 
-    /// Render using caller provided render pass.
+    #[inline]
     pub fn render(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
