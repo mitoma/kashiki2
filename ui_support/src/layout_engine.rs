@@ -60,6 +60,8 @@ pub trait World {
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
     // vector_instances を返す
     fn vector_instances(&self) -> Vec<&VectorInstances<String>>;
+    // モーダル時のインスタンスを返す
+    fn modal_instances(&self) -> (Vec<&GlyphInstances>, Vec<&VectorInstances<String>>);
 
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation);
@@ -215,6 +217,46 @@ impl DefaultWorld {
         };
         min..max
     }
+
+    #[inline]
+    fn glyph_instances_inner(&self, for_modal: bool) -> Vec<&GlyphInstances> {
+        let models: Vec<&GlyphInstances> = self.models[self.get_surrounding_model_range()]
+            .iter()
+            .filter(|m| (m.model_mode() == ModelMode::Modal) == for_modal)
+            .flat_map(|m| m.glyph_instances())
+            .collect();
+        let removed_models: Vec<&GlyphInstances> = self
+            .removed_models
+            .iter()
+            .filter(|m| (m.model_mode() == ModelMode::Modal) == for_modal)
+            .flat_map(|m| m.glyph_instances())
+            .collect();
+        models
+            .iter()
+            .chain(removed_models.iter())
+            .cloned()
+            .collect()
+    }
+
+    #[inline]
+    fn vector_instances_inner(&self, for_modal: bool) -> Vec<&VectorInstances<String>> {
+        let models: Vec<&VectorInstances<String>> = self.models[self.get_surrounding_model_range()]
+            .iter()
+            .filter(|m| (m.model_mode() == ModelMode::Modal) == for_modal)
+            .flat_map(|m| m.vector_instances())
+            .collect();
+        let removed_models: Vec<&VectorInstances<String>> = self
+            .removed_models
+            .iter()
+            .filter(|m| (m.model_mode() == ModelMode::Modal) == for_modal)
+            .flat_map(|m| m.vector_instances())
+            .collect();
+        models
+            .iter()
+            .chain(removed_models.iter())
+            .cloned()
+            .collect()
+    }
 }
 
 impl World for DefaultWorld {
@@ -251,37 +293,18 @@ impl World for DefaultWorld {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        let models: Vec<&GlyphInstances> = self.models[self.get_surrounding_model_range()]
-            .iter()
-            .flat_map(|m| m.glyph_instances())
-            .collect();
-        let removed_models: Vec<&GlyphInstances> = self
-            .removed_models
-            .iter()
-            .flat_map(|m| m.glyph_instances())
-            .collect();
-        models
-            .iter()
-            .chain(removed_models.iter())
-            .cloned()
-            .collect()
+        self.glyph_instances_inner(false)
     }
 
     fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
-        let models: Vec<&VectorInstances<String>> = self.models[self.get_surrounding_model_range()]
-            .iter()
-            .flat_map(|m| m.vector_instances())
-            .collect();
-        let removed_models: Vec<&VectorInstances<String>> = self
-            .removed_models
-            .iter()
-            .flat_map(|m| m.vector_instances())
-            .collect();
-        models
-            .iter()
-            .chain(removed_models.iter())
-            .cloned()
-            .collect()
+        self.vector_instances_inner(false)
+    }
+
+    fn modal_instances(&self) -> (Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
+        (
+            self.glyph_instances_inner(true),
+            self.vector_instances_inner(true),
+        )
     }
 
     fn update(&mut self, context: &StateContext) {

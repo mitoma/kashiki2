@@ -414,6 +414,8 @@ pub struct RenderData<'a> {
     pub camera: &'a Camera,
     pub glyph_instances: Vec<&'a GlyphInstances>,
     pub vector_instances: Vec<&'a VectorInstances<String>>,
+    pub glyph_instances_for_modal: Vec<&'a GlyphInstances>,
+    pub vector_instances_for_modal: Vec<&'a VectorInstances<String>>,
 }
 
 pub async fn generate_images<F>(

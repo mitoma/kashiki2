@@ -491,24 +491,54 @@ impl RenderState {
             camera,
             glyph_instances,
             vector_instances,
+            glyph_instances_for_modal,
+            vector_instances_for_modal,
         } = self.simple_state_callback.render();
 
         record_start_of_phase("render 4: run all stage");
-        let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
-            if glyph_instances.is_empty() {
-                None
-            } else {
-                Some((&self.glyph_vertex_buffer, &glyph_instances))
-            };
-        let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
-            if vector_instances.is_empty() {
-                None
-            } else {
-                Some((
-                    self.svg_vertex_buffer.vector_vertex_buffer(),
-                    &vector_instances,
-                ))
-            };
+        let buffers = {
+            let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
+                if glyph_instances.is_empty() {
+                    None
+                } else {
+                    Some((&self.glyph_vertex_buffer, &glyph_instances))
+                };
+            let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
+                if vector_instances.is_empty() {
+                    None
+                } else {
+                    Some((
+                        self.svg_vertex_buffer.vector_vertex_buffer(),
+                        &vector_instances,
+                    ))
+                };
+            Buffers {
+                glyph_buffers,
+                vector_buffers,
+            }
+        };
+        let modal_buffers = {
+            let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
+                if glyph_instances_for_modal.is_empty() {
+                    None
+                } else {
+                    Some((&self.glyph_vertex_buffer, &glyph_instances_for_modal))
+                };
+            let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
+                if vector_instances_for_modal.is_empty() {
+                    None
+                } else {
+                    Some((
+                        self.svg_vertex_buffer.vector_vertex_buffer(),
+                        &vector_instances_for_modal,
+                    ))
+                };
+            Buffers {
+                glyph_buffers,
+                vector_buffers,
+            }
+        };
+
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.context.device,
@@ -517,14 +547,8 @@ impl RenderState {
                 camera.build_view_projection_matrix().into(),
                 camera.build_default_view_projection_matrix().into(),
             ),
-            Buffers {
-                glyph_buffers,
-                vector_buffers,
-            },
-            Buffers {
-                glyph_buffers: None,
-                vector_buffers: None,
-            },
+            buffers,
+            modal_buffers,
             screen_view,
         );
 

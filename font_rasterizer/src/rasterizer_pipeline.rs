@@ -2,14 +2,10 @@ use image::DynamicImage;
 use wgpu::include_wgsl;
 
 use crate::{
-    background_bind_group::BackgroundImageBindGroup,
-    glyph_instances::GlyphInstances,
-    glyph_vertex_buffer::GlyphVertexBuffer,
-    rasterizer_renderrer::{self, RasterizerRenderrer},
-    screen_bind_group::{self, ScreenBindGroup},
-    screen_texture::BackgroundImageTexture,
-    screen_vertex_buffer::ScreenVertexBuffer,
-    vector_instances::VectorInstances,
+    background_bind_group::BackgroundImageBindGroup, glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::GlyphVertexBuffer, rasterizer_renderrer::RasterizerRenderrer,
+    screen_bind_group::ScreenBindGroup, screen_texture::BackgroundImageTexture,
+    screen_vertex_buffer::ScreenVertexBuffer, vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
@@ -309,11 +305,11 @@ impl RasterizerPipeline {
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
         buffers: Buffers,
-        modal_bufferes: Buffers,
+        modal_buffers: Buffers,
         screen_view: wgpu::TextureView,
     ) {
         let has_modal_background =
-            modal_bufferes.glyph_buffers.is_some() || modal_bufferes.vector_buffers.is_some();
+            modal_buffers.glyph_buffers.is_some() || modal_buffers.vector_buffers.is_some();
         self.rasterizer_renderrer
             .render(encoder, device, queue, view_proj, buffers);
         if has_modal_background {
@@ -322,7 +318,7 @@ impl RasterizerPipeline {
                 device,
                 queue,
                 view_proj,
-                modal_bufferes,
+                modal_buffers,
             );
         }
 

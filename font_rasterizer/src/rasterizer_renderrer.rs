@@ -1,7 +1,5 @@
 use std::{collections::BTreeMap, fs};
 
-use image::buffer;
-use text_buffer::buffer::Buffer;
 use wgpu::include_wgsl;
 
 use crate::{
