@@ -2,10 +2,14 @@ use image::DynamicImage;
 use wgpu::include_wgsl;
 
 use crate::{
-    background_bind_group::BackgroundImageBindGroup, glyph_instances::GlyphInstances,
-    glyph_vertex_buffer::GlyphVertexBuffer, rasterizer_renderrer::RasterizerRenderrer,
-    screen_bind_group::ScreenBindGroup, screen_texture::BackgroundImageTexture,
-    screen_vertex_buffer::ScreenVertexBuffer, vector_instances::VectorInstances,
+    background_bind_group::BackgroundImageBindGroup,
+    glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::GlyphVertexBuffer,
+    rasterizer_renderrer::{self, RasterizerRenderrer},
+    screen_bind_group::{self, ScreenBindGroup},
+    screen_texture::BackgroundImageTexture,
+    screen_vertex_buffer::ScreenVertexBuffer,
+    vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
@@ -32,6 +36,14 @@ pub enum Quarity {
     CappedVeryHigh(u32, u32),
 }
 
+pub struct Buffers<'a> {
+    pub glyph_buffers: Option<(&'a GlyphVertexBuffer, &'a [&'a GlyphInstances])>,
+    pub vector_buffers: Option<(
+        &'a VectorVertexBuffer<String>,
+        &'a [&'a VectorInstances<String>],
+    )>,
+}
+
 /// フォントをラスタライズするためのパイプラインを提供する。
 ///
 /// このブログの記事の内容を元に実装されている。
@@ -46,6 +58,7 @@ pub enum Quarity {
 ///   その逆であればドット絵の品質になるよう調整
 pub struct RasterizerPipeline {
     pub(crate) rasterizer_renderrer: RasterizerRenderrer,
+    pub(crate) rasterizer_renderrer_for_modal: RasterizerRenderrer,
 
     // 背景色。
     pub bg_color: wgpu::Color,
@@ -58,6 +71,7 @@ pub struct RasterizerPipeline {
     // 画面に表示する用のパイプライン
     pub(crate) screen_bind_group: ScreenBindGroup,
     pub(crate) screen_render_pipeline: wgpu::RenderPipeline,
+    pub(crate) screen_render_modal_background_pipeline: wgpu::RenderPipeline,
     pub(crate) screen_vertex_buffer: ScreenVertexBuffer,
 }
 
@@ -104,6 +118,7 @@ impl RasterizerPipeline {
         };
 
         let rasterizer_renderrer = RasterizerRenderrer::new(device, width, height);
+        let rasterizer_renderrer_for_modal = RasterizerRenderrer::new(device, width, height);
 
         let background_image_shader =
             device.create_shader_module(BACKGROUND_IMAGE_SHADER_DESCRIPTOR);
@@ -219,10 +234,58 @@ impl RasterizerPipeline {
                 // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
                 cache: None,
             });
+
+        let screen_render_modal_background_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Default Screen Render Modal Background Pipeline"),
+                layout: Some(&screen_render_pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &screen_shader,
+                    entry_point: Some("vs_main"),
+                    buffers: &[ScreenVertexBuffer::desc()],
+                    compilation_options: Default::default(),
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &screen_shader,
+                    entry_point: Some("fs_main_modal_background"),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: screen_texture_format,
+                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                    compilation_options: Default::default(),
+                }),
+                primitive: wgpu::PrimitiveState {
+                    topology: wgpu::PrimitiveTopology::TriangleList,
+                    strip_index_format: None,
+                    front_face: wgpu::FrontFace::Ccw,
+                    cull_mode: Some(wgpu::Face::Back),
+                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
+                    // or Features::POLYGON_MODE_POINT
+                    polygon_mode: wgpu::PolygonMode::Fill,
+                    // Requires Features::DEPTH_CLIP_CONTROL
+                    unclipped_depth: false,
+                    // Requires Features::CONSERVATIVE_RASTERIZATION
+                    conservative: false,
+                },
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState {
+                    count: 1,
+                    mask: !0,
+                    alpha_to_coverage_enabled: false,
+                },
+                // If the pipeline will be used with a multiview render pass, this
+                // indicates how many array layers the attachments will have.
+                multiview: None,
+                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
+                cache: None,
+            });
+
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
         Self {
             rasterizer_renderrer,
+            rasterizer_renderrer_for_modal,
             bg_color,
 
             // バックグラウンド
@@ -232,6 +295,7 @@ impl RasterizerPipeline {
 
             // default
             screen_render_pipeline,
+            screen_render_modal_background_pipeline,
             screen_bind_group,
             screen_vertex_buffer,
         }
@@ -244,22 +308,26 @@ impl RasterizerPipeline {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
-        glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
-        vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
+        buffers: Buffers,
+        modal_bufferes: Buffers,
         screen_view: wgpu::TextureView,
     ) {
-        self.rasterizer_renderrer.render(
-            encoder,
-            device,
-            queue,
-            view_proj,
-            glyph_buffers,
-            vector_buffers,
-        );
+        let has_modal_background =
+            modal_bufferes.glyph_buffers.is_some() || modal_bufferes.vector_buffers.is_some();
+        self.rasterizer_renderrer
+            .render(encoder, device, queue, view_proj, buffers);
+        if has_modal_background {
+            self.rasterizer_renderrer_for_modal.render(
+                encoder,
+                device,
+                queue,
+                view_proj,
+                modal_bufferes,
+            );
+        }
 
         self.screen_background_image_stage(encoder, device, &screen_view);
-
-        self.screen_stage(encoder, device, screen_view);
+        self.screen_stage(encoder, device, screen_view, has_modal_background);
     }
 
     pub(crate) fn screen_stage(
@@ -267,10 +335,14 @@ impl RasterizerPipeline {
         encoder: &mut wgpu::CommandEncoder,
         device: &wgpu::Device,
         screen_view: wgpu::TextureView,
+        has_modal_background: bool,
     ) {
         let screen_bind_group = &self
             .screen_bind_group
             .to_bind_group(device, &self.rasterizer_renderrer.outline_texture);
+        let screen_bind_group_for_modal = &self
+            .screen_bind_group
+            .to_bind_group(device, &self.rasterizer_renderrer_for_modal.outline_texture);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
@@ -287,7 +359,11 @@ impl RasterizerPipeline {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
-            screen_render_pass.set_pipeline(&self.screen_render_pipeline);
+            if has_modal_background {
+                screen_render_pass.set_pipeline(&self.screen_render_modal_background_pipeline);
+            } else {
+                screen_render_pass.set_pipeline(&self.screen_render_pipeline);
+            }
             screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
             screen_render_pass
                 .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
@@ -296,6 +372,22 @@ impl RasterizerPipeline {
                 wgpu::IndexFormat::Uint16,
             );
             screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
+
+            if has_modal_background {
+                screen_render_pass.set_pipeline(&self.screen_render_pipeline);
+                screen_render_pass.set_bind_group(0, screen_bind_group_for_modal, &[]);
+                screen_render_pass
+                    .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
+                screen_render_pass.set_index_buffer(
+                    self.screen_vertex_buffer.index_buffer.slice(..),
+                    wgpu::IndexFormat::Uint16,
+                );
+                screen_render_pass.draw_indexed(
+                    self.screen_vertex_buffer.index_range.clone(),
+                    0,
+                    0..1,
+                );
+            }
         }
     }
 

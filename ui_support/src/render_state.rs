@@ -7,7 +7,7 @@ use font_rasterizer::{
     context::{Senders, StateContext, WindowSize},
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
-    rasterizer_pipeline::{Quarity, RasterizerPipeline},
+    rasterizer_pipeline::{Buffers, Quarity, RasterizerPipeline},
     svg::SvgVertexBuffer,
     vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
@@ -517,8 +517,14 @@ impl RenderState {
                 camera.build_view_projection_matrix().into(),
                 camera.build_default_view_projection_matrix().into(),
             ),
-            glyph_buffers,
-            vector_buffers,
+            Buffers {
+                glyph_buffers,
+                vector_buffers,
+            },
+            Buffers {
+                glyph_buffers: None,
+                vector_buffers: None,
+            },
             screen_view,
         );
 

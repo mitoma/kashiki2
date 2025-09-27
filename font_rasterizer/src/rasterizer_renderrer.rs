@@ -1,5 +1,7 @@
 use std::{collections::BTreeMap, fs};
 
+use image::buffer;
+use text_buffer::buffer::Buffer;
 use wgpu::include_wgsl;
 
 use crate::{
@@ -8,6 +10,7 @@ use crate::{
     glyph_vertex_buffer::GlyphVertexBuffer,
     outline_bind_group::OutlineBindGroup,
     overlap_bind_group::OverlapBindGroup,
+    rasterizer_pipeline::Buffers,
     screen_texture::ScreenTexture,
     screen_vertex_buffer::ScreenVertexBuffer,
     vector_instances::{InstanceRaw, VectorInstances},
@@ -224,12 +227,11 @@ impl RasterizerRenderrer {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
-        glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
-        vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
+        buffers: Buffers,
     ) {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
-        self.overlap_stage(encoder, glyph_buffers, vector_buffers);
+        self.overlap_stage(encoder, buffers.glyph_buffers, buffers.vector_buffers);
         self.outline_stage(encoder, device);
     }
 
