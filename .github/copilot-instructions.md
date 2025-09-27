@@ -10,3 +10,5 @@
 
 - cargo fmt, clippy, test はすべて通過させることを前提とします。
   これらは `mise r check` を実行することで適用されます。
+
+- 主に Windows 上で開発されているので Bash 前提のコマンドを実行要求するのではなく PowerShell 前提のコマンドを使用してください。
