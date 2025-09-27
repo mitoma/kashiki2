@@ -219,16 +219,16 @@ impl DefaultWorld {
     }
 
     #[inline]
-    fn glyph_instances_inner(&self, for_modal: bool) -> Vec<&GlyphInstances> {
+    fn glyph_instances_inner(&self, is_modal: bool) -> Vec<&GlyphInstances> {
         let models: Vec<&GlyphInstances> = self.models[self.get_surrounding_model_range()]
             .iter()
-            .filter(|m| (m.model_mode() == ModelMode::Modal) == for_modal)
+            .filter(|m| (m.model_mode() == ModelMode::Modal) == is_modal)
             .flat_map(|m| m.glyph_instances())
             .collect();
         let removed_models: Vec<&GlyphInstances> = self
             .removed_models
             .iter()
-            .filter(|m| (m.model_mode() == ModelMode::Modal) == for_modal)
+            .filter(|m| (m.model_mode() == ModelMode::Modal) == is_modal)
             .flat_map(|m| m.glyph_instances())
             .collect();
         models
@@ -239,16 +239,16 @@ impl DefaultWorld {
     }
 
     #[inline]
-    fn vector_instances_inner(&self, for_modal: bool) -> Vec<&VectorInstances<String>> {
+    fn vector_instances_inner(&self, is_modal: bool) -> Vec<&VectorInstances<String>> {
         let models: Vec<&VectorInstances<String>> = self.models[self.get_surrounding_model_range()]
             .iter()
-            .filter(|m| (m.model_mode() == ModelMode::Modal) == for_modal)
+            .filter(|m| (m.model_mode() == ModelMode::Modal) == is_modal)
             .flat_map(|m| m.vector_instances())
             .collect();
         let removed_models: Vec<&VectorInstances<String>> = self
             .removed_models
             .iter()
-            .filter(|m| (m.model_mode() == ModelMode::Modal) == for_modal)
+            .filter(|m| (m.model_mode() == ModelMode::Modal) == is_modal)
             .flat_map(|m| m.vector_instances())
             .collect();
         models
