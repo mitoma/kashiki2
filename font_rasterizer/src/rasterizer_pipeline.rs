@@ -1,32 +1,17 @@
-use std::{collections::BTreeMap, fs};
-
 use image::DynamicImage;
 use wgpu::include_wgsl;
 
 use crate::{
-    background_bind_group::BackgroundImageBindGroup,
-    debug_mode::DEBUG_FLAGS,
-    glyph_instances::GlyphInstances,
-    glyph_vertex_buffer::GlyphVertexBuffer,
-    outline_bind_group::OutlineBindGroup,
-    overlap_bind_group::OverlapBindGroup,
-    rasterizer_renderrer::{self, RasterizerRenderrer},
-    screen_bind_group::ScreenBindGroup,
-    screen_texture::{self, BackgroundImageTexture, ScreenTexture},
-    screen_vertex_buffer::ScreenVertexBuffer,
-    vector_instances::{InstanceRaw, VectorInstances},
-    vector_vertex::Vertex,
+    background_bind_group::BackgroundImageBindGroup, glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::GlyphVertexBuffer, rasterizer_renderrer::RasterizerRenderrer,
+    screen_bind_group::ScreenBindGroup, screen_texture::BackgroundImageTexture,
+    screen_vertex_buffer::ScreenVertexBuffer, vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
-const OVERLAP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
-    include_wgsl!("shader/overlap_shader.wgsl");
-const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
-    include_wgsl!("shader/outline_shader.wgsl");
 const SCREEN_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
     include_wgsl!("shader/screen_shader.wgsl");
 const BACKGROUND_IMAGE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
-    // include_wgsl!("shader/background_image_shader.wgsl");
     include_wgsl!("shader/screen_shader.wgsl");
 
 #[derive(Clone, Copy)]
@@ -62,7 +47,7 @@ pub enum Quarity {
 pub struct RasterizerPipeline {
     pub(crate) rasterizer_renderrer: RasterizerRenderrer,
 
-    // 背景色。 2 ステージ目で使われる。
+    // 背景色。
     pub bg_color: wgpu::Color,
 
     // バックグラウンド用のテクスチャ
