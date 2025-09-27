@@ -135,7 +135,7 @@ impl Model for PlaneTextReader {
     }
 
     fn model_mode(&self) -> ModelMode {
-        ModelMode::Nomal
+        ModelMode::Normal
     }
 
     fn in_animation(&self) -> bool {

@@ -505,7 +505,7 @@ impl World for DefaultWorld {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ModelMode {
-    Nomal,
+    Normal,
     Modal,
 }
 
