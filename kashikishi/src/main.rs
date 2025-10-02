@@ -99,7 +99,7 @@ impl ActionProcessor for SystemCommandPalette {
         };
         let modal = command_palette_select(context, narrow);
         context.register_string(modal.to_string());
-        world.add_next(Box::new(modal));
+        world.add_modal(Box::new(modal));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
             CameraAdjustment::FitWidth

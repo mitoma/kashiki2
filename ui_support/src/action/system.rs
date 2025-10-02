@@ -117,7 +117,7 @@ impl ActionProcessor for SystemChangeThemeUi {
             None,
         );
         context.register_string(model.to_string());
-        world.add_next(Box::new(model));
+        world.add_modal(Box::new(model));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
             CameraAdjustment::FitWidth
@@ -253,7 +253,7 @@ impl ActionProcessor for SystemChangeWindowSizeUi {
             None,
         );
         context.register_string(model.to_string());
-        world.add_next(Box::new(model));
+        world.add_modal(Box::new(model));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
             CameraAdjustment::FitWidth
@@ -331,7 +331,7 @@ impl ActionProcessor for SystemChangeFontUi {
             None,
         );
         context.register_string(model.to_string());
-        world.add_next(Box::new(model));
+        world.add_modal(Box::new(model));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
             CameraAdjustment::FitWidth
@@ -460,7 +460,7 @@ impl ActionProcessor for SystemSelectBackgroundImageUi {
         let model_string = model.to_string();
         context.register_string(model_string);
 
-        world.add_next(Box::new(model));
+        world.add_modal(Box::new(model));
         world.re_layout();
         let adjustment = if context.global_direction == Direction::Horizontal {
             CameraAdjustment::FitWidth

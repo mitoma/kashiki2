@@ -12,7 +12,7 @@ use font_rasterizer::{
 };
 
 use crate::{
-    layout_engine::{Model, ModelBorder, ModelMode},
+    layout_engine::{Model, ModelBorder},
     ui_context::{CharEasings, GpuEasingConfig, HighlightMode, TextContext},
 };
 
@@ -434,10 +434,6 @@ impl Model for SelectBox {
                 .join(""),
         ]
         .concat()
-    }
-
-    fn model_mode(&self) -> ModelMode {
-        ModelMode::Modal
     }
 
     fn in_animation(&self) -> bool {

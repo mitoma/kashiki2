@@ -23,6 +23,8 @@ pub trait World {
     fn add(&mut self, model: Box<dyn Model>);
     // model を現在のモデルの次に追加する
     fn add_next(&mut self, model: Box<dyn Model>);
+    // モーダルなモデルを追加する
+    fn add_modal(&mut self, model: Box<dyn Model>);
     // 現在参照している model を削除する
     fn remove_current(&mut self);
 
@@ -70,7 +72,7 @@ pub trait World {
     fn chars(&self) -> HashSet<char>;
 
     // 今フォーカスが当たっているモデルのモードを返す
-    fn current_model_mode(&self) -> Option<ModelMode>;
+    //fn current_model_mode(&self) -> Option<ModelMode>;
 
     // カメラの位置を変更する。x_ratio, y_ratio はそれぞれ -1.0 から 1.0 までの値をとり、
     // アプリケーションのウインドウ上の位置を表す。(0.0, 0.0) はウインドウの中心を表す。
@@ -118,6 +120,15 @@ impl WorldLayout {
                             position -= h / 2.0 + INTERVAL;
                         }
                     }
+                }
+                let [focus_x, focus_y, focus_z] = world
+                    .models
+                    .get(world.focus)
+                    .map(|m| m.focus_position())
+                    .unwrap_or([0.0, 0.0, 0.0].into())
+                    .into();
+                for model in world.modal_models.iter_mut() {
+                    model.set_position([focus_x, focus_y, focus_z].into());
                 }
             }
             WorldLayout::Circle => {
@@ -182,6 +193,7 @@ pub struct DefaultWorld {
     camera: Camera,
     camera_controller: CameraController,
     models: Vec<Box<dyn Model>>,
+    modal_models: Vec<Box<dyn Model>>,
     removed_models: Vec<Box<dyn Model>>,
     focus: usize,
     world_updated: bool,
@@ -195,6 +207,7 @@ impl DefaultWorld {
             camera: Camera::basic(window_size),
             camera_controller: CameraController::new(5.0),
             models: Vec::new(),
+            modal_models: Vec::new(),
             removed_models: Vec::new(),
             focus: 0,
             world_updated: true,
@@ -204,7 +217,9 @@ impl DefaultWorld {
     }
 
     fn get_current_mut(&mut self) -> Option<&mut Box<dyn Model>> {
-        self.models.get_mut(self.focus)
+        self.modal_models
+            .last_mut()
+            .or_else(|| self.models.get_mut(self.focus))
     }
 
     fn get_surrounding_model_range(&self) -> Range<usize> {
@@ -219,18 +234,20 @@ impl DefaultWorld {
     }
 
     #[inline]
-    fn glyph_instances_inner(&self, is_modal: bool) -> Vec<&GlyphInstances> {
-        let models: Vec<&GlyphInstances> = self.models[self.get_surrounding_model_range()]
-            .iter()
-            .filter(|m| (m.model_mode() == ModelMode::Modal) == is_modal)
-            .flat_map(|m| m.glyph_instances())
-            .collect();
-        let removed_models: Vec<&GlyphInstances> = self
-            .removed_models
-            .iter()
-            .filter(|m| (m.model_mode() == ModelMode::Modal) == is_modal)
-            .flat_map(|m| m.glyph_instances())
-            .collect();
+    fn to_glyph_instances(models: &[Box<dyn Model>]) -> Vec<&GlyphInstances> {
+        models.iter().flat_map(|m| m.glyph_instances()).collect()
+    }
+
+    #[inline]
+    fn to_vector_instances(models: &[Box<dyn Model>]) -> Vec<&VectorInstances<String>> {
+        models.iter().flat_map(|m| m.vector_instances()).collect()
+    }
+
+    #[inline]
+    fn glyph_instances_inner(&self) -> Vec<&GlyphInstances> {
+        let models: Vec<&GlyphInstances> =
+            Self::to_glyph_instances(&self.models[self.get_surrounding_model_range()]);
+        let removed_models: Vec<&GlyphInstances> = Self::to_glyph_instances(&self.removed_models);
         models
             .iter()
             .chain(removed_models.iter())
@@ -239,18 +256,11 @@ impl DefaultWorld {
     }
 
     #[inline]
-    fn vector_instances_inner(&self, is_modal: bool) -> Vec<&VectorInstances<String>> {
-        let models: Vec<&VectorInstances<String>> = self.models[self.get_surrounding_model_range()]
-            .iter()
-            .filter(|m| (m.model_mode() == ModelMode::Modal) == is_modal)
-            .flat_map(|m| m.vector_instances())
-            .collect();
-        let removed_models: Vec<&VectorInstances<String>> = self
-            .removed_models
-            .iter()
-            .filter(|m| (m.model_mode() == ModelMode::Modal) == is_modal)
-            .flat_map(|m| m.vector_instances())
-            .collect();
+    fn vector_instances_inner(&self) -> Vec<&VectorInstances<String>> {
+        let models: Vec<&VectorInstances<String>> =
+            Self::to_vector_instances(&self.models[self.get_surrounding_model_range()]);
+        let removed_models: Vec<&VectorInstances<String>> =
+            Self::to_vector_instances(&self.removed_models);
         models
             .iter()
             .chain(removed_models.iter())
@@ -267,6 +277,11 @@ impl World for DefaultWorld {
 
     fn add_next(&mut self, model: Box<dyn Model>) {
         self.models.insert(self.focus + 1, model);
+        self.world_updated = true;
+    }
+
+    fn add_modal(&mut self, model: Box<dyn Model>) {
+        self.modal_models.push(model);
         self.world_updated = true;
     }
 
@@ -293,17 +308,17 @@ impl World for DefaultWorld {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        self.glyph_instances_inner(false)
+        self.glyph_instances_inner()
     }
 
     fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
-        self.vector_instances_inner(false)
+        self.vector_instances_inner()
     }
 
     fn modal_instances(&self) -> (Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
         (
-            self.glyph_instances_inner(true),
-            self.vector_instances_inner(true),
+            Self::to_glyph_instances(&self.modal_models),
+            Self::to_vector_instances(&self.modal_models),
         )
     }
 
@@ -325,6 +340,9 @@ impl World for DefaultWorld {
             model.update(context);
         }
         for model in self.removed_models.iter_mut() {
+            model.update(context);
+        }
+        for model in self.modal_models.iter_mut() {
             model.update(context);
         }
         self.removed_models.retain(|m| m.in_animation());
@@ -358,7 +376,7 @@ impl World for DefaultWorld {
         }
 
         // modal の場合はフォーカスを移動させない
-        if let Some(ModelMode::Modal) = self.current_model_mode() {
+        if !self.modal_models.is_empty() {
             self.look_current(adjustment);
             return;
         }
@@ -373,7 +391,7 @@ impl World for DefaultWorld {
         }
 
         // modal の場合はフォーカスを移動させない
-        if let Some(ModelMode::Modal) = self.current_model_mode() {
+        if !self.modal_models.is_empty() {
             self.look_current(adjustment);
             return;
         }
@@ -415,17 +433,15 @@ impl World for DefaultWorld {
     }
 
     fn strings(&self) -> Vec<String> {
-        self.models
-            .iter()
-            // modal は保存対象の文字列ではない
-            .filter(|m| m.model_mode() != ModelMode::Modal)
-            .map(|m| m.to_string())
-            .collect()
+        self.models.iter().map(|m| m.to_string()).collect()
     }
 
     fn remove_current(&mut self) {
         self.world_updated = true;
-        let mut removed_model = self.models.remove(self.focus);
+        let mut removed_model = self
+            .modal_models
+            .pop()
+            .unwrap_or_else(|| self.models.remove(self.focus));
         let (x, y, z) = removed_model.position().into();
         removed_model.set_position(Point3::new(x, y - 5.0, z));
         self.removed_models.push(removed_model);
@@ -450,10 +466,6 @@ impl World for DefaultWorld {
         self.models.swap(self.focus, self.focus - 1);
         self.re_layout();
         self.look_at(self.focus - 1, CameraAdjustment::NoCare);
-    }
-
-    fn current_model_mode(&self) -> Option<ModelMode> {
-        self.models.get(self.focus).map(|m| m.model_mode())
     }
 
     fn move_to_position(&mut self, x_ratio: f32, y_ratio: f32) {
@@ -503,12 +515,6 @@ impl World for DefaultWorld {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum ModelMode {
-    Normal,
-    Modal,
-}
-
 #[derive(Default, Clone, Copy, PartialEq)]
 pub enum ModelBorder {
     #[default]
@@ -537,7 +543,7 @@ pub trait Model {
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult;
     fn to_string(&self) -> String;
-    fn model_mode(&self) -> ModelMode;
+    //fn model_mode(&self) -> ModelMode;
     fn in_animation(&self) -> bool;
     fn set_border(&mut self, border: ModelBorder);
     fn border(&self) -> ModelBorder;

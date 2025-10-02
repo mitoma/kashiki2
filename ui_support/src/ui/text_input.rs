@@ -9,7 +9,7 @@ use font_rasterizer::{
 };
 
 use crate::{
-    layout_engine::{Model, ModelBorder, ModelMode},
+    layout_engine::{Model, ModelBorder},
     ui_context::{CharEasings, HighlightMode, TextContext},
 };
 
@@ -193,10 +193,6 @@ impl Model for TextInput {
             self.input_text_edit.to_string(),
         ]
         .concat()
-    }
-
-    fn model_mode(&self) -> ModelMode {
-        ModelMode::Modal
     }
 
     fn in_animation(&self) -> bool {

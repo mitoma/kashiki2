@@ -33,7 +33,7 @@ use font_rasterizer::{
     vector_instances::{InstanceAttributes, VectorInstances},
 };
 
-use crate::layout_engine::{Model, ModelBorder, ModelMode, ModelOperation, ModelOperationResult};
+use crate::layout_engine::{Model, ModelBorder, ModelOperation, ModelOperationResult};
 
 pub struct PlaneTextReader {
     pub value: String,
@@ -132,10 +132,6 @@ impl Model for PlaneTextReader {
 
     fn to_string(&self) -> String {
         self.value.clone()
-    }
-
-    fn model_mode(&self) -> ModelMode {
-        ModelMode::Normal
     }
 
     fn in_animation(&self) -> bool {

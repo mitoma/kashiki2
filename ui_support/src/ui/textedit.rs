@@ -26,9 +26,7 @@ use font_rasterizer::{
 
 use crate::{
     easing_value::EasingPointN,
-    layout_engine::{
-        Model, ModelAttributes, ModelBorder, ModelMode, ModelOperation, ModelOperationResult,
-    },
+    layout_engine::{Model, ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult},
     ui::{CharAttribute, Decoration},
     ui_context::{HighlightMode, TextContext},
 };
@@ -342,10 +340,6 @@ impl Model for TextEdit {
 
     fn to_string(&self) -> String {
         self.editor.to_buffer_string()
-    }
-
-    fn model_mode(&self) -> ModelMode {
-        ModelMode::Normal
     }
 
     fn in_animation(&self) -> bool {
