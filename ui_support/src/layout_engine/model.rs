@@ -21,6 +21,8 @@ pub trait Model {
     fn set_position(&mut self, position: Point3<f32>);
     // モデルの位置を返す
     fn position(&self) -> Point3<f32>;
+    // モデルの最終的な位置を返す(アニメーション中はアニメーション後の位置)
+    fn last_position(&self) -> Point3<f32>;
     // モデル中、カメラがフォーカスすべき位置を返す
     // position はモデルの中心を指す
     fn focus_position(&self) -> Point3<f32>;

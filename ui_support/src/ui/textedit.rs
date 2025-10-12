@@ -111,6 +111,10 @@ impl Model for TextEdit {
         self.position.current().into()
     }
 
+    fn last_position(&self) -> cgmath::Point3<f32> {
+        self.position.last().into()
+    }
+
     // キャレットの位置と direction を考慮してテキストエディタ中のフォーカス位置を返す
     fn focus_position(&self) -> Point3<f32> {
         let [caret_position_x, caret_position_y, _caret_position_z] = self

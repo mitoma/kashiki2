@@ -312,8 +312,18 @@ impl Model for SelectBox {
         self.select_items_text_edit.position()
     }
 
+    fn last_position(&self) -> cgmath::Point3<f32> {
+        self.select_items_text_edit.last_position()
+    }
+
     fn focus_position(&self) -> cgmath::Point3<f32> {
-        self.select_items_text_edit.focus_position()
+        // TODO last の値を取ってくる必要がある
+        let (x, y, z) = self.title_text_edit.last_position().into();
+        let (bound_width, bound_height) = self.select_items_text_edit.bound();
+        match self.select_items_text_edit.direction() {
+            Direction::Horizontal => cgmath::Point3::new(x, y - bound_height / 2.0, z),
+            Direction::Vertical => cgmath::Point3::new(x - bound_width / 2.0, y, z),
+        }
     }
 
     fn set_rotation(&mut self, rotation: cgmath::Quaternion<f32>) {

@@ -86,6 +86,10 @@ impl Model for TextInput {
         self.input_text_edit.position()
     }
 
+    fn last_position(&self) -> cgmath::Point3<f32> {
+        self.input_text_edit.last_position()
+    }
+
     fn focus_position(&self) -> cgmath::Point3<f32> {
         self.input_text_edit.focus_position()
     }

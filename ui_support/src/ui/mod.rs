@@ -59,6 +59,10 @@ impl Model for PlaneTextReader {
         self.position
     }
 
+    fn last_position(&self) -> cgmath::Point3<f32> {
+        self.position
+    }
+
     fn focus_position(&self) -> Point3<f32> {
         self.position()
     }
