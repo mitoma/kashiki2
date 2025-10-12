@@ -16,7 +16,7 @@ use font_rasterizer::{
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
-    layout_engine::{Model, ModelOperation, ModelOperationResult, World},
+    layout_engine::{Model, ModelOperation, ModelOperationResult, World, world::RemovedModelType},
 };
 
 pub struct DefaultWorld {
@@ -133,6 +133,15 @@ impl World for DefaultWorld {
         self.camera_controller.update_camera(&mut self.camera);
     }
 
+    fn look_modal(&mut self, adjustment: CameraAdjustment) {
+        let Some(model) = self.modal_models.last() else {
+            return;
+        };
+        self.camera_controller
+            .look_at(&mut self.camera, model.as_ref(), adjustment);
+        self.camera_controller.update_camera(&mut self.camera);
+    }
+
     fn camera(&self) -> &Camera {
         &self.camera
     }
@@ -196,7 +205,12 @@ impl World for DefaultWorld {
     }
 
     fn look_current(&mut self, adjustment: CameraAdjustment) {
-        self.look_at(self.focus, adjustment)
+        // modal の場合はフォーカスを移動させない
+        if !self.modal_models.is_empty() {
+            self.look_modal(adjustment);
+        } else {
+            self.look_at(self.focus, adjustment)
+        }
     }
 
     fn look_next(&mut self, adjustment: CameraAdjustment) {
@@ -207,7 +221,7 @@ impl World for DefaultWorld {
 
         // modal の場合はフォーカスを移動させない
         if !self.modal_models.is_empty() {
-            self.look_current(adjustment);
+            self.look_modal(adjustment);
             return;
         }
         let next = (self.focus + 1) % self.model_length();
@@ -222,7 +236,7 @@ impl World for DefaultWorld {
 
         // modal の場合はフォーカスを移動させない
         if !self.modal_models.is_empty() {
-            self.look_current(adjustment);
+            self.look_modal(adjustment);
             return;
         }
         let prev = if self.focus == 0 {
@@ -266,15 +280,17 @@ impl World for DefaultWorld {
         self.models.iter().map(|m| m.to_string()).collect()
     }
 
-    fn remove_current(&mut self) {
+    fn remove_current(&mut self) -> RemovedModelType {
         self.world_updated = true;
-        let mut removed_model = self
+        let (mut removed_model, removed_model_type) = self
             .modal_models
             .pop()
-            .unwrap_or_else(|| self.models.remove(self.focus));
+            .map(|m| (m, RemovedModelType::Modal))
+            .unwrap_or_else(|| (self.models.remove(self.focus), RemovedModelType::Normal));
         let (x, y, z) = removed_model.position().into();
         removed_model.set_position(Point3::new(x, y - 5.0, z));
         self.removed_models.push(removed_model);
+        removed_model_type
     }
 
     fn swap_next(&mut self) {

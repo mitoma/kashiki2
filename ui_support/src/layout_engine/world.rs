@@ -22,7 +22,7 @@ pub trait World {
     // モーダルなモデルを追加する
     fn add_modal(&mut self, model: Box<dyn Model>);
     // 現在参照している model を削除する
-    fn remove_current(&mut self);
+    fn remove_current(&mut self) -> RemovedModelType;
 
     // 再レイアウトする update するときに呼び出すとよさそう
     fn re_layout(&mut self);
@@ -33,6 +33,8 @@ pub trait World {
     fn model_length(&self) -> usize;
     // 何番目のモデルに視点を移すか
     fn look_at(&mut self, model_num: usize, adjustment: CameraAdjustment);
+    // modal のモデルに視点を移す
+    fn look_modal(&mut self, adjustment: CameraAdjustment);
 
     // 現在のモデルに再度視点を移す
     fn look_current(&mut self, adjustment: CameraAdjustment);
@@ -73,4 +75,9 @@ pub trait World {
     // カメラの位置を変更する。x_ratio, y_ratio はそれぞれ -1.0 から 1.0 までの値をとり、
     // アプリケーションのウインドウ上の位置を表す。(0.0, 0.0) はウインドウの中心を表す。
     fn move_to_position(&mut self, x_ratio: f32, y_ratio: f32);
+}
+
+pub enum RemovedModelType {
+    Modal,
+    Normal,
 }

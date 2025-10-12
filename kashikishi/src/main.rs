@@ -101,12 +101,7 @@ impl ActionProcessor for SystemCommandPalette {
         context.register_string(modal.to_string());
         world.add_modal(Box::new(modal));
         world.re_layout();
-        let adjustment = if context.global_direction == Direction::Horizontal {
-            CameraAdjustment::FitWidth
-        } else {
-            CameraAdjustment::FitHeight
-        };
-        world.look_next(adjustment);
+        world.look_modal(CameraAdjustment::FitBoth);
         InputResult::InputConsumed
     }
 }

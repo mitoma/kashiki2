@@ -3,4 +3,4 @@ pub use model::{Model, ModelAttributes, ModelBorder, ModelOperation, ModelOperat
 mod default_world;
 pub use default_world::{DefaultWorld, WorldLayout};
 mod world;
-pub use world::World;
+pub use world::{RemovedModelType, World};
