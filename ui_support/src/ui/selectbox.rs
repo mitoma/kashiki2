@@ -317,9 +317,8 @@ impl Model for SelectBox {
     }
 
     fn focus_position(&self) -> cgmath::Point3<f32> {
-        // TODO last の値を取ってくる必要がある
         let (x, y, z) = self.title_text_edit.last_position().into();
-        let (bound_width, bound_height) = self.select_items_text_edit.bound();
+        let (bound_width, bound_height) = self.bound();
         match self.select_items_text_edit.direction() {
             Direction::Horizontal => cgmath::Point3::new(x, y - bound_height / 2.0, z),
             Direction::Vertical => cgmath::Point3::new(x - bound_width / 2.0, y, z),
@@ -348,10 +347,10 @@ impl Model for SelectBox {
                     .iter()
                     .map(|(width, _)| *width)
                     .fold(f32::NAN, f32::max),
-                bounds.iter().map(|(_, height)| height).sum::<f32>(),
+                bounds.iter().map(|(_, height)| height).sum::<f32>() + 2.0,
             ),
             Direction::Vertical => (
-                bounds.iter().map(|(width, _)| width).sum::<f32>(),
+                bounds.iter().map(|(width, _)| width).sum::<f32>() + 2.0,
                 bounds
                     .iter()
                     .map(|(_, height)| *height)

@@ -178,9 +178,9 @@ impl ActionProcessor for EditHighlightUi {
             Action::new_command("edit", "highlight"),
         );
         context.register_string("キーワード検索".to_string());
-        world.add_next(Box::new(model));
+        world.add_modal(Box::new(model));
         world.re_layout();
-        world.look_next(crate::camera::CameraAdjustment::NoCare);
+        world.look_modal(crate::camera::CameraAdjustment::FitBoth);
         InputResult::InputConsumed
     }
 }
