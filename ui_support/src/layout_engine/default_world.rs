@@ -17,6 +17,7 @@ use font_rasterizer::{
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
     layout_engine::{Model, ModelOperation, ModelOperationResult, World, world::RemovedModelType},
+    to_ndc_position,
 };
 
 pub struct DefaultWorld {
@@ -318,17 +319,8 @@ impl World for DefaultWorld {
         let mut distance_map: BTreeMap<usize, f32> = BTreeMap::new();
 
         for (idx, model) in self.models.iter().enumerate() {
-            let Point3 { x, y, z } = model.position();
-            let position_vec = cgmath::Vector3 { x, y, z };
-
-            let p = cgmath::Matrix4::from_translation(position_vec)
-                * cgmath::Matrix4::from(model.rotation());
-            let view_projection_matrix = self.camera.build_view_projection_matrix();
-            let calced_model_position = view_projection_matrix * p;
-            let nw = calced_model_position.w;
-            let nw_x = nw.x / nw.w;
-            let nw_y = nw.y / nw.w;
-            let distance = (x_ratio - nw_x).abs().powf(2.0) + (y_ratio - nw_y).abs().powf(2.0);
+            let (ndc_x, ndc_y) = to_ndc_position(&model, &self.camera);
+            let distance = (x_ratio - ndc_x).abs().powf(2.0) + (y_ratio - ndc_y).abs().powf(2.0);
             distance_map.insert(idx, distance);
         }
 
