@@ -16,7 +16,7 @@ resolver = "2"
 
 [workspace.dependencies]
 thiserror = "2.0"
-wgpu = "26.0.1"
+wgpu = "27.0.1"
 # fork元は winit = "0.29.x" ブランチ。いくつかのパッチを当てたものを使っている。
 # patch-1
 #   wasm で ime support が十分でないのでパッチを当てている。
