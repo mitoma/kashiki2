@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cgmath::Rotation3;
-use instant::Duration;
+use web_time::Duration;
 
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator, context::StateContext,

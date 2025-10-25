@@ -1,8 +1,8 @@
 use std::sync::{Mutex, OnceLock};
 
 use cgmath::{Point2, Point3};
-use instant::Duration;
 use nenobi::array::{TimeBaseEasingValueN, TimeBaseEasingValueNFactory};
+use web_time::Duration;
 
 use font_rasterizer::time::now_millis;
 

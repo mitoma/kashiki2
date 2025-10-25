@@ -4,11 +4,11 @@ use font_rasterizer::{
     context::{StateContext, WindowSize},
     rasterizer_pipeline::Quarity,
 };
-use instant::Instant;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport, camera::Camera,
     run_support,
 };
+use web_time::Instant;
 use winit::event::WindowEvent;
 
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");

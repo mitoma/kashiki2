@@ -144,7 +144,7 @@ impl RenderTarget {
                     buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
                         tx.send(result).unwrap();
                     });
-                    let _ = context.device.poll(wgpu::PollType::Wait);
+                    let _ = context.device.poll(wgpu::PollType::wait_indefinitely());
                     rx.recv().unwrap().unwrap();
 
                     let data = buffer_slice.get_mapped_range();

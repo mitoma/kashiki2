@@ -4,7 +4,7 @@ use std::{
 };
 
 use cgmath::{Rotation3, num_traits::ToPrimitive};
-use instant::Duration;
+use web_time::Duration;
 
 use crate::{color_theme::SolarizedColor, motion::MotionFlags, time::now_millis};
 

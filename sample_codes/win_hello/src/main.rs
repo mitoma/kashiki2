@@ -7,8 +7,8 @@ fn main() {
 
 #[cfg(target_os = "windows")]
 mod windows {
+    use pollster::FutureExt;
     use windows::{
-        Foundation::IAsyncOperation,
         Security::Credentials::{KeyCredentialCreationOption, KeyCredentialManager, UI::*},
         Win32::{
             Foundation::HWND,
@@ -17,6 +17,7 @@ mod windows {
         },
         core::{Result, factory, h, s},
     };
+    use windows_future::IAsyncOperation;
     use winit::{
         dpi::PhysicalSize,
         event::{ElementState, Event, KeyEvent, WindowEvent},
@@ -50,7 +51,7 @@ mod windows {
         std::thread::spawn(move || {
             let hwnd = to_hwnd(handle);
             while rx.recv().is_ok() {
-                call_hello(&hwnd).unwrap();
+                call_hello(&hwnd).block_on().unwrap();
             }
         });
 
@@ -84,10 +85,10 @@ mod windows {
                             }
                         }
                         "b" => {
-                            call_hello(&HWND::default()).unwrap();
+                            call_hello(&HWND::default()).block_on().unwrap();
                         }
                         "s" => {
-                            setup_first().unwrap();
+                            setup_first().block_on().unwrap();
                         }
                         "h" => {
                             println!("HWND: {:?}, WindowID: {:?}", handle, window_id);
@@ -104,22 +105,23 @@ mod windows {
             .unwrap();
     }
 
-    fn setup_first() -> Result<()> {
+    async fn setup_first() -> Result<()> {
         let key_result = KeyCredentialManager::RequestCreateAsync(
             h!("なんかいろいろ"),
             KeyCredentialCreationOption::ReplaceExisting,
         )?
-        .get()?;
+        .await?;
+        //.get()?;
         let status = key_result.Status()?;
         println!("status: {:?}", status);
-        let cred = key_result.Credential()?;
+        let cred = key_result.Credential();
         println!("cred: {:?}", cred);
         //let blob = cred.RetrievePublicKeyWithDefaultBlobType()?;
         //println!("blob: {:?}", blob);
         Ok(())
     }
 
-    fn call_hello(hwnd: &HWND) -> Result<()> {
+    async fn call_hello(hwnd: &HWND) -> Result<()> {
         unsafe {
             println!("pre call factory");
             /*
@@ -132,7 +134,7 @@ mod windows {
             let operation: IAsyncOperation<UserConsentVerificationResult> =
                 interop.RequestVerificationForWindowAsync(*hwnd, h!("Hello from Rust"))?;
             println!("post call RequestVerificationForWindowAsync");
-            let result: UserConsentVerificationResult = operation.get()?;
+            let result: UserConsentVerificationResult = operation.await?;
             match result {
                 UserConsentVerificationResult::Verified => println!("User verified"),
                 UserConsentVerificationResult::DeviceNotPresent => println!("Device not present"),
@@ -148,8 +150,8 @@ mod windows {
     }
 
     #[allow(dead_code)]
-    fn available() -> Result<bool> {
-        let ucv_available = UserConsentVerifier::CheckAvailabilityAsync()?.get()?;
+    async fn available() -> Result<bool> {
+        let ucv_available = UserConsentVerifier::CheckAvailabilityAsync()?.await?;
 
         match ucv_available {
             UserConsentVerifierAvailability::Available => Ok(true),

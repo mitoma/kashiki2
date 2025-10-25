@@ -16,18 +16,18 @@ pollster = { workspace = true }
 cgmath = { workspace = true }
 winit = { workspace = true }
 wgpu = { workspace = true }
-instant = { version = "0.1", features = ["wasm-bindgen"] }
+web-time = { workspace = true }
 font_collector = { path = "../font_collector" }
 ui_support = { path = "../ui_support" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1"
-console_log = "1.0.0"
+console_error_panic_hook = { workspace = true }
+console_log = { workspace = true }
 wgpu = { workspace = true, features = ["webgl"] }
-wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = ["Document", "Window", "Element"] }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+web-sys = { workspace = true, features = ["Document", "Window", "Element"] }
 # wasm-pack する時に js features を有効にする必要がある。
 # getrandom は複数の crate から間接的に依存されているので本来はもっといい指定の方法があるのではないかと思うが
 # 確たる答はないのでとりあえずこの指定で行く。
-getrandom = { version = "0.3.2", features = ["wasm_js"] }
+getrandom = { workspace = true, features = ["wasm_js"] }

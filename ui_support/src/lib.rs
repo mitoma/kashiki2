@@ -38,7 +38,7 @@ use crate::{
 use bitflags::bitflags;
 use font_collector::FontRepository;
 use image::{DynamicImage, ImageBuffer, Rgba};
-use instant::Duration;
+use web_time::Duration;
 
 use stroke_parser::Action;
 use winit::{
