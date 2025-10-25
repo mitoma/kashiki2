@@ -7,4 +7,4 @@ edition = "2024"
 [dependencies]
 
 [dev-dependencies]
-indoc = "2"
+indoc = { workspace = true }
