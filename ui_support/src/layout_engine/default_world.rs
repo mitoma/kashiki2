@@ -319,7 +319,7 @@ impl World for DefaultWorld {
         let mut distance_map: BTreeMap<usize, f32> = BTreeMap::new();
 
         for (idx, model) in self.models.iter().enumerate() {
-            let (ndc_x, ndc_y) = to_ndc_position(&model, &self.camera);
+            let (ndc_x, ndc_y) = to_ndc_position(model.as_ref(), &self.camera);
             let distance = (x_ratio - ndc_x).abs().powf(2.0) + (y_ratio - ndc_y).abs().powf(2.0);
             distance_map.insert(idx, distance);
         }

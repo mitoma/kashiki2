@@ -542,7 +542,7 @@ pub fn register_default_border(state_context: &StateContext) {
 }
 
 #[inline]
-pub(crate) fn to_ndc_position(model: &Box<dyn Model>, camera: &Camera) -> (f32, f32) {
+pub(crate) fn to_ndc_position(model: &dyn Model, camera: &Camera) -> (f32, f32) {
     let cgmath::Point3 { x, y, z } = model.position();
     let position_vec = cgmath::Vector3 { x, y, z };
 
