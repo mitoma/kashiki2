@@ -6,7 +6,7 @@ use font_rasterizer::{context::StateContext, glyph_vertex_buffer::Direction};
 use crate::{
     action::add_model_to_world,
     camera::{CameraAdjustment, CameraOperation},
-    layout_engine::{ModelBorder, ModelOperation, World, WorldLayout},
+    layout_engine::{ModelBorder, ModelOperation, RemovedModelType, World, WorldLayout},
     ui::TextInput,
 };
 
@@ -39,9 +39,12 @@ macro_rules! world_processor {
 
 world_processor!(WorldRemoveCurrent, "remove-current", remove_current);
 fn remove_current(_arg: &ActionArgument, _context: &StateContext, world: &mut dyn World) {
-    world.remove_current();
+    let removed_model_type = world.remove_current();
     world.re_layout();
-    world.look_prev(CameraAdjustment::NoCare);
+    match removed_model_type {
+        RemovedModelType::Modal => world.look_current(CameraAdjustment::NoCare),
+        RemovedModelType::Normal => world.look_prev(CameraAdjustment::NoCare),
+    }
 }
 
 world_processor!(WorldResetZoom, "reset-zoom", reset_zoom);

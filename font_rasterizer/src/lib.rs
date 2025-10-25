@@ -11,6 +11,7 @@ pub mod motion;
 mod outline_bind_group;
 mod overlap_bind_group;
 pub mod rasterizer_pipeline;
+pub mod rasterizer_renderrer;
 mod screen_bind_group;
 mod screen_texture;
 mod screen_vertex_buffer;

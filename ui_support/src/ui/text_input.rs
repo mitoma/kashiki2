@@ -9,7 +9,7 @@ use font_rasterizer::{
 };
 
 use crate::{
-    layout_engine::{Model, ModelBorder, ModelMode},
+    layout_engine::{Model, ModelBorder},
     ui_context::{CharEasings, HighlightMode, TextContext},
 };
 
@@ -84,6 +84,10 @@ impl Model for TextInput {
 
     fn position(&self) -> cgmath::Point3<f32> {
         self.input_text_edit.position()
+    }
+
+    fn last_position(&self) -> cgmath::Point3<f32> {
+        self.input_text_edit.last_position()
     }
 
     fn focus_position(&self) -> cgmath::Point3<f32> {
@@ -193,10 +197,6 @@ impl Model for TextInput {
             self.input_text_edit.to_string(),
         ]
         .concat()
-    }
-
-    fn model_mode(&self) -> ModelMode {
-        ModelMode::Modal
     }
 
     fn in_animation(&self) -> bool {

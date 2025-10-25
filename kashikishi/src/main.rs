@@ -25,7 +25,6 @@ use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld}
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
     time::set_clock_mode,
 };
@@ -99,14 +98,9 @@ impl ActionProcessor for SystemCommandPalette {
         };
         let modal = command_palette_select(context, narrow);
         context.register_string(modal.to_string());
-        world.add_next(Box::new(modal));
+        world.add_modal(Box::new(modal));
         world.re_layout();
-        let adjustment = if context.global_direction == Direction::Horizontal {
-            CameraAdjustment::FitWidth
-        } else {
-            CameraAdjustment::FitHeight
-        };
-        world.look_next(adjustment);
+        world.look_modal(CameraAdjustment::FitBoth);
         InputResult::InputConsumed
     }
 }
@@ -345,12 +339,22 @@ impl SimpleStateCallback for KashikishiCallback {
     fn render(&mut self) -> RenderData<'_> {
         let world = self.world.get();
         let mut world_instances = world.glyph_instances();
+        let (mut glyph_instances_for_modal, vector_instances_for_modal) = world.modal_instances();
+
         let mut ime_instances = self.ime.get_instances();
-        world_instances.append(&mut ime_instances);
+
+        if glyph_instances_for_modal.is_empty() {
+            world_instances.append(&mut ime_instances);
+        } else {
+            glyph_instances_for_modal.append(&mut ime_instances);
+        }
+
         RenderData {
             camera: self.world.get().camera(),
             glyph_instances: world_instances,
             vector_instances: world.vector_instances(),
+            glyph_instances_for_modal,
+            vector_instances_for_modal,
         }
     }
 

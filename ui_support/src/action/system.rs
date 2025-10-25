@@ -9,7 +9,6 @@ use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    glyph_vertex_buffer::Direction,
 };
 
 use crate::{
@@ -117,14 +116,9 @@ impl ActionProcessor for SystemChangeThemeUi {
             None,
         );
         context.register_string(model.to_string());
-        world.add_next(Box::new(model));
+        world.add_modal(Box::new(model));
         world.re_layout();
-        let adjustment = if context.global_direction == Direction::Horizontal {
-            CameraAdjustment::FitWidth
-        } else {
-            CameraAdjustment::FitHeight
-        };
-        world.look_next(adjustment);
+        world.look_modal(CameraAdjustment::FitBoth);
 
         InputResult::InputConsumed
     }
@@ -253,14 +247,9 @@ impl ActionProcessor for SystemChangeWindowSizeUi {
             None,
         );
         context.register_string(model.to_string());
-        world.add_next(Box::new(model));
+        world.add_modal(Box::new(model));
         world.re_layout();
-        let adjustment = if context.global_direction == Direction::Horizontal {
-            CameraAdjustment::FitWidth
-        } else {
-            CameraAdjustment::FitHeight
-        };
-        world.look_next(adjustment);
+        world.look_modal(CameraAdjustment::FitBoth);
 
         InputResult::InputConsumed
     }
@@ -331,14 +320,9 @@ impl ActionProcessor for SystemChangeFontUi {
             None,
         );
         context.register_string(model.to_string());
-        world.add_next(Box::new(model));
+        world.add_modal(Box::new(model));
         world.re_layout();
-        let adjustment = if context.global_direction == Direction::Horizontal {
-            CameraAdjustment::FitWidth
-        } else {
-            CameraAdjustment::FitHeight
-        };
-        world.look_next(adjustment);
+        world.look_modal(CameraAdjustment::FitBoth);
 
         InputResult::InputConsumed
     }
@@ -460,14 +444,9 @@ impl ActionProcessor for SystemSelectBackgroundImageUi {
         let model_string = model.to_string();
         context.register_string(model_string);
 
-        world.add_next(Box::new(model));
+        world.add_modal(Box::new(model));
         world.re_layout();
-        let adjustment = if context.global_direction == Direction::Horizontal {
-            CameraAdjustment::FitWidth
-        } else {
-            CameraAdjustment::FitHeight
-        };
-        world.look_next(adjustment);
+        world.look_modal(CameraAdjustment::FitBoth);
 
         InputResult::InputConsumed
     }

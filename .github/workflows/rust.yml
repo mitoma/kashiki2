@@ -38,7 +38,7 @@ jobs:
       # Use libudev-dev if OS is linux
       - name: install libudev-dev
         if: matrix.job.os == 'linux'
-        run: sudo apt-get install libudev-dev
+        run: sudo apt-get update && sudo apt-get install libudev-dev
 
       # ci phase
       - name: check all

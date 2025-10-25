@@ -12,7 +12,7 @@ use font_rasterizer::{
 };
 
 use crate::{
-    layout_engine::{Model, ModelBorder, ModelMode},
+    layout_engine::{Model, ModelBorder},
     ui_context::{CharEasings, GpuEasingConfig, HighlightMode, TextContext},
 };
 
@@ -29,6 +29,7 @@ pub struct SelectBox {
     show_action_name: bool,
     cancellable: bool,
     border: ModelBorder,
+    max_line: usize,
 }
 
 impl SelectBox {
@@ -125,6 +126,7 @@ impl SelectBox {
             show_action_name,
             cancellable,
             border: ModelBorder::default(),
+            max_line: 10,
         };
         result.update_select_items_text_edit();
         result.update_current_selection();
@@ -194,6 +196,24 @@ impl SelectBox {
                 }
             })
             .collect();
+        let next_text_line_count = next_text.len();
+        let next_text = if next_text_line_count > self.max_line {
+            // current_selection が max_line より小さい場合は先頭から max_line 行分
+            // current_selection が最後から max_line より小さい場合は最後から max_line 行分
+            // current_selection を中心に max_line 行分だけ表示する
+            let start = if self.current_selection < self.max_line / 2 {
+                0
+            } else if next_text_line_count - self.current_selection <= self.max_line / 2 {
+                next_text_line_count - self.max_line
+            } else {
+                self.current_selection - (self.max_line / 2)
+            };
+            let end = (start + self.max_line).min(next_text_line_count);
+            next_text[start..end].to_vec()
+        } else {
+            next_text
+        };
+
         let diff = capture_diff_slices(similar::Algorithm::Patience, &current_text, &next_text);
 
         // まずはバッファの先頭に移動しておく
@@ -237,12 +257,28 @@ impl SelectBox {
             .editor_operation(&EditorOperation::BufferHead);
     }
 
+    // 現在の選択肢数と max_line の関係を考慮してオフセットを計算する
+    fn selection_offset(&self) -> usize {
+        let option_len = self.narrowd_options().len();
+        // max_line が選択肢数より大きい場合は current_selection をそのまま返す
+        if option_len <= self.max_line {
+            return self.current_selection;
+        }
+        if self.current_selection <= self.max_line / 2 {
+            return self.current_selection;
+        }
+        if self.current_selection + self.max_line / 2 >= option_len {
+            return self.current_selection - (option_len - self.max_line);
+        }
+        self.max_line / 2
+    }
+
     fn update_current_selection(&mut self) {
         self.select_items_text_edit
             .editor_operation(&EditorOperation::UnMark);
         self.select_items_text_edit
             .editor_operation(&EditorOperation::BufferHead);
-        for _ in 0..(self.current_selection) {
+        for _ in 0..(self.selection_offset()) {
             self.select_items_text_edit
                 .editor_operation(&EditorOperation::Next);
         }
@@ -276,8 +312,17 @@ impl Model for SelectBox {
         self.select_items_text_edit.position()
     }
 
+    fn last_position(&self) -> cgmath::Point3<f32> {
+        self.select_items_text_edit.last_position()
+    }
+
     fn focus_position(&self) -> cgmath::Point3<f32> {
-        self.select_items_text_edit.focus_position()
+        let (x, y, z) = self.title_text_edit.last_position().into();
+        let (bound_width, bound_height) = self.bound();
+        match self.select_items_text_edit.direction() {
+            Direction::Horizontal => cgmath::Point3::new(x, y - bound_height / 2.0, z),
+            Direction::Vertical => cgmath::Point3::new(x - bound_width / 2.0, y, z),
+        }
     }
 
     fn set_rotation(&mut self, rotation: cgmath::Quaternion<f32>) {
@@ -302,10 +347,10 @@ impl Model for SelectBox {
                     .iter()
                     .map(|(width, _)| *width)
                     .fold(f32::NAN, f32::max),
-                bounds.iter().map(|(_, height)| height).sum::<f32>(),
+                bounds.iter().map(|(_, height)| height).sum::<f32>() + 2.0,
             ),
             Direction::Vertical => (
-                bounds.iter().map(|(width, _)| width).sum::<f32>(),
+                bounds.iter().map(|(width, _)| width).sum::<f32>() + 2.0,
                 bounds
                     .iter()
                     .map(|(_, height)| *height)
@@ -362,16 +407,24 @@ impl Model for SelectBox {
                     return;
                 }
                 self.current_selection =
-                    (self.current_selection + narrowed_options_len - 1) % narrowed_options_len
+                    (self.current_selection + narrowed_options_len - 1) % narrowed_options_len;
+                self.update_select_items_text_edit()
             }
             EditorOperation::Next => {
                 if self.max_narrowd_options_len() == 0 {
                     return;
                 }
-                self.current_selection = (self.current_selection + 1) % narrowed_options_len
+                self.current_selection = (self.current_selection + 1) % narrowed_options_len;
+                self.update_select_items_text_edit()
             }
-            EditorOperation::BufferHead => self.current_selection = 0,
-            EditorOperation::BufferLast => self.current_selection = narrowed_options_len - 1,
+            EditorOperation::BufferHead => {
+                self.current_selection = 0;
+                self.update_select_items_text_edit();
+            }
+            EditorOperation::BufferLast => {
+                self.current_selection = narrowed_options_len - 1;
+                self.update_select_items_text_edit();
+            }
             EditorOperation::InsertEnter => {
                 if let Some(option) = self.narrowd_options().get(self.current_selection) {
                     self.action_queue_sender
@@ -434,10 +487,6 @@ impl Model for SelectBox {
                 .join(""),
         ]
         .concat()
-    }
-
-    fn model_mode(&self) -> ModelMode {
-        ModelMode::Modal
     }
 
     fn in_animation(&self) -> bool {

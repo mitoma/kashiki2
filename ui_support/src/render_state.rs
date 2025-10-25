@@ -7,7 +7,7 @@ use font_rasterizer::{
     context::{Senders, StateContext, WindowSize},
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
-    rasterizer_pipeline::{Quarity, RasterizerPipeline},
+    rasterizer_pipeline::{Buffers, Quarity, RasterizerPipeline},
     svg::SvgVertexBuffer,
     vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
@@ -482,9 +482,7 @@ impl RenderState {
 
         // run all stage
         record_start_of_phase("render 2: update buffer");
-        self.rasterizer_pipeline
-            .overlap_bind_group
-            .update_buffer(&self.context.queue);
+        self.rasterizer_pipeline.update_buffer(&self.context.queue);
         record_start_of_phase("render 2-2: create texture");
         let screen_view = self.render_target.get_screen_view()?;
 
@@ -493,24 +491,54 @@ impl RenderState {
             camera,
             glyph_instances,
             vector_instances,
+            glyph_instances_for_modal,
+            vector_instances_for_modal,
         } = self.simple_state_callback.render();
 
         record_start_of_phase("render 4: run all stage");
-        let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
-            if glyph_instances.is_empty() {
-                None
-            } else {
-                Some((&self.glyph_vertex_buffer, &glyph_instances))
-            };
-        let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
-            if vector_instances.is_empty() {
-                None
-            } else {
-                Some((
-                    self.svg_vertex_buffer.vector_vertex_buffer(),
-                    &vector_instances,
-                ))
-            };
+        let buffers = {
+            let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
+                if glyph_instances.is_empty() {
+                    None
+                } else {
+                    Some((&self.glyph_vertex_buffer, &glyph_instances))
+                };
+            let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
+                if vector_instances.is_empty() {
+                    None
+                } else {
+                    Some((
+                        self.svg_vertex_buffer.vector_vertex_buffer(),
+                        &vector_instances,
+                    ))
+                };
+            Buffers {
+                glyph_buffers,
+                vector_buffers,
+            }
+        };
+        let modal_buffers = {
+            let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
+                if glyph_instances_for_modal.is_empty() {
+                    None
+                } else {
+                    Some((&self.glyph_vertex_buffer, &glyph_instances_for_modal))
+                };
+            let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
+                if vector_instances_for_modal.is_empty() {
+                    None
+                } else {
+                    Some((
+                        self.svg_vertex_buffer.vector_vertex_buffer(),
+                        &vector_instances_for_modal,
+                    ))
+                };
+            Buffers {
+                glyph_buffers,
+                vector_buffers,
+            }
+        };
+
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
             &self.context.device,
@@ -519,8 +547,8 @@ impl RenderState {
                 camera.build_view_projection_matrix().into(),
                 camera.build_default_view_projection_matrix().into(),
             ),
-            glyph_buffers,
-            vector_buffers,
+            buffers,
+            modal_buffers,
             screen_view,
         );
 
