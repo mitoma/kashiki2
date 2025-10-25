@@ -89,6 +89,10 @@ impl Camera {
     pub fn aspect(&self) -> f32 {
         self.aspect
     }
+
+    pub(crate) fn target_and_eye(&self) -> ([f32; 3], [f32; 3]) {
+        (self.target.last(), self.eye.last())
+    }
 }
 
 #[derive(PartialEq)]

@@ -430,9 +430,6 @@ impl Model for SelectBox {
                     self.action_queue_sender
                         .send(Action::new_command("world", "remove-current"))
                         .unwrap();
-                    self.action_queue_sender
-                        .send(Action::new_command("world", "fit-by-direction"))
-                        .unwrap();
                     option
                         .actions
                         .iter()
@@ -446,9 +443,6 @@ impl Model for SelectBox {
                 if self.cancellable {
                     self.action_queue_sender
                         .send(Action::new_command("world", "remove-current"))
-                        .unwrap();
-                    self.action_queue_sender
-                        .send(Action::new_command("world", "fit-by-direction"))
                         .unwrap();
                 }
             }

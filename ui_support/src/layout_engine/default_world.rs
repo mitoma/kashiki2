@@ -22,6 +22,8 @@ use crate::{
 
 pub struct DefaultWorld {
     camera: Camera,
+    /* modal に移行する直前のカメラの位置 */
+    pre_camera: Option<([f32; 3], [f32; 3])>,
     camera_controller: CameraController,
     models: Vec<Box<dyn Model>>,
     modal_models: Vec<Box<dyn Model>>,
@@ -36,6 +38,7 @@ impl DefaultWorld {
     pub fn new(window_size: WindowSize) -> Self {
         Self {
             camera: Camera::basic(window_size),
+            pre_camera: None,
             camera_controller: CameraController::new(5.0),
             models: Vec::new(),
             modal_models: Vec::new(),
@@ -113,6 +116,7 @@ impl World for DefaultWorld {
 
     fn add_modal(&mut self, model: Box<dyn Model>) {
         self.modal_models.push(model);
+        self.pre_camera = Some(self.camera.target_and_eye());
         self.world_updated = true;
     }
 
@@ -291,6 +295,17 @@ impl World for DefaultWorld {
         let (x, y, z) = removed_model.position().into();
         removed_model.set_position(Point3::new(x, y - 5.0, z));
         self.removed_models.push(removed_model);
+
+        if self.modal_models.is_empty() && self.pre_camera.is_some() {
+            // modal から戻るときはカメラを元に戻す
+            if let Some((target, eye)) = self.pre_camera.take() {
+                self.camera_operation(CameraOperation::CangeTargetAndEye(
+                    target.into(),
+                    eye.into(),
+                ));
+            }
+        }
+
         removed_model_type
     }
 

@@ -139,7 +139,7 @@ pub async fn run(args: Args) {
         window_size,
         callback: Box::new(callback),
         //quarity: Quarity::CappedVeryHigh(1920 * 2, 1200 * 2),
-        quarity: Quarity::Middle,
+        quarity: Quarity::High,
         color_theme: COLOR_THEME,
         flags: Flags::DEFAULT,
         font_repository,
