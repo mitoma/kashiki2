@@ -1,6 +1,6 @@
 use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use font_collector::{FontCollector, FontRepository};
-use instant::Duration;
+use web_time::Duration;
 
 use font_rasterizer::{
     color_theme::ColorTheme,

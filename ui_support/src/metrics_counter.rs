@@ -4,7 +4,7 @@ use std::{
     sync::{LazyLock, Mutex},
 };
 
-use instant::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 static METRICS_COUNTER: LazyLock<Mutex<MetricsCounter>> = LazyLock::new(Default::default);
 

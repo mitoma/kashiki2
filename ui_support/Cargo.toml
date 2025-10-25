@@ -10,7 +10,7 @@ pollster = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
 image = { workspace = true }
-instant = { workspace = true }
+web-time = { workspace = true }
 cgmath = { workspace = true }
 rand = { workspace = true }
 bitflags = { workspace = true }

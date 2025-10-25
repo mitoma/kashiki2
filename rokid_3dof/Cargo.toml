@@ -17,6 +17,6 @@ font_collector = { path = "../font_collector" }
 stroke_parser = { path = "../stroke_parser" }
 ui_support = { path = "../ui_support" }
 log = { workspace = true }
-instant = { workspace = true }
+web-time = { workspace = true }
 winit = { workspace = true }
 pollster = { workspace = true }

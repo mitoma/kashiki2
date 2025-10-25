@@ -3,7 +3,7 @@ use std::fs;
 use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use cgmath::One;
 use font_collector::{FontCollector, FontRepository};
-use instant::{Duration, SystemTime};
+use web_time::{Duration, SystemTime};
 
 use font_rasterizer::{
     color_theme::ColorTheme,

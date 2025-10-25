@@ -1,5 +1,4 @@
 use font_collector::FontRepository;
-use instant::Duration;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
@@ -7,6 +6,7 @@ use ui_support::{
 };
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+use web_time::Duration;
 
 use cgmath::Rotation3;
 use font_rasterizer::{

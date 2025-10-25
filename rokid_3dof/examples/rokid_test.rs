@@ -1,10 +1,10 @@
 use std::vec;
 
 use font_collector::FontRepository;
-use instant::Duration;
 use rokid_3dof::RokidMax;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+use web_time::Duration;
 
 use cgmath::Rotation3;
 use font_rasterizer::{

@@ -1,4 +1,4 @@
-use instant::{Duration, Instant};
+use web_time::{Duration, Instant};
 
 pub(super) struct RenderRateAdjuster {
     has_focus: bool,
@@ -10,12 +10,12 @@ pub(super) struct RenderRateAdjuster {
 impl RenderRateAdjuster {
     pub(super) fn new(focused_target_frame_rate: u32, unfocused_target_frame_rate: u32) -> Self {
         let focused_target_frame_duration =
-            instant::Duration::from_secs_f32(1.0 / focused_target_frame_rate as f32);
+            web_time::Duration::from_secs_f32(1.0 / focused_target_frame_rate as f32);
         let unfocused_target_frame_duration =
-            instant::Duration::from_secs_f32(1.0 / unfocused_target_frame_rate as f32);
+            web_time::Duration::from_secs_f32(1.0 / unfocused_target_frame_rate as f32);
         Self {
             has_focus: true,
-            last_render_time: instant::Instant::now(),
+            last_render_time: web_time::Instant::now(),
             focused_target_frame_duration,
             unfocused_target_frame_duration,
         }
@@ -35,7 +35,7 @@ impl RenderRateAdjuster {
         if elapsed < target_frame_duration {
             Some(target_frame_duration - elapsed)
         } else {
-            self.last_render_time = instant::Instant::now();
+            self.last_render_time = web_time::Instant::now();
             None
         }
     }

@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, ops::Range};
 
 use cgmath::{Matrix4, Quaternion, Rotation3, num_traits::ToPrimitive};
-use instant::Duration;
 use rand::Rng;
 use text_buffer::{
     buffer::{BufferChar, CellPosition},
     caret::{Caret, CaretType},
 };
+use web_time::Duration;
 use wgpu::Device;
 
 use font_rasterizer::{

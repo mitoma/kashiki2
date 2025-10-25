@@ -1058,7 +1058,6 @@ dependencies = [
  "fs_extra",
  "glob",
  "image",
- "instant",
  "log",
  "rand 0.9.2",
  "rustybuzz",
@@ -1071,6 +1070,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "web-time 1.1.0",
  "wgpu",
  "winit",
 ]
@@ -1086,7 +1086,6 @@ dependencies = [
  "font_collector",
  "font_rasterizer",
  "getrandom 0.3.4",
- "instant",
  "log",
  "pollster",
  "stroke_parser",
@@ -1094,6 +1093,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "web-time 1.1.0",
  "wgpu",
  "winit",
 ]
@@ -2551,13 +2551,13 @@ dependencies = [
  "font_collector",
  "font_rasterizer",
  "hidapi",
- "instant",
  "log",
  "pollster",
  "stroke_parser",
  "thiserror 2.0.17",
  "ui_support",
  "vqf-rs",
+ "web-time 1.1.0",
  "winit",
 ]
 
@@ -2743,7 +2743,6 @@ dependencies = [
  "font_collector",
  "font_rasterizer",
  "getrandom 0.3.4",
- "instant",
  "log",
  "pollster",
  "stroke_parser",
@@ -2752,6 +2751,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "web-time 1.1.0",
  "wgpu",
  "winit",
 ]
@@ -3229,7 +3229,6 @@ dependencies = [
  "font_rasterizer",
  "highlighter",
  "image",
- "instant",
  "log",
  "nenobi",
  "pollster",
@@ -3242,6 +3241,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "web-time 1.1.0",
  "wgpu",
  "winit",
 ]

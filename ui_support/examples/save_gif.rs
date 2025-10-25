@@ -2,7 +2,7 @@ use std::fs::File;
 
 use font_collector::{FontCollector, FontRepository};
 use image::{Delay, Frame, codecs::gif::GifEncoder};
-use instant::Duration;
+use web_time::Duration;
 
 use font_rasterizer::{
     color_theme::ColorTheme,

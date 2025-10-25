@@ -16,7 +16,7 @@ pollster = { workspace = true }
 cgmath = { workspace = true }
 winit = { workspace = true }
 wgpu = { workspace = true }
-instant = { workspace = true, features = ["wasm-bindgen"] }
+web-time = { workspace = true }
 font_collector = { path = "../font_collector" }
 ui_support = { path = "../ui_support" }
 

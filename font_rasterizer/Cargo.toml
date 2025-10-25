@@ -22,7 +22,7 @@ rustybuzz.workspace = true
 cgmath.workspace = true
 bytemuck.workspace = true
 
-instant = { workspace = true }
+web-time = { workspace = true }
 unicode-width = { workspace = true }
 cached = { workspace = true }
 usvg = { workspace = true }

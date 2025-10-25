@@ -18,7 +18,7 @@ pollster = { workspace = true }
 cgmath = { workspace = true }
 winit = { workspace = true }
 wgpu = { workspace = true }
-instant = { workspace = true, features = ["wasm-bindgen"] }
+web-time = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = { workspace = true }

@@ -1,7 +1,7 @@
 use std::sync::{LazyLock, Mutex};
 
 use cgmath::num_traits::ToPrimitive;
-use instant::{Duration, SystemTime};
+use web_time::{Duration, SystemTime};
 
 pub enum ClockMode {
     // 時刻取得時に、都度現在時刻を取得するモード
@@ -75,7 +75,7 @@ pub fn increment_fixed_clock(duration: Duration) {
 
 #[cfg(test)]
 mod test {
-    use instant::Duration;
+    use web_time::Duration;
 
     use crate::time::{increment_fixed_clock, set_clock_mode};
 
