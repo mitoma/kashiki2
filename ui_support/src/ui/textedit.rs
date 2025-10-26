@@ -49,6 +49,9 @@ pub struct TextEdit {
     caret_states: CaretStates,
     border_states: Option<BorderStates>,
 
+    // バッファが更新されたかどうか。カーソルの移動も含む
+    buffer_updated: bool,
+    // テキストが更新されたかどうか。ハイライトの再計算に使う
     text_updated: bool,
     config_updated: bool,
 
@@ -86,6 +89,7 @@ impl Default for TextEdit {
             caret_states: CaretStates::default(),
             border_states: None,
 
+            buffer_updated: true,
             text_updated: true,
             config_updated: true,
 
@@ -192,12 +196,12 @@ impl Model for TextEdit {
 
         self.sync_editor_events(device, color_theme);
 
-        if self.text_updated || self.config_updated {
+        if self.buffer_updated || self.config_updated {
             let layout = self.calc_phisical_layout(context.char_width_calcurator.clone());
             let bound = self.calc_bound(&layout);
             self.calc_position(&context.char_width_calcurator, &layout, bound);
-
-            // ここがハイライト候補だがセレクションが適切に動作しないので要検討
+        }
+        if self.text_updated {
             self.highlight();
         }
 
@@ -208,6 +212,7 @@ impl Model for TextEdit {
             state.instances.update(device, queue);
         }
 
+        self.buffer_updated = false;
         self.text_updated = false;
         self.config_updated = false;
     }
@@ -227,47 +232,47 @@ impl Model for TextEdit {
                 self.char_states
                     .instances
                     .set_direction(&self.config.direction);
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::IncreaseRowInterval => {
                 self.config.row_interval += 0.05;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::DecreaseRowInterval => {
                 self.config.row_interval -= 0.05;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::IncreaseColInterval => {
                 self.config.col_interval += 0.05;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::DecreaseColInterval => {
                 self.config.col_interval -= 0.05;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::IncreaseRowScale => {
                 self.config.row_scale += 0.05;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::DecreaseRowScale => {
                 self.config.row_scale -= 0.05;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::IncreaseColScale => {
                 self.config.col_scale += 0.05;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::DecreaseColScale => {
                 self.config.col_scale -= 0.05;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::CopyDisplayString(width_resolver, result_callback) => {
@@ -320,12 +325,12 @@ impl Model for TextEdit {
             }
             ModelOperation::IncreaseMaxCol => {
                 self.config.max_col += 1;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::DecreaseMaxCol => {
                 self.config.max_col -= 1;
-                self.text_updated = true;
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
             ModelOperation::ToggleHighlightMode => {
@@ -336,6 +341,7 @@ impl Model for TextEdit {
                         HighlightMode::None
                     }
                 };
+                // バッファを更新したわけではないがハイライトが変わるため text_updated を true にする
                 self.text_updated = true;
                 ModelOperationResult::RequireReLayout
             }
@@ -379,7 +385,15 @@ impl TextEdit {
 
         let mut char_change_counter = CharChangeCounter::default();
         while let Ok(event) = self.receiver.try_recv() {
-            self.text_updated = true;
+            self.buffer_updated = true;
+            // 変更イベントがバッファを変更するかどうかを判定する
+            if matches!(
+                event,
+                ChangeEvent::AddChar(_) | ChangeEvent::MoveChar { .. } | ChangeEvent::RemoveChar(_)
+            ) {
+                self.text_updated = true;
+            }
+
             match event {
                 ChangeEvent::AddChar(c) => {
                     let caret_pos = self
