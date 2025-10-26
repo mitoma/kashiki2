@@ -590,4 +590,24 @@ impl RenderState {
         );
         self.context.char_width_calcurator = char_width_calcurator;
     }
+
+    pub(crate) fn change_quarity(&mut self, quarity: Quarity) {
+        if self.quarity != quarity {
+            self.quarity = quarity;
+            let bg_color = self.rasterizer_pipeline.bg_color;
+            self.rasterizer_pipeline = RasterizerPipeline::new(
+                &self.context.device,
+                self.context.window_size.width,
+                self.context.window_size.height,
+                self.render_target.format(),
+                self.quarity,
+                bg_color,
+            );
+            self.rasterizer_pipeline.set_background_image(
+                &self.context.device,
+                &self.context.queue,
+                self.background_image.as_ref(),
+            );
+        }
+    }
 }

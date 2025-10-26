@@ -352,6 +352,96 @@ impl ActionProcessor for SystemChangeFont {
     }
 }
 
+pub struct SystemChangeQualityUi;
+impl ActionProcessor for SystemChangeQualityUi {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-quality-ui".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        context: &StateContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let options = vec![
+            SelectOption::new(
+                "Very High".to_string(),
+                Action::new_command_with_argument("system", "change-quality", "very-high"),
+            ),
+            SelectOption::new(
+                "High".to_string(),
+                Action::new_command_with_argument("system", "change-quality", "high"),
+            ),
+            SelectOption::new(
+                "Medium".to_string(),
+                Action::new_command_with_argument("system", "change-quality", "medium"),
+            ),
+            SelectOption::new(
+                "Low".to_string(),
+                Action::new_command_with_argument("system", "change-quality", "low"),
+            ),
+            SelectOption::new(
+                "Very Low".to_string(),
+                Action::new_command_with_argument("system", "change-quality", "very-low"),
+            ),
+            SelectOption::new(
+                "VGA(640x480)".to_string(),
+                Action::new_command_with_argument("system", "change-quality", "vga"),
+            ),
+        ];
+        let model = SelectBox::new_without_action_name(
+            context,
+            "画質を選択してください".to_string(),
+            options,
+            None,
+        );
+        context.register_string(model.to_string());
+        world.add_modal(Box::new(model));
+        world.re_layout();
+        world.look_modal(CameraAdjustment::FitBoth);
+
+        InputResult::InputConsumed
+    }
+}
+
+pub struct SystemChangeQuality;
+impl ActionProcessor for SystemChangeQuality {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-quality".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        _context: &StateContext,
+        _world: &mut dyn World,
+    ) -> InputResult {
+        if let ActionArgument::String(quarity) = arg {
+            let q = match quarity.as_str() {
+                "very-high" => font_rasterizer::rasterizer_pipeline::Quarity::VeryHigh,
+                "high" => font_rasterizer::rasterizer_pipeline::Quarity::High,
+                "medium" => font_rasterizer::rasterizer_pipeline::Quarity::Middle,
+                "low" => font_rasterizer::rasterizer_pipeline::Quarity::Low,
+                "very-low" => font_rasterizer::rasterizer_pipeline::Quarity::VeryLow,
+                "vga" => font_rasterizer::rasterizer_pipeline::Quarity::Fixed(640, 480),
+                _ => return InputResult::Noop,
+            };
+            InputResult::ChangeQuarity(q)
+        } else {
+            InputResult::Noop
+        }
+    }
+}
+
 pub struct SystemSelectBackgroundImageUi;
 impl ActionProcessor for SystemSelectBackgroundImageUi {
     fn namespace(&self) -> CommandNamespace {

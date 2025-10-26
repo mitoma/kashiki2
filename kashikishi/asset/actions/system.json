@@ -36,6 +36,11 @@
     },
     {
         "namespace": "system",
+        "name": "change-quality-ui",
+        "description": "画面品質の変更"
+    },
+    {
+        "namespace": "system",
         "name": "exit",
         "description": "炊紙を終了する"
     }

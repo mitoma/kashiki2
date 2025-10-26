@@ -206,6 +206,9 @@ pub async fn run_support(support: SimpleStateSupport) {
                                 height: window_size.height,
                             });
                         }
+                        InputResult::ChangeQuarity(quarity) => {
+                            state.change_quarity(quarity);
+                        }
                         InputResult::Noop => {
                             match event {
                                 WindowEvent::CloseRequested => {
@@ -352,6 +355,7 @@ pub async fn run_support(support: SimpleStateSupport) {
                             height: window_size.height,
                         });
                     }
+                    InputResult::ChangeQuarity(quarity) => state.change_quarity(quarity),
                     InputResult::Noop => {}
                 }
             }
@@ -382,6 +386,7 @@ fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> O
         InputResult::ToggleFullScreen => Some(input_result),
         InputResult::ToggleDecorations => Some(input_result),
         InputResult::ChangeWindowSize(_) => Some(input_result),
+        InputResult::ChangeQuarity(_) => Some(input_result),
         InputResult::InputConsumed => None,
         InputResult::Noop => None,
     }
@@ -397,6 +402,7 @@ pub enum InputResult {
     ChangeGlobalDirection(Direction),
     ChangeWindowSize(WindowSize),
     ChangeFont(Option<String>),
+    ChangeQuarity(Quarity),
     SendExit,
     Noop,
 }

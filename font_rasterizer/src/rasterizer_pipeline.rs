@@ -14,7 +14,7 @@ const SCREEN_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
 const BACKGROUND_IMAGE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
     include_wgsl!("shader/screen_shader.wgsl");
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub enum Quarity {
     /// 2 倍サンプリングする(アンチエイリアスあり)
     VeryHigh,
