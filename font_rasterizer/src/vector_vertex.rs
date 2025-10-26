@@ -1,5 +1,5 @@
 use bezier_converter::CubicBezier;
-use log::{debug, info};
+use log::debug;
 use rustybuzz::ttf_parser::OutlineBuilder;
 
 pub(crate) struct VectorVertexBuilder {
@@ -97,6 +97,7 @@ impl VectorVertexBuilder {
         self.current_index += 3;
     }
 
+    /*
     // 定性的に 200.0 を閾値にしている
     const BEZIER_THRESHOLD: f32 = 200.0;
     // ベジエ曲線が直線に近似できるかどうかを判定する
@@ -106,10 +107,11 @@ impl VectorVertexBuilder {
         let d2 = (x2 - cx) * line_vec.1 - (y2 - cy) * line_vec.0;
         d1.abs() < Self::BEZIER_THRESHOLD && d2.abs() < Self::BEZIER_THRESHOLD
     }
+     */
 
     pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        /* ベジエ曲線の直線への近似はあまり効果がない感じがするので一旦無くす
         let current = self.vertex.last().unwrap();
-
         // (current.x, current.y) と (x, y) でなす線分上に (x1, y1) が一定の誤差内で存在する時には line_to として処理する
         if Self::is_narrow_bezier(current.x, current.y, x1, y1, x, y) {
             info!(
@@ -119,6 +121,7 @@ impl VectorVertexBuilder {
             self.line_to(x, y);
             return;
         }
+         */
 
         let wait = self.next_wait();
 
