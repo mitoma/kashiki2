@@ -11,6 +11,7 @@ tree-sitter-go = { workspace = true }
 tree-sitter-md = { workspace = true }
 tree-sitter-json = { workspace = true }
 tree-sitter-bash = { workspace = true }
+tree-sitter-toml-ng = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

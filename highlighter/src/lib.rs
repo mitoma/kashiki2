@@ -235,6 +235,7 @@ fn walk<'a>(
                     "go" => go_parser(),
                     "json" => json_parser(),
                     "bash" => bash_parser(),
+                    "toml" => toml_parser(),
                     _ => {
                         return;
                     }
@@ -334,6 +335,14 @@ fn bash_parser() -> tree_sitter::Parser {
     let mut parser = tree_sitter::Parser::new();
     parser
         .set_language(&tree_sitter_bash::LANGUAGE.into())
+        .unwrap();
+    parser
+}
+
+fn toml_parser() -> tree_sitter::Parser {
+    let mut parser = tree_sitter::Parser::new();
+    parser
+        .set_language(&tree_sitter_toml_ng::LANGUAGE.into())
         .unwrap();
     parser
 }

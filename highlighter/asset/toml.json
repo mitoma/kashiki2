@@ -1,0 +1,70 @@
+[
+    {
+        "name": "identifier",
+        "language": "toml",
+        "key_definitions": [
+            {
+                "key": "bare_key",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "boolean",
+        "language": "toml",
+        "key_definitions": [
+            {
+                "key": "boolean",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "comment",
+        "language": "toml",
+        "key_definitions": [
+            {
+                "key": "comment",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "string",
+        "language": "toml",
+        "key_definitions": [
+            {
+                "key": "string",
+                "depth": 0
+            },
+            {
+                "key": "quoted_key",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "number",
+        "language": "toml",
+        "key_definitions": [
+            {
+                "key": "integer",
+                "depth": 0
+            },
+            {
+                "key": "float",
+                "depth": 0
+            }
+        ]
+    },
+    {
+        "name": "operator",
+        "language": "toml",
+        "key_definitions": [
+            {
+                "key": "=",
+                "depth": 0
+            }
+        ]
+    }
+]

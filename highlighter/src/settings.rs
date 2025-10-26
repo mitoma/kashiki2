@@ -18,6 +18,7 @@ impl Default for HighlightSettings {
             include_str!("../asset/java.json"),
             include_str!("../asset/go.json"),
             include_str!("../asset/bash.json"),
+            include_str!("../asset/toml.json"),
         ])
     }
 }
