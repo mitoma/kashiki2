@@ -34,6 +34,10 @@ depends = ["opt-sites"]
 description = "Run the kashikishi"
 run = "cargo run --bin kashikishi --release"
 
+[tasks.install-kashikishi]
+description = "Install the kashikishi"
+run = "cargo install --path kashikishi"
+
 [tasks.fmt]
 description = "Format the code"
 run = "cargo fmt --all"
