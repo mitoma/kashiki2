@@ -16,22 +16,26 @@ pub enum ModelBorder {
     Rounded,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AttributeType {
+    Current,
+    Last,
+}
+
 pub trait Model {
     // モデルの位置を設定する
     fn set_position(&mut self, position: Point3<f32>);
     // モデルの位置を返す
-    fn position(&self) -> Point3<f32>;
-    // モデルの最終的な位置を返す(アニメーション中はアニメーション後の位置)
-    fn last_position(&self) -> Point3<f32>;
+    fn position(&self, attribute_type: AttributeType) -> Point3<f32>;
     // モデル中、カメラがフォーカスすべき位置を返す
     // position はモデルの中心を指す
     fn focus_position(&self) -> Point3<f32>;
     // モデルの回転を設定する
     fn set_rotation(&mut self, rotation: Quaternion<f32>);
     // モデルの回転を返す
-    fn rotation(&self) -> Quaternion<f32>;
+    fn rotation(&self, attribute_type: AttributeType) -> Quaternion<f32>;
     // モデルの縦横の長さを返す
-    fn bound(&self) -> (f32, f32);
+    fn bound(&self, attribute_type: AttributeType) -> (f32, f32);
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
     fn vector_instances(&self) -> Vec<&VectorInstances<String>>;
     fn update(&mut self, context: &StateContext);
@@ -42,6 +46,22 @@ pub trait Model {
     fn in_animation(&self) -> bool;
     fn set_border(&mut self, border: ModelBorder);
     fn border(&self) -> ModelBorder;
+    fn set_world_scale(&mut self, world_scale: [f32; 2]);
+    fn world_scale(&self) -> [f32; 2];
+
+    #[inline]
+    fn model_attributes(&self) -> ModelAttributes {
+        let attribute_type = AttributeType::Current;
+        let (bound_x, bound_y) = &self.bound(attribute_type);
+        let center = (bound_x / 2.0, -bound_y / 2.0).into();
+        let current_position: Point3<f32> = self.position(attribute_type);
+        ModelAttributes {
+            position: current_position,
+            rotation: self.rotation(attribute_type),
+            center,
+            world_scale: self.world_scale(),
+        }
+    }
 }
 
 pub enum ModelOperation {

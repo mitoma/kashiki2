@@ -33,7 +33,9 @@ use font_rasterizer::{
     vector_instances::{InstanceAttributes, VectorInstances},
 };
 
-use crate::layout_engine::{Model, ModelBorder, ModelOperation, ModelOperationResult};
+use crate::layout_engine::{
+    AttributeType, Model, ModelBorder, ModelOperation, ModelOperationResult,
+};
 
 pub struct PlaneTextReader {
     pub value: String,
@@ -44,6 +46,7 @@ pub struct PlaneTextReader {
     position: Point3<f32>,
     rotation: Quaternion<f32>,
     bound: (f32, f32),
+    world_scale: [f32; 2],
 }
 
 impl Model for PlaneTextReader {
@@ -55,16 +58,12 @@ impl Model for PlaneTextReader {
         self.updated = true;
     }
 
-    fn position(&self) -> cgmath::Point3<f32> {
-        self.position
-    }
-
-    fn last_position(&self) -> cgmath::Point3<f32> {
+    fn position(&self, _attribute_type: AttributeType) -> cgmath::Point3<f32> {
         self.position
     }
 
     fn focus_position(&self) -> Point3<f32> {
-        self.position()
+        self.position(AttributeType::Last)
     }
 
     fn set_rotation(&mut self, rotation: Quaternion<f32>) {
@@ -75,7 +74,7 @@ impl Model for PlaneTextReader {
         self.updated = true;
     }
 
-    fn rotation(&self) -> cgmath::Quaternion<f32> {
+    fn rotation(&self, _attribute_type: AttributeType) -> cgmath::Quaternion<f32> {
         self.rotation
     }
 
@@ -94,7 +93,7 @@ impl Model for PlaneTextReader {
         self.generate_instances(color_theme, &context.char_width_calcurator, device, queue);
     }
 
-    fn bound(&self) -> (f32, f32) {
+    fn bound(&self, _attribute_type: AttributeType) -> (f32, f32) {
         self.bound
     }
 
@@ -146,6 +145,14 @@ impl Model for PlaneTextReader {
 
     fn border(&self) -> ModelBorder {
         Default::default()
+    }
+
+    fn set_world_scale(&mut self, world_scale: [f32; 2]) {
+        self.world_scale = world_scale;
+    }
+
+    fn world_scale(&self) -> [f32; 2] {
+        self.world_scale
     }
 }
 
@@ -201,6 +208,7 @@ impl PlaneTextReader {
                 cgmath::Deg(0.0),
             ),
             bound: (0.0, 0.0),
+            world_scale: [1.0, 1.0],
         }
     }
 
@@ -244,7 +252,7 @@ impl PlaneTextReader {
 
         let mut x: f32 = initial_x;
         let mut y: f32 = initial_y;
-        let rotation = self.rotation();
+        let rotation = self.rotation(AttributeType::Last);
         for line in lines {
             for c in line.chars() {
                 if x > width / 2.0 {

@@ -9,7 +9,7 @@ use font_rasterizer::{
 };
 
 use crate::{
-    layout_engine::{Model, ModelBorder},
+    layout_engine::{AttributeType, Model, ModelBorder},
     ui_context::{CharEasings, HighlightMode, TextContext},
 };
 
@@ -22,6 +22,7 @@ pub struct TextInput {
     action_queue_sender: Sender<Action>,
     default_input: Option<String>,
     border: ModelBorder,
+    world_scale: [f32; 2],
 }
 
 impl TextInput {
@@ -68,6 +69,7 @@ impl TextInput {
             action_queue_sender: context.action_sender(),
             default_input,
             border: ModelBorder::default(),
+            world_scale: [1.0, 1.0],
         }
     }
 }
@@ -82,12 +84,8 @@ impl Model for TextInput {
         self.input_text_edit.set_position(position);
     }
 
-    fn position(&self) -> cgmath::Point3<f32> {
-        self.input_text_edit.position()
-    }
-
-    fn last_position(&self) -> cgmath::Point3<f32> {
-        self.input_text_edit.last_position()
+    fn position(&self, attribute_type: AttributeType) -> cgmath::Point3<f32> {
+        self.input_text_edit.position(attribute_type)
     }
 
     fn focus_position(&self) -> cgmath::Point3<f32> {
@@ -99,13 +97,13 @@ impl Model for TextInput {
         self.input_text_edit.set_rotation(rotation);
     }
 
-    fn rotation(&self) -> cgmath::Quaternion<f32> {
-        self.input_text_edit.rotation()
+    fn rotation(&self, attribute_type: AttributeType) -> cgmath::Quaternion<f32> {
+        self.input_text_edit.rotation(attribute_type)
     }
 
-    fn bound(&self) -> (f32, f32) {
-        let (title_width, title_height) = self.title_text_edit.bound();
-        let (input_width, input_height) = self.input_text_edit.bound();
+    fn bound(&self, attribute_type: AttributeType) -> (f32, f32) {
+        let (title_width, title_height) = self.title_text_edit.bound(attribute_type);
+        let (input_width, input_height) = self.input_text_edit.bound(attribute_type);
         match self.input_text_edit.direction() {
             Direction::Horizontal => (title_width.max(input_width), title_height + input_height),
             Direction::Vertical => (title_width + input_width, title_height.max(input_height)),
@@ -209,5 +207,13 @@ impl Model for TextInput {
 
     fn border(&self) -> ModelBorder {
         self.border
+    }
+
+    fn set_world_scale(&mut self, world_scale: [f32; 2]) {
+        self.world_scale = world_scale;
+    }
+
+    fn world_scale(&self) -> [f32; 2] {
+        self.world_scale
     }
 }

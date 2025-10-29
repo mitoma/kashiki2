@@ -16,7 +16,9 @@ use font_rasterizer::{
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
-    layout_engine::{Model, ModelOperation, ModelOperationResult, World, world::RemovedModelType},
+    layout_engine::{
+        AttributeType, Model, ModelOperation, ModelOperationResult, World, world::RemovedModelType,
+    },
     to_ndc_position,
 };
 
@@ -292,7 +294,7 @@ impl World for DefaultWorld {
             .pop()
             .map(|m| (m, RemovedModelType::Modal))
             .unwrap_or_else(|| (self.models.remove(self.focus), RemovedModelType::Normal));
-        let (x, y, z) = removed_model.position().into();
+        let (x, y, z) = removed_model.position(AttributeType::Last).into();
         removed_model.set_position(Point3::new(x, y - 5.0, z));
         self.removed_models.push(removed_model);
 
@@ -388,7 +390,7 @@ impl WorldLayout {
             WorldLayout::Liner => {
                 let mut position = 0.0;
                 for (idx, model) in world.models.iter_mut().enumerate() {
-                    let (w, h) = model.bound();
+                    let (w, h) = model.bound(AttributeType::Last);
                     info!("w: {}, h: {}, idx:{}", w, h, idx);
 
                     let rotation = cgmath::Quaternion::from_axis_angle(
@@ -424,14 +426,17 @@ impl WorldLayout {
                 match world.direction {
                     Direction::Horizontal => {
                         // すべてのモデルの幅の合計
-                        let all_width: f32 =
-                            world.models.iter().map(|m| m.bound().0 + INTERVAL).sum();
+                        let all_width: f32 = world
+                            .models
+                            .iter()
+                            .map(|m| m.bound(AttributeType::Last).0 + INTERVAL)
+                            .sum();
                         // all_width を円周とみなして半径を求める
                         let radius = all_width / (2.0 * std::f32::consts::PI);
 
                         let mut x_position = 0.0;
                         for (idx, model) in world.models.iter_mut().enumerate() {
-                            let (w, h) = model.bound();
+                            let (w, h) = model.bound(AttributeType::Last);
                             x_position += w / 2.0;
                             info!("w: {}, h: {}, idx:{}", w, h, idx);
                             let r = (x_position / all_width) * 2.0 * std::f32::consts::PI;
@@ -449,14 +454,17 @@ impl WorldLayout {
                     }
                     Direction::Vertical => {
                         // すべてのモデルの幅の合計
-                        let all_height: f32 =
-                            world.models.iter().map(|m| m.bound().1 + INTERVAL).sum();
+                        let all_height: f32 = world
+                            .models
+                            .iter()
+                            .map(|m| m.bound(AttributeType::Last).1 + INTERVAL)
+                            .sum();
                         // all_width を円周とみなして半径を求める
                         let radius = all_height / (2.0 * std::f32::consts::PI);
 
                         let mut y_position = 0.0;
                         for (idx, model) in world.models.iter_mut().enumerate() {
-                            let (w, h) = model.bound();
+                            let (w, h) = model.bound(AttributeType::Last);
                             y_position += h / 2.0;
                             info!("w: {}, h: {}, idx:{}", w, h, idx);
                             let r = (y_position / all_height) * 2.0 * std::f32::consts::PI;

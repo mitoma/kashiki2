@@ -30,7 +30,7 @@ use font_rasterizer::{
 use render_state::{RenderState, RenderTargetRequest};
 
 use crate::{
-    layout_engine::Model,
+    layout_engine::{AttributeType, Model},
     metrics_counter::{print_metrics_to_stdout, record_start_of_phase},
     render_rate_adjuster::RenderRateAdjuster,
 };
@@ -549,11 +549,11 @@ pub fn register_default_border(state_context: &StateContext) {
 
 #[inline]
 pub(crate) fn to_ndc_position(model: &dyn Model, camera: &Camera) -> (f32, f32) {
-    let cgmath::Point3 { x, y, z } = model.position();
+    let cgmath::Point3 { x, y, z } = model.position(AttributeType::Last);
     let position_vec = cgmath::Vector3 { x, y, z };
 
-    let p =
-        cgmath::Matrix4::from_translation(position_vec) * cgmath::Matrix4::from(model.rotation());
+    let p = cgmath::Matrix4::from_translation(position_vec)
+        * cgmath::Matrix4::from(model.rotation(AttributeType::Last));
     let view_projection_matrix = camera.build_view_projection_matrix();
     let calced_model_position = view_projection_matrix * p;
     let nw = calced_model_position.w;

@@ -12,7 +12,7 @@ use font_rasterizer::{
 };
 
 use crate::{
-    layout_engine::{Model, ModelBorder},
+    layout_engine::{AttributeType, Model, ModelBorder},
     ui_context::{CharEasings, GpuEasingConfig, HighlightMode, TextContext},
 };
 
@@ -30,6 +30,7 @@ pub struct SelectBox {
     cancellable: bool,
     border: ModelBorder,
     max_line: usize,
+    world_scale: [f32; 2],
 }
 
 impl SelectBox {
@@ -127,6 +128,7 @@ impl SelectBox {
             cancellable,
             border: ModelBorder::default(),
             max_line: 10,
+            world_scale: [1.0, 1.0],
         };
         result.update_select_items_text_edit();
         result.update_current_selection();
@@ -291,7 +293,7 @@ impl SelectBox {
 
 impl Model for SelectBox {
     fn set_position(&mut self, position: cgmath::Point3<f32>) {
-        let (bound_width, bound_height) = self.select_items_text_edit.bound();
+        let (bound_width, bound_height) = self.select_items_text_edit.bound(AttributeType::Last);
 
         let (title_offset, search_offset) = match self.select_items_text_edit.direction() {
             Direction::Horizontal => (
@@ -308,17 +310,13 @@ impl Model for SelectBox {
         self.select_items_text_edit.set_position(position);
     }
 
-    fn position(&self) -> cgmath::Point3<f32> {
-        self.select_items_text_edit.position()
-    }
-
-    fn last_position(&self) -> cgmath::Point3<f32> {
-        self.select_items_text_edit.last_position()
+    fn position(&self, attribute_type: AttributeType) -> cgmath::Point3<f32> {
+        self.select_items_text_edit.position(attribute_type)
     }
 
     fn focus_position(&self) -> cgmath::Point3<f32> {
-        let (x, y, z) = self.title_text_edit.last_position().into();
-        let (bound_width, bound_height) = self.bound();
+        let (x, y, z) = self.title_text_edit.position(AttributeType::Last).into();
+        let (bound_width, bound_height) = self.bound(AttributeType::Last);
         match self.select_items_text_edit.direction() {
             Direction::Horizontal => cgmath::Point3::new(x, y - bound_height / 2.0, z),
             Direction::Vertical => cgmath::Point3::new(x - bound_width / 2.0, y, z),
@@ -331,15 +329,15 @@ impl Model for SelectBox {
         self.select_items_text_edit.set_rotation(rotation)
     }
 
-    fn rotation(&self) -> cgmath::Quaternion<f32> {
-        self.select_items_text_edit.rotation()
+    fn rotation(&self, attribute_type: AttributeType) -> cgmath::Quaternion<f32> {
+        self.select_items_text_edit.rotation(attribute_type)
     }
 
-    fn bound(&self) -> (f32, f32) {
+    fn bound(&self, attribute_type: AttributeType) -> (f32, f32) {
         let bounds = [
-            self.title_text_edit.bound(),
-            self.search_text_edit.bound(),
-            self.select_items_text_edit.bound(),
+            self.title_text_edit.bound(attribute_type),
+            self.search_text_edit.bound(attribute_type),
+            self.select_items_text_edit.bound(attribute_type),
         ];
         match self.select_items_text_edit.direction() {
             Direction::Horizontal => (
@@ -495,5 +493,13 @@ impl Model for SelectBox {
 
     fn border(&self) -> ModelBorder {
         self.border
+    }
+
+    fn set_world_scale(&mut self, world_scale: [f32; 2]) {
+        self.world_scale = world_scale;
+    }
+
+    fn world_scale(&self) -> [f32; 2] {
+        self.world_scale
     }
 }

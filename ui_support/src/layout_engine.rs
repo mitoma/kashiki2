@@ -1,5 +1,7 @@
 mod model;
-pub use model::{Model, ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult};
+pub use model::{
+    AttributeType, Model, ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult,
+};
 mod default_world;
 pub use default_world::{DefaultWorld, WorldLayout};
 mod world;

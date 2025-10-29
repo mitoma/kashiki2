@@ -26,7 +26,7 @@ use font_rasterizer::{
 
 use crate::{
     easing_value::EasingPointN,
-    layout_engine::{Model, ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult},
+    layout_engine::{AttributeType, Model, ModelBorder, ModelOperation, ModelOperationResult},
     ui::{CharAttribute, Decoration},
     ui_context::{HighlightMode, TextContext},
 };
@@ -111,12 +111,11 @@ impl Model for TextEdit {
         self.position.update(position.into());
     }
 
-    fn position(&self) -> cgmath::Point3<f32> {
-        self.position.current().into()
-    }
-
-    fn last_position(&self) -> cgmath::Point3<f32> {
-        self.position.last().into()
+    fn position(&self, attribute_type: AttributeType) -> cgmath::Point3<f32> {
+        match attribute_type {
+            AttributeType::Current => self.position.current().into(),
+            AttributeType::Last => self.position.last().into(),
+        }
     }
 
     // キャレットの位置と direction を考慮してテキストエディタ中のフォーカス位置を返す
@@ -152,14 +151,20 @@ impl Model for TextEdit {
         self.config_updated = true;
     }
 
-    fn rotation(&self) -> Quaternion<f32> {
-        self.rotation.last().into()
+    fn rotation(&self, attribute_type: AttributeType) -> Quaternion<f32> {
+        match attribute_type {
+            AttributeType::Current => self.rotation.current().into(),
+            AttributeType::Last => self.rotation.last().into(),
+        }
     }
 
-    fn bound(&self) -> (f32, f32) {
+    fn bound(&self, attribute_type: AttributeType) -> (f32, f32) {
         // 外向けにはアニメーション完了後の最終的なサイズを返す
         // この値はレイアウトの計算に使われるためである
-        self.bound.last().into()
+        match attribute_type {
+            AttributeType::Current => self.bound.current().into(),
+            AttributeType::Last => self.bound.last().into(),
+        }
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
@@ -365,6 +370,14 @@ impl Model for TextEdit {
 
     fn border(&self) -> ModelBorder {
         self.border
+    }
+
+    fn set_world_scale(&mut self, world_scale: [f32; 2]) {
+        self.world_scale = world_scale;
+    }
+
+    fn world_scale(&self) -> [f32; 2] {
+        self.world_scale
     }
 }
 
@@ -581,19 +594,6 @@ impl TextEdit {
         }
     }
 
-    #[inline]
-    fn model_attributes(&self) -> ModelAttributes {
-        let [bound_x, bound_y] = &self.bound.current();
-        let center = (bound_x / 2.0, -bound_y / 2.0).into();
-        let current_position: Point3<f32> = self.position.current().into();
-        ModelAttributes {
-            position: current_position,
-            rotation: self.rotation.current().into(),
-            center,
-            world_scale: self.world_scale,
-        }
-    }
-
     // 文字と caret の GPU で描画すべき位置やモーションを計算する
     #[inline]
     fn calc_instance_positions(&mut self, char_width_calcurator: &CharWidthCalculator) {
@@ -650,10 +650,6 @@ impl TextEdit {
 
     pub(crate) fn direction(&self) -> Direction {
         self.config.direction
-    }
-
-    pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
-        self.world_scale = world_scale;
     }
 
     #[cfg(target_arch = "wasm32")]

@@ -2,7 +2,10 @@ use cgmath::{InnerSpace, Point3, Vector3};
 
 use font_rasterizer::context::WindowSize;
 
-use crate::{easing_value::EasingPointN, layout_engine::Model};
+use crate::{
+    easing_value::EasingPointN,
+    layout_engine::{AttributeType, Model},
+};
 
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -257,14 +260,14 @@ impl CameraController {
         };
 
         let target_position: Point3<f32> = if adjustment == CameraAdjustment::FitBothAndCentering {
-            target.position()
+            target.position(AttributeType::Last)
         } else {
             target.focus_position()
         };
         let normal = cgmath::Vector3::<f32>::unit_z();
 
         // aspect は width / height
-        let (w, h) = target.bound();
+        let (w, h) = target.bound(AttributeType::Last);
         // bound にちょっと余裕を持たせる。
         let (w, h) = (w + 3.0, h + 3.0);
         let size = match adjustment {
@@ -283,9 +286,10 @@ impl CameraController {
             CameraAdjustment::NoCare => forward_mag,
         };
 
-        let camera_position = target_position + (target.rotation() * normal * (size));
+        let camera_position =
+            target_position + (target.rotation(AttributeType::Last) * normal * (size));
 
-        let up = target.rotation() * cgmath::Vector3::<f32>::unit_y();
+        let up = target.rotation(AttributeType::Last) * cgmath::Vector3::<f32>::unit_y();
         camera.up.update([up.x, up.y, up.z]);
         camera.target.update(target_position.into());
         camera.eye.update(camera_position.into());
