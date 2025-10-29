@@ -13,6 +13,7 @@ use font_rasterizer::{
 
 use crate::{
     layout_engine::{AttributeType, Model, ModelBorder},
+    ui::view_element_state::BorderStates,
     ui_context::{CharEasings, GpuEasingConfig, HighlightMode, TextContext},
 };
 
@@ -29,6 +30,7 @@ pub struct SelectBox {
     show_action_name: bool,
     cancellable: bool,
     border: ModelBorder,
+    border_states: Option<BorderStates>,
     max_line: usize,
     world_scale: [f32; 2],
 }
@@ -129,6 +131,7 @@ impl SelectBox {
             border: ModelBorder::default(),
             max_line: 10,
             world_scale: [1.0, 1.0],
+            border_states: Some(BorderStates::new()),
         };
         result.update_select_items_text_edit();
         result.update_current_selection();
@@ -371,6 +374,10 @@ impl Model for SelectBox {
             self.title_text_edit.vector_instances(),
             self.search_text_edit.vector_instances(),
             self.select_items_text_edit.vector_instances(),
+            self.border_states
+                .as_ref()
+                .map(|s| s.instances.to_instances())
+                .unwrap_or_default(),
         ]
         .concat()
     }
@@ -379,6 +386,17 @@ impl Model for SelectBox {
         self.title_text_edit.update(context);
         self.search_text_edit.update(context);
         self.select_items_text_edit.update(context);
+
+        let position = self.position(AttributeType::Current).into();
+        let bound = self.bound(AttributeType::Current).into();
+        let attributes = self.model_attributes();
+        if let Some(states) = self.border_states.as_mut() {
+            let text_context = &TextContext::default();
+            states.init(text_context, &context.device);
+            states.update_state(position, bound, text_context);
+            states.update_instances(true, &attributes);
+            states.instances.update(&context.device, &context.queue);
+        }
     }
 
     fn editor_operation(&mut self, op: &EditorOperation) {
