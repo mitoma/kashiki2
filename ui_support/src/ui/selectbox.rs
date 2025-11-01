@@ -387,13 +387,12 @@ impl Model for SelectBox {
         self.search_text_edit.update(context);
         self.select_items_text_edit.update(context);
 
-        let position = self.position(AttributeType::Current).into();
         let bound = self.bound(AttributeType::Current).into();
         let attributes = self.model_attributes();
         if let Some(states) = self.border_states.as_mut() {
             let text_context = &TextContext::default();
             states.init(text_context, &context.device);
-            states.update_state(position, bound, text_context);
+            states.update_state([0.0, 0.0, 0.0], bound, text_context);
             states.update_instances(true, &attributes);
             states.instances.update(&context.device, &context.queue);
         }
