@@ -9,7 +9,7 @@ use font_rasterizer::{
 };
 
 use crate::{
-    layout_engine::{AttributeType, Model, ModelBorder},
+    layout_engine::{AttributeType, Model, ModelBorder, Scale},
     ui_context::{CharEasings, HighlightMode, TextContext},
 };
 
@@ -22,7 +22,7 @@ pub struct TextInput {
     action_queue_sender: Sender<Action>,
     default_input: Option<String>,
     border: ModelBorder,
-    world_scale: [f32; 2],
+    scale: Scale,
 }
 
 impl TextInput {
@@ -69,7 +69,7 @@ impl TextInput {
             action_queue_sender: context.action_sender(),
             default_input,
             border: ModelBorder::default(),
-            world_scale: [1.0, 1.0],
+            scale: Scale::default(),
         }
     }
 }
@@ -209,11 +209,11 @@ impl Model for TextInput {
         self.border
     }
 
-    fn set_world_scale(&mut self, world_scale: [f32; 2]) {
-        self.world_scale = world_scale;
+    fn set_world_scale(&mut self, world_scale: Scale) {
+        self.scale = world_scale;
     }
 
-    fn world_scale(&self) -> [f32; 2] {
-        self.world_scale
+    fn world_scale(&self) -> Scale {
+        self.scale
     }
 }

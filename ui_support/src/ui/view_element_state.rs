@@ -635,7 +635,7 @@ fn update_instance(
     // set color
     instance.color = view_char_state.color.current();
     // set scale
-    instance.world_scale = model_attribuetes.world_scale;
+    instance.world_scale = model_attribuetes.scale.into();
     // グリフの回転が入る場合は scale を入れ替える必要がある
     instance.instance_scale = if char_rotation.is_some() {
         let [l, r] = view_char_state.scale.current();

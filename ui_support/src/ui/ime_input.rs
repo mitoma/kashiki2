@@ -40,7 +40,7 @@ impl ImeInput {
         };
         let mut text_edit = TextEdit::default();
         text_edit.set_config(config);
-        text_edit.set_world_scale(IME_DEFAULT_SCALE);
+        text_edit.set_world_scale(IME_DEFAULT_SCALE.into());
         text_edit.set_position((0.0, -8.5, 0.0).into());
 
         Self { text_edit }
@@ -93,14 +93,17 @@ impl ImeInput {
                             .sum::<f32>()
                     }
                 };
-                self.text_edit.set_world_scale([
-                    f32::min(
-                        IME_DEFAULT_SCALE[0],
-                        /* 0.7 は感覚的な値 */
-                        0.7 / char_width * context.window_size.aspect(),
-                    ),
-                    IME_DEFAULT_SCALE[1],
-                ]);
+                self.text_edit.set_world_scale(
+                    [
+                        f32::min(
+                            IME_DEFAULT_SCALE[0],
+                            /* 0.7 は感覚的な値 */
+                            0.7 / char_width * context.window_size.aspect(),
+                        ),
+                        IME_DEFAULT_SCALE[1],
+                    ]
+                    .into(),
+                );
                 false
             }
             Action::ImeInput(_) => {

@@ -33,7 +33,7 @@ impl Card {
         };
         let mut text_edit = TextEdit::default();
         text_edit.set_config(config);
-        text_edit.set_world_scale(CARD_DEFAULT_SCALE);
+        text_edit.set_world_scale(CARD_DEFAULT_SCALE.into());
         text_edit.set_position((0.0, -1.5, 0.0).into());
 
         Self { text_edit }
@@ -44,13 +44,16 @@ impl Card {
             .chars()
             .map(|c| context.char_width_calcurator.get_width(c).to_f32())
             .sum::<f32>();
-        self.text_edit.set_world_scale([
-            f32::min(
-                CARD_DEFAULT_SCALE[0],
-                1.0 / char_width * context.window_size.aspect(),
-            ),
-            CARD_DEFAULT_SCALE[1],
-        ]);
+        self.text_edit.set_world_scale(
+            [
+                f32::min(
+                    CARD_DEFAULT_SCALE[0],
+                    1.0 / char_width * context.window_size.aspect(),
+                ),
+                CARD_DEFAULT_SCALE[1],
+            ]
+            .into(),
+        );
 
         for op in [
             EditorOperation::Mark,

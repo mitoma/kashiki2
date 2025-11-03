@@ -46,8 +46,8 @@ pub trait Model {
     fn in_animation(&self) -> bool;
     fn set_border(&mut self, border: ModelBorder);
     fn border(&self) -> ModelBorder;
-    fn set_world_scale(&mut self, world_scale: [f32; 2]);
-    fn world_scale(&self) -> [f32; 2];
+    fn set_world_scale(&mut self, world_scale: Scale);
+    fn world_scale(&self) -> Scale;
 
     #[inline]
     fn model_attributes(&self) -> ModelAttributes {
@@ -59,7 +59,7 @@ pub trait Model {
             position: current_position,
             rotation: self.rotation(attribute_type),
             center,
-            world_scale: self.world_scale(),
+            scale: self.world_scale(),
         }
     }
 }
@@ -103,6 +103,38 @@ pub enum ModelOperationResult {
     RequireReLayout,
 }
 
+#[derive(Clone, Copy, PartialEq)]
+pub struct Scale {
+    pub width: f32,
+    pub height: f32,
+}
+
+impl Default for Scale {
+    fn default() -> Self {
+        Scale {
+            width: 1.0,
+            height: 1.0,
+        }
+    }
+}
+
+impl From<[f32; 2]> for Scale {
+    #[inline]
+    fn from(arr: [f32; 2]) -> Self {
+        Scale {
+            width: arr[0],
+            height: arr[1],
+        }
+    }
+}
+
+impl From<Scale> for [f32; 2] {
+    #[inline]
+    fn from(scale: Scale) -> Self {
+        [scale.width, scale.height]
+    }
+}
+
 // モデルが持つ属性をまとめたもの
 pub struct ModelAttributes {
     pub center: Point2<f32>,
@@ -111,5 +143,5 @@ pub struct ModelAttributes {
     // モデルの world 空間上の回転(向き)
     pub rotation: Quaternion<f32>,
     // モデルの world 空間上の拡大率(x, y)
-    pub world_scale: [f32; 2],
+    pub scale: Scale,
 }

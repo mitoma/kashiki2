@@ -12,7 +12,7 @@ use font_rasterizer::{
 };
 
 use crate::{
-    layout_engine::{AttributeType, Model, ModelBorder},
+    layout_engine::{AttributeType, Model, ModelBorder, Scale},
     ui::view_element_state::BorderStates,
     ui_context::{CharEasings, GpuEasingConfig, HighlightMode, TextContext},
 };
@@ -32,7 +32,7 @@ pub struct SelectBox {
     border: ModelBorder,
     border_states: Option<BorderStates>,
     max_line: usize,
-    world_scale: [f32; 2],
+    scale: Scale,
 }
 
 impl SelectBox {
@@ -130,7 +130,7 @@ impl SelectBox {
             cancellable,
             border: ModelBorder::default(),
             max_line: 10,
-            world_scale: [1.0, 1.0],
+            scale: Scale::default(),
             border_states: Some(BorderStates::new()),
         };
         result.update_select_items_text_edit();
@@ -512,11 +512,11 @@ impl Model for SelectBox {
         self.border
     }
 
-    fn set_world_scale(&mut self, world_scale: [f32; 2]) {
-        self.world_scale = world_scale;
+    fn set_world_scale(&mut self, scale: Scale) {
+        self.scale = scale;
     }
 
-    fn world_scale(&self) -> [f32; 2] {
-        self.world_scale
+    fn world_scale(&self) -> Scale {
+        self.scale
     }
 }
