@@ -166,6 +166,12 @@ impl SimpleStateCallback for SingleCharCallback {
             include_str!("../../font_rasterizer/data/test_shapes_square.svg"),
             (-0.6, 0.2, 0.0),
         );
+        self.register_and_add_svg(
+            context,
+            "tri3",
+            include_str!("../../font_rasterizer/data/test_shapes_tri3.svg"),
+            (-0.2, 0.2, 0.0),
+        );
 
         debug!("init!");
     }
