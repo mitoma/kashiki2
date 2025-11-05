@@ -108,6 +108,13 @@ pub async fn run_support(support: SimpleStateSupport) {
     window.set_ime_allowed(true);
     let window = Arc::new(window);
 
+    #[cfg(target_os = "macos")]
+    {
+        // macOS では Option キーを Alt として扱う設定を有効にする
+        use winit::platform::macos::WindowExtMacOS;
+        window.set_option_as_alt(winit::platform::macos::OptionAsAlt::Both);
+    }
+
     #[cfg(target_arch = "wasm32")]
     {
         use winit::platform::web::WindowExtWebSys;
