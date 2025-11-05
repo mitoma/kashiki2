@@ -175,7 +175,7 @@ impl FontCollector {
 fn system_font_dir() -> PathBuf {
     match OS {
         "windows" => PathBuf::from("C:\\Windows\\Fonts"),
-        "macos" => PathBuf::from("/Library/Fonts"),
+        "macos" => PathBuf::from("/System/Library/Fonts"),
         // FIXME: Linuxの場合はフォントがサブディレクトリに分かれていることがあるのでこのままではよろしくない
         "linux" => PathBuf::from("/usr/share/fonts"),
         _ => PathBuf::new(),
