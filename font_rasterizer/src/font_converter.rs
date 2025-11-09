@@ -13,6 +13,7 @@ use crate::{
     debug_mode::DEBUG_FLAGS,
     errors::FontRasterizerError,
     vector_vertex::{CoordinateSystem, VectorVertex, VectorVertexBuilder, VertexBuilderOptions},
+    vector_vertex_v0::VectorVertexBuilderV0,
 };
 
 pub(crate) struct FontVertexConverter {
@@ -143,7 +144,7 @@ impl GlyphVertexBuilder {
         face: &Face,
         remove_overlap: bool,
     ) -> Result<VectorVertex, FontRasterizerError> {
-        let builder = VectorVertexBuilder::new();
+        let builder = VectorVertexBuilderV0::new();
 
         let rect_em = face.units_per_em() as f32;
         let center_x = face.glyph_hor_advance(glyph_id).unwrap() as f32 / 2.0;

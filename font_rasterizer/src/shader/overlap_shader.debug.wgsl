@@ -138,7 +138,7 @@ var<uniform> u_buffer: Uniforms;
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec2<f32>,
-    @location(1) wait: vec3<f32>,
+    @location(1) wait: vec4<f32>,
 };
 
 struct InstancesInput {
@@ -155,9 +155,10 @@ struct InstancesInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) wait: vec3<f32>,
+    @location(0) wait: vec4<f32>,
     @location(1) color: vec3<f32>,
     @location(2) pixel_width: f32,
+    @location(3) wait2: f32,
 };
 
 @vertex
@@ -308,6 +309,11 @@ fn vs_main(
 
     var out: VertexOutput;
     out.wait = model.wait;
+    if model.wait.x == 0.0 && model.wait.y == 0.0 && model.wait.z == 0.0 && model.wait.w == 0.0 {
+        out.wait2 = 1.0;
+    } else {
+        out.wait2 = 0.0;
+    }
     out.color = instances.color;
     if ignore_camera {
         //out.clip_position = instance_matrix * moved;
@@ -338,7 +344,7 @@ fn vs_main_minimum(
     var moved = vec4<f32>(model.position.x, model.position.y, 0.0, 1.0);
 
     var out: VertexOutput;
-    out.wait = vec3<f32>(1f, model.wait.xy);
+    out.wait = model.wait;
     out.color = instances.color;
     if ignore_camera {
         //out.clip_position = instance_matrix * moved;
@@ -361,31 +367,54 @@ const ALPHA_STEP: f32 = 8f;
 const NEAR_ZERO = 1e-6;
 const NEAR_ONE = 1.0 - 1e-6;
 
+fn near_eq_zero(value: f32) -> bool {
+    return value < NEAR_ZERO;
+}
+
+fn near_eq_one(value: f32) -> bool {
+    return value > NEAR_ONE;
+}
+
+fn in_naive_range(value: f32) -> bool {
+    return value >= 0.0 && value <= 1.0;
+}
+
+fn under_one(value: f32) -> bool {
+    return value <= 1.0;
+}
+
+fn greater_than_zero(value: f32) -> bool {
+    return value >= 0.0;
+}
+
 // Fragment shader (マルチターゲット版)
 // R: 原点 が 0 。それ以外が 1
 // G: Flip/Flop で、原点以外で 0.0, 1.0 のどちらかの値を取る。ベジエ曲線の距離計算に用いられる。
 // B: 制御点。ベジエ曲線の制御点が 1.0 。直線の制御点の場合も 1.0 になる。
 //
-// wait一覧
-// 原点 (0.0, 0.0, 0.0)
+//        R    G    B    A
+//        x     y    z    w
+// 原点B  (0.0, 0.0, 0.0, 0.0)
+// 原点L  (1.0, 0.0, 0.0, 0.0)
+// 始点   (0.0, 1.0, 0.0, 0.0)
+// 終点   (0.0, 0.0, 1.0, 0.0)
+// 制御点 (0.0, 0.0, 0.0, 1.0)
 // 
-// ベジエ曲線
-// 始点   (1.0, 0.0, (Flip/Flop))
-// 終点   (1.0, 0.0, (Flip/Flop))
-// 制御点 (1.0, 1.0, 0.0)
-//
-// 直線(ベジエ)
-// 原点   (0.0, 0.0, 0.0)
-// 始点   (1.0, 1.0, 0.0)
-// 終点   (1.0, 1.0, 0.0)
-//
-// 直線(エッジ)
-// 原点   (0.0, 0.0, 0.0)
-// 始点   (1.0, 0.0, (Flip/Flop))
-// 終点   (1.0, 0.0, (Flip/Flop))
+// ベジエ　　: 始点 ・終点・制御点
+// 条件: X が 0 である
+//       Y Z W のいずれかが 0 でない
+// 
+// ベジエ補助: 原点B・始点・終点
+// 条件: X が 0 である
+//       W が 0 である
+// 
+// 直線　　　: 原点L・始点・終点
+// 条件: X と Y と Z がいずれも 0 でない
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
-    let is_bezier = (in.wait.r > NEAR_ONE) && (in.wait.g != 0.0);
+    let is_bezier = !near_eq_zero(in.wait.w);
+    let is_line = (!near_eq_zero(in.wait.x)) || (!near_eq_zero(in.wait.y)) || (!near_eq_zero(in.wait.z));
+    let is_bezier_line = (near_eq_zero(in.wait.x));
 
     let pixel_width = 1.0 / f32(u_buffer.u_width);
 
@@ -396,13 +425,12 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     // WebGPU は fwidth は実行パスの分岐先でだけ呼び出されると正しい結果を返せないとエラーを返すのでここで実行する。
 
     // Bezier curve のSDF距離計算
-    let bezier_distance = pow((in.wait.g * 0.5 + in.wait.b), 2.0) - in.wait.b;
+    let bezier_distance = pow((in.wait.w * 0.5 + in.wait.y), 2.0) - in.wait.y;
     // 隣接ピクセルの距離との差分
     let bezier_distance_fwidth = fwidth(bezier_distance);
 
     // 直線のSDF距離計算
-    // distance は 1f に近づく。
-    let triangle_distance = in.wait.r;
+    let triangle_distance = in.wait.x;
     // 隣接ピクセルの距離との差分
     let triangle_distance_fwidth = fwidth(triangle_distance);
 
@@ -412,34 +440,33 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         let alpha = 1.0 - smoothstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
         let in_bezier = bezier_distance < bezier_distance_fwidth / 2.0;
 
-        if in_bezier {
+        if in_bezier && (greater_than_zero(in.wait.w)) {
             output.count.r = UNIT;
-            if alpha != 1.0 {
+            if !near_eq_one(alpha) {
                 output.count.g = alpha / ALPHA_STEP;
                 output.count.b = UNIT;
             }
-        } else {
-            discard; // Bezier curve の外側は描画しない
         }
     } else {
         // 三角形の場合の処理
         // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
-        let alpha = 1.0 - smoothstep(0.5 - triangle_distance_fwidth / 2.0, 0.5 + triangle_distance_fwidth / 2.0, triangle_distance);
+        let alpha = smoothstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
 
-        if in.wait.b == 0.0 /* ベジエの補助的な三角形 */ {
-            output.count.r = UNIT;
-        } else if in.wait.g == 0.0 /* 通常の直線 */ {
-            if alpha > NEAR_ONE {
+        // ベジエの補完的直線
+        if is_bezier_line {
+            if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) && (in_naive_range(in.wait.w)) && (in_naive_range(in.wait2)) {
                 output.count.r = UNIT;
-            } else if alpha != 0.0 {
+            }
+        } else if is_line {
+            if (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
                 output.count.r = UNIT;
-                output.count.g = alpha / ALPHA_STEP;
-                output.count.b = UNIT;
-            } else {
-                discard; // 直線の外側は描画しない
+                if !near_eq_one(alpha) {
+                    output.count.g = alpha / ALPHA_STEP;
+                    output.count.b = UNIT;
+                }
             }
         }
     }
-
     return output;
 }
+ 

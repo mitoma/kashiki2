@@ -18,9 +18,14 @@ struct BufferIndex {
 // バッファを 1M ずつ確保する
 const BUFFER_SIZE: u64 = 1_048_576;
 
-const ZERO_VERTEX: Vertex = Vertex {
+const ZERO_VERTEX_FOR_BEZIER: Vertex = Vertex {
     position: [0.0, 0.0],
-    wait: [0.0, 0.0, 0.0],
+    wait: [0.0, 0.0, 0.0, 0.0],
+};
+
+const ZERO_VERTEX_FOR_LINE: Vertex = Vertex {
+    position: [0.0, 0.0],
+    wait: [1.0, 0.0, 0.0, 0.0],
 };
 
 struct VertexBuffer {
@@ -40,17 +45,21 @@ impl VertexBuffer {
             usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        // バッファの最初には常に原点の座標を入れておく
-        queue.write_buffer(&wgpu_buffer, 0, bytemuck::cast_slice(&[ZERO_VERTEX]));
+        // バッファの最初には常に原点Bと原点Lの座標を入れておく
+        queue.write_buffer(
+            &wgpu_buffer,
+            0,
+            bytemuck::cast_slice(&[ZERO_VERTEX_FOR_BEZIER, ZERO_VERTEX_FOR_LINE]),
+        );
         Self {
-            offset: std::mem::size_of::<Vertex>() as u64,
+            offset: std::mem::size_of::<Vertex>() as u64 * 2,
             wgpu_buffer,
         }
     }
 
     fn next_index_position(&self) -> u64 {
-        // buffer の最初には常に原点の座標が入っているので index その分ずらす必要がある
-        self.offset / std::mem::size_of::<Vertex>() as u64 - 1
+        // buffer の最初には常に原点の座標が入っているので index の分ずらす必要がある
+        self.offset / std::mem::size_of::<Vertex>() as u64 - 2
     }
 }
 
@@ -177,10 +186,10 @@ where
             .index
             .iter()
             .map(|idx| {
-                if *idx != 0 {
+                if *idx > 1 {
                     idx + next_index_position as u32
                 } else {
-                    0
+                    *idx
                 }
             })
             .collect::<Vec<u32>>();
