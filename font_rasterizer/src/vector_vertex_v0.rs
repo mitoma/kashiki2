@@ -74,7 +74,12 @@ impl VectorVertexBuilderV0 {
     pub fn move_to(&mut self, x: f32, y: f32) {
         let wait = self.next_wait();
         self.vertex.push(InternalVertex { x, y, wait });
-        self.current_index += 1;
+        self.vertex.push(InternalVertex {
+            x,
+            y,
+            wait: wait.for_line(),
+        });
+        self.current_index += 2;
     }
 
     pub fn line_to(&mut self, x: f32, y: f32) {
@@ -88,10 +93,15 @@ impl VectorVertexBuilderV0 {
 
         let wait = self.next_wait();
         self.vertex.push(InternalVertex { x, y, wait });
+        self.vertex.push(InternalVertex {
+            x,
+            y,
+            wait: wait.for_line(),
+        });
         self.index.push(1); // 原点L の index
         self.index.push(self.current_index);
-        self.index.push(self.current_index + 1);
-        self.current_index += 1;
+        self.index.push(self.current_index + 2);
+        self.current_index += 2;
     }
 
     pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
@@ -103,16 +113,21 @@ impl VectorVertexBuilderV0 {
             wait: FlipFlop::Control,
         });
         self.vertex.push(InternalVertex { x, y, wait });
+        self.vertex.push(InternalVertex {
+            x,
+            y,
+            wait: wait.for_line(),
+        });
 
         self.index.push(0); // 原点B の index
-        self.index.push(self.current_index);
+        self.index.push(self.current_index - 1);
         self.index.push(self.current_index + 2);
 
         // ベジエ曲線
-        self.index.push(self.current_index);
+        self.index.push(self.current_index - 1);
         self.index.push(self.current_index + 1);
         self.index.push(self.current_index + 2);
-        self.current_index += 2;
+        self.current_index += 3;
     }
 
     pub fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {

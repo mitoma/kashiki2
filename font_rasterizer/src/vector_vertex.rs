@@ -281,15 +281,15 @@ pub(crate) struct Vertex {
     // 始点   (0.0, 1.0, 0.0, 0.0)
     // 終点   (0.0, 0.0, 1.0, 0.0)
     // 制御点 (0.0, 0.0, 0.0, 1.0)
-    // 
+    //
     // ベジエ: 始点 ・終点・制御点
     // 条件: R が 0 である
     //       A が 0 でない
-    // 
+    //
     // ベジエ補助: 原点B・始点・終点
     // 条件: R が 0 である
     //       G と B がいずれも 0 でない
-    // 
+    //
     // 直線: 原点L・始点・終点
     // 条件: R と G と B がいずれも 0 でない
     pub(crate) wait: [f32; 4],
@@ -322,6 +322,8 @@ pub(crate) enum FlipFlop {
     Flip,
     Flop,
     Control,
+    FlipForLine,
+    FlopForLine,
 }
 
 impl FlipFlop {
@@ -331,6 +333,18 @@ impl FlipFlop {
             FlipFlop::Flip => FlipFlop::Flop,
             FlipFlop::Flop => FlipFlop::Flip,
             FlipFlop::Control => FlipFlop::Control,
+            FlipFlop::FlipForLine => FlipFlop::FlipForLine,
+            FlipFlop::FlopForLine => FlipFlop::FlopForLine,
+        }
+    }
+
+    pub(crate) fn for_line(&self) -> Self {
+        match self {
+            FlipFlop::Flip => FlipFlop::FlopForLine,
+            FlipFlop::Flop => FlipFlop::FlipForLine,
+            FlipFlop::Control => FlipFlop::Control,
+            FlipFlop::FlipForLine => FlipFlop::FlipForLine,
+            FlipFlop::FlopForLine => FlipFlop::FlopForLine,
         }
     }
 
@@ -340,6 +354,8 @@ impl FlipFlop {
             FlipFlop::Flip => [0.0, 1.0, 0.0, 0.0],
             FlipFlop::Flop => [0.0, 0.0, 1.0, 0.0],
             FlipFlop::Control => [0.0, 0.0, 0.0, 1.0],
+            FlipFlop::FlipForLine => [1.0, 1.0, 0.0, 0.0],
+            FlipFlop::FlopForLine => [1.0, 0.0, 1.0, 0.0],
         }
     }
 }

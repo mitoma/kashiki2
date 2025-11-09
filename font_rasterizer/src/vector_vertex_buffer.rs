@@ -25,7 +25,7 @@ const ZERO_VERTEX_FOR_BEZIER: Vertex = Vertex {
 
 const ZERO_VERTEX_FOR_LINE: Vertex = Vertex {
     position: [0.0, 0.0],
-    wait: [1.0, 0.0, 0.0, 0.0],
+    wait: [1.0, 0.0, 0.0, 1.0],
 };
 
 struct VertexBuffer {

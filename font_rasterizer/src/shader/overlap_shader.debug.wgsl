@@ -395,9 +395,11 @@ fn greater_than_zero(value: f32) -> bool {
 //        R    G    B    A
 //        x     y    z    w
 // 原点B  (0.0, 0.0, 0.0, 0.0)
-// 原点L  (1.0, 0.0, 0.0, 0.0)
-// 始点   (0.0, 1.0, 0.0, 0.0)
-// 終点   (0.0, 0.0, 1.0, 0.0)
+// 始点B  (0.0, 1.0, 0.0, 0.0)
+// 終点B  (0.0, 0.0, 1.0, 0.0)
+// 原点L  (1.0, 0.0, 0.0, 1.0)
+// 始点L  (1.0, 1.0, 0.0, 0.0)
+// 終点L  (1.0, 0.0, 1.0, 0.0)
 // 制御点 (0.0, 0.0, 0.0, 1.0)
 // 
 // ベジエ　　: 始点 ・終点・制御点
@@ -412,8 +414,8 @@ fn greater_than_zero(value: f32) -> bool {
 // 条件: X と Y と Z がいずれも 0 でない
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
-    let is_bezier = !near_eq_zero(in.wait.w);
-    let is_line = (!near_eq_zero(in.wait.x)) || (!near_eq_zero(in.wait.y)) || (!near_eq_zero(in.wait.z));
+    let is_bezier = (near_eq_zero(in.wait.x)) && !near_eq_zero(in.wait.w);
+    let is_line = (near_eq_one(in.wait.x));
     let is_bezier_line = (near_eq_zero(in.wait.x));
 
     let pixel_width = 1.0 / f32(u_buffer.u_width);
@@ -430,7 +432,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     let bezier_distance_fwidth = fwidth(bezier_distance);
 
     // 直線のSDF距離計算
-    let triangle_distance = in.wait.x;
+    let triangle_distance = in.wait.w;
     // 隣接ピクセルの距離との差分
     let triangle_distance_fwidth = fwidth(triangle_distance);
 
@@ -438,15 +440,13 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         // Bezier curveの場合の処理
         // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
         let alpha = 1.0 - smoothstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
-        let in_bezier = bezier_distance < bezier_distance_fwidth / 2.0;
 
-        if in_bezier && (greater_than_zero(in.wait.w)) {
-            output.count.r = UNIT;
-            if !near_eq_one(alpha) {
-                output.count.g = alpha / ALPHA_STEP;
-                output.count.b = UNIT;
-            }
+        output.count.r = UNIT;
+        if !near_eq_one(alpha) {
+            output.count.g = alpha / ALPHA_STEP;
+            output.count.b = UNIT;
         }
+    //} else if true {
     } else {
         // 三角形の場合の処理
         // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
