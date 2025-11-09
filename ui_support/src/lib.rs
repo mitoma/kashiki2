@@ -454,6 +454,7 @@ pub async fn generate_images<F>(
         support.performance_mode,
     )
     .await;
+    state.resize(support.window_size);
 
     let mut frame = 0;
     loop {
@@ -492,6 +493,7 @@ pub async fn generate_image_iter(
         support.performance_mode,
     )
     .await;
+    state.resize(support.window_size);
 
     (0..num_of_frame).map(move |frame| {
         while let Ok(action) = state.action_queue_receiver.try_recv() {

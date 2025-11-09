@@ -406,8 +406,41 @@ impl RenderState {
                     config.height = new_size.height;
                     surface.configure(&self.context.device, config);
                 }
-                RenderTarget::Image { .. } => {
-                    // 何もしない
+                RenderTarget::Image {
+                    ref mut surface_texture,
+                    ref mut output_buffer,
+                } => {
+                    let surface_texture_desc = wgpu::TextureDescriptor {
+                        size: wgpu::Extent3d {
+                            width: new_size.width,
+                            height: new_size.height,
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                        view_formats: &[],
+                        usage: wgpu::TextureUsages::COPY_SRC
+                            | wgpu::TextureUsages::RENDER_ATTACHMENT
+                            | wgpu::TextureUsages::TEXTURE_BINDING,
+                        label: None,
+                    };
+                    *surface_texture = self.context.device.create_texture(&surface_texture_desc);
+
+                    // create output buffer
+                    let u32_size = std::mem::size_of::<u32>() as u32;
+                    let output_buffer_size =
+                        (u32_size * new_size.width * new_size.height) as wgpu::BufferAddress;
+                    let output_buffer_desc = wgpu::BufferDescriptor {
+                        size: output_buffer_size,
+                        usage: wgpu::BufferUsages::COPY_DST
+                        // this tells wpgu that we want to read this buffer from the cpu
+                        | wgpu::BufferUsages::MAP_READ,
+                        label: Some("Output Buffer"),
+                        mapped_at_creation: false,
+                    };
+                    *output_buffer = self.context.device.create_buffer(&output_buffer_desc);
                 }
             }
 
