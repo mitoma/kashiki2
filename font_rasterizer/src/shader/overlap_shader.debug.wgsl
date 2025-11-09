@@ -159,6 +159,7 @@ struct VertexOutput {
     @location(1) color: vec3<f32>,
     @location(2) pixel_width: f32,
     @location(3) wait2: f32,
+    @location(4) triangle_type: vec3<f32>,
 };
 
 @vertex
@@ -309,7 +310,43 @@ fn vs_main(
 
     var out: VertexOutput;
     out.wait = model.wait;
-    if model.wait.x == 0.0 && model.wait.y == 0.0 && model.wait.z == 0.0 && model.wait.w == 0.0 {
+
+// 原点B  (0.0, 0.0, 0.0, 0.0)
+// 始点B  (0.0, 1.0, 0.0, 0.0)
+// 終点B  (0.0, 0.0, 1.0, 0.0)
+// 原点L  (1.0, 0.0, 0.0, 1.0)
+// 始点L  (1.0, 1.0, 0.0, 0.0)
+// 終点L  (1.0, 0.0, 1.0, 0.0)
+// 制御点 (0.0, 0.0, 0.0, 1.0)
+// ベジエ:         (1.0, 0.0, 0.0)
+// ベジエ補助直線: (0.0, 1.0, 0.0)
+// 直線:           (0.0, 0.0, 1.0)
+    if all(model.wait.xyzw == vec4<f32>(0.0, 0.0, 0.0, 0.0)) {
+        // 原点B
+        out.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
+    } else if all(model.wait.xyzw == vec4<f32>(0.0, 1.0, 0.0, 0.0)) {
+        // 始点B
+        out.triangle_type = vec3<f32>(1.0, 1.0, 0.0);
+    } else if all(model.wait.xyzw == vec4<f32>(0.0, 0.0, 1.0, 0.0)) {
+        // 終点B
+        out.triangle_type = vec3<f32>(1.0, 1.0, 1.0);
+    } else if all(model.wait.xyzw == vec4<f32>(1.0, 0.0, 0.0, 1.0)) {
+        // 原点L
+        out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
+    } else if all(model.wait.xyzw == vec4<f32>(1.0, 1.0, 0.0, 0.0)) {
+        // 始点L
+        out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
+    } else if all(model.wait.xyzw == vec4<f32>(1.0, 0.0, 1.0, 0.0)) {
+        // 終点L
+        out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
+    } else if all(model.wait.xyzw == vec4<f32>(0.0, 0.0, 0.0, 1.0)) {
+        // 制御点
+        out.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
+    } else {
+        out.triangle_type = vec3<f32>(-1.0, -1.0, -1.0);
+    }
+
+    if model.wait.x == 0.0 && model.wait.w == 0.0 {
         out.wait2 = 1.0;
     } else {
         out.wait2 = 0.0;
@@ -362,7 +399,7 @@ struct FragmentOutput {
 }
 
 const UNIT :f32 = 0.00390625;
-const ALPHA_STEP: f32 = 8f;
+const ALPHA_STEP: f32 = 16f;
 
 const NEAR_ZERO = 1e-6;
 const NEAR_ONE = 1.0 - 1e-6;
@@ -414,9 +451,13 @@ fn greater_than_zero(value: f32) -> bool {
 // 条件: X と Y と Z がいずれも 0 でない
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
-    let is_bezier = (near_eq_zero(in.wait.x)) && !near_eq_zero(in.wait.w);
-    let is_line = (near_eq_one(in.wait.x));
-    let is_bezier_line = (near_eq_zero(in.wait.x));
+    let is_bezier_pre = near_eq_one(in.triangle_type.x);
+    let is_bezier_line_pre = near_eq_one(in.triangle_type.y);
+    let is_line_pre = near_eq_one(in.triangle_type.z);
+
+    let is_bezier = is_bezier_pre && !is_bezier_line_pre && !is_line_pre;
+    let is_bezier_line = is_bezier_line_pre && !is_bezier_pre && !is_line_pre;
+    let is_line = is_line_pre && !is_bezier_pre && !is_bezier_line_pre;
 
     let pixel_width = 1.0 / f32(u_buffer.u_width);
 
@@ -469,4 +510,3 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     }
     return output;
 }
- 
