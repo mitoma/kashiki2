@@ -393,6 +393,10 @@ impl ActionProcessor for SystemChangeQualityUi {
                 "VGA(640x480)".to_string(),
                 Action::new_command_with_argument("system", "change-quality", "vga"),
             ),
+            SelectOption::new(
+                "Famicon(256x240)".to_string(),
+                Action::new_command_with_argument("system", "change-quality", "famicon"),
+            ),
         ];
         let model = SelectBox::new_without_action_name(
             context,
@@ -433,6 +437,7 @@ impl ActionProcessor for SystemChangeQuality {
                 "low" => font_rasterizer::rasterizer_pipeline::Quarity::Low,
                 "very-low" => font_rasterizer::rasterizer_pipeline::Quarity::VeryLow,
                 "vga" => font_rasterizer::rasterizer_pipeline::Quarity::Fixed(640, 480),
+                "famicon" => font_rasterizer::rasterizer_pipeline::Quarity::Fixed(256, 240),
                 _ => return InputResult::Noop,
             };
             InputResult::ChangeQuarity(q)
