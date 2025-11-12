@@ -108,7 +108,6 @@ impl ActionProcessor for SystemCommandPalette {
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run(args: Args) {
     // setup icon
-    // TODO 正式公開前にアイコンを作る必要がありそう
     let icon_image = image::load_from_memory(ICON_IMAGE).unwrap().to_rgba8();
     let icon = Icon::from_rgba(icon_image.to_vec(), icon_image.width(), icon_image.height()).ok();
     // let icon = None;
