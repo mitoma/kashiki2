@@ -6,7 +6,7 @@ use crate::{
     errors::FontRasterizerError,
     vector_instances::{InstanceAttributes, VectorInstances},
     vector_vertex::{CoordinateSystem, VectorVertex, VectorVertexBuilder, VertexBuilderOptions},
-    vector_vertex_buffer::VectorVertexBuffer, vector_vertex_v0::VectorVertexBuilderV0,
+    vector_vertex_buffer::VectorVertexBuffer,
 };
 
 pub struct SvgVertexBuffer {
@@ -113,7 +113,7 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
         size.height()
     };
     let unit_em = ratio;
-    let mut builder = VectorVertexBuilderV0::new().with_options(VertexBuilderOptions::new(
+    let mut builder = VectorVertexBuilder::new().with_options(VertexBuilderOptions::new(
         center,
         unit_em,
         CoordinateSystem::Svg,

@@ -20,4 +20,3 @@ pub mod time;
 pub mod vector_instances;
 mod vector_vertex;
 pub mod vector_vertex_buffer;
-mod vector_vertex_v0;
