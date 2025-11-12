@@ -1,5 +1,5 @@
 <p align="center">
-<img src="doc/assets/kashikishi-icon-256.png" alt="文字入力" style="width: 15em;"><br/>
+<img src="doc/assets/kashikishi-icon-256.png" alt="炊紙のアイコン" style="width: 15em;"><br/>
 炊紙 kashikishi
 </p>
 
