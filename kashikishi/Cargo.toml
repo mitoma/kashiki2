@@ -26,3 +26,6 @@ ui_support = { path = "../ui_support" }
 
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
+
+[target.'cfg(windows)'.build-dependencies]
+windres = "0.2"

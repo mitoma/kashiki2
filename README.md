@@ -1,3 +1,10 @@
+<p align="center">
+<img src="doc/assets/kashikishi-icon-256.png" alt="文字入力" style="width: 15em;"><br/>
+炊紙 kashikishi
+</p>
+
+----
+
 # 炊紙 kashikishi
 
 炊紙は三次元空間上でテキストを編集できるテキストエディタです。「かしきし」と発音します。
