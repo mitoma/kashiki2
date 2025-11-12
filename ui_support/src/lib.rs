@@ -103,6 +103,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         })
         .with_transparent(support.flags.contains(Flags::TRANCEPARENT))
         .with_decorations(!support.flags.contains(Flags::NO_TITLEBAR))
+        .with_visible(false)
         .build(&event_loop)
         .unwrap();
     window.set_ime_allowed(true);
@@ -151,6 +152,11 @@ pub async fn run_support(support: SimpleStateSupport) {
         support.performance_mode,
     )
     .await;
+
+    // Windows で trayicon で指定したアイコンで表示されない不具合があるため対応
+    // (作成時に visible = false で作成し、後から true にすることで解決する)
+    // https://github.com/rust-windowing/winit/issues/4170
+    window.set_visible(true);
 
     // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
     let mut render_rate_adjuster = RenderRateAdjuster::new(
