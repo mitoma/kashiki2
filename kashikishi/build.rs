@@ -1,7 +1,7 @@
-// build.rs
-extern crate windres;
-
-#[cfg(windows)]
 fn main() {
-    windres::Build::new().compile("kashikishi-icon.rc").unwrap();
+    #[cfg(windows)]
+    {
+        extern crate windres;
+        windres::Build::new().compile("kashikishi-icon.rc").unwrap();
+    }
 }
