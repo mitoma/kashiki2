@@ -35,7 +35,7 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Build with mdBook
         run: |
-          mise exec -- build-sites.sh
+          mise exec -- ./build-sites.sh
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
