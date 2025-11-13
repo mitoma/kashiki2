@@ -26,21 +26,16 @@ jobs:
       MDBOOK_VERSION: 0.4.40
     steps:
       - uses: actions/checkout@v4
-      - name: Install mdBook
+      - name: Install tools
         run: |
-          curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf -y | sh
-          rustup update
-          rustup target add wasm32-unknown-unknown
-          cargo install --version ${MDBOOK_VERSION} mdbook
-      - name: Install wasm-bindgen and wasm-opt
-        run: |
-          cargo install wasm-bindgen-cli wasm-opt
+          curl https://mise.run | sh
+          mise install
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
       - name: Build with mdBook
         run: |
-          ./build-sites.sh
+          mise exec -- build-sites.sh
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
