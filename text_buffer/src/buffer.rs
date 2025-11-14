@@ -1142,7 +1142,7 @@ mod tests {
             higlight_string: &'static str,
             cell_positions: Vec<CellPosition>,
         }
-        let cases = vec![
+        let cases = [
             TestCase {
                 test_string: "Hello, World!",
                 higlight_string: "World",

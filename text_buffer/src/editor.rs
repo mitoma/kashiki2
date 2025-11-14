@@ -405,7 +405,7 @@ mod tests {
             main_caret_pos: PhisicalPosition,
             mark_pos: Option<PhisicalPosition>,
         }
-        let cases = vec![
+        let cases = [
             TestCase {
                 input: vec![EditorOperation::InsertString(
                     "ABCDE\nFGHIJ\nKLMNO".to_string(),
@@ -483,7 +483,7 @@ mod tests {
             prohibited_chars: LineBoundaryProhibitedChars,
             max_width: usize,
         }
-        let cases = vec![
+        let cases = [
             TestCase {
                 input: vec![EditorOperation::InsertString(
                     "ABCDE\nFGHIJ\nKLMNO".to_string(),
@@ -549,7 +549,7 @@ mod tests {
             prohibited_chars: LineBoundaryProhibitedChars,
             max_width: usize,
         }
-        let cases = vec![
+        let cases = [
             TestCase {
                 input: vec![EditorOperation::InsertString(
                     "- [ ] abcdefghijklmn".to_string(),
