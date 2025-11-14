@@ -129,7 +129,7 @@ impl VectorVertexBuilder {
 
     pub fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
         // 3 次ベジエを 2 次ベジエに近似する
-        let last = &self.vertex[(self.current_index - 1) as usize];
+        let last = &self.vertex.last().unwrap();
         let cb = CubicBezier {
             x0: last.x,
             y0: last.y,
