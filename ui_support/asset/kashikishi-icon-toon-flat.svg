@@ -1,11 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
 	<defs>
-		<defs>
-			<linearGradient id="iconGradient" gradientTransform="rotate(75)">
-				<stop offset="5%" stop-color="#00a2fb" />
-				<stop offset="95%" stop-color="#204580" />
-			</linearGradient>
-		</defs>
 	</defs>
 	<g transform="matrix(1,0,0,1,0,0)">
 		<g>
@@ -21,7 +15,7 @@
      				L-512,-172
      				Q-512,-512 -172,-512
      				Z"
-					fill="url(#iconGradient)" />
+					fill="#00a2fb" />
 			</g>
 			<g transform="matrix(1,0,0,1,512,512)">
 				<g transform="matrix(1.618733877,0,0,1.618733877,1.838751706,33.480292523)">

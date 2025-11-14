@@ -42,7 +42,7 @@ use winit::{event::WindowEvent, window::Icon};
 
 use crate::kashikishi_actions::command_palette_select;
 
-const ICON_IMAGE: &[u8] = include_bytes!("../kashikishi-icon-256.ico");
+const ICON_IMAGE: &[u8] = include_bytes!("../kashikishi-icon.ico");
 
 const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
