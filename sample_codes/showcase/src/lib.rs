@@ -236,14 +236,23 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn render(&'_ mut self) -> RenderData<'_> {
         let mut world_instances = self.world.glyph_instances();
+        let (mut glyph_instances_for_modal, vector_instances_for_modal) =
+            self.world.modal_instances();
+
         let mut ime_instances = self.ime.get_instances();
-        world_instances.append(&mut ime_instances);
+
+        if glyph_instances_for_modal.is_empty() {
+            world_instances.append(&mut ime_instances);
+        } else {
+            glyph_instances_for_modal.append(&mut ime_instances);
+        }
+
         RenderData {
             camera: self.world.camera(),
             glyph_instances: world_instances,
             vector_instances: self.world.vector_instances(),
-            glyph_instances_for_modal: vec![],
-            vector_instances_for_modal: vec![],
+            glyph_instances_for_modal,
+            vector_instances_for_modal,
         }
     }
 
