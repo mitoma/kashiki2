@@ -3,7 +3,7 @@
 # sites 用に必要なツールのインストール
 "aqua:WebAssembly/binaryen" = "latest"
 "aqua:mdbook" = "latest"
-"cargo:wasm-bindgen-cli" = "0.2.104"
+"cargo:wasm-bindgen-cli" = "0.2.105"
 
 [tasks.build-sites]
 description = "Showcase 用のプロジェクトをビルドする"
