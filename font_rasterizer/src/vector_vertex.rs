@@ -58,7 +58,7 @@ impl VectorVertexBuilder {
                 let [x, y] = scale_option.map_or([x, y], |[width, height]| [x * width, y * height]);
                 Vertex {
                     position: [x, y],
-                    wait: wait.wait(),
+                    vertex_type: wait.vertex_type(),
                 }
             })
             .collect();
@@ -243,25 +243,7 @@ impl VectorVertex {
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct Vertex {
     pub(crate) position: [f32; 2],
-    // ベジエ曲線を描くために 3 頂点の属性を原点、制御点、始点・終点を区別する方法を表す。
-    //         R    G    B    A
-    // 原点B  (0.0, 0.0, 0.0, 0.0)
-    // 原点L  (1.0, 0.0, 0.0, 0.0)
-    // 始点   (0.0, 1.0, 0.0, 0.0)
-    // 終点   (0.0, 0.0, 1.0, 0.0)
-    // 制御点 (0.0, 0.0, 0.0, 1.0)
-    //
-    // ベジエ: 始点 ・終点・制御点
-    // 条件: R が 0 である
-    //       A が 0 でない
-    //
-    // ベジエ補助: 原点B・始点・終点
-    // 条件: R が 0 である
-    //       G と B がいずれも 0 でない
-    //
-    // 直線: 原点L・始点・終点
-    // 条件: R と G と B がいずれも 0 でない
-    pub(crate) wait: [f32; 4],
+    pub(crate) vertex_type: u32,
 }
 
 impl Vertex {
@@ -279,7 +261,7 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x4,
+                    format: wgpu::VertexFormat::Uint32,
                 },
             ],
         }
@@ -318,13 +300,13 @@ impl FlipFlop {
     }
 
     #[inline]
-    pub(crate) fn wait(&self) -> [f32; 4] {
+    pub(crate) fn vertex_type(&self) -> u32 {
         match self {
-            FlipFlop::Flip => [0.0, 1.0, 0.0, 0.0],
-            FlipFlop::Flop => [0.0, 0.0, 1.0, 0.0],
-            FlipFlop::Control => [0.0, 0.0, 0.0, 1.0],
-            FlipFlop::FlipForLine => [1.0, 1.0, 0.0, 0.0],
-            FlipFlop::FlopForLine => [1.0, 0.0, 1.0, 0.0],
+            FlipFlop::Flip => 2,
+            FlipFlop::FlipForLine => 3,
+            FlipFlop::Flop => 4,
+            FlipFlop::FlopForLine => 5,
+            FlipFlop::Control => 6,
         }
     }
 }
