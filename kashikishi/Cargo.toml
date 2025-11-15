@@ -28,4 +28,4 @@ chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
 
 [target.'cfg(windows)'.build-dependencies]
-windres = "0.2"
+winresource = { workspace = true }
