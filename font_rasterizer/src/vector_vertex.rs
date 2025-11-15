@@ -10,12 +10,14 @@ pub(crate) struct VectorVertexBuilder {
     builder_options: VertexBuilderOptions,
 }
 
+#[allow(dead_code)]
 impl VectorVertexBuilder {
     pub fn new() -> Self {
         Self {
             vertex: Vec::new(),
             index: Vec::new(),
-            current_index: 0,
+            // index 0 は原点B、1 は原点L に予約されているので、2 から開始する
+            current_index: 1,
             vertex_swap: FlipFlop::Flip,
             builder_options: VertexBuilderOptions::default(),
         }
@@ -56,7 +58,7 @@ impl VectorVertexBuilder {
                 let [x, y] = scale_option.map_or([x, y], |[width, height]| [x * width, y * height]);
                 Vertex {
                     position: [x, y],
-                    wait: wait.wait(),
+                    vertex_type: wait.vertex_type(),
                 }
             })
             .collect();
@@ -69,98 +71,65 @@ impl VectorVertexBuilder {
     pub fn move_to(&mut self, x: f32, y: f32) {
         let wait = self.next_wait();
         self.vertex.push(InternalVertex { x, y, wait });
-        self.current_index += 1;
-    }
-
-    pub fn line_to(&mut self, x: f32, y: f32) {
-        let wait = self.next_wait();
-
-        let [center_x, center_y]: [f32; 2] = self.builder_options.center;
-
-        // 原点, 始点, 終点の三角形用の頂点を登録
-        let current = self.vertex.last().unwrap();
-        self.vertex.push(InternalVertex {
-            x: current.x * 2.0 - center_x,
-            y: current.y * 2.0 - center_y,
-            wait: current.wait,
-        });
-        self.vertex.push(InternalVertex {
-            x: x * 2.0 - center_x,
-            y: y * 2.0 - center_y,
-            wait,
-        });
-
-        self.vertex.push(InternalVertex { x, y, wait });
-        self.index.push(0);
-        self.index.push(self.current_index + 1);
-        self.index.push(self.current_index + 2);
-        self.current_index += 3;
-    }
-
-    /*
-    // 定性的に 200.0 を閾値にしている
-    const BEZIER_THRESHOLD: f32 = 200.0;
-    // ベジエ曲線が直線に近似できるかどうかを判定する
-    fn is_narrow_bezier(x1: f32, y1: f32, cx: f32, cy: f32, x2: f32, y2: f32) -> bool {
-        let line_vec = (x2 - x1, y2 - y1);
-        let d1 = (cx - x1) * line_vec.1 - (cy - y1) * line_vec.0;
-        let d2 = (x2 - cx) * line_vec.1 - (y2 - cy) * line_vec.0;
-        d1.abs() < Self::BEZIER_THRESHOLD && d2.abs() < Self::BEZIER_THRESHOLD
-    }
-     */
-
-    pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-        /* ベジエ曲線の直線への近似はあまり効果がない感じがするので一旦無くす
-        let current = self.vertex.last().unwrap();
-        // (current.x, current.y) と (x, y) でなす線分上に (x1, y1) が一定の誤差内で存在する時には line_to として処理する
-        if Self::is_narrow_bezier(current.x, current.y, x1, y1, x, y) {
-            info!(
-                "quad_to: (x1, y1) is on the line to (x, y), use line_to instead. cx: {}, cy: {}, x1: {}, y1: {}, x: {}, y: {}",
-                current.x, current.y, x1, y1, x, y
-            );
-            self.line_to(x, y);
-            return;
-        }
-         */
-
-        let wait = self.next_wait();
-
-        // 原点, 始点, 終点の三角形用の頂点を登録
-        let current = self.vertex.last().unwrap();
-        self.vertex.push(InternalVertex {
-            x: current.x,
-            y: current.y,
-            wait: FlipFlop::Control,
-        });
         self.vertex.push(InternalVertex {
             x,
             y,
-            wait: FlipFlop::Control,
+            wait: wait.for_line(),
         });
+        self.current_index += 2;
+    }
 
-        // ベジエ曲線用の制御点と終点を登録
+    pub fn line_to(&mut self, x: f32, y: f32) {
+        let Some(last) = &self.vertex.last() else {
+            return;
+        };
+        if last.x == x && last.y == y {
+            // 同じ座標への line_to は無視する
+            return;
+        }
+
+        let wait = self.next_wait();
+        self.vertex.push(InternalVertex { x, y, wait });
+        self.vertex.push(InternalVertex {
+            x,
+            y,
+            wait: wait.for_line(),
+        });
+        self.index.push(1); // 原点L の index
+        self.index.push(self.current_index);
+        self.index.push(self.current_index + 2);
+        self.current_index += 2;
+    }
+
+    pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        let wait = self.next_wait();
+
         self.vertex.push(InternalVertex {
             x: x1,
             y: y1,
             wait: FlipFlop::Control,
         });
         self.vertex.push(InternalVertex { x, y, wait });
+        self.vertex.push(InternalVertex {
+            x,
+            y,
+            wait: wait.for_line(),
+        });
 
-        // 原点, 始点, 終点の三角形
-        self.index.push(0);
-        self.index.push(self.current_index + 1);
+        self.index.push(0); // 原点B の index
+        self.index.push(self.current_index - 1);
         self.index.push(self.current_index + 2);
 
         // ベジエ曲線
-        self.index.push(self.current_index);
-        self.index.push(self.current_index + 3);
-        self.index.push(self.current_index + 4);
-        self.current_index += 4;
+        self.index.push(self.current_index - 1);
+        self.index.push(self.current_index + 1);
+        self.index.push(self.current_index + 2);
+        self.current_index += 3;
     }
 
     pub fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
         // 3 次ベジエを 2 次ベジエに近似する
-        let last = &self.vertex[(self.current_index - 1) as usize];
+        let last = &self.vertex.last().unwrap();
         let cb = CubicBezier {
             x0: last.x,
             y0: last.y,
@@ -212,7 +181,7 @@ pub enum CoordinateSystem {
 
 impl CoordinateSystem {
     #[inline]
-    fn transform(&self, x: f32, y: f32) -> [f32; 2] {
+    pub(crate) fn transform(&self, x: f32, y: f32) -> [f32; 2] {
         match self {
             CoordinateSystem::Svg => [x, -y],
             CoordinateSystem::Font => [x, y],
@@ -221,10 +190,10 @@ impl CoordinateSystem {
 }
 
 pub(crate) struct VertexBuilderOptions {
-    center: [f32; 2],
-    unit_em: f32,
-    coordinate_system: CoordinateSystem,
-    scale: Option<[f32; 2]>,
+    pub(crate) center: [f32; 2],
+    pub(crate) unit_em: f32,
+    pub(crate) coordinate_system: CoordinateSystem,
+    pub(crate) scale: Option<[f32; 2]>,
 }
 
 impl Default for VertexBuilderOptions {
@@ -274,9 +243,7 @@ impl VectorVertex {
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct Vertex {
     pub(crate) position: [f32; 2],
-    // ベジエ曲線を描くために 3 頂点のうちどれを制御点、どれを始点・終点と区別するかを表す。
-    // 典型的には [0, 0], または [0, 1] が始点か終点。[1, 0] 制御点となる。
-    pub(crate) wait: [f32; 3],
+    pub(crate) vertex_type: u32,
 }
 
 impl Vertex {
@@ -291,12 +258,10 @@ impl Vertex {
                     shader_location: 0,
                     format: wgpu::VertexFormat::Float32x2,
                 },
-                // ベジエか直線かの情報が必要なので [f32; 2] を使っている。
-                // 本質的には 2 bit でいいはずなので調整余地あり
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 2]>() as wgpu::BufferAddress,
                     shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Uint32,
                 },
             ],
         }
@@ -304,34 +269,50 @@ impl Vertex {
 }
 
 #[derive(Clone, Copy)]
-enum FlipFlop {
+pub(crate) enum FlipFlop {
     Flip,
     Flop,
     Control,
+    FlipForLine,
+    FlopForLine,
 }
 
 impl FlipFlop {
     #[inline]
-    fn next(&self) -> Self {
+    pub(crate) fn next(&self) -> Self {
         match self {
             FlipFlop::Flip => FlipFlop::Flop,
             FlipFlop::Flop => FlipFlop::Flip,
             FlipFlop::Control => FlipFlop::Control,
+            FlipFlop::FlipForLine => FlipFlop::FlipForLine,
+            FlipFlop::FlopForLine => FlipFlop::FlopForLine,
+        }
+    }
+
+    pub(crate) fn for_line(&self) -> Self {
+        match self {
+            FlipFlop::Flip => FlipFlop::FlopForLine,
+            FlipFlop::Flop => FlipFlop::FlipForLine,
+            FlipFlop::Control => FlipFlop::Control,
+            FlipFlop::FlipForLine => FlipFlop::FlipForLine,
+            FlipFlop::FlopForLine => FlipFlop::FlopForLine,
         }
     }
 
     #[inline]
-    fn wait(&self) -> [f32; 3] {
+    pub(crate) fn vertex_type(&self) -> u32 {
         match self {
-            FlipFlop::Flip => [1.0, 0.0, 0.0],
-            FlipFlop::Flop => [1.0, 0.0, 1.0],
-            FlipFlop::Control => [1.0, 1.0, 0.0],
+            FlipFlop::Flip => 2,
+            FlipFlop::FlipForLine => 3,
+            FlipFlop::Flop => 4,
+            FlipFlop::FlopForLine => 5,
+            FlipFlop::Control => 6,
         }
     }
 }
 
-struct InternalVertex {
-    x: f32,
-    y: f32,
-    wait: FlipFlop,
+pub(crate) struct InternalVertex {
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    pub(crate) wait: FlipFlop,
 }

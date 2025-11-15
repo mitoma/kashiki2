@@ -138,7 +138,16 @@ var<uniform> u_buffer: Uniforms;
 struct VertexInput {
     @builtin(instance_index) instance_index: u32,
     @location(0) position: vec2<f32>,
-    @location(1) wait: vec3<f32>,
+    // 座標の種別
+    //
+    // 原点B  : 0
+    // 始点B  : 2
+    // 終点B  : 4
+    // 原点L  : 1
+    // 始点L  : 3
+    // 終点L  : 5
+    // 制御点 : 6
+    @location(1) vertex_type: u32,
 };
 
 struct InstancesInput {
@@ -155,9 +164,36 @@ struct InstancesInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) wait: vec3<f32>,
-    @location(1) color: vec3<f32>,
-    @location(2) pixel_width: f32,
+    // フラグメントシェーダーで3つの各頂点からほかの頂点に向かって減衰するウエイト値を保持する
+    // x は原点または制御点からのウエイト、y と z は始点または終点からのウエイトとなる
+    // 
+    // 原点B  (1.0, 0.0, 0.0)
+    // 始点B  (0.0, 1.0, 0.0)
+    // 終点B  (0.0, 0.0, 1.0)
+    // 原点L  (1.0, 0.0, 0.0)
+    // 始点L  (0.0, 1.0, 0.0)
+    // 終点L  (0.0, 0.0, 1.0)
+    // 制御点 (1.0, 0.0, 0.0)
+    @location(0) color: vec3<f32>,
+    @location(1) wait: vec3<f32>,
+    // フラグメントシェーダーで三角形の種別を判定するために使う。
+    // 
+    // 座標はベジエ曲線部、ベジエ補助直線、直線で共用されるため、フラグメントシェーダー内での判定に個のアトリビュートが必要となる。
+    // 
+    // フラグメントシェーダ内で X が 1 の場合はベジエ曲線部、Y が 1 の場合はベジエ補助直線、Z が 1 の場合は直線として扱う。
+    // ベジエ曲線部:   (1.0, 0.0, 0.0)
+    // ベジエ補助直線: (0.0, 1.0, 0.0)
+    // 直線:           (0.0, 0.0, 1.0)
+    // 
+    // triangle_type に従って以下の値になる。
+    // 原点B  (0.0, 1.0, 0.0)
+    // 始点B  (1.0, 1.0, 0.0)
+    // 終点B  (1.0, 1.0, 0.0)
+    // 原点L  (0.0, 0.0, 1.0)
+    // 始点L  (0.0, 0.0, 1.0)
+    // 終点L  (0.0, 0.0, 1.0)
+    // 制御点 (1.0, 0.0, 0.0)
+    @location(2) triangle_type: vec3<f32>,
 };
 
 @vertex
@@ -307,10 +343,39 @@ fn vs_main(
     }
 
     var out: VertexOutput;
-    out.wait = model.wait;
+
+    if model.vertex_type == 0u {
+        // 原点B
+        out.wait = vec3<f32>(1.0, 0.0, 0.0);
+        out.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
+    } else if model.vertex_type == 1u {
+        // 原点L
+        out.wait = vec3<f32>(1.0, 0.0, 0.0);
+        out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
+    } else if model.vertex_type == 2u {
+        // 始点B
+        out.wait = vec3<f32>(0.0, 1.0, 0.0);
+        out.triangle_type = vec3<f32>(1.0, 1.0, 0.0);
+    } else if model.vertex_type == 3u {
+        // 始点L
+        out.wait = vec3<f32>(0.0, 1.0, 0.0);
+        out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
+    } else if model.vertex_type == 4u {
+        // 終点B
+        out.wait = vec3<f32>(0.0, 0.0, 1.0);
+        out.triangle_type = vec3<f32>(1.0, 1.0, 0.0);
+    } else if model.vertex_type == 5u {
+        // 終点L
+        out.wait = vec3<f32>(0.0, 0.0, 1.0);
+        out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
+    } else if model.vertex_type == 6u {
+        // 制御点
+        out.wait = vec3<f32>(1.0, 0.0, 0.0);
+        out.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
+    }
+
     out.color = instances.color;
     if ignore_camera {
-        //out.clip_position = instance_matrix * moved;
         out.clip_position = u_buffer.u_default_view_proj * instance_matrix * moved;
     } else {
         out.clip_position = u_buffer.u_view_proj * instance_matrix * moved;
@@ -338,10 +403,8 @@ fn vs_main_minimum(
     var moved = vec4<f32>(model.position.x, model.position.y, 0.0, 1.0);
 
     var out: VertexOutput;
-    out.wait = vec3<f32>(1f, model.wait.xy);
     out.color = instances.color;
     if ignore_camera {
-        //out.clip_position = instance_matrix * moved;
         out.clip_position = u_buffer.u_default_view_proj * instance_matrix * moved;
     } else {
         out.clip_position = u_buffer.u_view_proj * instance_matrix * moved;
@@ -356,53 +419,55 @@ struct FragmentOutput {
 }
 
 const UNIT :f32 = 0.00390625;
-const ALPHA_STEP: f32 = 8f;
+const ALPHA_STEP: f32 = 16f;
 
 const NEAR_ZERO = 1e-6;
 const NEAR_ONE = 1.0 - 1e-6;
 
+fn near_eq_zero(value: f32) -> bool {
+    return value < NEAR_ZERO;
+}
+
+fn near_eq_one(value: f32) -> bool {
+    return value > NEAR_ONE;
+}
+
+fn in_naive_range(value: f32) -> bool {
+    return value >= 0.0 && value <= 1.0;
+}
+
+fn under_one(value: f32) -> bool {
+    return value <= 1.0;
+}
+
+fn greater_than_zero(value: f32) -> bool {
+    return value >= 0.0;
+}
+
 // Fragment shader (マルチターゲット版)
-// R: 原点 が 0 。それ以外が 1
-// G: Flip/Flop で、原点以外で 0.0, 1.0 のどちらかの値を取る。ベジエ曲線の距離計算に用いられる。
-// B: 制御点。ベジエ曲線の制御点が 1.0 。直線の制御点の場合も 1.0 になる。
-//
-// wait一覧
-// 原点 (0.0, 0.0, 0.0)
-// 
-// ベジエ曲線
-// 始点   (1.0, 0.0, (Flip/Flop))
-// 終点   (1.0, 0.0, (Flip/Flop))
-// 制御点 (1.0, 1.0, 0.0)
-//
-// 直線(ベジエ)
-// 原点   (0.0, 0.0, 0.0)
-// 始点   (1.0, 1.0, 0.0)
-// 終点   (1.0, 1.0, 0.0)
-//
-// 直線(エッジ)
-// 原点   (0.0, 0.0, 0.0)
-// 始点   (1.0, 0.0, (Flip/Flop))
-// 終点   (1.0, 0.0, (Flip/Flop))
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
-    let is_bezier = (in.wait.r > NEAR_ONE) && (in.wait.g != 0.0);
+    let is_bezier_pre = near_eq_one(in.triangle_type.x);
+    let is_bezier_line_pre = near_eq_one(in.triangle_type.y);
+    let is_line_pre = near_eq_one(in.triangle_type.z);
 
-    let pixel_width = 1.0 / f32(u_buffer.u_width);
+    let is_bezier = is_bezier_pre && !is_bezier_line_pre && !is_line_pre;
+    let is_bezier_line = is_bezier_line_pre && !is_bezier_pre && !is_line_pre;
+    let is_line = is_line_pre && !is_bezier_pre && !is_bezier_line_pre;
 
     var output: FragmentOutput;
     output.color = vec4<f32>(in.color.rgb, 1f);
 
     // 処理の内容的には以降の if 文の中で行えば済む処理だが
-    // WebGPU は fwidth は実行パスの分岐先でだけ呼び出されると正しい結果を返せないとエラーを返すのでここで実行する。
+    // WebGPU は fwidth は実行パスの分岐先でだけ呼び出されると正しい結果を返せないとエラーを返す実装があるのでここで実行する。
 
     // Bezier curve のSDF距離計算
-    let bezier_distance = pow((in.wait.g * 0.5 + in.wait.b), 2.0) - in.wait.b;
+    let bezier_distance = pow((in.wait.x * 0.5 + in.wait.y), 2.0) - in.wait.y;
     // 隣接ピクセルの距離との差分
     let bezier_distance_fwidth = fwidth(bezier_distance);
 
     // 直線のSDF距離計算
-    // distance は 1f に近づく。
-    let triangle_distance = in.wait.r;
+    let triangle_distance = in.wait.x;
     // 隣接ピクセルの距離との差分
     let triangle_distance_fwidth = fwidth(triangle_distance);
 
@@ -410,36 +475,32 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         // Bezier curveの場合の処理
         // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
         let alpha = 1.0 - smoothstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
-        let in_bezier = bezier_distance < bezier_distance_fwidth / 2.0;
 
-        if in_bezier {
-            output.count.r = UNIT;
-            if alpha != 1.0 {
-                output.count.g = alpha / ALPHA_STEP;
-                output.count.b = UNIT;
-            }
-        } else {
-            discard; // Bezier curve の外側は描画しない
+        output.count.r = UNIT;
+        if !near_eq_one(alpha) {
+            output.count.g = alpha / ALPHA_STEP;
+            output.count.b = UNIT;
         }
+    //} else if true {
     } else {
         // 三角形の場合の処理
         // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
-        let alpha = 1.0 - smoothstep(0.5 - triangle_distance_fwidth / 2.0, 0.5 + triangle_distance_fwidth / 2.0, triangle_distance);
+        let alpha = smoothstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
 
-        if in.wait.b == 0.0 /* ベジエの補助的な三角形 */ {
-            output.count.r = UNIT;
-        } else if in.wait.g == 0.0 /* 通常の直線 */ {
-            if alpha > NEAR_ONE {
+        // ベジエの補完的直線
+        if is_bezier_line {
+            if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
                 output.count.r = UNIT;
-            } else if alpha != 0.0 {
+            }
+        } else if is_line {
+            if (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
                 output.count.r = UNIT;
-                output.count.g = alpha / ALPHA_STEP;
-                output.count.b = UNIT;
-            } else {
-                discard; // 直線の外側は描画しない
+                if !near_eq_one(alpha) {
+                    output.count.g = alpha / ALPHA_STEP;
+                    output.count.b = UNIT;
+                }
             }
         }
     }
-
     return output;
 }

@@ -204,6 +204,8 @@ impl RenderState {
             RenderTargetRequest::Image { .. } => None,
         };
 
+        let mut features = wgpu::Features::empty();
+
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: if performance_mode {
@@ -216,10 +218,18 @@ impl RenderState {
             })
             .await
             .unwrap();
+
+        if adapter
+            .features()
+            .contains(wgpu::Features::CONSERVATIVE_RASTERIZATION)
+        {
+            features |= wgpu::Features::CONSERVATIVE_RASTERIZATION;
+        }
+
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
-                required_features: wgpu::Features::empty(),
+                required_features: features,
                 // WebGL doesn't support all of wgpu's features, so if
                 // we're building for the web we'll have to disable some.
                 required_limits: if cfg!(target_arch = "wasm32") {

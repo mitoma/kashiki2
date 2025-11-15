@@ -121,7 +121,9 @@ impl RasterizerRenderrer {
                     // Requires Features::DEPTH_CLIP_CONTROL
                     unclipped_depth: false,
                     // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
+                    conservative: device
+                        .features()
+                        .contains(wgpu::Features::CONSERVATIVE_RASTERIZATION),
                 },
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState {

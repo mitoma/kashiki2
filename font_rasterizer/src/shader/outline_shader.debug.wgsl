@@ -35,7 +35,7 @@ var t_overlap_count: texture_2d<f32>;
 
 const UNIT :f32 = 0.00390625;
 const HARFUNIT: f32 = 0.001953125;
-const ALPHA_STEP: f32 = 8f;
+const ALPHA_STEP: f32 = 16f;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -53,16 +53,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // 奇数かどうかを判定し、奇数なら色をつける
     if counts % 2u == 1u {
-        if alpha_counts == 0u {
-            return vec4<f32>(color.rgb, 1f);
-        } else {
+        if alpha_counts % 2u == 1u {
             return vec4<f32>(color.rgb, alpha);
-        }
-    } else {
-        if alpha_counts == 0u {
-            return vec4<f32>(0f, 0f, 0f, 0f);
         } else {
             return vec4<f32>(color.rgb, 1f - alpha);
+        }
+    } else {
+        if alpha_counts % 2u == 1u {
+            return vec4<f32>(color.rgb, 1f - alpha);
+        } else {
+            return vec4<f32>(color.rgb, alpha);
         }
     }
 }
