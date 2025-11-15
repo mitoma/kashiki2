@@ -1,7 +1,8 @@
 fn main() {
     #[cfg(windows)]
     {
-        extern crate windres;
-        windres::Build::new().compile("kashikishi-icon.rc").unwrap();
+        let mut res = winresource::WindowsResource::new();
+        res.set_icon("kashikishi-icon.ico");
+        res.compile().unwrap();
     }
 }
