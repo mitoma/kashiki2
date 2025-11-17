@@ -59,3 +59,14 @@ impl From<&winit::event::MouseButton> for MouseAction {
         }
     }
 }
+
+impl From<&winit::event::ButtonSource> for MouseAction {
+    fn from(value: &winit::event::ButtonSource) -> Self {
+        match value {
+            winit::event::ButtonSource::Mouse(mouse_button) => MouseAction::from(mouse_button),
+            winit::event::ButtonSource::Touch { .. } => todo!(),
+            winit::event::ButtonSource::TabletTool { .. } => todo!(),
+            winit::event::ButtonSource::Unknown(_) => MouseAction::Unknown,
+        }
+    }
+}
