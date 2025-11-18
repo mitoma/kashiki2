@@ -26,14 +26,14 @@ use winit::{event::WindowEvent, window::Window};
 
 // レンダリング対象を表す。
 pub(crate) enum RenderTargetRequest {
-    Window { window: Arc<Window> },
+    Window { window: Arc<Box<dyn Window>> },
     Image { window_size: WindowSize },
 }
 
 impl RenderTargetRequest {
     fn window_size(&self) -> WindowSize {
         match self {
-            RenderTargetRequest::Window { window } => WindowSize::from(window.inner_size()),
+            RenderTargetRequest::Window { window } => WindowSize::from(window.surface_size()),
             RenderTargetRequest::Image { window_size } => *window_size,
         }
     }
