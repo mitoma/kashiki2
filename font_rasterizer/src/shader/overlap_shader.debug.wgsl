@@ -481,10 +481,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         // linerstep は 0.0->1.0 に変化するので、1.0-linerstep で 1.0->0.0 に反転
         let alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
 
-        output.count.r = UNIT;
-        if !near_eq_one(alpha) {
-            output.count.g = alpha / ALPHA_STEP;
-            output.count.b = UNIT;
+        if alpha > 0.0 {
+            output.count.r = UNIT;
+            if !near_eq_one(alpha) {
+                output.count.g = alpha / ALPHA_STEP;
+                output.count.b = UNIT;
+            }
+        } else {
+            discard;
         }
     //} else if true {
     } else {
@@ -504,6 +508,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
                     output.count.b = UNIT;
                 }
             }
+        } else {
+            discard;
         }
     }
     return output;
