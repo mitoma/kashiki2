@@ -444,6 +444,11 @@ fn greater_than_zero(value: f32) -> bool {
     return value >= 0.0;
 }
 
+// smoothstep のリニア版
+fn linerstep(edge0: f32, edge1: f32, x: f32) -> f32 {
+    return clamp((x - edge0) / (edge1 - edge0), 0.0, 1.0);
+}
+
 // Fragment shader (マルチターゲット版)
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
@@ -473,8 +478,8 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
 
     if is_bezier {
         // Bezier curveの場合の処理
-        // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
-        let alpha = 1.0 - smoothstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
+        // linerstep は 0.0->1.0 に変化するので、1.0-linerstep で 1.0->0.0 に反転
+        let alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
 
         output.count.r = UNIT;
         if !near_eq_one(alpha) {
@@ -484,8 +489,7 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     //} else if true {
     } else {
         // 三角形の場合の処理
-        // smoothstep は 0.0->1.0 に変化するので、1.0-smoothstep で 1.0->0.0 に反転
-        let alpha = smoothstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
+        let alpha = linerstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
 
         // ベジエの補完的直線
         if is_bezier_line {
