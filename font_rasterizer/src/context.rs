@@ -3,7 +3,6 @@ use std::sync::{Arc, mpsc::Sender};
 use font_collector::FontRepository;
 use log::warn;
 use stroke_parser::Action;
-use winit::dpi::PhysicalSize;
 
 use crate::{
     char_width_calcurator::CharWidthCalculator, color_theme::ColorTheme,
@@ -134,14 +133,5 @@ impl WindowSize {
 
     pub fn aspect(&self) -> f32 {
         self.width as f32 / self.height as f32
-    }
-}
-
-impl From<PhysicalSize<u32>> for WindowSize {
-    fn from(size: PhysicalSize<u32>) -> Self {
-        Self {
-            width: size.width,
-            height: size.height,
-        }
     }
 }

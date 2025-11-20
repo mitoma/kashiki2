@@ -331,7 +331,7 @@ impl ApplicationHandler for App {
                     WindowEvent::SurfaceResized(physical_size) => {
                         *surface_configured = true;
                         record_start_of_phase("state resize");
-                        state.resize((physical_size).into());
+                        state.resize(WindowSize::new(physical_size.width, physical_size.height));
                     }
                     WindowEvent::ScaleFactorChanged { .. } => {
                         // TODO スケールファクタ変更時に何かする？
