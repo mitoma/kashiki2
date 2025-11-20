@@ -1,0 +1,4 @@
+{
+    //wasm32-unknown-unknown のターゲットを使う場合はコメントアウトを外す
+    //"rust-analyzer.cargo.target": "wasm32-unknown-unknown"
+}
