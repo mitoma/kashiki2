@@ -23,7 +23,7 @@ use ui_support::{
 };
 
 use log::info;
-use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::event::{ButtonSource, ElementState, MouseButton, WindowEvent};
 
 const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
@@ -137,17 +137,17 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn input(&mut self, _context: &StateContext, event: &WindowEvent) -> InputResult {
         match event {
-            WindowEvent::MouseInput {
+            WindowEvent::PointerButton {
                 state: ElementState::Pressed,
-                button: MouseButton::Right,
+                button: ButtonSource::Mouse(MouseButton::Right),
                 ..
             } => {
                 self.rokid_max.reset();
                 InputResult::InputConsumed
             }
-            WindowEvent::MouseInput {
+            WindowEvent::PointerButton {
                 state: ElementState::Pressed,
-                button: MouseButton::Left,
+                button: ButtonSource::Mouse(MouseButton::Left),
                 ..
             } => {
                 self.motion = self.motion.next();

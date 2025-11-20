@@ -121,7 +121,7 @@ mod windows {
                     }
                 }
                 WindowEvent::CloseRequested if window_id == self_window_id => event_loop.exit(),
-                _ => return,
+                _ => (),
             }
         }
     }
