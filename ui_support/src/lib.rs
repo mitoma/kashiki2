@@ -17,6 +17,8 @@ use text_instances::BorderType;
 use ui::caret_char;
 
 use std::sync::Arc;
+#[cfg(target_arch = "wasm32")]
+use std::sync::mpsc::{Receiver, Sender};
 
 use camera::Camera;
 use font_rasterizer::{
@@ -49,16 +51,21 @@ use winit::{
     icon::Icon,
     keyboard::{Key, NamedKey},
     monitor::Fullscreen,
-    window::{ImeCapabilities, ImeEnableRequest, ImeRequestData, Window, WindowAttributes},
+    window::{self, ImeCapabilities, ImeEnableRequest, ImeRequestData, Window, WindowAttributes},
 };
 
 struct App {
     support: Option<SimpleStateSupport>,
+    window: Option<Arc<Box<dyn Window>>>,
     attributes: Option<AppAttributes>,
+    #[cfg(target_arch = "wasm32")]
+    state_sender_receiver: (
+        Sender<(RenderState, WindowSize, Flags)>,
+        Receiver<(RenderState, WindowSize, Flags)>,
+    ),
 }
 
 struct AppAttributes {
-    window: Arc<Box<dyn Window>>,
     render_rate_adjuster: RenderRateAdjuster,
     surface_configured: bool,
     state: RenderState,
@@ -78,7 +85,8 @@ impl ApplicationHandler for App {
             font_repository,
             performance_mode,
         } = self.support.take().expect("Support is not set");
-        let window_attributes = WindowAttributes::default()
+        #[allow(unused_mut)]
+        let mut window_attributes = WindowAttributes::default()
             .with_window_icon(window_icon.clone())
             .with_title(window_title.to_string())
             .with_surface_size(winit::dpi::LogicalSize {
@@ -87,7 +95,22 @@ impl ApplicationHandler for App {
             })
             .with_transparent(flags.contains(Flags::TRANCEPARENT))
             .with_decorations(!flags.contains(Flags::NO_TITLEBAR));
-        //.with_visible(false);
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            use wasm_bindgen::JsCast;
+            use winit::platform::web::WindowAttributesWeb;
+
+            let target_canvas = web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| doc.get_element_by_id("kashikishi-area"))
+                .map(|canvas| canvas.unchecked_into());
+
+            let window_attributes_web = WindowAttributesWeb::default().with_canvas(target_canvas);
+
+            window_attributes =
+                window_attributes.with_platform_attributes(Box::new(window_attributes_web));
+        }
 
         self.attributes = match event_loop.create_window(window_attributes) {
             Ok(window) => {
@@ -98,66 +121,78 @@ impl ApplicationHandler for App {
                     window.set_option_as_alt(winit::platform::macos::OptionAsAlt::Both);
                 }
 
-                #[cfg(target_arch = "wasm32")]
-                {
-                    use winit::platform::web::WindowExtWebSys;
-                    web_sys::window()
-                        .and_then(|win| win.document())
-                        .and_then(|doc| {
-                            let dst = doc.get_element_by_id("kashikishi-area")?;
-                            let canvas = web_sys::Element::from(window.canvas()?);
-                            dst.append_child(&canvas.clone()).ok()?;
-                            let input = web_sys::Element::from(window.input()?);
-                            dst.append_child(&input).ok()?;
-                            Some(())
-                        })
-                        .expect("Couldn't append canvas to document body.");
-
-                    // Winit prevents sizing with CSS, so we have to set
-                    // the size manually when on web.
-                    use winit::dpi::PhysicalSize;
-                    let _ = window.request_inner_size(PhysicalSize::new(
-                        support.window_size.width,
-                        support.window_size.height,
-                    ));
-                }
-
                 let req =
                     ImeEnableRequest::new(ImeCapabilities::default(), ImeRequestData::default())
                         .unwrap();
                 let _ = window.request_ime_update(winit::window::ImeRequest::Enable(req));
 
                 let window = Arc::new(window);
+                self.window.replace(window.clone());
 
-                let state = block_on(RenderState::new(
-                    RenderTargetRequest::Window {
-                        window: window.clone(),
-                    },
-                    quarity,
-                    color_theme,
-                    callback,
-                    font_repository,
-                    performance_mode,
-                ));
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let SimpleStateSupport {
+                        callback,
+                        quarity,
+                        color_theme,
+                        flags,
+                        font_repository,
+                        performance_mode,
+                        ..
+                    } = self.support.take().expect("Support is not set");
 
-                // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
-                let render_rate_adjuster = RenderRateAdjuster::new(
-                    120,
-                    if flags.contains(Flags::SLEEP_WHEN_FOCUS_LOST) {
-                        5
-                    } else {
-                        120
-                    },
-                );
-                let surface_configured = false;
+                    let state = block_on(RenderState::new(
+                        RenderTargetRequest::Window {
+                            window: window.clone(),
+                        },
+                        quarity,
+                        color_theme,
+                        callback,
+                        font_repository,
+                        performance_mode,
+                    ));
 
-                Some(AppAttributes {
-                    window,
-                    render_rate_adjuster,
-                    surface_configured,
-                    state,
-                    flags,
-                })
+                    // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
+                    let render_rate_adjuster = RenderRateAdjuster::new(
+                        120,
+                        if flags.contains(Flags::SLEEP_WHEN_FOCUS_LOST) {
+                            5
+                        } else {
+                            120
+                        },
+                    );
+                    let surface_configured = false;
+
+                    Some(AppAttributes {
+                        render_rate_adjuster,
+                        surface_configured,
+                        state,
+                        flags,
+                    })
+                }
+
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let sender = self.state_sender_receiver.0.clone();
+                    let proxy = event_loop.create_proxy();
+
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let state = RenderState::new(
+                            RenderTargetRequest::Window { window },
+                            quarity,
+                            color_theme,
+                            callback,
+                            font_repository,
+                            performance_mode,
+                        )
+                        .await;
+
+                        sender.send((state, window_size, flags)).unwrap();
+                        proxy.wake_up();
+                    });
+
+                    None
+                }
             }
             Err(err) => {
                 eprintln!("error creating window: {err}");
@@ -165,6 +200,33 @@ impl ApplicationHandler for App {
                 return;
             }
         };
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn proxy_wake_up(&mut self, _event_loop: &dyn winit::event_loop::ActiveEventLoop) {
+        let Some(window) = &self.window else {
+            return;
+        };
+
+        if let Ok((state, window_size, flags)) = self.state_sender_receiver.1.recv() {
+            use winit::dpi::PhysicalSize;
+
+            let render_rate_adjuster = RenderRateAdjuster::new(120, 5);
+            let surface_configured = false;
+
+            self.attributes = Some(AppAttributes {
+                render_rate_adjuster,
+                surface_configured,
+                state,
+                flags,
+            });
+            let _ = window.request_surface_size(
+                PhysicalSize::new(window_size.width, window_size.height).into(),
+            );
+        }
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
     }
 
     fn window_event(
@@ -176,13 +238,18 @@ impl ApplicationHandler for App {
         let Some(attributes) = &mut self.attributes else {
             return;
         };
-        let self_window_id = attributes.window.id();
+        let Some(window) = &self.window else {
+            return;
+        };
+        let self_window_id = window.id();
         if window_id != self_window_id {
             return;
         }
+        let Some(window) = &mut self.window else {
+            return;
+        };
 
         let AppAttributes {
-            window,
             render_rate_adjuster,
             surface_configured,
             state,
@@ -423,7 +490,13 @@ pub async fn run_support(support: SimpleStateSupport) {
 
     let _ = event_loop.run_app(App {
         support: Some(support),
+        window: None,
         attributes: None,
+        #[cfg(target_arch = "wasm32")]
+        state_sender_receiver: {
+            use std::sync::mpsc::channel;
+            channel()
+        },
     });
 }
 
