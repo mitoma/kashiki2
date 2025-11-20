@@ -51,7 +51,7 @@ use winit::{
     icon::Icon,
     keyboard::{Key, NamedKey},
     monitor::Fullscreen,
-    window::{self, ImeCapabilities, ImeEnableRequest, ImeRequestData, Window, WindowAttributes},
+    window::{ImeCapabilities, ImeEnableRequest, ImeRequestData, Window, WindowAttributes},
 };
 
 struct App {
@@ -131,16 +131,6 @@ impl ApplicationHandler for App {
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    let SimpleStateSupport {
-                        callback,
-                        quarity,
-                        color_theme,
-                        flags,
-                        font_repository,
-                        performance_mode,
-                        ..
-                    } = self.support.take().expect("Support is not set");
-
                     let state = block_on(RenderState::new(
                         RenderTargetRequest::Window {
                             window: window.clone(),
