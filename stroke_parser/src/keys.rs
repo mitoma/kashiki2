@@ -216,7 +216,7 @@ impl KeyCode {
                     NamedKey::Control => KeyCode::LControl,
                     NamedKey::Enter => KeyCode::Return,
                     NamedKey::Tab => KeyCode::Tab,
-                    NamedKey::Space => KeyCode::Space,
+                    //NamedKey::Space => KeyCode::Space,
                     NamedKey::ArrowDown => KeyCode::Down,
                     NamedKey::ArrowLeft => KeyCode::Left,
                     NamedKey::ArrowRight => KeyCode::Right,
@@ -245,6 +245,7 @@ impl KeyCode {
                 }
             }
             winit::keyboard::Key::Character(char) => match char.to_ascii_uppercase().as_str() {
+                " " => KeyCode::Space,
                 "1" => KeyCode::Key1,
                 "2" => KeyCode::Key2,
                 "3" => KeyCode::Key3,

@@ -13,7 +13,6 @@ thiserror = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
 wgpu = { workspace = true }
-winit = { workspace = true }
 bitflags = { workspace = true }
 rand = { workspace = true }
 image ={ workspace = true}

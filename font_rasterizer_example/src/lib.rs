@@ -20,7 +20,7 @@ use ui_support::{
     camera::{Camera, CameraController},
     run_support,
 };
-use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::event::{ButtonSource, ElementState, MouseButton, WindowEvent};
 
 const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
@@ -120,9 +120,9 @@ impl SimpleStateCallback for SingleCharCallback {
 
     fn input(&mut self, _context: &StateContext, event: &WindowEvent) -> InputResult {
         match event {
-            WindowEvent::MouseInput {
+            WindowEvent::PointerButton {
                 state: ElementState::Pressed,
-                button: MouseButton::Left,
+                button: ButtonSource::Mouse(MouseButton::Left),
                 ..
             } => {
                 self.motion = self.motion.next();

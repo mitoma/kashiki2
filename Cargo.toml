@@ -26,7 +26,8 @@ wgpu = "27.0.1"
 #   winit の Windows でのサロゲートペアを含む文字があったときの Ime::Preedit の挙動を修正。
 #   以下の issue で報告されている問題を修正。 issue が解決したら戻す予定。
 #   https://github.com/rust-windowing/winit/issues/3967
-winit = { git = "https://github.com/mitoma/winit", branch = "v0.29.x-with-patches" }
+# winit = { git = "https://github.com/mitoma/winit", branch = "v0.29.x-with-patches" }
+winit = "0.31.0-beta.2"
 serde = "1.0.228"
 serde_derive = "1.0.228"
 serde_json = "1.0.145"

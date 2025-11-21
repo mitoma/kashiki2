@@ -22,18 +22,21 @@ use crate::{
 
 use stroke_parser::Action;
 use wgpu::{InstanceDescriptor, SurfaceError};
-use winit::{event::WindowEvent, window::Window};
+use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 // レンダリング対象を表す。
 pub(crate) enum RenderTargetRequest {
-    Window { window: Arc<Window> },
+    Window { window: Arc<Box<dyn Window>> },
     Image { window_size: WindowSize },
 }
 
 impl RenderTargetRequest {
     fn window_size(&self) -> WindowSize {
         match self {
-            RenderTargetRequest::Window { window } => WindowSize::from(window.inner_size()),
+            RenderTargetRequest::Window { window } => {
+                let PhysicalSize { width, height } = window.surface_size();
+                WindowSize::new(width, height)
+            }
             RenderTargetRequest::Image { window_size } => *window_size,
         }
     }
