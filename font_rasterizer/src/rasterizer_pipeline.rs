@@ -310,16 +310,15 @@ impl RasterizerPipeline {
     ) {
         let has_modal_background =
             modal_buffers.glyph_buffers.is_some() || modal_buffers.vector_buffers.is_some();
-        self.rasterizer_renderrer
-            .render(encoder, device, queue, view_proj, buffers);
+
+        self.rasterizer_renderrer.prepare(device, queue, view_proj);
+        self.rasterizer_renderrer.render(encoder, buffers);
+
         if has_modal_background {
-            self.rasterizer_renderrer_for_modal.render(
-                encoder,
-                device,
-                queue,
-                view_proj,
-                modal_buffers,
-            );
+            self.rasterizer_renderrer_for_modal
+                .prepare(device, queue, view_proj);
+            self.rasterizer_renderrer_for_modal
+                .render(encoder, modal_buffers);
         }
 
         self.screen_background_image_stage(encoder, device, &screen_view);

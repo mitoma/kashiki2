@@ -153,7 +153,8 @@ impl RasterizerRenderrer {
         };
 
         let outline_texture = ScreenTexture::new(device, (width, height), Some("Outline Texture"));
-        let outline_bind_group = OutlineBindGroup::new(device, width);
+        let outline_bind_group =
+            OutlineBindGroup::new(device, width, &overlap_texture, &overlap_count_texture);
         let outline_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Outline Render Pipeline Layout"),
@@ -221,18 +222,25 @@ impl RasterizerRenderrer {
     }
 
     #[inline]
-    pub fn render(
+    pub fn prepare(
         &mut self,
-        encoder: &mut wgpu::CommandEncoder,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
-        buffers: Buffers,
     ) {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
+        self.outline_bind_group.update_textures(
+            device,
+            &self.overlap_texture,
+            &self.overlap_count_texture,
+        );
+    }
+
+    #[inline]
+    pub fn render(&self, encoder: &mut wgpu::CommandEncoder, buffers: Buffers) {
         self.overlap_stage(encoder, buffers.glyph_buffers, buffers.vector_buffers);
-        self.outline_stage(encoder, device);
+        self.outline_stage(encoder);
     }
 
     #[inline]
@@ -346,16 +354,11 @@ impl RasterizerRenderrer {
         }
     }
 
-    fn outline_stage(&self, encoder: &mut wgpu::CommandEncoder, device: &wgpu::Device) {
+    fn outline_stage(&self, encoder: &mut wgpu::CommandEncoder) {
         let outline_view = self
             .outline_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        let outline_bind_group = self.outline_bind_group.to_bind_group(
-            device,
-            &self.overlap_texture,
-            &self.overlap_count_texture,
-        );
 
         {
             let mut outline_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -374,7 +377,7 @@ impl RasterizerRenderrer {
                 occlusion_query_set: None,
             });
             outline_render_pass.set_pipeline(&self.outline_render_pipeline);
-            outline_render_pass.set_bind_group(0, &outline_bind_group, &[]);
+            outline_render_pass.set_bind_group(0, &self.outline_bind_group.bind_group, &[]);
             outline_render_pass
                 .set_vertex_buffer(0, self.outline_vertex_buffer.vertex_buffer.slice(..));
             outline_render_pass.set_index_buffer(
