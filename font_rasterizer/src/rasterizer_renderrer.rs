@@ -34,13 +34,15 @@ pub struct RasterizerRenderrer {
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
     pub(crate) outline_vertex_buffer: ScreenVertexBuffer,
-
-    // 2 ステージ目のアウトプット(≒ 3 ステージ目のインプット)
-    pub(crate) outline_texture: ScreenTexture,
 }
 impl RasterizerRenderrer {
     /// Create all unchanging resources here.
-    pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        target_texture_format: wgpu::TextureFormat,
+    ) -> Self {
         // overlap
         let overlap_shader = if DEBUG_FLAGS.debug_shader {
             device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -152,7 +154,6 @@ impl RasterizerRenderrer {
             device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR)
         };
 
-        let outline_texture = ScreenTexture::new(device, (width, height), Some("Outline Texture"));
         let outline_bind_group =
             OutlineBindGroup::new(device, width, &overlap_texture, &overlap_count_texture);
         let outline_render_pipeline_layout =
@@ -176,7 +177,7 @@ impl RasterizerRenderrer {
                     module: &outline_shader,
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: outline_texture.texture_format,
+                        format: target_texture_format,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -217,7 +218,6 @@ impl RasterizerRenderrer {
             outline_bind_group,
             outline_render_pipeline,
             outline_vertex_buffer,
-            outline_texture,
         }
     }
 
@@ -238,9 +238,14 @@ impl RasterizerRenderrer {
     }
 
     #[inline]
-    pub fn render(&self, encoder: &mut wgpu::CommandEncoder, buffers: Buffers) {
+    pub fn render(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        buffers: Buffers,
+        target_view: &wgpu::TextureView,
+    ) {
         self.overlap_stage(encoder, buffers.glyph_buffers, buffers.vector_buffers);
-        self.outline_stage(encoder);
+        self.outline_stage(encoder, target_view);
     }
 
     #[inline]
@@ -354,17 +359,12 @@ impl RasterizerRenderrer {
         }
     }
 
-    fn outline_stage(&self, encoder: &mut wgpu::CommandEncoder) {
-        let outline_view = self
-            .outline_texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
+    fn outline_stage(&self, encoder: &mut wgpu::CommandEncoder, target_view: &wgpu::TextureView) {
         {
             let mut outline_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &outline_view,
+                    view: target_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),

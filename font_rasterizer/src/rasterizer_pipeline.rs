@@ -2,10 +2,14 @@ use image::DynamicImage;
 use wgpu::include_wgsl;
 
 use crate::{
-    background_bind_group::BackgroundImageBindGroup, glyph_instances::GlyphInstances,
-    glyph_vertex_buffer::GlyphVertexBuffer, rasterizer_renderrer::RasterizerRenderrer,
-    screen_bind_group::ScreenBindGroup, screen_texture::BackgroundImageTexture,
-    screen_vertex_buffer::ScreenVertexBuffer, vector_instances::VectorInstances,
+    background_bind_group::BackgroundImageBindGroup,
+    glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::GlyphVertexBuffer,
+    rasterizer_renderrer::RasterizerRenderrer,
+    screen_bind_group::ScreenBindGroup,
+    screen_texture::{BackgroundImageTexture, ScreenTexture},
+    screen_vertex_buffer::ScreenVertexBuffer,
+    vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
@@ -55,6 +59,10 @@ pub struct Buffers<'a> {
 pub struct RasterizerPipeline {
     pub(crate) rasterizer_renderrer: RasterizerRenderrer,
     pub(crate) rasterizer_renderrer_for_modal: RasterizerRenderrer,
+
+    // outline_texture を外部から渡すため、ここで保持する
+    pub(crate) outline_texture: ScreenTexture,
+    pub(crate) outline_texture_for_modal: ScreenTexture,
 
     // 背景色。
     pub bg_color: wgpu::Color,
@@ -113,8 +121,23 @@ impl RasterizerPipeline {
             (width, height)
         };
 
-        let rasterizer_renderrer = RasterizerRenderrer::new(device, width, height);
-        let rasterizer_renderrer_for_modal = RasterizerRenderrer::new(device, width, height);
+        let rasterizer_renderrer =
+            RasterizerRenderrer::new(device, width, height, screen_texture_format);
+        let rasterizer_renderrer_for_modal =
+            RasterizerRenderrer::new(device, width, height, screen_texture_format);
+
+        let outline_texture = ScreenTexture::new_with_format(
+            device,
+            (width, height),
+            screen_texture_format,
+            Some("Outline Texture"),
+        );
+        let outline_texture_for_modal = ScreenTexture::new_with_format(
+            device,
+            (width, height),
+            screen_texture_format,
+            Some("Outline Texture for Modal"),
+        );
 
         let background_image_shader =
             device.create_shader_module(BACKGROUND_IMAGE_SHADER_DESCRIPTOR);
@@ -282,6 +305,8 @@ impl RasterizerPipeline {
         Self {
             rasterizer_renderrer,
             rasterizer_renderrer_for_modal,
+            outline_texture,
+            outline_texture_for_modal,
             bg_color,
 
             // バックグラウンド
@@ -312,13 +337,17 @@ impl RasterizerPipeline {
             modal_buffers.glyph_buffers.is_some() || modal_buffers.vector_buffers.is_some();
 
         self.rasterizer_renderrer.prepare(device, queue, view_proj);
-        self.rasterizer_renderrer.render(encoder, buffers);
+        self.rasterizer_renderrer
+            .render(encoder, buffers, &self.outline_texture.view);
 
         if has_modal_background {
             self.rasterizer_renderrer_for_modal
                 .prepare(device, queue, view_proj);
-            self.rasterizer_renderrer_for_modal
-                .render(encoder, modal_buffers);
+            self.rasterizer_renderrer_for_modal.render(
+                encoder,
+                modal_buffers,
+                &self.outline_texture_for_modal.view,
+            );
         }
 
         self.screen_background_image_stage(encoder, device, &screen_view);
@@ -334,10 +363,10 @@ impl RasterizerPipeline {
     ) {
         let screen_bind_group = &self
             .screen_bind_group
-            .to_bind_group(device, &self.rasterizer_renderrer.outline_texture);
+            .to_bind_group(device, &self.outline_texture);
         let screen_bind_group_for_modal = &self
             .screen_bind_group
-            .to_bind_group(device, &self.rasterizer_renderrer_for_modal.outline_texture);
+            .to_bind_group(device, &self.outline_texture_for_modal);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
