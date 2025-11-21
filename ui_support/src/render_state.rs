@@ -59,6 +59,16 @@ enum RenderTarget {
 }
 
 impl RenderTarget {
+    /// wgpu の COPY_BYTES_PER_ROW_ALIGNMENT (256バイト) 要件を満たすように
+    /// パディングを追加した bytes_per_row を計算する。
+    fn padded_bytes_per_row(width: u32, format: wgpu::TextureFormat) -> u32 {
+        let bytes_per_pixel = format.block_copy_size(None).unwrap();
+        let unpadded_bytes_per_row = bytes_per_pixel * width;
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let padded = (unpadded_bytes_per_row + align - 1) / align * align;
+        padded
+    }
+
     fn format(&self) -> wgpu::TextureFormat {
         match self {
             RenderTarget::Window { config, .. } => config.format,
@@ -98,7 +108,8 @@ impl RenderTarget {
                 output_buffer,
             } => {
                 let size = context.window_size;
-                let u32_size = std::mem::size_of::<u32>() as u32;
+                let padded_bytes_per_row =
+                    Self::padded_bytes_per_row(size.width, surface_texture.format());
                 encoder.copy_texture_to_buffer(
                     wgpu::TexelCopyTextureInfo {
                         aspect: wgpu::TextureAspect::All,
@@ -110,7 +121,7 @@ impl RenderTarget {
                         buffer: output_buffer,
                         layout: wgpu::TexelCopyBufferLayout {
                             offset: 0,
-                            bytes_per_row: Some(u32_size * size.width),
+                            bytes_per_row: Some(padded_bytes_per_row),
                             rows_per_image: Some(size.height),
                         },
                     },
@@ -132,8 +143,15 @@ impl RenderTarget {
                 surface_texture.take().unwrap().present();
                 RenderTargetResponse::Window
             }
-            RenderTarget::Image { output_buffer, .. } => {
+            RenderTarget::Image {
+                surface_texture,
+                output_buffer,
+            } => {
                 let size = context.window_size;
+                let format = surface_texture.format();
+                let bytes_per_pixel = format.block_copy_size(None).unwrap();
+                let padded_bytes_per_row = Self::padded_bytes_per_row(size.width, format);
+                let unpadded_bytes_per_row = bytes_per_pixel * size.width;
                 let buffer = {
                     let buffer_slice = output_buffer.slice(..);
 
@@ -148,7 +166,23 @@ impl RenderTarget {
                     rx.recv().unwrap().unwrap();
 
                     let data = buffer_slice.get_mapped_range();
-                    let raw_data = data.to_vec();
+
+                    // パディングを除去して実際の画像データのみを抽出
+                    let raw_data = if padded_bytes_per_row == unpadded_bytes_per_row {
+                        // パディングがない場合は直接コピー（最適化）
+                        data.to_vec()
+                    } else {
+                        // パディングがある場合は行ごとに必要なバイトのみを抽出
+                        let mut result =
+                            Vec::with_capacity((unpadded_bytes_per_row * size.height) as usize);
+                        for row in 0..size.height {
+                            let offset = (row * padded_bytes_per_row) as usize;
+                            result.extend_from_slice(
+                                &data[offset..offset + unpadded_bytes_per_row as usize],
+                            );
+                        }
+                        result
+                    };
 
                     ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(size.width, size.height, raw_data)
                         .unwrap()
@@ -288,10 +322,13 @@ impl RenderState {
                 };
                 let surface_texture = device.create_texture(&surface_texture_desc);
 
-                // create output buffer
-                let u32_size = std::mem::size_of::<u32>() as u32;
+                // create output buffer with proper alignment
+                let padded_bytes_per_row = RenderTarget::padded_bytes_per_row(
+                    window_size.width,
+                    wgpu::TextureFormat::Rgba8UnormSrgb,
+                );
                 let output_buffer_size =
-                    (u32_size * window_size.width * window_size.height) as wgpu::BufferAddress;
+                    (padded_bytes_per_row * window_size.height) as wgpu::BufferAddress;
                 let output_buffer_desc = wgpu::BufferDescriptor {
                     size: output_buffer_size,
                     usage: wgpu::BufferUsages::COPY_DST
@@ -438,10 +475,13 @@ impl RenderState {
                     };
                     *surface_texture = self.context.device.create_texture(&surface_texture_desc);
 
-                    // create output buffer
-                    let u32_size = std::mem::size_of::<u32>() as u32;
+                    // create output buffer with proper alignment
+                    let padded_bytes_per_row = RenderTarget::padded_bytes_per_row(
+                        new_size.width,
+                        wgpu::TextureFormat::Rgba8UnormSrgb,
+                    );
                     let output_buffer_size =
-                        (u32_size * new_size.width * new_size.height) as wgpu::BufferAddress;
+                        (padded_bytes_per_row * new_size.height) as wgpu::BufferAddress;
                     let output_buffer_desc = wgpu::BufferDescriptor {
                         size: output_buffer_size,
                         usage: wgpu::BufferUsages::COPY_DST
