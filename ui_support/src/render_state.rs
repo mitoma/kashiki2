@@ -68,8 +68,7 @@ impl RenderTarget {
         let bytes_per_pixel = format.block_copy_size(None).unwrap();
         let unpadded_bytes_per_row = bytes_per_pixel * width;
         let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
-        let padded = (unpadded_bytes_per_row + align - 1) / align * align;
-        padded
+        (unpadded_bytes_per_row + align - 1).div_ceil(align) * align
     }
 
     fn format(&self) -> wgpu::TextureFormat {
