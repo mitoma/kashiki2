@@ -108,7 +108,7 @@ impl SingleLine {
                     y: y_pos,
                     z: 0.0,
                 },
-                Quat::from_axis_angle(Vec3::Z, 0.0),
+                Quat::IDENTITY,
                 [x_scale, self.scale[1]],
                 [1.0, 1.0],
                 get_color(&context.color_theme, c),

@@ -196,7 +196,7 @@ impl PlaneTextReader {
             updated: true,
             motion: MotionFlags::ZERO_MOTION,
             position: (0.0, 0.0, 0.0).into(),
-            rotation: Quat::from_axis_angle(Vec3::Y, 0.0),
+            rotation: Quat::IDENTITY,
             bound: (0.0, 0.0),
         }
     }

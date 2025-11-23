@@ -71,7 +71,7 @@ impl Default for TextEdit {
 
         let position = EasingPointN::new([0.0, 0.0, 0.0]);
         let bound = config.min_bound.into();
-        let rotation = Quat::from_axis_angle(Vec3::Y, 0.0);
+        let rotation = Quat::IDENTITY;
         let [x, y, z, w] = rotation.to_array();
         let rotation = EasingPointN::new([x, y, z, w]);
         Self {
