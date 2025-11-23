@@ -109,7 +109,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
         let value = InstanceAttributes::new(
             (0.0, 0.0, 0.0).into(),
-            Quat::from_axis_angle(glam::Vec3::Z, 0.0f32.to_radians()),
+            Quat::IDENTITY,
             [1.0, 1.0],
             [1.0, 1.0],
             context.color_theme.cyan().get_color(),
