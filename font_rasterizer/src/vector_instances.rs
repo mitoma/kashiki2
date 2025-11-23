@@ -73,17 +73,20 @@ impl InstanceAttributes {
     }
 
     fn as_raw(&self) -> InstanceRaw {
-        let model = Mat4::from_scale_rotation_translation(
-            Vec3::new(self.world_scale[0], self.world_scale[1], 1.0),
-            self.rotation,
-            self.position,
-        )
-        .mul_mat4(&Mat4::from_scale(Vec3::new(
+        let world_scale =
+            Mat4::from_scale(Vec3::new(self.world_scale[0], self.world_scale[1], 1.0));
+        let translation = Mat4::from_translation(self.position);
+        let rotation = Mat4::from_quat(self.rotation);
+        let local_scale = Mat4::from_scale(Vec3::new(
             self.instance_scale[0],
             self.instance_scale[1],
             1.0,
-        )))
-        .to_cols_array_2d();
+        ));
+        let model = world_scale
+            .mul_mat4(&translation)
+            .mul_mat4(&rotation)
+            .mul_mat4(&local_scale)
+            .to_cols_array_2d();
         InstanceRaw {
             model,
             color: self.color,
@@ -115,7 +118,7 @@ pub enum InstanceKey {
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct InstanceRaw {
-    model: [[f32; 4]; 4],
+    pub(crate) model: [[f32; 4]; 4],
     color: [f32; 3],
     motion: u32,
     start_time: u32,
