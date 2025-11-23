@@ -132,7 +132,7 @@ impl SimpleStateCallback for SingleCharCallback {
                         i.clear();
                         i.push(InstanceAttributes::new(
                             (0.0, 0.0, 0.0).into(),
-                            Quat::from_axis_angle(Vec3::Z, 0.0f32.to_radians()),
+                            Quat::IDENTITY,
                             [1.0, 1.0],
                             [1.0, 1.0],
                             ColorTheme::SolarizedDark.cyan().get_color(),
