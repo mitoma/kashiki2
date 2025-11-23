@@ -391,7 +391,7 @@ impl WorldLayout {
                     let (w, h) = model.bound();
                     info!("w: {}, h: {}, idx:{}", w, h, idx);
 
-                    let rotation = Quat::from_axis_angle(Vec3::Y, 0.0f32.to_radians());
+                    let rotation = Quat::IDENTITY;
                     model.set_rotation(rotation);
 
                     match world.direction {
