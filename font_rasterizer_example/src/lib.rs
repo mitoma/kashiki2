@@ -13,7 +13,7 @@ use font_rasterizer::{
     time::now_millis,
     vector_instances::InstanceAttributes,
 };
-use glam::{Quat, Vec3};
+use glam::Quat;
 use log::info;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,

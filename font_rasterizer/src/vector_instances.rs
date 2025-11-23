@@ -3,6 +3,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
+use glam::{Mat4, Vec3};
 use web_time::Duration;
 
 use crate::{color_theme::SolarizedColor, motion::MotionFlags, time::now_millis};
@@ -72,12 +73,12 @@ impl InstanceAttributes {
     }
 
     fn as_raw(&self) -> InstanceRaw {
-        let model = glam::Mat4::from_scale_rotation_translation(
-            glam::Vec3::new(self.world_scale[0], self.world_scale[1], 1.0),
+        let model = Mat4::from_scale_rotation_translation(
+            Vec3::new(self.world_scale[0], self.world_scale[1], 1.0),
             self.rotation,
             self.position,
         )
-        .mul_mat4(&glam::Mat4::from_scale(glam::Vec3::new(
+        .mul_mat4(&Mat4::from_scale(Vec3::new(
             self.instance_scale[0],
             self.instance_scale[1],
             1.0,
