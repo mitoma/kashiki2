@@ -51,7 +51,7 @@ impl Default for InstanceAttributes {
     fn default() -> Self {
         Self {
             position: [10.0, 0.0, 0.0].into(),
-            rotation: glam::Quat::from_axis_angle(glam::Vec3::Z, 0.0_f32.to_radians()),
+            rotation: glam::Quat::IDENTITY,
             world_scale: [1.0, 1.0],
             instance_scale: [1.0, 1.0],
             color: SolarizedColor::Red.get_color(),
