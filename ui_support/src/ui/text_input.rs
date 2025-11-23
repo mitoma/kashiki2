@@ -1,5 +1,6 @@
 use std::sync::mpsc::Sender;
 
+use glam::{Quat, Vec3};
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
 
@@ -73,33 +74,33 @@ impl TextInput {
 }
 
 impl Model for TextInput {
-    fn set_position(&mut self, position: cgmath::Point3<f32>) {
+    fn set_position(&mut self, position: Vec3) {
         let title_offset = match self.input_text_edit.direction() {
-            Direction::Horizontal => cgmath::Vector3::new(0.0, -1.0, 0.0),
-            Direction::Vertical => cgmath::Vector3::new(-1.0, 0.0, 0.0),
+            Direction::Horizontal => Vec3::new(0.0, -1.0, 0.0),
+            Direction::Vertical => Vec3::new(-1.0, 0.0, 0.0),
         };
         self.title_text_edit.set_position(position - title_offset);
         self.input_text_edit.set_position(position);
     }
 
-    fn position(&self) -> cgmath::Point3<f32> {
+    fn position(&self) -> Vec3 {
         self.input_text_edit.position()
     }
 
-    fn last_position(&self) -> cgmath::Point3<f32> {
+    fn last_position(&self) -> Vec3 {
         self.input_text_edit.last_position()
     }
 
-    fn focus_position(&self) -> cgmath::Point3<f32> {
+    fn focus_position(&self) -> Vec3 {
         self.input_text_edit.focus_position()
     }
 
-    fn set_rotation(&mut self, rotation: cgmath::Quaternion<f32>) {
+    fn set_rotation(&mut self, rotation: Quat) {
         self.title_text_edit.set_rotation(rotation);
         self.input_text_edit.set_rotation(rotation);
     }
 
-    fn rotation(&self) -> cgmath::Quaternion<f32> {
+    fn rotation(&self) -> Quat {
         self.input_text_edit.rotation()
     }
 

@@ -1,4 +1,4 @@
-use cgmath::Point2;
+use glam::Vec2;
 use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
@@ -33,7 +33,7 @@ impl ImeInput {
         let config = TextContext {
             char_easings: CharEasings::ignore_camera(),
             max_col: usize::MAX, // IME は基本的に改行しないので大きな値を設定
-            min_bound: Point2::new(1.0, 10.0),
+            min_bound: Vec2::new(1.0, 10.0),
             hyde_caret: true,
             highlight_mode: HighlightMode::None,
             ..Default::default()

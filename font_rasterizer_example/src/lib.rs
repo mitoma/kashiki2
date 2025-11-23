@@ -4,7 +4,6 @@ use stroke_parser::Action;
 use wasm_bindgen::prelude::*;
 use web_time::Duration;
 
-use cgmath::Rotation3;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
@@ -14,6 +13,7 @@ use font_rasterizer::{
     time::now_millis,
     vector_instances::InstanceAttributes,
 };
+use glam::{Quat, Vec3};
 use log::info;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
@@ -38,7 +38,7 @@ pub async fn run() {
         window_title: "Hello".to_string(),
         window_size,
         callback: Box::new(callback),
-        quarity: Quarity::VeryHigh,
+        quarity: Quarity::Middle,
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
         font_repository,
@@ -132,10 +132,7 @@ impl SimpleStateCallback for SingleCharCallback {
                         i.clear();
                         i.push(InstanceAttributes::new(
                             (0.0, 0.0, 0.0).into(),
-                            cgmath::Quaternion::from_axis_angle(
-                                cgmath::Vector3::unit_z(),
-                                cgmath::Deg(0.0),
-                            ),
+                            Quat::from_axis_angle(Vec3::Z, 0.0f32.to_radians()),
                             [1.0, 1.0],
                             [1.0, 1.0],
                             ColorTheme::SolarizedDark.cyan().get_color(),

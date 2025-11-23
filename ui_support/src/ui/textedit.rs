@@ -6,8 +6,7 @@ use std::{
     },
 };
 
-use cgmath::{Point3, Quaternion, Rotation3};
-
+use glam::{Quat, Vec3};
 use text_buffer::{
     action::EditorOperation,
     buffer::CellPosition,
@@ -72,11 +71,9 @@ impl Default for TextEdit {
 
         let position = EasingPointN::new([0.0, 0.0, 0.0]);
         let bound = config.min_bound.into();
-        let rotation =
-            cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_y(), cgmath::Deg(0.0));
-        let [x, y, z] = rotation.v.into();
-        let s = rotation.s;
-        let rotation = EasingPointN::new([x, y, z, s]);
+        let rotation = Quat::from_axis_angle(Vec3::Y, 0.0);
+        let [x, y, z, w] = rotation.to_array();
+        let rotation = EasingPointN::new([x, y, z, w]);
         Self {
             config,
             editor: Editor::new(tx),
@@ -103,7 +100,7 @@ impl Default for TextEdit {
 }
 
 impl Model for TextEdit {
-    fn set_position(&mut self, position: Point3<f32>) {
+    fn set_position(&mut self, position: Vec3) {
         let p: [f32; 3] = position.into();
         if self.position.last() == p {
             return;
@@ -111,16 +108,16 @@ impl Model for TextEdit {
         self.position.update(position.into());
     }
 
-    fn position(&self) -> cgmath::Point3<f32> {
+    fn position(&self) -> Vec3 {
         self.position.current().into()
     }
 
-    fn last_position(&self) -> cgmath::Point3<f32> {
+    fn last_position(&self) -> Vec3 {
         self.position.last().into()
     }
 
     // キャレットの位置と direction を考慮してテキストエディタ中のフォーカス位置を返す
-    fn focus_position(&self) -> Point3<f32> {
+    fn focus_position(&self) -> Vec3 {
         let [caret_position_x, caret_position_y, _caret_position_z] = self
             .caret_states
             .main_caret_position()
@@ -129,12 +126,12 @@ impl Model for TextEdit {
         let [position_x, position_y, position_z] = self.position.last();
         let [current_bound_x, current_bound_y] = self.bound.last();
         match self.config.direction {
-            Direction::Horizontal => Point3::new(
+            Direction::Horizontal => Vec3::new(
                 position_x,
                 position_y + caret_position_y + current_bound_y / 2.0,
                 position_z,
             ),
-            Direction::Vertical => Point3::new(
+            Direction::Vertical => Vec3::new(
                 position_x + caret_position_x - current_bound_x / 2.0,
                 position_y,
                 position_z,
@@ -142,18 +139,17 @@ impl Model for TextEdit {
         }
     }
 
-    fn set_rotation(&mut self, rotation: Quaternion<f32>) {
-        let [x, y, z] = rotation.v.into();
-        let s = rotation.s;
-        if self.rotation.last() == [x, y, z, s] {
+    fn set_rotation(&mut self, rotation: Quat) {
+        let [x, y, z, w] = rotation.to_array();
+        if self.rotation.last() == [x, y, z, w] {
             return;
         }
-        self.rotation.update([x, y, z, s]);
+        self.rotation.update([x, y, z, w]);
         self.config_updated = true;
     }
 
-    fn rotation(&self) -> Quaternion<f32> {
-        self.rotation.last().into()
+    fn rotation(&self) -> Quat {
+        Quat::from_array(self.rotation.last())
     }
 
     fn bound(&self) -> (f32, f32) {
@@ -585,10 +581,10 @@ impl TextEdit {
     fn model_attributes(&self) -> ModelAttributes {
         let [bound_x, bound_y] = &self.bound.current();
         let center = (bound_x / 2.0, -bound_y / 2.0).into();
-        let current_position: Point3<f32> = self.position.current().into();
+        let current_position: Vec3 = self.position.current().into();
         ModelAttributes {
             position: current_position,
-            rotation: self.rotation.current().into(),
+            rotation: Quat::from_array(self.rotation.current()),
             center,
             world_scale: self.world_scale,
         }

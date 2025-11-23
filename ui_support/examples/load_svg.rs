@@ -1,7 +1,7 @@
 use std::fs::File;
 
-use cgmath::One;
 use font_collector::FontRepository;
+use glam::Quat;
 use image::{Delay, Frame, codecs::gif::GifEncoder};
 use web_time::Duration;
 
@@ -104,7 +104,7 @@ impl SimpleStateCallback for SingleCharCallback {
 
         let value = InstanceAttributes::new(
             (0.0, 0.0, 0.0).into(),
-            cgmath::Quaternion::one(),
+            Quat::IDENTITY,
             [1.0, 1.0],
             [0.5, 0.5],
             context.color_theme.orange().get_color(),

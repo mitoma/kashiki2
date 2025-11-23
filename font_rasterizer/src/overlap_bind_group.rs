@@ -1,4 +1,3 @@
-use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
 use crate::time::now_millis;
@@ -26,8 +25,8 @@ pub struct OverlapBindGroup {
 impl Default for Uniforms {
     fn default() -> Self {
         Self {
-            view_proj: cgmath::Matrix4::identity().into(),
-            default_view_proj: cgmath::Matrix4::identity().into(),
+            view_proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
+            default_view_proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
             time: now_millis(),
             width: 0,
             padding: [0; 2],

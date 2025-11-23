@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use cgmath::Point2;
 use font_rasterizer::{
     color_theme::ColorTheme,
     glyph_vertex_buffer::Direction,
     motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
 };
+use glam::Vec2;
 use text_buffer::editor::LineBoundaryProhibitedChars;
 
 pub(crate) struct CpuEasingConfig {
@@ -245,7 +245,7 @@ pub struct TextContext {
     pub(crate) col_scale: f32,
     pub(crate) max_col: usize,
     pub(crate) line_prohibited_chars: LineBoundaryProhibitedChars,
-    pub(crate) min_bound: Point2<f32>,
+    pub(crate) min_bound: Vec2,
     pub(crate) char_easings: CharEasings,
     pub(crate) color_theme: ColorTheme,
     pub(crate) psychedelic: bool,
@@ -260,8 +260,8 @@ pub enum HighlightMode {
     Language(String),
 }
 
-const TEXT_CONTEXT_ZERO_BOUND: Point2<f32> = Point2::new(0.0, 0.0);
-const TEXT_CONTEXT_DEFAULT_BOUND: Point2<f32> = Point2::new(10.0, 5.0);
+const TEXT_CONTEXT_ZERO_BOUND: Vec2 = Vec2::new(0.0, 0.0);
+const TEXT_CONTEXT_DEFAULT_BOUND: Vec2 = Vec2::new(10.0, 5.0);
 
 impl Default for TextContext {
     fn default() -> Self {

@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, ops::Range};
 
-use cgmath::{Matrix4, Quaternion, Rotation3, num_traits::ToPrimitive};
+use glam::{Mat4, Quat, Vec3};
 use rand::Rng;
 use text_buffer::{
     buffer::{BufferChar, CellPosition},
@@ -140,8 +140,7 @@ impl CharStates {
         }
         if let Some(mut instance) = self.instances.remove(&from.into()) {
             instance.motion = text_context.char_easings.move_char.motion;
-            if instance.start_time + instance.duration.as_millis().to_u32().unwrap() < now_millis()
-            {
+            if instance.start_time + (instance.duration.as_millis() as u32) < now_millis() {
                 instance.start_time = now_millis() + counter * 10;
             }
             instance.duration = text_context.char_easings.move_char.duration;
@@ -266,8 +265,7 @@ impl CharStates {
             self.removed_chars.insert(c, state);
         }
         if let Some(instance) = self.instances.get_mut(&c.into()) {
-            if instance.start_time + instance.duration.as_millis().to_u32().unwrap() < now_millis()
-            {
+            if instance.start_time + (instance.duration.as_millis() as u32) < now_millis() {
                 instance.start_time = now_millis() + counter * 10;
             }
             instance.motion = text_context.char_easings.remove_char.motion;
@@ -369,23 +367,24 @@ impl CharStates {
         &self,
         x_ratio: f32,
         y_ratio: f32,
-        view_projection_matrix: &Matrix4<f32>,
+        view_projection_matrix: &Mat4,
         model_attribuetes: &ModelAttributes,
     ) -> Option<BufferChar> {
         let mut distance_map: BTreeMap<BufferChar, f32> = BTreeMap::new();
 
         for (idx, state) in self.chars.iter() {
             let [x, y, z] = state.position.current();
-            let pos = cgmath::Matrix4::from(model_attribuetes.rotation)
-                * cgmath::Matrix4::from_translation(cgmath::Vector3 { x, y, z }).w;
-            let new_position = cgmath::Vector3 {
+            let pos = Mat4::from_quat(model_attribuetes.rotation)
+                .mul_mat4(&Mat4::from_translation(Vec3::new(x, y, z)))
+                .w_axis;
+            let new_position = Vec3 {
                 x: pos.x - model_attribuetes.center.x + model_attribuetes.position.x,
                 y: pos.y - model_attribuetes.center.y + model_attribuetes.position.y,
                 z: pos.z + model_attribuetes.position.z,
             };
-            let new_position = cgmath::Matrix4::from_translation(new_position);
+            let new_position = Mat4::from_translation(new_position);
             let calced_model_position = view_projection_matrix * new_position;
-            let nw = calced_model_position.w;
+            let nw = calced_model_position.w_axis;
             let nw_x = nw.x / nw.w;
             let nw_y = nw.y / nw.w;
 
@@ -630,7 +629,7 @@ fn update_instance(
     instance: &mut InstanceAttributes,
     view_char_state: &mut ViewElementState,
     model_attribuetes: &ModelAttributes,
-    char_rotation: Option<Quaternion<f32>>,
+    char_rotation: Option<Quat>,
 ) {
     // set color
     instance.color = view_char_state.color.current();
@@ -649,15 +648,15 @@ fn update_instance(
     // set position
     let [x, y, z] = view_char_state.position.current();
     // モデル全体を回転させた後にモデルとしての中心を真ん中に移動する
-    let pos = (cgmath::Matrix4::from(model_attribuetes.rotation)
-        * cgmath::Matrix4::from_translation(cgmath::Vector3 {
+    let pos =
+        (Mat4::from_quat(model_attribuetes.rotation).mul_mat4(&Mat4::from_translation(Vec3 {
             x: x - model_attribuetes.center.x,
             y: y - model_attribuetes.center.y,
             z,
-        }))
-    .w;
+        })))
+        .w_axis;
     // そのあと、World に対しての位置を考慮して移動する
-    let new_position = cgmath::Vector3 {
+    let new_position = Vec3 {
         x: pos.x + model_attribuetes.position.x,
         y: pos.y + model_attribuetes.position.y,
         z: pos.z + model_attribuetes.position.z,
@@ -678,16 +677,13 @@ fn calc_rotation(
     c: char,
     text_context: &TextContext,
     char_width_calcurator: &CharWidthCalculator,
-) -> Option<Quaternion<f32>> {
+) -> Option<Quat> {
     match text_context.direction {
         Direction::Horizontal => None,
         Direction::Vertical => {
             let width = char_width_calcurator.get_width(c);
             match width {
-                CharWidth::Regular => Some(cgmath::Quaternion::from_axis_angle(
-                    cgmath::Vector3::unit_z(),
-                    cgmath::Deg(-90.0),
-                )),
+                CharWidth::Regular => Some(Quat::from_axis_angle(Vec3::Z, -90.0f32.to_radians())),
                 CharWidth::Wide => None,
             }
         }

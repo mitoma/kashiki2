@@ -7,7 +7,7 @@ edition = "2024"
 [dependencies]
 thiserror = { workspace = true }
 bytemuck = { workspace = true }
-cgmath = { workspace = true }
+glam ={ workspace = true }
 hidapi = { workspace = true }
 vqf-rs = { workspace = true, features = ["f32", "motion-bias-estimation"] }
 

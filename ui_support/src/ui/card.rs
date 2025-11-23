@@ -1,4 +1,4 @@
-use cgmath::Point2;
+use glam::Vec2;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{context::StateContext, glyph_instances::GlyphInstances};
@@ -27,7 +27,7 @@ impl Card {
         let config = TextContext {
             char_easings: CharEasings::ignore_camera(),
             max_col: usize::MAX,
-            min_bound: Point2::new(1.0, 10.0),
+            min_bound: Vec2::new(1.0, 10.0),
             hyde_caret: true,
             ..Default::default()
         };

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cgmath::{Matrix4, Point2, Point3, Quaternion};
+use glam::{Mat4, Quat, Vec2, Vec3};
 use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 
 use font_rasterizer::{
@@ -18,18 +18,18 @@ pub enum ModelBorder {
 
 pub trait Model {
     // モデルの位置を設定する
-    fn set_position(&mut self, position: Point3<f32>);
+    fn set_position(&mut self, position: Vec3);
     // モデルの位置を返す
-    fn position(&self) -> Point3<f32>;
+    fn position(&self) -> Vec3;
     // モデルの最終的な位置を返す(アニメーション中はアニメーション後の位置)
-    fn last_position(&self) -> Point3<f32>;
+    fn last_position(&self) -> Vec3;
     // モデル中、カメラがフォーカスすべき位置を返す
     // position はモデルの中心を指す
-    fn focus_position(&self) -> Point3<f32>;
+    fn focus_position(&self) -> Vec3;
     // モデルの回転を設定する
-    fn set_rotation(&mut self, rotation: Quaternion<f32>);
+    fn set_rotation(&mut self, rotation: Quat);
     // モデルの回転を返す
-    fn rotation(&self) -> Quaternion<f32>;
+    fn rotation(&self) -> Quat;
     // モデルの縦横の長さを返す
     fn bound(&self) -> (f32, f32);
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
@@ -69,8 +69,8 @@ pub enum ModelOperation {
     // サイケデリックモードを切り替える(実験的なお遊び機能)
     TogglePsychedelic,
     // Click
-    MoveToClick(f32, f32, Matrix4<f32>),
-    MarkAndClick(f32, f32, Matrix4<f32>),
+    MoveToClick(f32, f32, Mat4),
+    MarkAndClick(f32, f32, Mat4),
     SetModelBorder(ModelBorder),
     SetMaxCol(usize),
     IncreaseMaxCol,
@@ -85,11 +85,11 @@ pub enum ModelOperationResult {
 
 // モデルが持つ属性をまとめたもの
 pub struct ModelAttributes {
-    pub center: Point2<f32>,
+    pub center: Vec2,
     // モデルの world 空間上の位置
-    pub position: Point3<f32>,
+    pub position: Vec3,
     // モデルの world 空間上の回転(向き)
-    pub rotation: Quaternion<f32>,
+    pub rotation: Quat,
     // モデルの world 空間上の拡大率(x, y)
     pub world_scale: [f32; 2],
 }
