@@ -423,12 +423,6 @@ impl UiContext {
         self.state_context.post_action_sender()
     }
 
-    // 内部アクセス用（必要な場合のみ使用）
-    #[inline]
-    pub(crate) fn state_context(&self) -> &StateContext {
-        &self.state_context
-    }
-
     #[inline]
     pub(crate) fn state_context_mut(&mut self) -> &mut StateContext {
         &mut self.state_context

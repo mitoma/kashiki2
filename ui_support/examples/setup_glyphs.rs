@@ -1,12 +1,8 @@
 use font_collector::{FontCollector, FontRepository};
-use font_rasterizer::{
-    color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
-    rasterizer_pipeline::Quarity,
-};
+use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport, camera::Camera,
-    run_support,
+    run_support, ui_context::UiContext,
 };
 use web_time::Instant;
 use winit::event::WindowEvent;
@@ -52,7 +48,7 @@ struct SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, context: &StateContext) {
+    fn init(&mut self, context: &UiContext) {
         let start = Instant::now();
         [
             'a'..='z',
@@ -77,13 +73,13 @@ impl SimpleStateCallback for SingleCharCallback {
         println!("init: {:?}", end - start);
     }
 
-    fn update(&mut self, _context: &StateContext) {}
+    fn update(&mut self, _context: &UiContext) {}
 
-    fn input(&mut self, _context: &StateContext, _event: &WindowEvent) -> InputResult {
+    fn input(&mut self, _context: &UiContext, _event: &WindowEvent) -> InputResult {
         InputResult::Noop
     }
 
-    fn action(&mut self, _context: &StateContext, _action: stroke_parser::Action) -> InputResult {
+    fn action(&mut self, _context: &UiContext, _action: stroke_parser::Action) -> InputResult {
         InputResult::Noop
     }
 
