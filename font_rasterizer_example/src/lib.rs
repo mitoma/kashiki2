@@ -6,7 +6,7 @@ use web_time::Duration;
 
 use font_rasterizer::{
     color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
+    context::WindowSize,
     glyph_instances::GlyphInstances,
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
@@ -15,6 +15,7 @@ use font_rasterizer::{
 };
 use glam::Quat;
 use log::info;
+use ui_support::ui_context::UiContext;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
@@ -97,28 +98,28 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, context: &StateContext) {
+    fn init(&mut self, context: &UiContext) {
         let value = InstanceAttributes {
-            color: context.color_theme.cyan().get_color(),
+            color: context.color_theme().cyan().get_color(),
             motion: self.motion.motion_flags(),
             gain: 2.0,
             duration: Duration::from_millis(1000),
             ..Default::default()
         };
-        let mut instance = GlyphInstances::new('あ', &context.device);
+        let mut instance = GlyphInstances::new('あ', context.device());
         instance.push(value);
         self.glyphs.push(instance);
         let chars = vec!['あ'].into_iter().collect();
         context.register_string(chars);
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         self.glyphs
             .iter_mut()
-            .for_each(|i| i.update_buffer(&context.device, &context.queue));
+            .for_each(|i| i.update_buffer(context.device(), context.queue()));
     }
 
-    fn input(&mut self, _context: &StateContext, event: &WindowEvent) -> InputResult {
+    fn input(&mut self, _context: &UiContext, event: &WindowEvent) -> InputResult {
         match event {
             WindowEvent::PointerButton {
                 state: ElementState::Pressed,
@@ -149,7 +150,7 @@ impl SimpleStateCallback for SingleCharCallback {
         }
     }
 
-    fn action(&mut self, _context: &StateContext, _action: Action) -> InputResult {
+    fn action(&mut self, _context: &UiContext, _action: Action) -> InputResult {
         InputResult::Noop
     }
 

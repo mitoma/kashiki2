@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, io::BufReader, path::Path, sync::LazyLock};
 
-use font_rasterizer::{context::StateContext, time::now_millis};
+use font_rasterizer::time::now_millis;
 use serde_jsonlines::{BufReadExt, write_json_lines};
 use stroke_parser::{Action, ActionArgument, CommandName};
 
@@ -98,7 +98,7 @@ impl ActionRecorder {
         self.record_data.push(action.clone());
     }
 
-    pub fn replay(&mut self, context: &StateContext) {
+    pub fn replay(&mut self, context: &UiContext) {
         if self.mode != RecorderMode::Replay {
             return;
         }
