@@ -24,7 +24,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use camera::Camera;
 use font_rasterizer::{
     color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
+    context::WindowSize,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
@@ -32,6 +32,7 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
 };
 use render_state::{RenderState, RenderTargetRequest};
+use ui_context::UiContext;
 
 use crate::{
     layout_engine::Model,
@@ -280,7 +281,7 @@ impl ApplicationHandler for App {
                 state.change_font(font_name);
             }
             InputResult::ChangeGlobalDirection(direction) => {
-                state.context.global_direction = direction;
+                state.context.set_global_direction(direction);
             }
             InputResult::ChangeWindowSize(window_size) => {
                 state.resize(window_size);
@@ -419,7 +420,7 @@ impl ApplicationHandler for App {
                     window.set_decorations(!window.is_decorated());
                 }
                 InputResult::ChangeGlobalDirection(direction) => {
-                    state.context.global_direction = direction;
+                    state.context.set_global_direction(direction);
                 }
                 InputResult::ChangeWindowSize(window_size) => {
                     state.resize(window_size);
@@ -506,7 +507,7 @@ fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> O
             None
         }
         InputResult::ChangeGlobalDirection(direction) => {
-            state.context.global_direction = direction;
+            state.context.set_global_direction(direction);
             None
         }
         InputResult::SendExit => Some(input_result),
@@ -535,11 +536,11 @@ pub enum InputResult {
 }
 
 pub trait SimpleStateCallback {
-    fn init(&mut self, context: &StateContext);
+    fn init(&mut self, context: &UiContext);
     fn resize(&mut self, size: WindowSize);
-    fn update(&mut self, context: &StateContext);
-    fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
-    fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
+    fn update(&mut self, context: &UiContext);
+    fn input(&mut self, context: &UiContext, event: &WindowEvent) -> InputResult;
+    fn action(&mut self, context: &UiContext, action: Action) -> InputResult;
     fn render(&'_ mut self) -> RenderData<'_>;
     fn shutdown(&mut self);
 }
@@ -637,40 +638,40 @@ pub async fn generate_image_iter(
 }
 
 #[inline]
-pub fn register_default_caret(state_context: &StateContext) {
-    state_context.register_svg(
+pub fn register_default_caret(context: &UiContext) {
+    context.register_svg(
         caret_char(text_buffer::caret::CaretType::Primary).to_string(),
         include_str!("../asset/caret_primary.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         caret_char(text_buffer::caret::CaretType::Mark).to_string(),
         include_str!("../asset/caret_mark.svg").to_string(),
     );
 }
 
 #[inline]
-pub fn register_default_border(state_context: &StateContext) {
-    state_context.register_svg(
+pub fn register_default_border(context: &UiContext) {
+    context.register_svg(
         BorderType::Horizontal.to_key(),
         include_str!("../asset/border_horizontal.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::Vertical.to_key(),
         include_str!("../asset/border_vertical.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::TopLeft.to_key(),
         include_str!("../asset/border_top_left.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::TopRight.to_key(),
         include_str!("../asset/border_top_right.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::BottomLeft.to_key(),
         include_str!("../asset/border_bottom_left.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::BottomRight.to_key(),
         include_str!("../asset/border_bottom_right.svg").to_string(),
     );

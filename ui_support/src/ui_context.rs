@@ -1,11 +1,16 @@
+use std::sync::{Arc, mpsc::Sender};
 use std::time::Duration;
 
+use font_collector::FontRepository;
 use font_rasterizer::{
+    char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
+    context::{StateContext, WindowSize},
     glyph_vertex_buffer::Direction,
     motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
 };
 use glam::Vec2;
+use stroke_parser::Action;
 use text_buffer::editor::LineBoundaryProhibitedChars;
 
 pub(crate) struct CpuEasingConfig {
@@ -329,5 +334,103 @@ impl TextContext {
         } else {
             self.min_bound = TEXT_CONTEXT_ZERO_BOUND;
         }
+    }
+}
+
+/// UI レイヤー用のコンテキスト。
+/// StateContext をラップし、UI 固有の機能を提供する。
+pub struct UiContext {
+    state_context: StateContext,
+}
+
+impl UiContext {
+    #[inline]
+    pub fn new(state_context: StateContext) -> Self {
+        Self { state_context }
+    }
+
+    // StateContext のフィールドへのアクセサ
+
+    #[inline]
+    pub fn device(&self) -> &wgpu::Device {
+        &self.state_context.device
+    }
+
+    #[inline]
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.state_context.queue
+    }
+
+    #[inline]
+    pub fn char_width_calcurator(&self) -> &Arc<CharWidthCalculator> {
+        &self.state_context.char_width_calcurator
+    }
+
+    #[inline]
+    pub fn color_theme(&self) -> &ColorTheme {
+        &self.state_context.color_theme
+    }
+
+    #[inline]
+    pub fn window_size(&self) -> WindowSize {
+        self.state_context.window_size
+    }
+
+    #[inline]
+    pub fn global_direction(&self) -> Direction {
+        self.state_context.global_direction
+    }
+
+    #[inline]
+    pub fn set_global_direction(&mut self, direction: Direction) {
+        self.state_context.global_direction = direction;
+    }
+
+    #[inline]
+    pub fn font_repository(&self) -> &FontRepository {
+        &self.state_context.font_repository
+    }
+
+    // StateContext のメソッドの委譲
+
+    #[inline]
+    pub fn register_string(&self, value: String) {
+        self.state_context.register_string(value);
+    }
+
+    #[inline]
+    pub fn register_svg(&self, key: String, svg: String) {
+        self.state_context.register_svg(key, svg);
+    }
+
+    #[inline]
+    pub fn register_action(&self, action: Action) {
+        self.state_context.register_action(action);
+    }
+
+    #[inline]
+    pub fn register_post_action(&self, action: Action) {
+        self.state_context.register_post_action(action);
+    }
+
+    #[inline]
+    pub fn action_sender(&self) -> Sender<Action> {
+        self.state_context.action_sender()
+    }
+
+    #[inline]
+    pub fn post_action_sender(&self) -> Sender<Action> {
+        self.state_context.post_action_sender()
+    }
+
+    // 内部アクセス用（必要な場合のみ使用）
+    #[inline]
+    pub(crate) fn state_context(&self) -> &StateContext {
+        &self.state_context
+    }
+
+    #[inline]
+    pub(crate) fn state_context_mut(&mut self) -> &mut StateContext {
+        &mut self.state_context
     }
 }

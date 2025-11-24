@@ -12,6 +12,8 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
+
+use crate::ui_context::UiContext;
 use image::{DynamicImage, ImageBuffer, Rgba};
 use log::info;
 
@@ -100,7 +102,7 @@ impl RenderTarget {
         }
     }
 
-    fn pre_submit(&mut self, encoder: &mut wgpu::CommandEncoder, context: &StateContext) {
+    fn pre_submit(&mut self, encoder: &mut wgpu::CommandEncoder, context: &UiContext) {
         match &self {
             RenderTarget::Window { .. } => {
                 // 何もしない
@@ -109,7 +111,7 @@ impl RenderTarget {
                 surface_texture,
                 output_buffer,
             } => {
-                let size = context.window_size;
+                let size = context.window_size();
                 let padded_bytes_per_row =
                     Self::padded_bytes_per_row(size.width, surface_texture.format());
                 encoder.copy_texture_to_buffer(
@@ -137,7 +139,7 @@ impl RenderTarget {
         }
     }
 
-    fn flush(&mut self, context: &StateContext) -> RenderTargetResponse {
+    fn flush(&mut self, context: &UiContext) -> RenderTargetResponse {
         match self {
             RenderTarget::Window {
                 surface_texture, ..
@@ -149,7 +151,7 @@ impl RenderTarget {
                 surface_texture,
                 output_buffer,
             } => {
-                let size = context.window_size;
+                let size = context.window_size();
                 let format = surface_texture.format();
                 let bytes_per_pixel = format.block_copy_size(None).unwrap();
                 let padded_bytes_per_row = Self::padded_bytes_per_row(size.width, format);
@@ -164,7 +166,7 @@ impl RenderTarget {
                     buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
                         tx.send(result).unwrap();
                     });
-                    let _ = context.device.poll(wgpu::PollType::wait_indefinitely());
+                    let _ = context.device().poll(wgpu::PollType::wait_indefinitely());
                     rx.recv().unwrap().unwrap();
 
                     let data = buffer_slice.get_mapped_range();
@@ -197,7 +199,7 @@ impl RenderTarget {
 }
 
 pub(crate) struct RenderState {
-    pub(crate) context: StateContext,
+    pub(crate) context: UiContext,
 
     quarity: Quarity,
 
@@ -374,7 +376,7 @@ impl RenderState {
         let [r, g, b] = color_theme.background().get_color();
         let background_color = EasingPointN::new([r, g, b, 1.0]);
 
-        let context = StateContext::new(
+        let state_context = StateContext::new(
             device,
             queue,
             char_width_calcurator,
@@ -389,6 +391,8 @@ impl RenderState {
                 post_action_queue_sender,
             ),
         );
+
+        let context = UiContext::new(state_context);
 
         simple_state_callback.init(&context);
 
@@ -415,17 +419,17 @@ impl RenderState {
     }
 
     pub(crate) fn redraw(&mut self) {
-        self.resize(self.context.window_size)
+        self.resize(self.context.window_size())
     }
 
     pub(crate) fn change_color_theme(&mut self, color_theme: ColorTheme) {
-        self.context.color_theme = color_theme;
-        let [r, g, b] = self.context.color_theme.background().get_color();
+        self.context.state_context_mut().color_theme = color_theme;
+        let [r, g, b] = self.context.color_theme().background().get_color();
         self.background_color.update([r, g, b, 1.0]);
     }
 
     pub(crate) fn change_background_image(&mut self, background_image: Option<DynamicImage>) {
-        let [r, g, b] = self.context.color_theme.background().get_color();
+        let [r, g, b] = self.context.color_theme().background().get_color();
         let color = match background_image {
             Some(_) => [r, g, b, 0.9],
             None => [r, g, b, 1.0],
@@ -435,15 +439,15 @@ impl RenderState {
         self.background_image = background_image;
 
         self.rasterizer_pipeline.set_background_image(
-            &self.context.device,
-            &self.context.queue,
+            self.context.device(),
+            self.context.queue(),
             self.background_image.as_ref(),
         );
     }
 
     pub(crate) fn resize(&mut self, new_size: WindowSize) {
         if new_size.width > 0 && new_size.height > 0 {
-            self.context.window_size = new_size;
+            self.context.state_context_mut().window_size = new_size;
 
             match self.render_target {
                 RenderTarget::Window {
@@ -453,7 +457,7 @@ impl RenderState {
                 } => {
                     config.width = new_size.width;
                     config.height = new_size.height;
-                    surface.configure(&self.context.device, config);
+                    surface.configure(self.context.device(), config);
                 }
                 RenderTarget::Image {
                     ref mut surface_texture,
@@ -475,7 +479,7 @@ impl RenderState {
                             | wgpu::TextureUsages::TEXTURE_BINDING,
                         label: None,
                     };
-                    *surface_texture = self.context.device.create_texture(&surface_texture_desc);
+                    *surface_texture = self.context.device().create_texture(&surface_texture_desc);
 
                     // create output buffer with proper alignment
                     let padded_bytes_per_row = RenderTarget::padded_bytes_per_row(
@@ -492,7 +496,7 @@ impl RenderState {
                         label: Some("Output Buffer"),
                         mapped_at_creation: false,
                     };
-                    *output_buffer = self.context.device.create_buffer(&output_buffer_desc);
+                    *output_buffer = self.context.device().create_buffer(&output_buffer_desc);
                 }
             }
 
@@ -501,7 +505,7 @@ impl RenderState {
             let bg_color = self.rasterizer_pipeline.bg_color;
             // サイズ変更時にはパイプラインを作り直す
             self.rasterizer_pipeline = RasterizerPipeline::new(
-                &self.context.device,
+                self.context.device(),
                 new_size.width,
                 new_size.height,
                 self.render_target.format(),
@@ -509,8 +513,8 @@ impl RenderState {
                 bg_color,
             );
             self.rasterizer_pipeline.set_background_image(
-                &self.context.device,
-                &self.context.queue,
+                self.context.device(),
+                self.context.queue(),
                 self.background_image.as_ref(),
             );
         }
@@ -541,8 +545,8 @@ impl RenderState {
         record_start_of_phase("render 0: append glyph");
         while let Ok(s) = self.ui_string_receiver.try_recv() {
             let _ = self.glyph_vertex_buffer.append_chars(
-                &self.context.device,
-                &self.context.queue,
+                self.context.device(),
+                self.context.queue(),
                 s.chars().collect(),
             );
         }
@@ -550,8 +554,8 @@ impl RenderState {
         record_start_of_phase("render 0: append svg");
         while let Ok((key, svg)) = self.ui_svg_receiver.try_recv() {
             let _ = self.svg_vertex_buffer.append_svg(
-                &self.context.device,
-                &self.context.queue,
+                self.context.device(),
+                self.context.queue(),
                 &key,
                 &svg,
             );
@@ -560,14 +564,14 @@ impl RenderState {
         record_start_of_phase("render 1: setup encoder");
         let mut encoder =
             self.context
-                .device
+                .device()
                 .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Render Encoder"),
                 });
 
         // run all stage
         record_start_of_phase("render 2: update buffer");
-        self.rasterizer_pipeline.update_buffer(&self.context.queue);
+        self.rasterizer_pipeline.update_buffer(self.context.queue());
         record_start_of_phase("render 2-2: create texture");
         let screen_view = self.render_target.get_screen_view()?;
 
@@ -626,8 +630,8 @@ impl RenderState {
 
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
-            &self.context.device,
-            &self.context.queue,
+            self.context.device(),
+            self.context.queue(),
             (
                 camera.build_view_projection_matrix().to_cols_array_2d(),
                 camera
@@ -643,7 +647,7 @@ impl RenderState {
 
         self.render_target.pre_submit(&mut encoder, &self.context);
 
-        self.context.queue.submit(Some(encoder.finish()));
+        self.context.queue().submit(Some(encoder.finish()));
 
         let result = self.render_target.flush(&self.context);
 
@@ -657,13 +661,19 @@ impl RenderState {
     pub(crate) fn change_font(&mut self, font_name: Option<String>) {
         match font_name {
             Some(font_name) => {
-                self.context.font_repository.set_primary_font(&font_name);
+                self.context
+                    .state_context_mut()
+                    .font_repository
+                    .set_primary_font(&font_name);
             }
             None => {
-                self.context.font_repository.clear_primary_font();
+                self.context
+                    .state_context_mut()
+                    .font_repository
+                    .clear_primary_font();
             }
         }
-        let font_binaries = self.context.font_repository.get_fonts();
+        let font_binaries = self.context.font_repository().get_fonts();
         let font_binaries = Arc::new(font_binaries);
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
 
@@ -671,28 +681,29 @@ impl RenderState {
         self.glyph_vertex_buffer =
             GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
         let _ = self.glyph_vertex_buffer.append_chars(
-            &self.context.device,
-            &self.context.queue,
+            self.context.device(),
+            self.context.queue(),
             registerd_chars,
         );
-        self.context.char_width_calcurator = char_width_calcurator;
+        self.context.state_context_mut().char_width_calcurator = char_width_calcurator;
     }
 
     pub(crate) fn change_quarity(&mut self, quarity: Quarity) {
         if self.quarity != quarity {
             self.quarity = quarity;
             let bg_color = self.rasterizer_pipeline.bg_color;
+            let window_size = self.context.window_size();
             self.rasterizer_pipeline = RasterizerPipeline::new(
-                &self.context.device,
-                self.context.window_size.width,
-                self.context.window_size.height,
+                self.context.device(),
+                window_size.width,
+                window_size.height,
                 self.render_target.format(),
                 self.quarity,
                 bg_color,
             );
             self.rasterizer_pipeline.set_background_image(
-                &self.context.device,
-                &self.context.queue,
+                self.context.device(),
+                self.context.queue(),
                 self.background_image.as_ref(),
             );
         }

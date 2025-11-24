@@ -17,11 +17,12 @@ use text_buffer::{
 use font_rasterizer::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     color_theme::{ColorTheme, ThemedColor},
-    context::StateContext,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
     vector_instances::VectorInstances,
 };
+
+use crate::ui_context::UiContext;
 
 use crate::{
     easing_value::EasingPointN,
@@ -173,17 +174,17 @@ impl Model for TextEdit {
         result
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         if self.border != ModelBorder::None && self.border_states.is_none() {
             // border が None 以外のときは border_states を初期化する
             let mut states = BorderStates::default();
-            states.init(&self.config, &context.device);
+            states.init(&self.config, context.device());
             self.border_states = Some(states);
         }
 
-        let color_theme = &context.color_theme;
-        let device = &context.device;
-        let queue = &context.queue;
+        let color_theme = context.color_theme();
+        let device = context.device();
+        let queue = context.queue();
         if self.config.color_theme != *color_theme {
             self.config.color_theme = *color_theme;
             self.char_states.update_char_theme(color_theme);
@@ -193,15 +194,14 @@ impl Model for TextEdit {
         self.sync_editor_events(device, color_theme);
 
         if self.buffer_updated || self.config_updated {
-            let layout = self.calc_phisical_layout(context.char_width_calcurator.clone());
+            let layout = self.calc_phisical_layout(context.char_width_calcurator().clone());
             let bound = self.calc_bound(&layout);
-            self.calc_position(&context.char_width_calcurator, &layout, bound);
+            self.calc_position(context.char_width_calcurator(), &layout, bound);
         }
         if self.text_updated {
             self.highlight();
         }
-
-        self.calc_instance_positions(&context.char_width_calcurator);
+        self.calc_instance_positions(context.char_width_calcurator());
         self.char_states.instances.update(device, queue);
         self.caret_states.instances.update(device, queue);
         if let Some(state) = self.border_states.as_mut() {

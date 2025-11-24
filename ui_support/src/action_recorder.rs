@@ -4,7 +4,7 @@ use font_rasterizer::{context::StateContext, time::now_millis};
 use serde_jsonlines::{BufReadExt, write_json_lines};
 use stroke_parser::{Action, ActionArgument, CommandName};
 
-use crate::{InputResult, action::NamespaceActionProcessors};
+use crate::{InputResult, action::NamespaceActionProcessors, ui_context::UiContext};
 
 const SCRIPT_NAME: &str = "record.jsonl";
 
@@ -184,7 +184,7 @@ impl NamespaceActionProcessors for ActionRecorder {
         &mut self,
         command_name: &CommandName,
         arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         _world: &mut dyn crate::layout_engine::World,
     ) -> InputResult {
         match command_name.as_str() {
