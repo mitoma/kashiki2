@@ -4,7 +4,7 @@ use font_collector::FontRepository;
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
-    context::{Senders, StateContext, WindowSize},
+    context::{StateContext, WindowSize},
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Buffers, Quarity, RasterizerPipeline},
@@ -13,7 +13,7 @@ use font_rasterizer::{
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
-use crate::ui_context::UiContext;
+use crate::ui_context::{Senders, UiContext};
 use image::{DynamicImage, ImageBuffer, Rgba};
 use log::info;
 
@@ -384,15 +384,16 @@ impl RenderState {
             window_size,
             Direction::Horizontal,
             font_repository,
-            Senders::new(
-                ui_string_sender,
-                ui_svg_sender,
-                action_queue_sender,
-                post_action_queue_sender,
-            ),
         );
 
-        let context = UiContext::new(state_context);
+        let senders = Senders::new(
+            ui_string_sender,
+            ui_svg_sender,
+            action_queue_sender,
+            post_action_queue_sender,
+        );
+
+        let context = UiContext::new(state_context, senders);
 
         simple_state_callback.init(&context);
 

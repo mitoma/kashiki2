@@ -1,3 +1,4 @@
+use log::warn;
 use std::sync::{Arc, mpsc::Sender};
 use std::time::Duration;
 
@@ -339,14 +340,41 @@ impl TextContext {
 
 /// UI レイヤー用のコンテキスト。
 /// StateContext をラップし、UI 固有の機能を提供する。
+pub struct Senders {
+    ui_string_sender: Sender<String>,
+    ui_svg_sender: Sender<(String, String)>,
+    action_queue_sender: Sender<Action>,
+    post_action_queue_sender: Sender<Action>,
+}
+
+impl Senders {
+    pub fn new(
+        ui_string_sender: Sender<String>,
+        ui_svg_sender: Sender<(String, String)>,
+        action_queue_sender: Sender<Action>,
+        post_action_queue_sender: Sender<Action>,
+    ) -> Self {
+        Self {
+            ui_string_sender,
+            ui_svg_sender,
+            action_queue_sender,
+            post_action_queue_sender,
+        }
+    }
+}
+
 pub struct UiContext {
     state_context: StateContext,
+    senders: Senders,
 }
 
 impl UiContext {
     #[inline]
-    pub fn new(state_context: StateContext) -> Self {
-        Self { state_context }
+    pub fn new(state_context: StateContext, senders: Senders) -> Self {
+        Self {
+            state_context,
+            senders,
+        }
     }
 
     // StateContext のフィールドへのアクセサ
@@ -395,32 +423,44 @@ impl UiContext {
 
     #[inline]
     pub fn register_string(&self, value: String) {
-        self.state_context.register_string(value);
+        match self.senders.ui_string_sender.send(value) {
+            Ok(_) => {}
+            Err(err) => warn!("Failed to send string: {}", err),
+        }
     }
 
     #[inline]
     pub fn register_svg(&self, key: String, svg: String) {
-        self.state_context.register_svg(key, svg);
+        match self.senders.ui_svg_sender.send((key, svg)) {
+            Ok(_) => {}
+            Err(err) => warn!("Failed to send SVG: {}", err),
+        }
     }
 
     #[inline]
     pub fn register_action(&self, action: Action) {
-        self.state_context.register_action(action);
+        match self.senders.action_queue_sender.send(action) {
+            Ok(_) => {}
+            Err(err) => warn!("Failed to send action: {}", err),
+        }
     }
 
     #[inline]
     pub fn register_post_action(&self, action: Action) {
-        self.state_context.register_post_action(action);
+        match self.senders.post_action_queue_sender.send(action) {
+            Ok(_) => {}
+            Err(err) => warn!("Failed to send post action: {}", err),
+        }
     }
 
     #[inline]
     pub fn action_sender(&self) -> Sender<Action> {
-        self.state_context.action_sender()
+        self.senders.action_queue_sender.clone()
     }
 
     #[inline]
     pub fn post_action_sender(&self) -> Sender<Action> {
-        self.state_context.post_action_sender()
+        self.senders.post_action_queue_sender.clone()
     }
 
     #[inline]
