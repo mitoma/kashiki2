@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
-use cgmath::Quaternion;
 use font_rasterizer::context::StateContext;
+use glam::Quat;
 use rokid_3dof::RokidMax;
 use stroke_parser::{ActionArgument, CommandName, CommandNamespace};
 use ui_support::{
@@ -30,7 +30,7 @@ impl RokidMaxAction {
         };
     }
 
-    pub fn quaternion(&self) -> Option<Quaternion<f32>> {
+    pub fn quaternion(&self) -> Option<Quat> {
         if !self.ar_mode {
             return None;
         }

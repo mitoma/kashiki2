@@ -1,12 +1,12 @@
 use std::vec;
 
 use font_collector::FontRepository;
+use glam::Quat;
 use rokid_3dof::RokidMax;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 use web_time::Duration;
 
-use cgmath::Rotation3;
 use font_rasterizer::{
     color_theme::ColorTheme::{self, SolarizedDark},
     context::{StateContext, WindowSize},
@@ -109,7 +109,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
         let value = InstanceAttributes::new(
             (0.0, 0.0, 0.0).into(),
-            cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+            Quat::IDENTITY,
             [1.0, 1.0],
             [1.0, 1.0],
             context.color_theme.cyan().get_color(),
@@ -157,10 +157,7 @@ impl SimpleStateCallback for SingleCharCallback {
                         i.clear();
                         i.push(InstanceAttributes::new(
                             (0.0, 0.0, 0.0).into(),
-                            cgmath::Quaternion::from_axis_angle(
-                                cgmath::Vector3::unit_z(),
-                                cgmath::Deg(0.0),
-                            ),
+                            Quat::IDENTITY,
                             [1.0, 1.0],
                             [1.0, 1.0],
                             SolarizedDark.cyan().get_color(),

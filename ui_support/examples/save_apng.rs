@@ -1,8 +1,8 @@
 use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use font_collector::{FontCollector, FontRepository};
+use glam::Quat;
 use web_time::Duration;
 
-use cgmath::Rotation3;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
@@ -114,7 +114,7 @@ impl SimpleStateCallback for SingleCharCallback {
         context.register_string("あ".to_string());
         let value = InstanceAttributes::new(
             (0.0, 0.0, 0.0).into(),
-            cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+            Quat::IDENTITY,
             [1.0, 1.0],
             [1.0, 1.0],
             context.color_theme.cyan().get_color(),

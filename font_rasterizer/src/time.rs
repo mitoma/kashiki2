@@ -1,6 +1,5 @@
 use std::sync::{LazyLock, Mutex};
 
-use cgmath::num_traits::ToPrimitive;
 use web_time::{Duration, SystemTime};
 
 pub enum ClockMode {
@@ -38,7 +37,7 @@ impl SystemClock {
             ClockMode::StepByStep => self.current_time,
             ClockMode::Fixed => self.current_time,
         };
-        (duration % u32::MAX as u128).to_u32().unwrap()
+        (duration % u32::MAX as u128) as u32
     }
 
     fn increment(&mut self, duration: Duration) {

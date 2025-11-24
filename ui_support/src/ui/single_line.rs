@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cgmath::Rotation3;
+use glam::{Quat, Vec3};
 use web_time::Duration;
 
 use font_rasterizer::{
@@ -103,12 +103,12 @@ impl SingleLine {
                 .or_insert_with(|| GlyphInstances::new(c, &context.device));
             let instance = self.instances.get_mut(&c).unwrap();
             let i = InstanceAttributes::new(
-                cgmath::Vector3 {
+                Vec3 {
                     x: x * 0.7,
                     y: y_pos,
                     z: 0.0,
                 },
-                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+                Quat::IDENTITY,
                 [x_scale, self.scale[1]],
                 [1.0, 1.0],
                 get_color(&context.color_theme, c),

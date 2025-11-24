@@ -629,8 +629,10 @@ impl RenderState {
             &self.context.device,
             &self.context.queue,
             (
-                camera.build_view_projection_matrix().into(),
-                camera.build_default_view_projection_matrix().into(),
+                camera.build_view_projection_matrix().to_cols_array_2d(),
+                camera
+                    .build_default_view_projection_matrix()
+                    .to_cols_array_2d(),
             ),
             buffers,
             modal_buffers,

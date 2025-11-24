@@ -10,6 +10,7 @@ mod text_instances;
 pub mod ui;
 pub mod ui_context;
 
+use glam::Mat4;
 use log::warn;
 use pollster::block_on;
 pub use render_state::RenderTargetResponse;
@@ -677,14 +678,13 @@ pub fn register_default_border(state_context: &StateContext) {
 
 #[inline]
 pub(crate) fn to_ndc_position(model: &dyn Model, camera: &Camera) -> (f32, f32) {
-    let cgmath::Point3 { x, y, z } = model.position();
-    let position_vec = cgmath::Vector3 { x, y, z };
+    let glam::Vec3 { x, y, z } = model.position();
+    let position_vec = glam::Vec3 { x, y, z };
 
-    let p =
-        cgmath::Matrix4::from_translation(position_vec) * cgmath::Matrix4::from(model.rotation());
+    let p = Mat4::from_translation(position_vec).mul_mat4(&Mat4::from_quat(model.rotation()));
     let view_projection_matrix = camera.build_view_projection_matrix();
     let calced_model_position = view_projection_matrix * p;
-    let nw = calced_model_position.w;
+    let nw = calced_model_position.w_axis;
     let nw_x = nw.x / nw.w;
     let nw_y = nw.y / nw.w;
     (nw_x, nw_y)

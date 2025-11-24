@@ -15,7 +15,6 @@ ui_support = { path = "../../ui_support" }
 env_logger = { workspace = true }
 log = { workspace = true }
 pollster = { workspace = true }
-cgmath = { workspace = true }
 winit = { workspace = true }
 wgpu = { workspace = true }
 web-time = { workspace = true }

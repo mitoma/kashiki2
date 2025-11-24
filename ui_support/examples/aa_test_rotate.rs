@@ -1,9 +1,9 @@
 use std::fs;
 
 use apng::{Frame, ParallelEncoder, load_dynamic_image};
-use cgmath::One;
 use clap::Parser;
 use font_collector::{FontCollector, FontRepository};
+use glam::Quat;
 use web_time::{Duration, SystemTime};
 
 use font_rasterizer::{
@@ -159,7 +159,7 @@ impl SimpleStateCallback for SingleCharCallback {
     fn init(&mut self, context: &StateContext) {
         let value = InstanceAttributes {
             position: (0.0, 0.0, 0.0).into(),
-            rotation: cgmath::Quaternion::one(),
+            rotation: Quat::IDENTITY,
             world_scale: [1.0, 1.0],
             instance_scale: [0.5, 0.5],
             color: context.color_theme.text_emphasized().get_color(),
