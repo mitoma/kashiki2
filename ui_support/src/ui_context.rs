@@ -338,8 +338,7 @@ impl TextContext {
     }
 }
 
-/// UI レイヤー用のコンテキスト。
-/// StateContext をラップし、UI 固有の機能を提供する。
+/// UI レイヤー向けの sender をまとめた構造体。
 pub struct Senders {
     ui_string_sender: Sender<String>,
     ui_svg_sender: Sender<(String, String)>,
@@ -363,6 +362,8 @@ impl Senders {
     }
 }
 
+/// UI レイヤー用のコンテキスト。
+/// StateContext をラップし、UI 固有の機能を提供する。
 pub struct UiContext {
     state_context: StateContext,
     senders: Senders,
@@ -419,8 +420,7 @@ impl UiContext {
         &self.state_context.font_repository
     }
 
-    // StateContext のメソッドの委譲
-
+    // Senders の移譲
     #[inline]
     pub fn register_string(&self, value: String) {
         match self.senders.ui_string_sender.send(value) {
