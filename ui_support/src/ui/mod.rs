@@ -25,13 +25,14 @@ use web_time::Duration;
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::{ColorTheme, ThemedColor},
-    context::StateContext,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
     motion::MotionFlags,
     time::now_millis,
     vector_instances::{InstanceAttributes, VectorInstances},
 };
+
+use crate::ui_context::UiContext;
 
 use crate::layout_engine::{Model, ModelBorder, ModelOperation, ModelOperationResult};
 
@@ -87,11 +88,11 @@ impl Model for PlaneTextReader {
         vec![]
     }
 
-    fn update(&mut self, context: &StateContext) {
-        let device = &context.device;
-        let queue = &context.queue;
-        let color_theme = &context.color_theme;
-        self.generate_instances(color_theme, &context.char_width_calcurator, device, queue);
+    fn update(&mut self, context: &UiContext) {
+        let device = context.device();
+        let queue = context.queue();
+        let color_theme = context.color_theme();
+        self.generate_instances(color_theme, context.char_width_calcurator(), device, queue);
     }
 
     fn bound(&self) -> (f32, f32) {

@@ -4,9 +4,11 @@ use glam::{Mat4, Quat, Vec2, Vec3};
 use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
 
 use font_rasterizer::{
-    context::StateContext, glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
+    glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
     vector_instances::VectorInstances,
 };
+
+use crate::ui_context::UiContext;
 
 #[derive(Default, Clone, Copy, PartialEq)]
 pub enum ModelBorder {
@@ -34,7 +36,7 @@ pub trait Model {
     fn bound(&self) -> (f32, f32);
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
     fn vector_instances(&self) -> Vec<&VectorInstances<String>>;
-    fn update(&mut self, context: &StateContext);
+    fn update(&mut self, context: &UiContext);
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation) -> ModelOperationResult;
     fn to_string(&self) -> String;

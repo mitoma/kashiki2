@@ -6,15 +6,13 @@ use std::{
 use log::info;
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
-use font_rasterizer::{
-    color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
-};
+use font_rasterizer::{color_theme::ColorTheme, context::WindowSize};
 
 use crate::{
     camera::CameraAdjustment,
     layout_engine::{Model, World},
     ui::{SelectBox, SelectOption},
+    ui_context::UiContext,
 };
 
 use super::{ActionProcessor, InputResult};
@@ -32,7 +30,7 @@ impl ActionProcessor for SystemExit {
     fn process(
         &self,
         _arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         _world: &mut dyn World,
     ) -> InputResult {
         InputResult::SendExit
@@ -52,7 +50,7 @@ impl ActionProcessor for SystemToggleFullscreen {
     fn process(
         &self,
         _arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         _world: &mut dyn World,
     ) -> InputResult {
         InputResult::ToggleFullScreen
@@ -72,7 +70,7 @@ impl ActionProcessor for SystemToggleTitlebar {
     fn process(
         &self,
         _arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         _world: &mut dyn World,
     ) -> InputResult {
         InputResult::ToggleDecorations
@@ -92,7 +90,7 @@ impl ActionProcessor for SystemChangeThemeUi {
     fn process(
         &self,
         _arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         let options = vec![
@@ -137,7 +135,7 @@ impl ActionProcessor for SystemChangeTheme {
     fn process(
         &self,
         arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         _world: &mut dyn World,
     ) -> InputResult {
         if let ActionArgument::String(theme) = arg {
@@ -167,10 +165,10 @@ impl ActionProcessor for SystemChangeGlobalDirection {
     fn process(
         &self,
         _arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         _world: &mut dyn World,
     ) -> InputResult {
-        InputResult::ChangeGlobalDirection(context.global_direction.toggle())
+        InputResult::ChangeGlobalDirection(context.global_direction().toggle())
     }
 }
 
@@ -187,7 +185,7 @@ impl ActionProcessor for SystemChangeWindowSizeUi {
     fn process(
         &self,
         _arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         let options = vec![
@@ -268,7 +266,7 @@ impl ActionProcessor for SystemChangeWindowSize {
     fn process(
         &self,
         arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         _world: &mut dyn World,
     ) -> InputResult {
         match *arg {
@@ -293,7 +291,7 @@ impl ActionProcessor for SystemChangeFontUi {
     fn process(
         &self,
         _arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         let mut options = vec![SelectOption::new(
@@ -302,7 +300,7 @@ impl ActionProcessor for SystemChangeFontUi {
         )];
         options.extend(
             context
-                .font_repository
+                .font_repository()
                 .list_font_names()
                 .iter()
                 .map(|name| {
@@ -341,7 +339,7 @@ impl ActionProcessor for SystemChangeFont {
     fn process(
         &self,
         arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         _world: &mut dyn World,
     ) -> InputResult {
         if let ActionArgument::String(font_name) = arg {
@@ -365,7 +363,7 @@ impl ActionProcessor for SystemChangeQualityUi {
     fn process(
         &self,
         _arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         let options = vec![
@@ -426,7 +424,7 @@ impl ActionProcessor for SystemChangeQuality {
     fn process(
         &self,
         arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         _world: &mut dyn World,
     ) -> InputResult {
         if let ActionArgument::String(quarity) = arg {
@@ -460,7 +458,7 @@ impl ActionProcessor for SystemSelectBackgroundImageUi {
     fn process(
         &self,
         arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         let mut options = Vec::new();
@@ -560,7 +558,7 @@ impl ActionProcessor for SystemChangeBackgroundImage {
     fn process(
         &self,
         arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         _world: &mut dyn World,
     ) -> InputResult {
         match arg {

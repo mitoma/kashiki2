@@ -1,7 +1,9 @@
 use glam::Vec2;
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::{context::StateContext, glyph_instances::GlyphInstances};
+use font_rasterizer::glyph_instances::GlyphInstances;
+
+use crate::ui_context::UiContext;
 
 use crate::{
     layout_engine::Model,
@@ -39,15 +41,15 @@ impl Card {
         Self { text_edit }
     }
 
-    pub fn set_text(&mut self, context: &StateContext, text: String) {
+    pub fn set_text(&mut self, context: &UiContext, text: String) {
         let char_width = text
             .chars()
-            .map(|c| context.char_width_calcurator.get_width(c).to_f32())
+            .map(|c| context.char_width_calcurator().get_width(c).to_f32())
             .sum::<f32>();
         self.text_edit.set_world_scale([
             f32::min(
                 CARD_DEFAULT_SCALE[0],
-                1.0 / char_width * context.window_size.aspect(),
+                1.0 / char_width * context.window_size().aspect(),
             ),
             CARD_DEFAULT_SCALE[1],
         ]);
@@ -62,7 +64,7 @@ impl Card {
         }
     }
 
-    pub fn update(&mut self, context: &StateContext) {
+    pub fn update(&mut self, context: &UiContext) {
         self.text_edit.update(context)
     }
 

@@ -7,7 +7,7 @@ use web_time::Duration;
 
 use font_rasterizer::{
     color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
+    context::WindowSize,
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,
@@ -18,6 +18,7 @@ use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
     generate_image_iter,
+    ui_context::UiContext,
 };
 use winit::event::WindowEvent;
 
@@ -95,7 +96,7 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, context: &StateContext) {
+    fn init(&mut self, context: &UiContext) {
         context.register_svg(
             "rice".to_string(),
             //include_str!("../../font_rasterizer/data/sample.svg").to_string(),
@@ -107,7 +108,7 @@ impl SimpleStateCallback for SingleCharCallback {
             Quat::IDENTITY,
             [1.0, 1.0],
             [0.5, 0.5],
-            context.color_theme.orange().get_color(),
+            context.color_theme().orange().get_color(),
             //MotionFlags::ZERO_MOTION,
             MotionFlags::builder()
                 .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, true))
@@ -118,22 +119,22 @@ impl SimpleStateCallback for SingleCharCallback {
             0.5,
             Duration::from_millis(250),
         );
-        let mut instances = VectorInstances::new("rice".to_string(), &context.device);
+        let mut instances = VectorInstances::new("rice".to_string(), context.device());
         instances.push(value);
         self.vector_instances.push(instances);
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         self.vector_instances
             .iter_mut()
-            .for_each(|i| i.update_buffer(&context.device, &context.queue));
+            .for_each(|i| i.update_buffer(context.device(), context.queue()));
     }
 
-    fn input(&mut self, _context: &StateContext, _event: &WindowEvent) -> InputResult {
+    fn input(&mut self, _context: &UiContext, _event: &WindowEvent) -> InputResult {
         InputResult::Noop
     }
 
-    fn action(&mut self, _context: &StateContext, _action: stroke_parser::Action) -> InputResult {
+    fn action(&mut self, _context: &UiContext, _action: stroke_parser::Action) -> InputResult {
         InputResult::Noop
     }
 

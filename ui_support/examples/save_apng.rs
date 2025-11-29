@@ -5,7 +5,7 @@ use web_time::Duration;
 
 use font_rasterizer::{
     color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
+    context::WindowSize,
     glyph_instances::GlyphInstances,
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
@@ -17,6 +17,7 @@ use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
     generate_image_iter,
+    ui_context::UiContext,
 };
 use winit::event::WindowEvent;
 
@@ -110,14 +111,14 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, context: &StateContext) {
+    fn init(&mut self, context: &UiContext) {
         context.register_string("あ".to_string());
         let value = InstanceAttributes::new(
             (0.0, 0.0, 0.0).into(),
             Quat::IDENTITY,
             [1.0, 1.0],
             [1.0, 1.0],
-            context.color_theme.cyan().get_color(),
+            context.color_theme().cyan().get_color(),
             //MotionFlags::ZERO_MOTION,
             MotionFlags::builder()
                 .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, true))
@@ -128,7 +129,7 @@ impl SimpleStateCallback for SingleCharCallback {
             2.0,
             Duration::from_millis(1000),
         );
-        let mut instances = GlyphInstances::new('あ', &context.device);
+        let mut instances = GlyphInstances::new('あ', context.device());
         instances.push(value);
         self.glyphs.push(instances);
         context.register_post_action(stroke_parser::Action::new_command(
@@ -138,17 +139,17 @@ impl SimpleStateCallback for SingleCharCallback {
         debug!("init!");
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         self.glyphs
             .iter_mut()
-            .for_each(|i| i.update_buffer(&context.device, &context.queue));
+            .for_each(|i| i.update_buffer(context.device(), context.queue()));
     }
 
-    fn input(&mut self, _context: &StateContext, _event: &WindowEvent) -> InputResult {
+    fn input(&mut self, _context: &UiContext, _event: &WindowEvent) -> InputResult {
         InputResult::Noop
     }
 
-    fn action(&mut self, _context: &StateContext, _action: stroke_parser::Action) -> InputResult {
+    fn action(&mut self, _context: &UiContext, _action: stroke_parser::Action) -> InputResult {
         InputResult::Noop
     }
 

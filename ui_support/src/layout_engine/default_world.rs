@@ -8,11 +8,11 @@ use log::info;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
-    context::{StateContext, WindowSize},
-    glyph_instances::GlyphInstances,
-    glyph_vertex_buffer::Direction,
+    context::WindowSize, glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
     vector_instances::VectorInstances,
 };
+
+use crate::ui_context::UiContext;
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
@@ -166,9 +166,9 @@ impl World for DefaultWorld {
         )
     }
 
-    fn update(&mut self, context: &StateContext) {
-        if self.direction != context.global_direction {
-            self.direction = context.global_direction;
+    fn update(&mut self, context: &UiContext) {
+        if self.direction != context.global_direction() {
+            self.direction = context.global_direction();
             self.models.iter_mut().for_each(|m| {
                 m.model_operation(&ModelOperation::ChangeDirection(Some(self.direction)));
             });

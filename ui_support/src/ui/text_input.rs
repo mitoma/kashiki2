@@ -5,9 +5,11 @@ use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
-    context::StateContext, glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
+    glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
     vector_instances::VectorInstances,
 };
+
+use crate::ui_context::UiContext;
 
 use crate::{
     layout_engine::{Model, ModelBorder},
@@ -38,14 +40,14 @@ impl TextInput {
     }
 
     pub fn new(
-        context: &StateContext,
+        context: &UiContext,
         message: String,
         default_input: Option<String>,
         action: Action,
     ) -> Self {
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::text_context(context.global_direction));
+            text_edit.set_config(Self::text_context(context.global_direction()));
             text_edit.editor_operation(&EditorOperation::InsertString(message));
 
             text_edit
@@ -53,7 +55,7 @@ impl TextInput {
         let input_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(TextContext {
-                direction: context.global_direction,
+                direction: context.global_direction(),
                 ..Default::default()
             });
             if let Some(input) = default_input.as_ref() {
@@ -129,7 +131,7 @@ impl Model for TextInput {
         .concat()
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         self.title_text_edit.update(context);
         self.input_text_edit.update(context);
     }
