@@ -84,10 +84,11 @@ impl RasterizerPipeline {
         device: &wgpu::Device,
         width: u32,
         height: u32,
-        screen_texture_format: wgpu::TextureFormat,
+        target_texture_format: wgpu::TextureFormat,
         quarity: Quarity,
         bg_color: wgpu::Color,
     ) -> Self {
+        let enable_antialiasing = true;
         let (width, height) = match quarity {
             Quarity::VeryHigh => (width * 2, height * 2),
             Quarity::High => (width + width / 2, height + height / 2),
@@ -121,21 +122,31 @@ impl RasterizerPipeline {
             (width, height)
         };
 
-        let rasterizer_renderrer =
-            RasterizerRenderrer::new(device, width, height, screen_texture_format);
-        let rasterizer_renderrer_for_modal =
-            RasterizerRenderrer::new(device, width, height, screen_texture_format);
+        let rasterizer_renderrer = RasterizerRenderrer::new(
+            device,
+            width,
+            height,
+            target_texture_format,
+            enable_antialiasing,
+        );
+        let rasterizer_renderrer_for_modal = RasterizerRenderrer::new(
+            device,
+            width,
+            height,
+            target_texture_format,
+            enable_antialiasing,
+        );
 
         let outline_texture = ScreenTexture::new_with_format(
             device,
             (width, height),
-            screen_texture_format,
+            target_texture_format,
             Some("Outline Texture"),
         );
         let outline_texture_for_modal = ScreenTexture::new_with_format(
             device,
             (width, height),
-            screen_texture_format,
+            target_texture_format,
             Some("Outline Texture for Modal"),
         );
 
@@ -164,7 +175,7 @@ impl RasterizerPipeline {
                     module: &background_image_shader,
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: screen_texture_format,
+                        format: target_texture_format,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -222,7 +233,7 @@ impl RasterizerPipeline {
                     module: &screen_shader,
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: screen_texture_format,
+                        format: target_texture_format,
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -268,7 +279,7 @@ impl RasterizerPipeline {
                     module: &screen_shader,
                     entry_point: Some("fs_main_modal_background"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: screen_texture_format,
+                        format: target_texture_format,
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],

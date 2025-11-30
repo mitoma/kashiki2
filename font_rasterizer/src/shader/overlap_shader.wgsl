@@ -130,6 +130,7 @@ struct Uniforms {
     u_default_view_proj: mat4x4<f32>,
     u_time: u32,
     u_width: u32,
+    u_antialiasing: u32,
 };
 
 @group(0) @binding(0)
@@ -452,6 +453,7 @@ fn linerstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 // Fragment shader (マルチターゲット版)
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
+    let enable_antialiasing = u_buffer.u_antialiasing != 0u;
     let is_bezier_pre = near_eq_one(in.triangle_type.x);
     let is_bezier_line_pre = near_eq_one(in.triangle_type.y);
     let is_line_pre = near_eq_one(in.triangle_type.z);
@@ -479,7 +481,10 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     if is_bezier {
         // Bezier curveの場合の処理
         // linerstep は 0.0->1.0 に変化するので、1.0-linerstep で 1.0->0.0 に反転
-        let alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
+        var alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
+        if !enable_antialiasing && !near_eq_zero(alpha) {
+            alpha = 1.0;
+        }
 
         if alpha > 0.0 {
             output.count.r = UNIT;
@@ -493,7 +498,10 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     //} else if true {
     } else {
         // 三角形の場合の処理
-        let alpha = linerstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
+        var alpha = linerstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
+        if !enable_antialiasing {
+            alpha = 1.0;
+        }
 
         // ベジエの補完的直線
         if is_bezier_line {

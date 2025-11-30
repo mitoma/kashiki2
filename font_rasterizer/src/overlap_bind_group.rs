@@ -9,8 +9,9 @@ pub struct Uniforms {
     default_view_proj: [[f32; 4]; 4],
     time: u32,
     width: u32,
+    enable_antialiasing: u32,
     // padding が必要らしい。正直意味わかんねぇな。
-    padding: [u32; 2],
+    padding: [u32; 1],
 }
 
 /// オーバーラップ用の BindGroup。
@@ -29,7 +30,8 @@ impl Default for Uniforms {
             default_view_proj: glam::Mat4::IDENTITY.to_cols_array_2d(),
             time: now_millis(),
             width: 0,
-            padding: [0; 2],
+            enable_antialiasing: 1,
+            padding: [0; 1],
         }
     }
 }
@@ -79,10 +81,11 @@ impl OverlapBindGroup {
         }
     }
 
-    pub fn update(&mut self, view_proj: ([[f32; 4]; 4], [[f32; 4]; 4])) {
+    pub fn update(&mut self, view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]), enable_antialiasing: u32) {
         self.uniforms.view_proj = view_proj.0;
         self.uniforms.default_view_proj = view_proj.1;
         self.uniforms.time = now_millis();
+        self.uniforms.enable_antialiasing = enable_antialiasing;
     }
 
     pub fn update_buffer(&mut self, queue: &wgpu::Queue) {

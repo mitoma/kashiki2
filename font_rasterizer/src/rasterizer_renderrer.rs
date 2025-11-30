@@ -22,6 +22,8 @@ const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
     include_wgsl!("shader/outline_shader.wgsl");
 
 pub struct RasterizerRenderrer {
+    enable_antialiasing: bool,
+
     // 1 ステージ目(overlap)
     pub(crate) overlap_bind_group: OverlapBindGroup,
     pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
@@ -42,6 +44,7 @@ impl RasterizerRenderrer {
         width: u32,
         height: u32,
         target_texture_format: wgpu::TextureFormat,
+        enable_antialiasing: bool,
     ) -> Self {
         // overlap
         let overlap_shader = if DEBUG_FLAGS.debug_shader {
@@ -123,9 +126,10 @@ impl RasterizerRenderrer {
                     // Requires Features::DEPTH_CLIP_CONTROL
                     unclipped_depth: false,
                     // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: device
-                        .features()
-                        .contains(wgpu::Features::CONSERVATIVE_RASTERIZATION),
+                    conservative: enable_antialiasing
+                        && device
+                            .features()
+                            .contains(wgpu::Features::CONSERVATIVE_RASTERIZATION),
                 },
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState {
@@ -211,6 +215,7 @@ impl RasterizerRenderrer {
         let outline_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
         Self {
+            enable_antialiasing,
             overlap_bind_group,
             overlap_render_pipeline,
             overlap_texture,
@@ -228,7 +233,8 @@ impl RasterizerRenderrer {
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
     ) {
-        self.overlap_bind_group.update(view_proj);
+        self.overlap_bind_group
+            .update(view_proj, self.enable_antialiasing as u32);
         self.overlap_bind_group.update_buffer(queue);
         self.outline_bind_group.update_textures(
             device,
