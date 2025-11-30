@@ -42,6 +42,7 @@ impl StateContext {
     }
 }
 
+/// Physical (ピクセル) 単位でのウィンドウサイズを表します
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WindowSize {
     pub width: u32,
