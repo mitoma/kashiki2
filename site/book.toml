@@ -1,6 +1,5 @@
 [book]
 authors = ["mitoma"]
 language = "ja"
-multilingual = false
 src = "src"
 title = "炊紙(kashikishi)"
