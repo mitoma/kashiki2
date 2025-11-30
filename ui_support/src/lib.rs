@@ -48,6 +48,7 @@ use web_time::Duration;
 use stroke_parser::Action;
 use winit::{
     application::ApplicationHandler,
+    dpi::{LogicalSize, PhysicalSize, Position, Size},
     event::{ElementState, KeyEvent, WindowEvent},
     event_loop::EventLoop,
     icon::Icon,
@@ -123,11 +124,12 @@ impl ApplicationHandler for App {
                     window.set_option_as_alt(winit::platform::macos::OptionAsAlt::Both);
                 }
 
-                let req =
-                    ImeEnableRequest::new(ImeCapabilities::default(), ImeRequestData::default())
-                        .unwrap();
-                let _ = window.request_ime_update(winit::window::ImeRequest::Enable(req));
-
+                if let Some(req) = ImeEnableRequest::new(
+                    ime_capabilities(),
+                    ime_request_data(window_size, window.scale_factor()),
+                ) {
+                    let _ = window.request_ime_update(winit::window::ImeRequest::Enable(req));
+                };
                 let window = Arc::new(window);
                 self.window.replace(window.clone());
 
@@ -329,11 +331,17 @@ impl ApplicationHandler for App {
                     }
                     WindowEvent::Focused(focused) => {
                         render_rate_adjuster.change_focus(focused);
+                        if focused {
+                            ime_update(window.clone(), &state.context.window_size());
+                        }
                     }
                     WindowEvent::SurfaceResized(physical_size) => {
                         *surface_configured = true;
+                        let PhysicalSize { width, height } = physical_size;
                         record_start_of_phase("state resize");
-                        state.resize(WindowSize::new(physical_size.width, physical_size.height));
+                        let window_size = WindowSize::new(width, height);
+                        state.resize(window_size);
+                        ime_update(window.clone(), &window_size);
                     }
                     WindowEvent::ScaleFactorChanged { .. } => {
                         // TODO スケールファクタ変更時に何かする？
@@ -689,4 +697,32 @@ pub(crate) fn to_ndc_position(model: &dyn Model, camera: &Camera) -> (f32, f32) 
     let nw_x = nw.x / nw.w;
     let nw_y = nw.y / nw.w;
     (nw_x, nw_y)
+}
+
+/// UiSupport で利用する IME の機能はカーソル位置の通知のみ
+#[inline]
+fn ime_capabilities() -> ImeCapabilities {
+    ImeCapabilities::default().with_cursor_area()
+}
+
+/// カーソル位置の通知用データを生成する。ウインドウサイズに依存とする。
+///
+/// インラインで変換候補を表示する事になればここを改修する必要がある。
+#[inline]
+fn ime_request_data(window_size: WindowSize, scale_factor: f64) -> ImeRequestData {
+    let physical_size = PhysicalSize::new(window_size.width, window_size.height);
+    let logical_size: LogicalSize<f32> = physical_size.to_logical(scale_factor);
+    // デフォルトではウィンドウの下部中央に配置する。IME や横書き前提なのでちょっと中央より左に寄せる
+    ImeRequestData::default().with_cursor_area(
+        Position::Logical((logical_size.width / 4.0, logical_size.height * 0.8).into()),
+        Size::Logical([0.0, logical_size.height * 0.2].into()),
+    )
+}
+
+#[inline]
+fn ime_update(window: Arc<Box<dyn Window>>, window_size: &WindowSize) {
+    let _ = window.request_ime_update(winit::window::ImeRequest::Update(ime_request_data(
+        *window_size,
+        window.scale_factor(),
+    )));
 }
