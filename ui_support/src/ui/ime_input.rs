@@ -1,11 +1,11 @@
-use cgmath::Point2;
+use glam::Vec2;
 use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::{
-    color_theme::ThemedColor, context::StateContext, glyph_instances::GlyphInstances,
-};
+use font_rasterizer::{color_theme::ThemedColor, glyph_instances::GlyphInstances};
+
+use crate::ui_context::UiContext;
 
 use crate::{
     layout_engine::Model,
@@ -33,7 +33,7 @@ impl ImeInput {
         let config = TextContext {
             char_easings: CharEasings::ignore_camera(),
             max_col: usize::MAX, // IME は基本的に改行しないので大きな値を設定
-            min_bound: Point2::new(1.0, 10.0),
+            min_bound: Vec2::new(1.0, 10.0),
             hyde_caret: true,
             highlight_mode: HighlightMode::None,
             ..Default::default()
@@ -46,7 +46,7 @@ impl ImeInput {
         Self { text_edit }
     }
 
-    pub fn apply_ime_event(&mut self, action: &Action, context: &StateContext) -> bool {
+    pub fn apply_ime_event(&mut self, action: &Action, context: &UiContext) -> bool {
         match action {
             Action::ImePreedit(value, position) => {
                 self.text_edit.editor_operation(&EditorOperation::Mark);
@@ -66,7 +66,7 @@ impl ImeInput {
 
                         let preedit_str_count = preedit_str
                             .chars()
-                            .map(|c| context.char_width_calcurator.get_width(c).to_f32())
+                            .map(|c| context.char_width_calcurator().get_width(c).to_f32())
                             .sum::<f32>();
 
                         self.text_edit
@@ -89,7 +89,7 @@ impl ImeInput {
                             .editor_operation(&EditorOperation::InsertString(value.clone()));
                         value
                             .chars()
-                            .map(|c| context.char_width_calcurator.get_width(c).to_f32())
+                            .map(|c| context.char_width_calcurator().get_width(c).to_f32())
                             .sum::<f32>()
                     }
                 };
@@ -97,7 +97,7 @@ impl ImeInput {
                     f32::min(
                         IME_DEFAULT_SCALE[0],
                         /* 0.7 は感覚的な値 */
-                        0.7 / char_width * context.window_size.aspect(),
+                        0.7 / char_width * context.window_size().aspect(),
                     ),
                     IME_DEFAULT_SCALE[1],
                 ]);
@@ -115,7 +115,7 @@ impl ImeInput {
         }
     }
 
-    pub fn update(&mut self, context: &StateContext) {
+    pub fn update(&mut self, context: &UiContext) {
         self.text_edit.update(context)
     }
 

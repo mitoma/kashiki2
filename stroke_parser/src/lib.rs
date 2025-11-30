@@ -11,7 +11,7 @@ use std::{
     fmt::{Display, Formatter},
     ops::Deref,
 };
-use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
+use winit::event::{ElementState, KeyEvent, WindowEvent};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub(crate) struct InputWithModifier {
@@ -263,12 +263,16 @@ impl ActionStore {
                 }
                 winit::event::Ime::Commit(value) => Some(Action::ImeInput(value.to_string())),
                 winit::event::Ime::Disabled => Some(Action::ImeDisable),
+                winit::event::Ime::DeleteSurrounding { .. } => {
+                    // TODO: どのような挙動にするか考える必要がある
+                    None
+                }
             },
-            WindowEvent::CursorLeft { .. } => {
+            WindowEvent::PointerLeft { .. } => {
                 self.current_mouse = None;
                 None
             }
-            WindowEvent::CursorMoved { position, .. } => {
+            WindowEvent::PointerMoved { position, .. } => {
                 // 今のままだとマウスの移動に対するアクションが多量でセンシティブすぎる
                 let from = self.current_mouse.take();
                 self.current_mouse = Some(MousePoint {
@@ -282,7 +286,7 @@ impl ActionStore {
                     None
                 }
             }
-            WindowEvent::MouseInput { state, button, .. } => {
+            WindowEvent::PointerButton { state, button, .. } => {
                 if *state == ElementState::Pressed {
                     self.get_action_by_mouse(
                         MouseAction::from(button),
@@ -318,11 +322,8 @@ impl ActionStore {
         }
     }
 
-    pub fn winit_event_to_action(&mut self, event: &Event<()>) -> Option<Action> {
-        match event {
-            Event::WindowEvent { event, .. } => self.winit_window_event_to_action(event),
-            _ => None,
-        }
+    pub fn winit_event_to_action(&mut self, event: &WindowEvent) -> Option<Action> {
+        self.winit_window_event_to_action(event)
     }
 
     pub fn register_keybind(&mut self, keybind: KeyBind) {

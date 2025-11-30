@@ -3,10 +3,10 @@ use std::collections::HashSet;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
-    context::{StateContext, WindowSize},
-    glyph_instances::GlyphInstances,
-    vector_instances::VectorInstances,
+    context::WindowSize, glyph_instances::GlyphInstances, vector_instances::VectorInstances,
 };
+
+use crate::ui_context::UiContext;
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraOperation},
@@ -27,7 +27,7 @@ pub trait World {
     // 再レイアウトする update するときに呼び出すとよさそう
     fn re_layout(&mut self);
 
-    fn update(&mut self, context: &StateContext);
+    fn update(&mut self, context: &UiContext);
 
     // この World にいくつモデルを配置されているかを返す
     fn model_length(&self) -> usize;

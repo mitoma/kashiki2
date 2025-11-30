@@ -4,7 +4,7 @@ Technical showcase.
 This demo use WASM & WebGL.
 
 Click area and edit it!
-<div id="kashikishi-area"></div>
+<div><canvas id="kashikishi-area"></canvas></div>
 <input id="toggle-direction-button" type="button" value="Toggle direction"></input>
 <input id="centering-button" type="button" value="Fit the entire document"></input>
 <input id="dark-mode-button" type="button" value="Dark mode"></input>

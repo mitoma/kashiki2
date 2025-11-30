@@ -3,16 +3,16 @@ use std::{
     ops::Range,
 };
 
-use cgmath::{Point3, Rotation3};
+use glam::{Quat, Vec3};
 use log::info;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
-    context::{StateContext, WindowSize},
-    glyph_instances::GlyphInstances,
-    glyph_vertex_buffer::Direction,
+    context::WindowSize, glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
     vector_instances::VectorInstances,
 };
+
+use crate::ui_context::UiContext;
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
@@ -166,9 +166,9 @@ impl World for DefaultWorld {
         )
     }
 
-    fn update(&mut self, context: &StateContext) {
-        if self.direction != context.global_direction {
-            self.direction = context.global_direction;
+    fn update(&mut self, context: &UiContext) {
+        if self.direction != context.global_direction() {
+            self.direction = context.global_direction();
             self.models.iter_mut().for_each(|m| {
                 m.model_operation(&ModelOperation::ChangeDirection(Some(self.direction)));
             });
@@ -293,7 +293,7 @@ impl World for DefaultWorld {
             .map(|m| (m, RemovedModelType::Modal))
             .unwrap_or_else(|| (self.models.remove(self.focus), RemovedModelType::Normal));
         let (x, y, z) = removed_model.position().into();
-        removed_model.set_position(Point3::new(x, y - 5.0, z));
+        removed_model.set_position(Vec3::new(x, y - 5.0, z));
         self.removed_models.push(removed_model);
 
         if self.modal_models.is_empty() && self.pre_camera.is_some() {
@@ -391,10 +391,7 @@ impl WorldLayout {
                     let (w, h) = model.bound();
                     info!("w: {}, h: {}, idx:{}", w, h, idx);
 
-                    let rotation = cgmath::Quaternion::from_axis_angle(
-                        cgmath::Vector3::unit_y(),
-                        cgmath::Deg(0.0),
-                    );
+                    let rotation = Quat::IDENTITY;
                     model.set_rotation(rotation);
 
                     match world.direction {
@@ -440,10 +437,7 @@ impl WorldLayout {
                             );
                             x_position += w / 2.0 + INTERVAL;
 
-                            let rotation = cgmath::Quaternion::from_axis_angle(
-                                cgmath::Vector3::unit_y(),
-                                cgmath::Deg(-r.to_degrees()),
-                            );
+                            let rotation = Quat::from_axis_angle(Vec3::Y, -r);
                             model.set_rotation(rotation);
                         }
                     }
@@ -465,10 +459,7 @@ impl WorldLayout {
                             );
                             y_position += h / 2.0 + INTERVAL;
 
-                            let rotation = cgmath::Quaternion::from_axis_angle(
-                                cgmath::Vector3::unit_x(),
-                                cgmath::Deg(-r.to_degrees()),
-                            );
+                            let rotation = Quat::from_axis_angle(Vec3::X, -r);
                             model.set_rotation(rotation);
                         }
                     }

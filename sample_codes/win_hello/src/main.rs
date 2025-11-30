@@ -7,6 +7,9 @@ fn main() {
 
 #[cfg(target_os = "windows")]
 mod windows {
+
+    use std::sync::mpsc::Sender;
+
     use pollster::FutureExt;
     use windows::{
         Security::Credentials::{KeyCredentialCreationOption, KeyCredentialManager, UI::*},
@@ -19,60 +22,81 @@ mod windows {
     };
     use windows_future::IAsyncOperation;
     use winit::{
+        application::ApplicationHandler,
         dpi::PhysicalSize,
-        event::{ElementState, Event, KeyEvent, WindowEvent},
+        event::{ElementState, KeyEvent, WindowEvent},
         event_loop::EventLoop,
         keyboard::Key,
         raw_window_handle::{HasWindowHandle, Win32WindowHandle},
-        window::WindowBuilder,
+        window::{Window, WindowAttributes},
     };
 
-    fn to_hwnd(handle: Win32WindowHandle) -> HWND {
-        HWND(handle.hwnd.get() as *mut std::ffi::c_void)
+    struct App {
+        attributes: Option<AppAttributes>,
     }
 
-    /// Windows Hello のサンプルコード。bitwarden/clients が参考になる。
-    /// https://github.com/bitwarden/clients/blob/bcb2a976b094f57f1f7e1261e2692f12103d7b16/apps/desktop/desktop_native/src/biometric/windows.rs
-    pub(crate) fn inner_main() {
-        let event_loop = EventLoop::new().unwrap();
-        let window = WindowBuilder::new()
-            .with_inner_size(PhysicalSize::new(800, 600))
-            .build(&event_loop)
-            .unwrap();
-        let window_handle = window.window_handle().unwrap();
-        let raw_window_handle = window_handle.as_raw();
-        let handle = match raw_window_handle {
-            winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle,
-            _ => panic!("Not Windows"),
-        };
+    struct AppAttributes {
+        window: Box<dyn Window>,
+        tx: Sender<()>,
+        handle: Win32WindowHandle,
+    }
 
-        // Windows Hello 用のスレッドを作ってチャネルを持たせる
-        let (tx, rx) = std::sync::mpsc::channel::<()>();
-        std::thread::spawn(move || {
-            let hwnd = to_hwnd(handle);
-            while rx.recv().is_ok() {
-                call_hello(&hwnd).block_on().unwrap();
-            }
-        });
+    impl ApplicationHandler for App {
+        fn can_create_surfaces(&mut self, event_loop: &dyn winit::event_loop::ActiveEventLoop) {
+            let window_attributes =
+                WindowAttributes::default().with_surface_size(PhysicalSize::new(800, 600));
+            self.attributes = match event_loop.create_window(window_attributes) {
+                Ok(window) => {
+                    let window_handle = window.window_handle().unwrap();
+                    let raw_window_handle = window_handle.as_raw();
+                    let handle = match raw_window_handle {
+                        winit::raw_window_handle::RawWindowHandle::Win32(handle) => handle,
+                        _ => panic!("Not Windows"),
+                    };
 
-        event_loop
-            .run(move |event, control_flow| match event {
-                Event::WindowEvent {
+                    // Windows Hello 用のスレッドを作ってチャネルを持たせる
+                    let (tx, rx) = std::sync::mpsc::channel::<()>();
+                    std::thread::spawn(move || {
+                        let hwnd = to_hwnd(handle);
+                        while rx.recv().is_ok() {
+                            call_hello(&hwnd).block_on().unwrap();
+                        }
+                    });
+
+                    Some(AppAttributes { window, tx, handle })
+                }
+                Err(err) => {
+                    eprintln!("error creating window: {err}");
+                    event_loop.exit();
+                    return;
+                }
+            };
+        }
+
+        fn window_event(
+            &mut self,
+            event_loop: &dyn winit::event_loop::ActiveEventLoop,
+            window_id: winit::window::WindowId,
+            event: WindowEvent,
+        ) {
+            let Some(attrs) = &self.attributes else {
+                return;
+            };
+            let self_window_id = attrs.window.id();
+
+            match event {
+                WindowEvent::KeyboardInput {
                     event:
-                        WindowEvent::KeyboardInput {
-                            event:
-                                KeyEvent {
-                                    state: ElementState::Pressed,
-                                    logical_key: Key::Character(str),
-                                    ..
-                                },
+                        KeyEvent {
+                            state: ElementState::Pressed,
+                            logical_key: Key::Character(str),
                             ..
                         },
-                    window_id,
+                    ..
                 } => {
                     match str.as_str() {
                         "a" => {
-                            tx.send(()).unwrap();
+                            attrs.tx.send(()).unwrap();
                             // あまりにも意味不明だが Credential Dialog Xaml Host のウィンドウを前面に出さないと
                             // Windows Hello の顔認証が失敗するため、ウインドウが出たであろうタイミングを待ってから最前面に移動させる。
                             let class_name = s!("Credential Dialog Xaml Host");
@@ -91,18 +115,26 @@ mod windows {
                             setup_first().block_on().unwrap();
                         }
                         "h" => {
-                            println!("HWND: {:?}, WindowID: {:?}", handle, window_id);
+                            println!("HWND: {:?}, WindowID: {:?}", attrs.handle, window_id);
                         }
                         _ => (),
                     }
                 }
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    window_id,
-                } if window_id == window.id() => control_flow.exit(),
+                WindowEvent::CloseRequested if window_id == self_window_id => event_loop.exit(),
                 _ => (),
-            })
-            .unwrap();
+            }
+        }
+    }
+
+    fn to_hwnd(handle: Win32WindowHandle) -> HWND {
+        HWND(handle.hwnd.get() as *mut std::ffi::c_void)
+    }
+
+    /// Windows Hello のサンプルコード。bitwarden/clients が参考になる。
+    /// https://github.com/bitwarden/clients/blob/bcb2a976b094f57f1f7e1261e2692f12103d7b16/apps/desktop/desktop_native/src/biometric/windows.rs
+    pub(crate) fn inner_main() {
+        let event_loop = EventLoop::new().unwrap();
+        event_loop.run_app(App { attributes: None }).unwrap();
     }
 
     async fn setup_first() -> Result<()> {

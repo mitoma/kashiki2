@@ -17,16 +17,14 @@ resolver = "2"
 [workspace.dependencies]
 thiserror = "2.0"
 wgpu = "27.0.1"
-# fork元は winit = "0.29.x" ブランチ。いくつかのパッチを当てたものを使っている。
+# fork元は winit = "0.31.x" ブランチ。いくつかのパッチを当てたものを使っている。
 # patch-1
 #   wasm で ime support が十分でないのでパッチを当てている。
-#   winit の ime support が十分にサポートされれば戻す予定。
-#   今あてているパッチでは Fullscreen API のサポートが不十分なため wasm では Fullscreen をサポートしない。
-# patch-2
-#   winit の Windows でのサロゲートペアを含む文字があったときの Ime::Preedit の挙動を修正。
-#   以下の issue で報告されている問題を修正。 issue が解決したら戻す予定。
-#   https://github.com/rust-windowing/winit/issues/3967
-winit = { git = "https://github.com/mitoma/winit", branch = "v0.29.x-with-patches" }
+#   EditContext API を利用している都合上、 2025/11/30 現在、Chromium ベースのブラウザでしか動作しない。
+#   以下の issue で対応を進めているが upstream に取り込まれたら fork をやめる。
+#   
+#   https://github.com/rust-windowing/winit/issues/4424
+winit = { git = "https://github.com/mitoma/winit", branch = "v0.31.x-fork-for-kashikishi" }
 serde = "1.0.228"
 serde_derive = "1.0.228"
 serde_json = "1.0.145"
@@ -36,7 +34,7 @@ pollster = "0.4"
 image = "0.25.8"
 rustybuzz = "0.20.1"
 web-time = { version = "1.1.0" }
-cgmath = "0.18"
+glam = "0.30.9"
 bytemuck = { version = "1.24.0", features = ["derive"] }
 bitflags = "2.10.0"
 rand = "0.9.2"

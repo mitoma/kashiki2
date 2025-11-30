@@ -1,37 +1,11 @@
-use std::sync::{Arc, mpsc::Sender};
+use std::sync::Arc;
 
 use font_collector::FontRepository;
-use log::warn;
-use stroke_parser::Action;
-use winit::dpi::PhysicalSize;
 
 use crate::{
     char_width_calcurator::CharWidthCalculator, color_theme::ColorTheme,
     glyph_vertex_buffer::Direction,
 };
-
-pub struct Senders {
-    ui_string_sender: Sender<String>,
-    ui_svg_sender: Sender<(String, String)>,
-    action_queue_sender: Sender<Action>,
-    post_action_queue_sender: Sender<Action>,
-}
-
-impl Senders {
-    pub fn new(
-        ui_string_sender: Sender<String>,
-        ui_svg_sender: Sender<(String, String)>,
-        action_queue_sender: Sender<Action>,
-        post_action_queue_sender: Sender<Action>,
-    ) -> Self {
-        Self {
-            ui_string_sender,
-            ui_svg_sender,
-            action_queue_sender,
-            post_action_queue_sender,
-        }
-    }
-}
 
 pub struct StateContext {
     pub device: wgpu::Device,
@@ -41,7 +15,6 @@ pub struct StateContext {
     pub window_size: WindowSize,
     pub global_direction: Direction,
     pub font_repository: FontRepository,
-    senders: Senders,
 }
 
 impl StateContext {
@@ -56,7 +29,6 @@ impl StateContext {
         window_size: WindowSize,
         global_direction: Direction,
         font_repository: FontRepository,
-        senders: Senders,
     ) -> Self {
         Self {
             device,
@@ -66,61 +38,11 @@ impl StateContext {
             window_size,
             global_direction,
             font_repository,
-            senders,
         }
-    }
-
-    #[inline]
-    pub fn register_string(&self, value: String) {
-        match self.senders.ui_string_sender.send(value) {
-            Ok(_) => {}
-            Err(err) => {
-                warn!("Failed to send string: {}", err)
-            }
-        }
-    }
-
-    #[inline]
-    pub fn register_svg(&self, key: String, svg: String) {
-        match self.senders.ui_svg_sender.send((key, svg)) {
-            Ok(_) => {}
-            Err(err) => {
-                warn!("Failed to send SVG: {}", err)
-            }
-        }
-    }
-
-    #[inline]
-    pub fn register_action(&self, action: Action) {
-        match self.senders.action_queue_sender.send(action) {
-            Ok(_) => {}
-            Err(err) => {
-                warn!("Failed to send action: {}", err)
-            }
-        }
-    }
-
-    #[inline]
-    pub fn register_post_action(&self, action: Action) {
-        match self.senders.post_action_queue_sender.send(action) {
-            Ok(_) => {}
-            Err(err) => {
-                warn!("Failed to send post action: {}", err)
-            }
-        }
-    }
-
-    #[inline]
-    pub fn action_sender(&self) -> Sender<Action> {
-        self.senders.action_queue_sender.clone()
-    }
-
-    #[inline]
-    pub fn post_action_sender(&self) -> Sender<Action> {
-        self.senders.post_action_queue_sender.clone()
     }
 }
 
+/// Physical (ピクセル) 単位でのウィンドウサイズを表します
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WindowSize {
     pub width: u32,
@@ -134,14 +56,5 @@ impl WindowSize {
 
     pub fn aspect(&self) -> f32 {
         self.width as f32 / self.height as f32
-    }
-}
-
-impl From<PhysicalSize<u32>> for WindowSize {
-    fn from(size: PhysicalSize<u32>) -> Self {
-        Self {
-            width: size.width,
-            height: size.height,
-        }
     }
 }

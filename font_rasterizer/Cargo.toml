@@ -13,13 +13,12 @@ thiserror = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
 wgpu = { workspace = true }
-winit = { workspace = true }
 bitflags = { workspace = true }
 rand = { workspace = true }
 image ={ workspace = true}
 
 rustybuzz.workspace = true
-cgmath.workspace = true
+glam.workspace = true
 bytemuck.workspace = true
 
 web-time = { workspace = true }
@@ -30,7 +29,6 @@ usvg = { workspace = true }
 bezier_converter = { git = "https://github.com/mitoma/sandbox", branch = "main" }
 font_collector = { path = "../font_collector" }
 text_buffer = { path = "../text_buffer" }
-stroke_parser = { path = "../stroke_parser" }
 ttf_overlap_remover = { path = "../ttf_overlap_remover" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

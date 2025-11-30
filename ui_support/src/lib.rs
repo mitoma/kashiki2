@@ -10,17 +10,21 @@ mod text_instances;
 pub mod ui;
 pub mod ui_context;
 
+use glam::Mat4;
 use log::warn;
+use pollster::block_on;
 pub use render_state::RenderTargetResponse;
 use text_instances::BorderType;
 use ui::caret_char;
 
 use std::sync::Arc;
+#[cfg(target_arch = "wasm32")]
+use std::sync::mpsc::{Receiver, Sender};
 
 use camera::Camera;
 use font_rasterizer::{
     color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
+    context::WindowSize,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
     rasterizer_pipeline::Quarity,
@@ -28,6 +32,7 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
 };
 use render_state::{RenderState, RenderTargetRequest};
+use ui_context::UiContext;
 
 use crate::{
     layout_engine::Model,
@@ -42,11 +47,399 @@ use web_time::Duration;
 
 use stroke_parser::Action;
 use winit::{
-    event::{ElementState, Event, KeyEvent, WindowEvent},
+    application::ApplicationHandler,
+    dpi::{LogicalSize, PhysicalSize, Position, Size},
+    event::{ElementState, KeyEvent, WindowEvent},
     event_loop::EventLoop,
+    icon::Icon,
     keyboard::{Key, NamedKey},
-    window::{Fullscreen, Icon, WindowBuilder},
+    monitor::Fullscreen,
+    window::{ImeCapabilities, ImeEnableRequest, ImeRequestData, Window, WindowAttributes},
 };
+
+struct App {
+    support: Option<SimpleStateSupport>,
+    window: Option<Arc<Box<dyn Window>>>,
+    attributes: Option<AppAttributes>,
+    #[cfg(target_arch = "wasm32")]
+    state_sender_receiver: (
+        Sender<(RenderState, WindowSize, Flags)>,
+        Receiver<(RenderState, WindowSize, Flags)>,
+    ),
+}
+
+struct AppAttributes {
+    render_rate_adjuster: RenderRateAdjuster,
+    surface_configured: bool,
+    state: RenderState,
+    flags: Flags,
+}
+
+impl ApplicationHandler for App {
+    fn can_create_surfaces(&mut self, event_loop: &dyn winit::event_loop::ActiveEventLoop) {
+        let SimpleStateSupport {
+            window_icon,
+            window_title,
+            window_size,
+            callback,
+            quarity,
+            color_theme,
+            flags,
+            font_repository,
+            performance_mode,
+        } = self.support.take().expect("Support is not set");
+        #[allow(unused_mut)]
+        let mut window_attributes = WindowAttributes::default()
+            .with_window_icon(window_icon.clone())
+            .with_title(window_title.to_string())
+            .with_surface_size(winit::dpi::LogicalSize {
+                width: window_size.width,
+                height: window_size.height,
+            })
+            .with_transparent(flags.contains(Flags::TRANCEPARENT))
+            .with_decorations(!flags.contains(Flags::NO_TITLEBAR));
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            use wasm_bindgen::JsCast;
+            use winit::platform::web::WindowAttributesWeb;
+
+            let target_canvas = web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| doc.get_element_by_id("kashikishi-area"))
+                .map(|canvas| canvas.unchecked_into());
+
+            let window_attributes_web = WindowAttributesWeb::default().with_canvas(target_canvas);
+
+            window_attributes =
+                window_attributes.with_platform_attributes(Box::new(window_attributes_web));
+        }
+
+        self.attributes = match event_loop.create_window(window_attributes) {
+            Ok(window) => {
+                #[cfg(target_os = "macos")]
+                {
+                    // macOS では Option キーを Alt として扱う設定を有効にする
+                    use winit::platform::macos::WindowExtMacOS;
+                    window.set_option_as_alt(winit::platform::macos::OptionAsAlt::Both);
+                }
+
+                if let Some(req) = ImeEnableRequest::new(
+                    ime_capabilities(),
+                    ime_request_data(window_size, window.scale_factor()),
+                ) {
+                    let _ = window.request_ime_update(winit::window::ImeRequest::Enable(req));
+                };
+                let window = Arc::new(window);
+                self.window.replace(window.clone());
+
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let state = block_on(RenderState::new(
+                        RenderTargetRequest::Window {
+                            window: window.clone(),
+                        },
+                        quarity,
+                        color_theme,
+                        callback,
+                        font_repository,
+                        performance_mode,
+                    ));
+
+                    // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
+                    let render_rate_adjuster = RenderRateAdjuster::new(
+                        120,
+                        if flags.contains(Flags::SLEEP_WHEN_FOCUS_LOST) {
+                            5
+                        } else {
+                            120
+                        },
+                    );
+                    let surface_configured = false;
+
+                    Some(AppAttributes {
+                        render_rate_adjuster,
+                        surface_configured,
+                        state,
+                        flags,
+                    })
+                }
+
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let sender = self.state_sender_receiver.0.clone();
+                    let proxy = event_loop.create_proxy();
+
+                    wasm_bindgen_futures::spawn_local(async move {
+                        let state = RenderState::new(
+                            RenderTargetRequest::Window { window },
+                            quarity,
+                            color_theme,
+                            callback,
+                            font_repository,
+                            performance_mode,
+                        )
+                        .await;
+
+                        sender.send((state, window_size, flags)).unwrap();
+                        proxy.wake_up();
+                    });
+
+                    None
+                }
+            }
+            Err(err) => {
+                eprintln!("error creating window: {err}");
+                event_loop.exit();
+                return;
+            }
+        };
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn proxy_wake_up(&mut self, _event_loop: &dyn winit::event_loop::ActiveEventLoop) {
+        let Some(window) = &self.window else {
+            return;
+        };
+
+        if let Ok((state, window_size, flags)) = self.state_sender_receiver.1.recv() {
+            use winit::dpi::PhysicalSize;
+
+            let render_rate_adjuster = RenderRateAdjuster::new(120, 5);
+            let surface_configured = false;
+
+            self.attributes = Some(AppAttributes {
+                render_rate_adjuster,
+                surface_configured,
+                state,
+                flags,
+            });
+            let _ = window.request_surface_size(
+                PhysicalSize::new(window_size.width, window_size.height).into(),
+            );
+        }
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &dyn winit::event_loop::ActiveEventLoop,
+        window_id: winit::window::WindowId,
+        event: WindowEvent,
+    ) {
+        let Some(attributes) = &mut self.attributes else {
+            return;
+        };
+        let Some(window) = &self.window else {
+            return;
+        };
+        let self_window_id = window.id();
+        if window_id != self_window_id {
+            return;
+        }
+        let Some(window) = &mut self.window else {
+            return;
+        };
+
+        let AppAttributes {
+            render_rate_adjuster,
+            surface_configured,
+            state,
+            flags,
+        } = attributes;
+
+        record_start_of_phase("state input");
+        let input_result = state.input(&event);
+
+        match input_result {
+            InputResult::InputConsumed => {
+                // state 内で処理が行われたので何もしない
+            }
+            InputResult::SendExit => {
+                print_metrics_to_stdout();
+                state.shutdown();
+                event_loop.exit()
+            }
+            InputResult::ToggleFullScreen => {
+                if flags.contains(Flags::FULL_SCREEN) {
+                    match window.fullscreen() {
+                        Some(_) => window.set_fullscreen(None),
+                        None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                    }
+                }
+            }
+            InputResult::ToggleDecorations => {
+                window.set_decorations(!window.is_decorated());
+            }
+            InputResult::ChangeColorTheme(color_theme) => {
+                state.change_color_theme(color_theme);
+            }
+            InputResult::ChangeBackgroundImage(dynamic_image) => {
+                state.change_background_image(dynamic_image);
+            }
+            InputResult::ChangeFont(font_name) => {
+                state.change_font(font_name);
+            }
+            InputResult::ChangeGlobalDirection(direction) => {
+                state.context.set_global_direction(direction);
+            }
+            InputResult::ChangeWindowSize(window_size) => {
+                state.resize(window_size);
+            }
+            InputResult::ChangeQuarity(quarity) => {
+                state.change_quarity(quarity);
+            }
+            InputResult::Noop => {
+                match event {
+                    WindowEvent::CloseRequested => {
+                        print_metrics_to_stdout();
+                        state.shutdown();
+                        event_loop.exit();
+                    }
+                    WindowEvent::KeyboardInput {
+                        event:
+                            KeyEvent {
+                                state: ElementState::Pressed,
+                                logical_key: Key::Named(NamedKey::Escape),
+                                ..
+                            },
+                        ..
+                    } => {
+                        if flags.contains(Flags::EXIT_ON_ESC) {
+                            print_metrics_to_stdout();
+                            state.shutdown();
+                            event_loop.exit();
+                        }
+                    }
+                    WindowEvent::KeyboardInput {
+                        event:
+                            KeyEvent {
+                                state: ElementState::Pressed,
+                                logical_key: Key::Named(NamedKey::F11),
+                                ..
+                            },
+                        ..
+                    } => {
+                        if flags.contains(Flags::FULL_SCREEN) {
+                            match window.fullscreen() {
+                                Some(_) => window.set_fullscreen(None),
+                                None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                            }
+                        }
+                    }
+                    WindowEvent::Focused(focused) => {
+                        render_rate_adjuster.change_focus(focused);
+                        if focused {
+                            ime_update(window.clone(), &state.context.window_size());
+                        }
+                    }
+                    WindowEvent::SurfaceResized(physical_size) => {
+                        *surface_configured = true;
+                        let PhysicalSize { width, height } = physical_size;
+                        record_start_of_phase("state resize");
+                        let window_size = WindowSize::new(width, height);
+                        state.resize(window_size);
+                        ime_update(window.clone(), &window_size);
+                    }
+                    WindowEvent::ScaleFactorChanged { .. } => {
+                        // TODO スケールファクタ変更時に何かする？
+                    }
+                    WindowEvent::RedrawRequested => {
+                        if !*surface_configured {
+                            return;
+                        }
+                        window.request_redraw();
+
+                        record_start_of_phase("state update");
+                        #[cfg(not(target_arch = "wasm32"))]
+                        {
+                            if let Some(idle_time) = render_rate_adjuster.idle_time() {
+                                std::thread::sleep(idle_time);
+                                return;
+                            }
+                        }
+                        state.update();
+                        record_start_of_phase("state render");
+                        match state.render() {
+                            Ok(_) => {}
+                            // Reconfigure the surface if it's lost or outdated
+                            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                                state.redraw()
+                            }
+                            // The system is out of memory, we should probably quit
+                            Err(wgpu::SurfaceError::OutOfMemory) => {
+                                print_metrics_to_stdout();
+                                state.shutdown();
+                                event_loop.exit();
+                            }
+                            // We're ignoring timeouts
+                            Err(wgpu::SurfaceError::Timeout) => {
+                                log::warn!("Surface timeout")
+                            }
+                            Err(wgpu::SurfaceError::Other) => {
+                                log::warn!("Surface Other error")
+                            }
+                        }
+                        // 1 フレームごとに時計を更新する(時計のモードが StepByStep の場合のみ意味がある)
+                        increment_fixed_clock(Duration::ZERO);
+                        // 次のフレームの最初に action を処理するケースがある
+                        // 主なケースとしては、大量の文字を入力後にレイアウトを変更するケース。
+                        // この場合 render 後に post_action_queue_receiver にたまった action を処理するのが良い。
+                        while let Ok(action) = state.post_action_queue_receiver.try_recv() {
+                            // この時の InputResult は処理不要のものを返す想定なのでハンドリングしない
+                            let _ = state.action(action);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        // input イベント後に連鎖して action が発生するケースがあるのでここで処理していく
+        while let Ok(action) = state.action_queue_receiver.try_recv() {
+            match state.action(action) {
+                InputResult::InputConsumed => {
+                    // state 内で処理が行われたので何もしない
+                }
+                InputResult::SendExit => {
+                    print_metrics_to_stdout();
+                    state.shutdown();
+                    event_loop.exit()
+                }
+                InputResult::ToggleFullScreen => {
+                    if flags.contains(Flags::FULL_SCREEN) {
+                        match window.fullscreen() {
+                            Some(_) => window.set_fullscreen(None),
+                            None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                        }
+                    }
+                }
+                InputResult::ChangeColorTheme(color_theme) => {
+                    state.change_color_theme(color_theme);
+                }
+                InputResult::ChangeBackgroundImage(dynamic_image) => {
+                    state.change_background_image(dynamic_image);
+                }
+                InputResult::ChangeFont(font_name) => {
+                    state.change_font(font_name);
+                }
+                InputResult::ToggleDecorations => {
+                    window.set_decorations(!window.is_decorated());
+                }
+                InputResult::ChangeGlobalDirection(direction) => {
+                    state.context.set_global_direction(direction);
+                }
+                InputResult::ChangeWindowSize(window_size) => {
+                    state.resize(window_size);
+                }
+                InputResult::ChangeQuarity(quarity) => state.change_quarity(quarity),
+                InputResult::Noop => {}
+            }
+        }
+        record_start_of_phase("wait for next event");
+    }
+}
 
 bitflags! {
     pub struct Flags: u32 {
@@ -94,287 +487,17 @@ pub async fn run_support(support: SimpleStateSupport) {
     record_start_of_phase("initialize");
 
     let event_loop = EventLoop::new().unwrap();
-    let window = WindowBuilder::new()
-        .with_window_icon(support.window_icon)
-        .with_title(support.window_title)
-        .with_inner_size(winit::dpi::LogicalSize {
-            width: support.window_size.width,
-            height: support.window_size.height,
-        })
-        .with_transparent(support.flags.contains(Flags::TRANCEPARENT))
-        .with_decorations(!support.flags.contains(Flags::NO_TITLEBAR))
-        .with_visible(false)
-        .build(&event_loop)
-        .unwrap();
-    window.set_ime_allowed(true);
-    let window = Arc::new(window);
 
-    #[cfg(target_os = "macos")]
-    {
-        // macOS では Option キーを Alt として扱う設定を有効にする
-        use winit::platform::macos::WindowExtMacOS;
-        window.set_option_as_alt(winit::platform::macos::OptionAsAlt::Both);
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        use winit::platform::web::WindowExtWebSys;
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
-                let dst = doc.get_element_by_id("kashikishi-area")?;
-                let canvas = web_sys::Element::from(window.canvas()?);
-                dst.append_child(&canvas.clone()).ok()?;
-                let input = web_sys::Element::from(window.input()?);
-                dst.append_child(&input).ok()?;
-                Some(())
-            })
-            .expect("Couldn't append canvas to document body.");
-
-        // Winit prevents sizing with CSS, so we have to set
-        // the size manually when on web.
-        use winit::dpi::PhysicalSize;
-        let _ = window.request_inner_size(PhysicalSize::new(
-            support.window_size.width,
-            support.window_size.height,
-        ));
-    }
-
-    record_start_of_phase("setup state");
-    let mut state = RenderState::new(
-        RenderTargetRequest::Window {
-            window: window.clone(),
+    let _ = event_loop.run_app(App {
+        support: Some(support),
+        window: None,
+        attributes: None,
+        #[cfg(target_arch = "wasm32")]
+        state_sender_receiver: {
+            use std::sync::mpsc::channel;
+            channel()
         },
-        support.quarity,
-        support.color_theme,
-        support.callback,
-        support.font_repository,
-        support.performance_mode,
-    )
-    .await;
-
-    // Windows で trayicon で指定したアイコンで表示されない不具合があるため対応
-    // (作成時に visible = false で作成し、後から true にすることで解決する)
-    // https://github.com/rust-windowing/winit/issues/4170
-    window.set_visible(true);
-
-    // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
-    let mut render_rate_adjuster = RenderRateAdjuster::new(
-        120,
-        if support.flags.contains(Flags::SLEEP_WHEN_FOCUS_LOST) {
-            5
-        } else {
-            120
-        },
-    );
-    let mut surface_configured = false;
-
-    event_loop
-        .run(move |event, control_flow| {
-            match event {
-                Event::WindowEvent {
-                    ref event,
-                    window_id,
-                } if window_id == window.id() => {
-                    record_start_of_phase("state input");
-                    let input_result = state.input(event);
-
-                    match input_result {
-                        InputResult::InputConsumed => {
-                            // state 内で処理が行われたので何もしない
-                        }
-                        InputResult::SendExit => {
-                            print_metrics_to_stdout();
-                            state.shutdown();
-                            control_flow.exit()
-                        }
-                        InputResult::ToggleFullScreen => {
-                            if support.flags.contains(Flags::FULL_SCREEN) {
-                                match window.fullscreen() {
-                                    Some(_) => window.set_fullscreen(None),
-                                    None => {
-                                        window.set_fullscreen(Some(Fullscreen::Borderless(None)))
-                                    }
-                                }
-                            }
-                        }
-                        InputResult::ToggleDecorations => {
-                            window.set_decorations(!window.is_decorated());
-                        }
-                        InputResult::ChangeColorTheme(color_theme) => {
-                            state.change_color_theme(color_theme);
-                        }
-                        InputResult::ChangeBackgroundImage(dynamic_image) => {
-                            state.change_background_image(dynamic_image);
-                        }
-                        InputResult::ChangeFont(font_name) => {
-                            state.change_font(font_name);
-                        }
-                        InputResult::ChangeGlobalDirection(direction) => {
-                            state.context.global_direction = direction;
-                        }
-                        InputResult::ChangeWindowSize(window_size) => {
-                            let _ = window.request_inner_size(winit::dpi::LogicalSize {
-                                width: window_size.width,
-                                height: window_size.height,
-                            });
-                        }
-                        InputResult::ChangeQuarity(quarity) => {
-                            state.change_quarity(quarity);
-                        }
-                        InputResult::Noop => {
-                            match event {
-                                WindowEvent::CloseRequested => {
-                                    print_metrics_to_stdout();
-                                    state.shutdown();
-                                    control_flow.exit()
-                                }
-                                WindowEvent::KeyboardInput {
-                                    event:
-                                        KeyEvent {
-                                            state: ElementState::Pressed,
-                                            logical_key: Key::Named(NamedKey::Escape),
-                                            ..
-                                        },
-                                    ..
-                                } => {
-                                    if support.flags.contains(Flags::EXIT_ON_ESC) {
-                                        print_metrics_to_stdout();
-                                        state.shutdown();
-                                        control_flow.exit();
-                                    }
-                                }
-                                WindowEvent::KeyboardInput {
-                                    event:
-                                        KeyEvent {
-                                            state: ElementState::Pressed,
-                                            logical_key: Key::Named(NamedKey::F11),
-                                            ..
-                                        },
-                                    ..
-                                } => {
-                                    if support.flags.contains(Flags::FULL_SCREEN) {
-                                        match window.fullscreen() {
-                                            Some(_) => window.set_fullscreen(None),
-                                            None => window
-                                                .set_fullscreen(Some(Fullscreen::Borderless(None))),
-                                        }
-                                    }
-                                }
-                                WindowEvent::Focused(focused) => {
-                                    render_rate_adjuster.change_focus(*focused);
-                                }
-                                WindowEvent::Resized(physical_size) => {
-                                    surface_configured = true;
-                                    record_start_of_phase("state resize");
-                                    state.resize((*physical_size).into());
-                                }
-                                WindowEvent::ScaleFactorChanged { .. } => {
-                                    // TODO スケールファクタ変更時に何かする？
-                                }
-                                WindowEvent::RedrawRequested => {
-                                    if !surface_configured {
-                                        return;
-                                    }
-                                    record_start_of_phase("state update");
-                                    #[cfg(not(target_arch = "wasm32"))]
-                                    {
-                                        if let Some(idle_time) = render_rate_adjuster.idle_time() {
-                                            std::thread::sleep(idle_time);
-                                            return;
-                                        }
-                                    }
-                                    state.update();
-                                    record_start_of_phase("state render");
-                                    match state.render() {
-                                        Ok(_) => {}
-                                        // Reconfigure the surface if it's lost or outdated
-                                        Err(
-                                            wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated,
-                                        ) => state.redraw(),
-                                        // The system is out of memory, we should probably quit
-                                        Err(wgpu::SurfaceError::OutOfMemory) => {
-                                            print_metrics_to_stdout();
-                                            state.shutdown();
-                                            control_flow.exit()
-                                        }
-                                        // We're ignoring timeouts
-                                        Err(wgpu::SurfaceError::Timeout) => {
-                                            log::warn!("Surface timeout")
-                                        }
-                                        Err(wgpu::SurfaceError::Other) => {
-                                            log::warn!("Surface Other error")
-                                        }
-                                    }
-                                    // 1 フレームごとに時計を更新する(時計のモードが StepByStep の場合のみ意味がある)
-                                    increment_fixed_clock(Duration::ZERO);
-                                    // 次のフレームの最初に action を処理するケースがある
-                                    // 主なケースとしては、大量の文字を入力後にレイアウトを変更するケース。
-                                    // この場合 render 後に post_action_queue_receiver にたまった action を処理するのが良い。
-                                    while let Ok(action) =
-                                        state.post_action_queue_receiver.try_recv()
-                                    {
-                                        // この時の InputResult は処理不要のものを返す想定なのでハンドリングしない
-                                        let _ = state.action(action);
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-                Event::AboutToWait => {
-                    window.request_redraw();
-                }
-                _ => {}
-            }
-            // input イベント後に連鎖して action が発生するケースがあるのでここで処理していく
-            while let Ok(action) = state.action_queue_receiver.try_recv() {
-                match state.action(action) {
-                    InputResult::InputConsumed => {
-                        // state 内で処理が行われたので何もしない
-                    }
-                    InputResult::SendExit => {
-                        print_metrics_to_stdout();
-                        state.shutdown();
-                        control_flow.exit()
-                    }
-                    InputResult::ToggleFullScreen => {
-                        if support.flags.contains(Flags::FULL_SCREEN) {
-                            match window.fullscreen() {
-                                Some(_) => window.set_fullscreen(None),
-                                None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
-                            }
-                        }
-                    }
-                    InputResult::ChangeColorTheme(color_theme) => {
-                        state.change_color_theme(color_theme);
-                    }
-                    InputResult::ChangeBackgroundImage(dynamic_image) => {
-                        state.change_background_image(dynamic_image);
-                    }
-                    InputResult::ChangeFont(font_name) => {
-                        state.change_font(font_name);
-                    }
-                    InputResult::ToggleDecorations => {
-                        window.set_decorations(!window.is_decorated());
-                    }
-                    InputResult::ChangeGlobalDirection(direction) => {
-                        state.context.global_direction = direction;
-                    }
-                    InputResult::ChangeWindowSize(window_size) => {
-                        let _ = window.request_inner_size(winit::dpi::LogicalSize {
-                            width: window_size.width,
-                            height: window_size.height,
-                        });
-                    }
-                    InputResult::ChangeQuarity(quarity) => state.change_quarity(quarity),
-                    InputResult::Noop => {}
-                }
-            }
-            record_start_of_phase("wait for next event");
-        })
-        .unwrap();
+    });
 }
 
 fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> Option<InputResult> {
@@ -392,7 +515,7 @@ fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> O
             None
         }
         InputResult::ChangeGlobalDirection(direction) => {
-            state.context.global_direction = direction;
+            state.context.set_global_direction(direction);
             None
         }
         InputResult::SendExit => Some(input_result),
@@ -421,11 +544,11 @@ pub enum InputResult {
 }
 
 pub trait SimpleStateCallback {
-    fn init(&mut self, context: &StateContext);
+    fn init(&mut self, context: &UiContext);
     fn resize(&mut self, size: WindowSize);
-    fn update(&mut self, context: &StateContext);
-    fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult;
-    fn action(&mut self, context: &StateContext, action: Action) -> InputResult;
+    fn update(&mut self, context: &UiContext);
+    fn input(&mut self, context: &UiContext, event: &WindowEvent) -> InputResult;
+    fn action(&mut self, context: &UiContext, action: Action) -> InputResult;
     fn render(&'_ mut self) -> RenderData<'_>;
     fn shutdown(&mut self);
 }
@@ -523,40 +646,40 @@ pub async fn generate_image_iter(
 }
 
 #[inline]
-pub fn register_default_caret(state_context: &StateContext) {
-    state_context.register_svg(
+pub fn register_default_caret(context: &UiContext) {
+    context.register_svg(
         caret_char(text_buffer::caret::CaretType::Primary).to_string(),
         include_str!("../asset/caret_primary.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         caret_char(text_buffer::caret::CaretType::Mark).to_string(),
         include_str!("../asset/caret_mark.svg").to_string(),
     );
 }
 
 #[inline]
-pub fn register_default_border(state_context: &StateContext) {
-    state_context.register_svg(
+pub fn register_default_border(context: &UiContext) {
+    context.register_svg(
         BorderType::Horizontal.to_key(),
         include_str!("../asset/border_horizontal.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::Vertical.to_key(),
         include_str!("../asset/border_vertical.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::TopLeft.to_key(),
         include_str!("../asset/border_top_left.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::TopRight.to_key(),
         include_str!("../asset/border_top_right.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::BottomLeft.to_key(),
         include_str!("../asset/border_bottom_left.svg").to_string(),
     );
-    state_context.register_svg(
+    context.register_svg(
         BorderType::BottomRight.to_key(),
         include_str!("../asset/border_bottom_right.svg").to_string(),
     );
@@ -564,15 +687,42 @@ pub fn register_default_border(state_context: &StateContext) {
 
 #[inline]
 pub(crate) fn to_ndc_position(model: &dyn Model, camera: &Camera) -> (f32, f32) {
-    let cgmath::Point3 { x, y, z } = model.position();
-    let position_vec = cgmath::Vector3 { x, y, z };
+    let glam::Vec3 { x, y, z } = model.position();
+    let position_vec = glam::Vec3 { x, y, z };
 
-    let p =
-        cgmath::Matrix4::from_translation(position_vec) * cgmath::Matrix4::from(model.rotation());
+    let p = Mat4::from_translation(position_vec).mul_mat4(&Mat4::from_quat(model.rotation()));
     let view_projection_matrix = camera.build_view_projection_matrix();
     let calced_model_position = view_projection_matrix * p;
-    let nw = calced_model_position.w;
+    let nw = calced_model_position.w_axis;
     let nw_x = nw.x / nw.w;
     let nw_y = nw.y / nw.w;
     (nw_x, nw_y)
+}
+
+/// UiSupport で利用する IME の機能はカーソル位置の通知のみ
+#[inline]
+fn ime_capabilities() -> ImeCapabilities {
+    ImeCapabilities::default().with_cursor_area()
+}
+
+/// カーソル位置の通知用データを生成する。ウインドウサイズに依存とする。
+///
+/// インラインで変換候補を表示する事になればここを改修する必要がある。
+#[inline]
+fn ime_request_data(window_size: WindowSize, scale_factor: f64) -> ImeRequestData {
+    let physical_size = PhysicalSize::new(window_size.width, window_size.height);
+    let logical_size: LogicalSize<f32> = physical_size.to_logical(scale_factor);
+    // デフォルトではウィンドウの下部中央に配置する。IME や横書き前提なのでちょっと中央より左に寄せる
+    ImeRequestData::default().with_cursor_area(
+        Position::Logical((logical_size.width / 4.0, logical_size.height * 0.8).into()),
+        Size::Logical([0.0, logical_size.height * 0.2].into()),
+    )
+}
+
+#[inline]
+fn ime_update(window: Arc<Box<dyn Window>>, window_size: &WindowSize) {
+    let _ = window.request_ime_update(winit::window::ImeRequest::Update(ime_request_data(
+        *window_size,
+        window.scale_factor(),
+    )));
 }

@@ -4,23 +4,24 @@ use stroke_parser::Action;
 use wasm_bindgen::prelude::*;
 use web_time::Duration;
 
-use cgmath::Rotation3;
 use font_rasterizer::{
     color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
+    context::WindowSize,
     glyph_instances::GlyphInstances,
     motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::now_millis,
     vector_instances::InstanceAttributes,
 };
+use glam::Quat;
 use log::info;
+use ui_support::ui_context::UiContext;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
     run_support,
 };
-use winit::event::{ElementState, MouseButton, WindowEvent};
+use winit::event::{ButtonSource, ElementState, MouseButton, WindowEvent};
 
 const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
@@ -38,7 +39,7 @@ pub async fn run() {
         window_title: "Hello".to_string(),
         window_size,
         callback: Box::new(callback),
-        quarity: Quarity::VeryHigh,
+        quarity: Quarity::Middle,
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
         font_repository,
@@ -97,32 +98,32 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, context: &StateContext) {
+    fn init(&mut self, context: &UiContext) {
         let value = InstanceAttributes {
-            color: context.color_theme.cyan().get_color(),
+            color: context.color_theme().cyan().get_color(),
             motion: self.motion.motion_flags(),
             gain: 2.0,
             duration: Duration::from_millis(1000),
             ..Default::default()
         };
-        let mut instance = GlyphInstances::new('あ', &context.device);
+        let mut instance = GlyphInstances::new('あ', context.device());
         instance.push(value);
         self.glyphs.push(instance);
         let chars = vec!['あ'].into_iter().collect();
         context.register_string(chars);
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         self.glyphs
             .iter_mut()
-            .for_each(|i| i.update_buffer(&context.device, &context.queue));
+            .for_each(|i| i.update_buffer(context.device(), context.queue()));
     }
 
-    fn input(&mut self, _context: &StateContext, event: &WindowEvent) -> InputResult {
+    fn input(&mut self, _context: &UiContext, event: &WindowEvent) -> InputResult {
         match event {
-            WindowEvent::MouseInput {
+            WindowEvent::PointerButton {
                 state: ElementState::Pressed,
-                button: MouseButton::Left,
+                button: ButtonSource::Mouse(MouseButton::Left),
                 ..
             } => {
                 self.motion = self.motion.next();
@@ -132,10 +133,7 @@ impl SimpleStateCallback for SingleCharCallback {
                         i.clear();
                         i.push(InstanceAttributes::new(
                             (0.0, 0.0, 0.0).into(),
-                            cgmath::Quaternion::from_axis_angle(
-                                cgmath::Vector3::unit_z(),
-                                cgmath::Deg(0.0),
-                            ),
+                            Quat::IDENTITY,
                             [1.0, 1.0],
                             [1.0, 1.0],
                             ColorTheme::SolarizedDark.cyan().get_color(),
@@ -152,7 +150,7 @@ impl SimpleStateCallback for SingleCharCallback {
         }
     }
 
-    fn action(&mut self, _context: &StateContext, _action: Action) -> InputResult {
+    fn action(&mut self, _context: &UiContext, _action: Action) -> InputResult {
         InputResult::Noop
     }
 

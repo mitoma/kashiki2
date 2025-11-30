@@ -1,16 +1,15 @@
-use cgmath::{InnerSpace, Point3, Vector3};
-
 use font_rasterizer::context::WindowSize;
+use glam::{Mat4, Quat, Vec3};
 
 use crate::{easing_value::EasingPointN, layout_engine::Model};
 
 #[rustfmt::skip]
-const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
+const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::from_cols_array(&[
     1.0, 0.0, 0.0, 0.0,
     0.0, 1.0, 0.0, 0.0,
     0.0, 0.0, 0.5, 0.0,
     0.0, 0.0, 0.5, 1.0,
-);
+]);
 
 pub struct Camera {
     eye: EasingPointN<3>,
@@ -20,12 +19,12 @@ pub struct Camera {
     fovy: f32,
     znear: f32,
     zfar: f32,
-    eye_quaternion: Option<cgmath::Quaternion<f32>>,
+    eye_quaternion: Option<Quat>,
 }
 
 impl Camera {
     pub fn basic(window_size: WindowSize) -> Self {
-        let Vector3 { x, y, z } = cgmath::Vector3::unit_y();
+        let Vec3 { x, y, z } = Vec3::Y;
         Self::new(
             [0.0, 0.0, 1.0].into(),
             [0.0, 0.0, 0.0].into(),
@@ -59,30 +58,27 @@ impl Camera {
         }
     }
 
-    pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        let view = cgmath::Matrix4::look_at_rh(
+    pub fn build_view_projection_matrix(&self) -> Mat4 {
+        let view = Mat4::look_at_rh(
             self.eye.current().into(),
             self.target.current().into(),
             self.up.current().into(),
         );
         let view = if let Some(eye_quaternion) = self.eye_quaternion {
-            cgmath::Matrix4::from(eye_quaternion) * view
+            Mat4::from_quat(eye_quaternion) * view
         } else {
             view
         };
 
-        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+        let proj = Mat4::perspective_rh(self.fovy.to_radians(), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
 
     // カメラの位置に依存しないビュー行列を作る
-    pub fn build_default_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-        let default_view = cgmath::Matrix4::look_at_rh(
-            (0.0, 0.0, 1.0).into(),
-            (0.0, 0.0, 0.0).into(),
-            cgmath::Vector3::unit_y(),
-        );
-        let proj = cgmath::perspective(cgmath::Deg(self.fovy), self.aspect, self.znear, self.zfar);
+    pub fn build_default_view_projection_matrix(&self) -> Mat4 {
+        let default_view =
+            Mat4::look_at_rh((0.0, 0.0, 1.0).into(), (0.0, 0.0, 0.0).into(), Vec3::Y);
+        let proj = Mat4::perspective_rh(self.fovy.to_radians(), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * default_view
     }
 
@@ -103,9 +99,9 @@ pub enum CameraOperation {
     Right,
     Forward,
     Backward,
-    CangeTarget(cgmath::Point3<f32>),
-    CangeTargetAndEye(cgmath::Point3<f32>, cgmath::Point3<f32>),
-    UpdateEyeQuaternion(Option<cgmath::Quaternion<f32>>),
+    CangeTarget(Vec3),
+    CangeTargetAndEye(Vec3, Vec3),
+    UpdateEyeQuaternion(Option<Quat>),
     None,
 }
 
@@ -131,9 +127,9 @@ pub struct CameraController {
     is_backward_pressed: bool,
     is_left_pressed: bool,
     is_right_pressed: bool,
-    next_target: Option<cgmath::Point3<f32>>,
-    next_eye: Option<cgmath::Point3<f32>>,
-    next_eye_quaternion: Option<cgmath::Quaternion<f32>>,
+    next_target: Option<Vec3>,
+    next_eye: Option<Vec3>,
+    next_eye_quaternion: Option<Quat>,
 }
 
 impl CameraController {
@@ -187,16 +183,12 @@ impl CameraController {
         camera.aspect = window_size.aspect();
     }
 
-    pub fn update_eye_quatanion(
-        &self,
-        camera: &mut Camera,
-        eye_quaternion: Option<cgmath::Quaternion<f32>>,
-    ) {
+    pub fn update_eye_quatanion(&self, camera: &mut Camera, eye_quaternion: Option<Quat>) {
         camera.eye_quaternion = eye_quaternion;
     }
 
     pub fn update_camera(&self, camera: &mut Camera) {
-        let current_up: Vector3<f32> = camera.up.current().into();
+        let current_up: Vec3 = camera.up.current().into();
 
         camera.eye_quaternion = self.next_eye_quaternion;
         if let Some(next_target) = self.next_target {
@@ -206,14 +198,14 @@ impl CameraController {
             camera.eye.update(next_eye.into());
         }
 
-        let mut current_eye: Point3<f32> = camera.eye.last().into();
-        let current_target: Point3<f32> = camera.target.last().into();
+        let mut current_eye: Vec3 = camera.eye.last().into();
+        let current_target: Vec3 = camera.target.last().into();
         // ターゲットからカメラの座標を引く(カメラから見たターゲットの向き)
         let forward = current_target - current_eye;
         // 向きに対する単位行列
         let forward_norm = forward.normalize();
         // 向きへの距離
-        let forward_mag = forward.magnitude();
+        let forward_mag = forward.length();
 
         // TODO: 近づきすぎないようにしているが、もう少し良い制御したいよ
         if self.is_forward_pressed && forward_mag > self.speed {
@@ -229,7 +221,7 @@ impl CameraController {
 
         // なぜ再定義が必要？
         let forward = current_target - current_eye;
-        let forward_mag = forward.magnitude();
+        let forward_mag = forward.length();
 
         if self.is_right_pressed {
             // ターゲットから、カメラのほうの少し右を見る単位行列を作り、それに元の距離をかける
@@ -250,18 +242,17 @@ impl CameraController {
 
     pub fn look_at(&self, camera: &mut Camera, target: &dyn Model, adjustment: CameraAdjustment) {
         let forward_mag = {
-            let forward =
-                Point3::<f32>::from(camera.target.last()) - Point3::<f32>::from(camera.eye.last());
+            let forward = Vec3::from(camera.target.last()) - Vec3::from(camera.eye.last());
             // 向きへの距離
-            forward.magnitude()
+            forward.length()
         };
 
-        let target_position: Point3<f32> = if adjustment == CameraAdjustment::FitBothAndCentering {
+        let target_position: Vec3 = if adjustment == CameraAdjustment::FitBothAndCentering {
             target.position()
         } else {
             target.focus_position()
         };
-        let normal = cgmath::Vector3::<f32>::unit_z();
+        let normal = Vec3::Z;
 
         // aspect は width / height
         let (w, h) = target.bound();
@@ -285,7 +276,7 @@ impl CameraController {
 
         let camera_position = target_position + (target.rotation() * normal * (size));
 
-        let up = target.rotation() * cgmath::Vector3::<f32>::unit_y();
+        let up = target.rotation() * Vec3::Y;
         camera.up.update([up.x, up.y, up.z]);
         camera.target.update(target_position.into());
         camera.eye.update(camera_position.into());
