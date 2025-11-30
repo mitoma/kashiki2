@@ -3,15 +3,15 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use cgmath::{Rotation3, num_traits::ToPrimitive};
+use glam::{Mat4, Vec3};
 use web_time::Duration;
 
 use crate::{color_theme::SolarizedColor, motion::MotionFlags, time::now_millis};
 
 #[derive(Clone, Copy, Debug)]
 pub struct InstanceAttributes {
-    pub position: cgmath::Vector3<f32>,
-    pub rotation: cgmath::Quaternion<f32>,
+    pub position: glam::Vec3,
+    pub rotation: glam::Quat,
     pub world_scale: [f32; 2],
     pub instance_scale: [f32; 2],
     pub color: [f32; 3],
@@ -24,8 +24,8 @@ pub struct InstanceAttributes {
 #[allow(clippy::too_many_arguments)]
 impl InstanceAttributes {
     pub fn new(
-        position: cgmath::Vector3<f32>,
-        rotation: cgmath::Quaternion<f32>,
+        position: glam::Vec3,
+        rotation: glam::Quat,
         world_scale: [f32; 2],
         instance_scale: [f32; 2],
         color: [f32; 3],
@@ -52,10 +52,7 @@ impl Default for InstanceAttributes {
     fn default() -> Self {
         Self {
             position: [10.0, 0.0, 0.0].into(),
-            rotation: cgmath::Quaternion::from_axis_angle(
-                cgmath::Vector3::unit_z(),
-                cgmath::Deg(0.0),
-            ),
+            rotation: glam::Quat::IDENTITY,
             world_scale: [1.0, 1.0],
             instance_scale: [1.0, 1.0],
             color: SolarizedColor::Red.get_color(),
@@ -76,23 +73,27 @@ impl InstanceAttributes {
     }
 
     fn as_raw(&self) -> InstanceRaw {
-        let model =
-            (cgmath::Matrix4::from_nonuniform_scale(self.world_scale[0], self.world_scale[1], 1.0)
-                * cgmath::Matrix4::from_translation(self.position)
-                * cgmath::Matrix4::from(self.rotation)
-                * cgmath::Matrix4::from_nonuniform_scale(
-                    self.instance_scale[0],
-                    self.instance_scale[1],
-                    1.0,
-                ))
-            .into();
+        let world_scale =
+            Mat4::from_scale(Vec3::new(self.world_scale[0], self.world_scale[1], 1.0));
+        let translation = Mat4::from_translation(self.position);
+        let rotation = Mat4::from_quat(self.rotation);
+        let local_scale = Mat4::from_scale(Vec3::new(
+            self.instance_scale[0],
+            self.instance_scale[1],
+            1.0,
+        ));
+        let model = world_scale
+            .mul_mat4(&translation)
+            .mul_mat4(&rotation)
+            .mul_mat4(&local_scale)
+            .to_cols_array_2d();
         InstanceRaw {
             model,
             color: self.color,
             motion: self.motion.into(),
             start_time: self.start_time,
             gain: self.gain,
-            duration: self.duration.as_millis().to_u32().unwrap(),
+            duration: self.duration.as_millis() as u32,
         }
     }
 }
@@ -117,7 +118,7 @@ pub enum InstanceKey {
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct InstanceRaw {
-    model: [[f32; 4]; 4],
+    pub(crate) model: [[f32; 4]; 4],
     color: [f32; 3],
     motion: u32,
     start_time: u32,

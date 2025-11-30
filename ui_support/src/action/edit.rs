@@ -1,8 +1,7 @@
-use font_rasterizer::context::StateContext;
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
-use crate::{layout_engine::World, ui::TextInput};
+use crate::{UiContext, layout_engine::World, ui::TextInput};
 
 use super::{ActionProcessor, InputResult};
 
@@ -21,7 +20,7 @@ macro_rules! edit_processor {
             fn process(
                 &self,
                 _arg: &ActionArgument,
-                _context: &StateContext,
+                _context: &UiContext,
                 world: &mut dyn World,
             ) -> InputResult {
                 world.editor_operation(&EditorOperation::$editor_operation);
@@ -69,7 +68,7 @@ impl ActionProcessor for EditCopy {
     fn process(
         &self,
         _arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         cfg_if::cfg_if! {
@@ -101,7 +100,7 @@ impl ActionProcessor for EditPaste {
     fn process(
         &self,
         _arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         cfg_if::cfg_if! {
@@ -136,7 +135,7 @@ impl ActionProcessor for EditCut {
     fn process(
         &self,
         _arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         cfg_if::cfg_if! {
@@ -168,7 +167,7 @@ impl ActionProcessor for EditHighlightUi {
     fn process(
         &self,
         _arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         let model = TextInput::new(
@@ -198,7 +197,7 @@ impl ActionProcessor for EditHighlight {
     fn process(
         &self,
         arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         if let ActionArgument::String2(keyword, _) = arg {

@@ -1,7 +1,6 @@
 use image::{DynamicImage, GenericImageView};
 
 pub struct ScreenTexture {
-    pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
     pub texture_format: wgpu::TextureFormat,
@@ -50,7 +49,6 @@ impl ScreenTexture {
         });
 
         Self {
-            texture,
             view,
             sampler,
             texture_format,

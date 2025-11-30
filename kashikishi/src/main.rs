@@ -24,9 +24,7 @@ use winit::{event::WindowEvent, icon::RgbaIcon};
 use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld};
 
 use font_rasterizer::{
-    color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
-    rasterizer_pipeline::Quarity,
+    color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity,
     time::set_clock_mode,
 };
 use log::info;
@@ -38,6 +36,7 @@ use ui_support::{
     layout_engine::{Model, ModelOperation, World},
     register_default_border, register_default_caret, run_support,
     ui::{ImeInput, caret_char, ime_chars},
+    ui_context::UiContext,
 };
 
 use crate::kashikishi_actions::command_palette_select;
@@ -89,7 +88,7 @@ impl ActionProcessor for SystemCommandPalette {
     fn process(
         &self,
         arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         let narrow = match arg {
@@ -197,12 +196,12 @@ impl KashikishiCallback {
         &mut self,
         command_name: &str,
         _argument: ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
     ) {
         let world = self.world.get_mut();
         match command_name {
             "copy-display" => world.model_operation(&ModelOperation::CopyDisplayString(
-                context.char_width_calcurator.clone(),
+                context.char_width_calcurator().clone(),
                 |text| {
                     let _ = Clipboard::new().and_then(|mut context| context.set_text(text));
                 },
@@ -220,7 +219,7 @@ impl KashikishiCallback {
 }
 
 impl SimpleStateCallback for KashikishiCallback {
-    fn init(&mut self, context: &StateContext) {
+    fn init(&mut self, context: &UiContext) {
         // 初期状態で表示するワールドを設定する
         self.world = Box::new(StartWorld::new(context));
 
@@ -244,7 +243,7 @@ impl SimpleStateCallback for KashikishiCallback {
         self.world.get_mut().change_window_size(window_size);
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         self.action_recorder.lock().unwrap().replay(context);
 
         self.world.get_mut().update(context);
@@ -259,7 +258,7 @@ impl SimpleStateCallback for KashikishiCallback {
         });
     }
 
-    fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult {
+    fn input(&mut self, context: &UiContext, event: &WindowEvent) -> InputResult {
         if let Some(action) = self.store.winit_window_event_to_action(event) {
             self.action(context, action)
         } else {
@@ -267,7 +266,7 @@ impl SimpleStateCallback for KashikishiCallback {
         }
     }
 
-    fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
+    fn action(&mut self, context: &UiContext, action: Action) -> InputResult {
         self.action_recorder.lock().unwrap().record(&action);
 
         let result = self
@@ -287,10 +286,10 @@ impl SimpleStateCallback for KashikishiCallback {
                     let world: Option<Box<dyn ModalWorld>> = match &*name.to_string() {
                         "start" => Some(Box::new(StartWorld::new(context))),
                         "category" => Some(Box::new(CategorizedMemosWorld::new(
-                            context.window_size,
-                            context.global_direction,
+                            context.window_size(),
+                            context.global_direction(),
                         ))),
-                        "help" => Some(Box::new(HelpWorld::new(context.window_size))),
+                        "help" => Some(Box::new(HelpWorld::new(context.window_size()))),
                         _ => None,
                     };
                     if let Some(world) = world {

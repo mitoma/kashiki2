@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 
-use font_rasterizer::{context::StateContext, glyph_vertex_buffer::Direction};
+use font_rasterizer::glyph_vertex_buffer::Direction;
 use ui_support::{
     InputResult,
     camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, World},
     ui::{SelectBox, SelectOption},
+    ui_context::UiContext,
 };
 
 use stroke_parser::Action;
@@ -17,9 +18,9 @@ pub(crate) struct StartWorld {
 }
 
 impl StartWorld {
-    pub(crate) fn new(context: &StateContext) -> Self {
+    pub(crate) fn new(context: &UiContext) -> Self {
         let mut result = Self {
-            world: DefaultWorld::new(context.window_size),
+            world: DefaultWorld::new(context.window_size()),
         };
 
         let options = vec![
@@ -61,7 +62,7 @@ impl ModalWorld for StartWorld {
 
     fn apply_action(
         &mut self,
-        _context: &StateContext,
+        _context: &UiContext,
         _action: Action,
     ) -> (InputResult, HashSet<char>) {
         (InputResult::Noop, HashSet::new())
@@ -75,16 +76,11 @@ impl ModalWorld for StartWorld {
         // noop
     }
 
-    fn add_modal(
-        &mut self,
-        context: &StateContext,
-        chars: &mut HashSet<char>,
-        model: Box<dyn Model>,
-    ) {
+    fn add_modal(&mut self, context: &UiContext, chars: &mut HashSet<char>, model: Box<dyn Model>) {
         chars.extend(model.to_string().chars());
         self.world.add_next(model);
         self.world.re_layout();
-        let adjustment = if context.global_direction == Direction::Horizontal {
+        let adjustment = if context.global_direction() == Direction::Horizontal {
             CameraAdjustment::FitWidth
         } else {
             CameraAdjustment::FitHeight

@@ -1,9 +1,6 @@
 use std::collections::HashSet;
 
-use font_rasterizer::{
-    context::{StateContext, WindowSize},
-    glyph_vertex_buffer::Direction,
-};
+use font_rasterizer::{context::WindowSize, glyph_vertex_buffer::Direction};
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
 use ui_support::{
@@ -11,6 +8,7 @@ use ui_support::{
     camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, ModelOperation, World},
     ui::TextEdit,
+    ui_context::UiContext,
 };
 
 use crate::{
@@ -85,16 +83,11 @@ impl ModalWorld for CategorizedMemosWorld {
         self.world.chars()
     }
 
-    fn add_modal(
-        &mut self,
-        context: &StateContext,
-        chars: &mut HashSet<char>,
-        model: Box<dyn Model>,
-    ) {
+    fn add_modal(&mut self, context: &UiContext, chars: &mut HashSet<char>, model: Box<dyn Model>) {
         chars.extend(model.to_string().chars());
         self.world.add_next(model);
         self.world.re_layout();
-        let adjustment = if context.global_direction == Direction::Horizontal {
+        let adjustment = if context.global_direction() == Direction::Horizontal {
             CameraAdjustment::FitWidth
         } else {
             CameraAdjustment::FitHeight
@@ -104,7 +97,7 @@ impl ModalWorld for CategorizedMemosWorld {
 
     fn apply_action(
         &mut self,
-        context: &StateContext,
+        context: &UiContext,
         action: Action,
     ) -> (InputResult, HashSet<char>) {
         let mut chars = HashSet::new();
@@ -121,7 +114,7 @@ impl ModalWorld for CategorizedMemosWorld {
             "add-memo" => {
                 let mut textedit = TextEdit::default();
                 textedit.model_operation(&ModelOperation::ChangeDirection(Some(
-                    context.global_direction,
+                    context.global_direction(),
                 )));
                 let model = Box::new(textedit);
                 self.world.add(model);
@@ -151,7 +144,7 @@ impl ModalWorld for CategorizedMemosWorld {
                     }
                     self.sync();
                     self.memos.current_category = category;
-                    self.reset_world(context.window_size, context.global_direction);
+                    self.reset_world(context.window_size(), context.global_direction());
                     chars.extend(self.world_chars());
                 }
                 _ => { /* noop */ }
@@ -216,7 +209,7 @@ impl ModalWorld for CategorizedMemosWorld {
                 if let ActionArgument::String(category) = argument {
                     self.memos.remove_category(&category);
                     if self.memos.current_category == category {
-                        self.reset_world(context.window_size, context.global_direction);
+                        self.reset_world(context.window_size(), context.global_direction());
                     }
                 }
             }

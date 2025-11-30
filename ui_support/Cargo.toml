@@ -11,7 +11,7 @@ wgpu = { workspace = true }
 winit = { workspace = true }
 image = { workspace = true }
 web-time = { workspace = true }
-cgmath = { workspace = true }
+glam = { workspace = true }
 rand = { workspace = true }
 bitflags = { workspace = true }
 cfg-if = { workspace = true }

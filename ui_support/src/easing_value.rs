@@ -1,6 +1,6 @@
 use std::sync::{Mutex, OnceLock};
 
-use cgmath::{Point2, Point3};
+use glam::{Vec2, Vec3};
 use nenobi::array::{TimeBaseEasingValueN, TimeBaseEasingValueNFactory};
 use web_time::Duration;
 
@@ -110,14 +110,14 @@ impl<const N: usize> From<[f32; N]> for EasingPointN<N> {
     }
 }
 
-impl From<Point3<f32>> for EasingPointN<3> {
-    fn from(v: Point3<f32>) -> Self {
+impl From<Vec3> for EasingPointN<3> {
+    fn from(v: Vec3) -> Self {
         Self::new(v.into())
     }
 }
 
-impl From<Point2<f32>> for EasingPointN<2> {
-    fn from(v: Point2<f32>) -> Self {
+impl From<Vec2> for EasingPointN<2> {
+    fn from(v: Vec2) -> Self {
         Self::new(v.into())
     }
 }

@@ -1,15 +1,17 @@
 use std::sync::{Arc, mpsc::Sender};
 
+use glam::{Quat, Vec3};
 use log::info;
 use similar::{ChangeTag, capture_diff_slices};
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
-    char_width_calcurator::CharWidthCalculator, context::StateContext,
-    glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
-    vector_instances::VectorInstances,
+    char_width_calcurator::CharWidthCalculator, glyph_instances::GlyphInstances,
+    glyph_vertex_buffer::Direction, vector_instances::VectorInstances,
 };
+
+use crate::ui_context::UiContext;
 
 use crate::{
     layout_engine::{Model, ModelBorder},
@@ -60,7 +62,7 @@ impl SelectBox {
     }
 
     pub fn new(
-        context: &StateContext,
+        context: &UiContext,
         message: String,
         options: Vec<SelectOption>,
         default_narrow: Option<String>,
@@ -69,7 +71,7 @@ impl SelectBox {
     }
 
     pub fn new_without_action_name(
-        context: &StateContext,
+        context: &UiContext,
         message: String,
         options: Vec<SelectOption>,
         default_narrow: Option<String>,
@@ -85,7 +87,7 @@ impl SelectBox {
     }
 
     fn inner_new(
-        context: &StateContext,
+        context: &UiContext,
         message: String,
         options: Vec<SelectOption>,
         default_narrow: Option<String>,
@@ -94,13 +96,13 @@ impl SelectBox {
     ) -> Self {
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::text_context(context.global_direction));
+            text_edit.set_config(Self::text_context(context.global_direction()));
             text_edit.editor_operation(&EditorOperation::InsertString(message));
             text_edit
         };
         let search_text_edit = {
             let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::search_context(context.global_direction));
+            text_edit.set_config(Self::search_context(context.global_direction()));
             if let Some(default_narrow) = default_narrow {
                 text_edit.editor_operation(&EditorOperation::InsertString(format!(
                     "{} ",
@@ -111,7 +113,7 @@ impl SelectBox {
         };
         let select_items_text_edit = {
             let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::text_context(context.global_direction));
+            text_edit.set_config(Self::text_context(context.global_direction()));
             text_edit
         };
 
@@ -122,7 +124,7 @@ impl SelectBox {
             search_text_edit,
             select_items_text_edit,
             action_queue_sender: context.action_sender(),
-            char_width_calcurator: context.char_width_calcurator.clone(),
+            char_width_calcurator: context.char_width_calcurator().clone(),
             show_action_name,
             cancellable,
             border: ModelBorder::default(),
@@ -290,17 +292,17 @@ impl SelectBox {
 }
 
 impl Model for SelectBox {
-    fn set_position(&mut self, position: cgmath::Point3<f32>) {
+    fn set_position(&mut self, position: Vec3) {
         let (bound_width, bound_height) = self.select_items_text_edit.bound();
 
         let (title_offset, search_offset) = match self.select_items_text_edit.direction() {
             Direction::Horizontal => (
-                cgmath::Vector3::new(0.0, -(2.0 + bound_height / 2.0), 0.0),
-                cgmath::Vector3::new(0.0, -(1.0 + bound_height / 2.0), 0.0),
+                Vec3::new(0.0, -(2.0 + bound_height / 2.0), 0.0),
+                Vec3::new(0.0, -(1.0 + bound_height / 2.0), 0.0),
             ),
             Direction::Vertical => (
-                cgmath::Vector3::new(-(2.0 + bound_width / 2.0), 0.0, 0.0),
-                cgmath::Vector3::new(-(1.0 + bound_width / 2.0), 0.0, 0.0),
+                Vec3::new(-(2.0 + bound_width / 2.0), 0.0, 0.0),
+                Vec3::new(-(1.0 + bound_width / 2.0), 0.0, 0.0),
             ),
         };
         self.title_text_edit.set_position(position - title_offset);
@@ -308,30 +310,30 @@ impl Model for SelectBox {
         self.select_items_text_edit.set_position(position);
     }
 
-    fn position(&self) -> cgmath::Point3<f32> {
+    fn position(&self) -> Vec3 {
         self.select_items_text_edit.position()
     }
 
-    fn last_position(&self) -> cgmath::Point3<f32> {
+    fn last_position(&self) -> Vec3 {
         self.select_items_text_edit.last_position()
     }
 
-    fn focus_position(&self) -> cgmath::Point3<f32> {
+    fn focus_position(&self) -> Vec3 {
         let (x, y, z) = self.title_text_edit.last_position().into();
         let (bound_width, bound_height) = self.bound();
         match self.select_items_text_edit.direction() {
-            Direction::Horizontal => cgmath::Point3::new(x, y - bound_height / 2.0, z),
-            Direction::Vertical => cgmath::Point3::new(x - bound_width / 2.0, y, z),
+            Direction::Horizontal => Vec3::new(x, y - bound_height / 2.0, z),
+            Direction::Vertical => Vec3::new(x - bound_width / 2.0, y, z),
         }
     }
 
-    fn set_rotation(&mut self, rotation: cgmath::Quaternion<f32>) {
+    fn set_rotation(&mut self, rotation: Quat) {
         self.title_text_edit.set_rotation(rotation);
         self.search_text_edit.set_rotation(rotation);
         self.select_items_text_edit.set_rotation(rotation)
     }
 
-    fn rotation(&self) -> cgmath::Quaternion<f32> {
+    fn rotation(&self) -> Quat {
         self.select_items_text_edit.rotation()
     }
 
@@ -377,7 +379,7 @@ impl Model for SelectBox {
         .concat()
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         self.title_text_edit.update(context);
         self.search_text_edit.update(context);
         self.select_items_text_edit.update(context);

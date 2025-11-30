@@ -1,11 +1,11 @@
 use std::sync::LazyLock;
 
-use cgmath::Quaternion;
-use font_rasterizer::context::StateContext;
+use glam::Quat;
 use rokid_3dof::RokidMax;
 use stroke_parser::{ActionArgument, CommandName, CommandNamespace};
 use ui_support::{
     InputResult, action::NamespaceActionProcessors, camera::CameraOperation, layout_engine::World,
+    ui_context::UiContext,
 };
 
 static NAMES: LazyLock<Vec<CommandName>> =
@@ -30,7 +30,7 @@ impl RokidMaxAction {
         };
     }
 
-    pub fn quaternion(&self) -> Option<Quaternion<f32>> {
+    pub fn quaternion(&self) -> Option<Quat> {
         if !self.ar_mode {
             return None;
         }
@@ -51,7 +51,7 @@ impl NamespaceActionProcessors for RokidMaxAction {
         &mut self,
         command_name: &CommandName,
         _arg: &ActionArgument,
-        _context: &StateContext,
+        _context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         match command_name.as_str() {

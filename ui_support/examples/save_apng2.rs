@@ -2,11 +2,7 @@ use apng::{Frame, ParallelEncoder, load_dynamic_image};
 use font_collector::{FontCollector, FontRepository};
 use web_time::Duration;
 
-use font_rasterizer::{
-    color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
-    rasterizer_pipeline::Quarity,
-};
+use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
 use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
@@ -17,6 +13,7 @@ use ui_support::{
     generate_image_iter,
     layout_engine::{DefaultWorld, ModelOperation, World},
     ui::TextEdit,
+    ui_context::UiContext,
 };
 use winit::event::WindowEvent;
 
@@ -109,7 +106,7 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, context: &StateContext) {
+    fn init(&mut self, context: &UiContext) {
         self.world.add(Box::new(TextEdit::default()));
         context.register_string("エディタの文字をアニメーションGifにほげ".to_string());
         self.world.editor_operation(&EditorOperation::InsertString(
@@ -129,15 +126,15 @@ impl SimpleStateCallback for SingleCharCallback {
             .editor_operation(&EditorOperation::InsertString("ほげほげ".to_string()));
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         self.world.update(context);
     }
 
-    fn input(&mut self, _context: &StateContext, _event: &WindowEvent) -> InputResult {
+    fn input(&mut self, _context: &UiContext, _event: &WindowEvent) -> InputResult {
         InputResult::Noop
     }
 
-    fn action(&mut self, context: &StateContext, action: stroke_parser::Action) -> InputResult {
+    fn action(&mut self, context: &UiContext, action: stroke_parser::Action) -> InputResult {
         self.action_processor_store
             .process(&action, context, &mut self.world)
     }

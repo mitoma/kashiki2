@@ -9,7 +9,8 @@ pub use world::*;
 use std::{collections::BTreeMap, rc::Rc, sync::Mutex};
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
-use font_rasterizer::{context::StateContext, glyph_vertex_buffer::Direction};
+use crate::ui_context::UiContext;
+use font_rasterizer::glyph_vertex_buffer::Direction;
 
 use crate::{
     camera::CameraAdjustment,
@@ -109,7 +110,7 @@ impl ActionProcessorStore {
         &mut self,
         namespace: &str,
         name: &str,
-        f: fn(&ActionArgument, &StateContext, &mut dyn World) -> InputResult,
+        f: fn(&ActionArgument, &UiContext, &mut dyn World) -> InputResult,
     ) {
         self.processors.insert(
             (CommandNamespace::from(namespace), CommandName::from(name)),
@@ -143,7 +144,7 @@ impl ActionProcessorStore {
     pub fn process(
         &self,
         action: &Action,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         if let Action::Command(namespace, name, argument) = action {
@@ -178,7 +179,7 @@ pub trait NamespaceActionProcessors {
         &mut self,
         command_name: &CommandName,
         arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult;
 }
@@ -189,14 +190,14 @@ pub trait ActionProcessor {
     fn process(
         &self,
         arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult;
 }
 
 pub struct LambdaActionProcessor<F>
 where
-    F: Fn(&ActionArgument, &StateContext, &mut dyn World) -> InputResult,
+    F: Fn(&ActionArgument, &UiContext, &mut dyn World) -> InputResult,
 {
     namespace: CommandNamespace,
     name: CommandName,
@@ -204,7 +205,7 @@ where
 }
 
 impl ActionProcessor
-    for LambdaActionProcessor<fn(&ActionArgument, &StateContext, &mut dyn World) -> InputResult>
+    for LambdaActionProcessor<fn(&ActionArgument, &UiContext, &mut dyn World) -> InputResult>
 {
     fn namespace(&self) -> CommandNamespace {
         self.namespace.clone()
@@ -217,7 +218,7 @@ impl ActionProcessor
     fn process(
         &self,
         arg: &ActionArgument,
-        context: &StateContext,
+        context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
         (self.f)(arg, context, world)
@@ -227,14 +228,14 @@ impl ActionProcessor
 // util
 
 pub(crate) fn add_model_to_world(
-    context: &StateContext,
+    context: &UiContext,
     world: &mut dyn World,
     model: Box<dyn Model>,
 ) {
     context.register_string(model.to_string());
     world.add_next(model);
     world.re_layout();
-    let adjustment = if context.global_direction == Direction::Horizontal {
+    let adjustment = if context.global_direction() == Direction::Horizontal {
         CameraAdjustment::FitWidth
     } else {
         CameraAdjustment::FitHeight

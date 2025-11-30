@@ -6,11 +6,8 @@ use text_buffer::action::EditorOperation;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-use font_rasterizer::{
-    color_theme::ColorTheme,
-    context::{StateContext, WindowSize},
-    rasterizer_pipeline::Quarity,
-};
+use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
+use ui_support::ui_context::UiContext;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     action::ActionProcessorStore,
@@ -153,7 +150,7 @@ impl SingleCharCallback {
 }
 
 impl SimpleStateCallback for SingleCharCallback {
-    fn init(&mut self, context: &StateContext) {
+    fn init(&mut self, context: &UiContext) {
         set_action_sender(context.action_sender());
 
         context.register_string(caret_char(text_buffer::caret::CaretType::Primary).to_string());
@@ -174,12 +171,12 @@ impl SimpleStateCallback for SingleCharCallback {
         });
     }
 
-    fn update(&mut self, context: &StateContext) {
+    fn update(&mut self, context: &UiContext) {
         self.world.update(context);
         self.ime.update(context);
     }
 
-    fn input(&mut self, context: &StateContext, event: &WindowEvent) -> InputResult {
+    fn input(&mut self, context: &UiContext, event: &WindowEvent) -> InputResult {
         if let Some(action) = self.store.winit_window_event_to_action(event) {
             self.action(context, action)
         } else {
@@ -187,7 +184,7 @@ impl SimpleStateCallback for SingleCharCallback {
         }
     }
 
-    fn action(&mut self, context: &StateContext, action: Action) -> InputResult {
+    fn action(&mut self, context: &UiContext, action: Action) -> InputResult {
         let result = self
             .action_processor_store
             .process(&action, context, &mut self.world);

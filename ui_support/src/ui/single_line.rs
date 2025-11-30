@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
 
-use cgmath::Rotation3;
+use glam::{Quat, Vec3};
 use web_time::Duration;
 
 use font_rasterizer::{
-    char_width_calcurator::CharWidthCalculator, context::StateContext,
-    glyph_instances::GlyphInstances, motion::MotionFlags, time::now_millis,
-    vector_instances::InstanceAttributes,
+    char_width_calcurator::CharWidthCalculator, glyph_instances::GlyphInstances,
+    motion::MotionFlags, time::now_millis, vector_instances::InstanceAttributes,
 };
+
+use crate::ui_context::UiContext;
 
 use super::get_color;
 
@@ -71,7 +72,7 @@ impl SingleLine {
         self.instances.values().collect()
     }
 
-    pub fn generate_instances(&mut self, context: &StateContext) -> Vec<&GlyphInstances> {
+    pub fn generate_instances(&mut self, context: &UiContext) -> Vec<&GlyphInstances> {
         if !self.updated {
             return self.instances.values().collect();
         }
@@ -79,14 +80,14 @@ impl SingleLine {
         self.instances.clear();
         self.updated = false;
 
-        let (width, _height) = self.bound(&context.char_width_calcurator);
+        let (width, _height) = self.bound(context.char_width_calcurator());
         let initial_x = (-width / 2.0) + 0.5;
 
         // 横幅が固定の時にはスケールを変更して画面内に収まるように心がける
         let mut x_scale = self.scale[0];
         if let Some(fixed_width) = self.width {
             // 画面のアスペクト比を考慮して横幅を調整
-            let fixed_width = fixed_width * context.window_size.aspect();
+            let fixed_width = fixed_width * context.window_size().aspect();
             if x_scale > fixed_width / width {
                 x_scale = fixed_width / width;
             }
@@ -95,23 +96,23 @@ impl SingleLine {
         let mut x: f32 = initial_x;
         let y_pos = -0.3 / self.scale[1];
         for c in self.value.chars() {
-            let char_width = context.char_width_calcurator.get_width(c);
+            let char_width = context.char_width_calcurator().get_width(c);
             x += char_width.left();
 
             self.instances
                 .entry(c)
-                .or_insert_with(|| GlyphInstances::new(c, &context.device));
+                .or_insert_with(|| GlyphInstances::new(c, context.device()));
             let instance = self.instances.get_mut(&c).unwrap();
             let i = InstanceAttributes::new(
-                cgmath::Vector3 {
+                Vec3 {
                     x: x * 0.7,
                     y: y_pos,
                     z: 0.0,
                 },
-                cgmath::Quaternion::from_axis_angle(cgmath::Vector3::unit_z(), cgmath::Deg(0.0)),
+                Quat::IDENTITY,
                 [x_scale, self.scale[1]],
                 [1.0, 1.0],
-                get_color(&context.color_theme, c),
+                get_color(context.color_theme(), c),
                 self.motion,
                 now_millis(),
                 0.5,
@@ -123,7 +124,7 @@ impl SingleLine {
         }
         self.instances
             .values_mut()
-            .for_each(|i| i.update_buffer(&context.device, &context.queue));
+            .for_each(|i| i.update_buffer(context.device(), context.queue()));
         self.instances.values().collect()
     }
 }
