@@ -13,7 +13,7 @@ stroke_parser = { path = "../stroke_parser" }
 env_logger = { workspace = true }
 log = { workspace = true }
 pollster = { workspace = true }
-cgmath = { workspace = true }
+glam = { workspace = true }
 winit = { workspace = true }
 wgpu = { workspace = true }
 web-time = { workspace = true }

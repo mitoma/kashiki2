@@ -17,7 +17,7 @@ pub use textedit::TextEdit;
 
 use std::collections::BTreeMap;
 
-use cgmath::{Point3, Quaternion, Rotation3, num_traits::ToPrimitive};
+use glam::{Mat4, Quat, Vec3};
 use log::info;
 use text_buffer::caret::CaretType;
 use web_time::Duration;
@@ -25,13 +25,14 @@ use web_time::Duration;
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::{ColorTheme, ThemedColor},
-    context::StateContext,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
     motion::MotionFlags,
     time::now_millis,
     vector_instances::{InstanceAttributes, VectorInstances},
 };
+
+use crate::ui_context::UiContext;
 
 use crate::layout_engine::{Model, ModelBorder, ModelOperation, ModelOperationResult};
 
@@ -41,13 +42,13 @@ pub struct PlaneTextReader {
     motion: MotionFlags,
     instances: BTreeMap<char, GlyphInstances>,
     updated: bool,
-    position: Point3<f32>,
-    rotation: Quaternion<f32>,
+    position: Vec3,
+    rotation: Quat,
     bound: (f32, f32),
 }
 
 impl Model for PlaneTextReader {
-    fn set_position(&mut self, position: cgmath::Point3<f32>) {
+    fn set_position(&mut self, position: Vec3) {
         if self.position == position {
             return;
         }
@@ -55,19 +56,19 @@ impl Model for PlaneTextReader {
         self.updated = true;
     }
 
-    fn position(&self) -> cgmath::Point3<f32> {
+    fn position(&self) -> Vec3 {
         self.position
     }
 
-    fn last_position(&self) -> cgmath::Point3<f32> {
+    fn last_position(&self) -> Vec3 {
         self.position
     }
 
-    fn focus_position(&self) -> Point3<f32> {
+    fn focus_position(&self) -> Vec3 {
         self.position()
     }
 
-    fn set_rotation(&mut self, rotation: Quaternion<f32>) {
+    fn set_rotation(&mut self, rotation: Quat) {
         if self.rotation == rotation {
             return;
         }
@@ -75,7 +76,7 @@ impl Model for PlaneTextReader {
         self.updated = true;
     }
 
-    fn rotation(&self) -> cgmath::Quaternion<f32> {
+    fn rotation(&self) -> Quat {
         self.rotation
     }
 
@@ -87,11 +88,11 @@ impl Model for PlaneTextReader {
         vec![]
     }
 
-    fn update(&mut self, context: &StateContext) {
-        let device = &context.device;
-        let queue = &context.queue;
-        let color_theme = &context.color_theme;
-        self.generate_instances(color_theme, &context.char_width_calcurator, device, queue);
+    fn update(&mut self, context: &UiContext) {
+        let device = context.device();
+        let queue = context.queue();
+        let color_theme = context.color_theme();
+        self.generate_instances(color_theme, context.char_width_calcurator(), device, queue);
     }
 
     fn bound(&self) -> (f32, f32) {
@@ -179,12 +180,12 @@ impl PlaneTextReader {
         &self,
         line_num: usize,
         char_width_calcurator: &CharWidthCalculator,
-    ) -> (cgmath::Point3<f32>, cgmath::Point3<f32>, usize) {
+    ) -> (Vec3, Vec3, usize) {
         let line_num = (line_num as f32).min(self.calc_bound(char_width_calcurator).1);
         (
             (0.0, -line_num, 0.0).into(),
             (0.0, -line_num, 50.0).into(),
-            line_num.to_usize().unwrap_or_default(),
+            (line_num as usize),
         )
     }
 
@@ -196,10 +197,7 @@ impl PlaneTextReader {
             updated: true,
             motion: MotionFlags::ZERO_MOTION,
             position: (0.0, 0.0, 0.0).into(),
-            rotation: cgmath::Quaternion::from_axis_angle(
-                cgmath::Vector3::unit_y(),
-                cgmath::Deg(0.0),
-            ),
+            rotation: Quat::IDENTITY,
             bound: (0.0, 0.0),
         }
     }
@@ -258,30 +256,20 @@ impl PlaneTextReader {
                     .entry(c)
                     .or_insert_with(|| GlyphInstances::new(c, device));
                 let instance = self.instances.get_mut(&c).unwrap();
-                //let pos = cgmath::Matrix4::from(rotation)
-                //    * cgmath::Matrix4::from_translation(cgmath::Vector3 {
-                //        x: 0.75 * x + self.position.x,
-                //        y: 1.0 * y + self.position.y,
-                //        z: 0.0 + self.position.z,
-                //    });
-                let pos = cgmath::Matrix4::from(rotation)
-                    * cgmath::Matrix4::from_translation(cgmath::Vector3 {
+                let pos = Mat4::from_quat(rotation)
+                    * Mat4::from_translation(Vec3 {
                         x: 1.0 * x,
                         y: 1.0 * y,
                         z: 0.0,
                     });
-                let w = pos.w;
+                let w = pos.w_axis;
                 let i = InstanceAttributes::new(
-                    cgmath::Vector3 {
+                    Vec3 {
                         x: w.x + self.position.x,
                         y: w.y + self.position.y,
                         z: w.z + self.position.z,
                     },
                     rotation,
-                    //cgmath::Quaternion::from_axis_angle(
-                    //    cgmath::Vector3::unit_z(),
-                    //    cgmath::Deg(0.0),
-                    //),
                     [1.0, 1.0],
                     [1.0, 1.0],
                     get_color(color_theme, c),

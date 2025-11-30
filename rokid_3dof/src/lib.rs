@@ -3,7 +3,7 @@ use std::{
     thread,
 };
 
-use cgmath::{Quaternion, Rotation, Zero};
+use glam::Quat;
 use hidapi::HidApi;
 use thiserror::Error;
 use vqf_rs::VQF;
@@ -52,12 +52,12 @@ impl RokidMax {
         }
     }
 
-    pub fn quaternion(&self) -> Quaternion<f32> {
+    pub fn quaternion(&self) -> Quat {
         if let Ok(vqf) = self.ahrs.lock() {
             let quat_vec = vqf.quat_3d();
-            Quaternion::new(quat_vec.0, quat_vec.1, quat_vec.2, quat_vec.3).invert()
+            Quat::from_xyzw(quat_vec.0, quat_vec.1, quat_vec.2, quat_vec.3).inverse()
         } else {
-            Quaternion::zero()
+            Quat::IDENTITY
         }
     }
 }

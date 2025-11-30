@@ -1,16 +1,16 @@
 use std::path::PathBuf;
 
 use chrono::Days;
-use font_rasterizer::context::StateContext;
 use stroke_parser::Action;
 use ui_support::ui::{SelectBox, SelectOption, TextInput};
+use ui_support::ui_context::UiContext;
 
 use crate::{
     action_repository::{ActionNamespace, ActionRepository},
     categorized_memos::CategorizedMemos,
 };
 
-pub(crate) fn command_palette_select(context: &StateContext, narrow: Option<String>) -> SelectBox {
+pub(crate) fn command_palette_select(context: &UiContext, narrow: Option<String>) -> SelectBox {
     let mut options = Vec::new();
 
     let action_repository = ActionRepository::default();
@@ -33,7 +33,7 @@ pub(crate) fn command_palette_select(context: &StateContext, narrow: Option<Stri
     SelectBox::new(context, "アクションの選択".to_string(), options, narrow)
 }
 
-pub(crate) fn insert_date_select(context: &StateContext) -> SelectBox {
+pub(crate) fn insert_date_select(context: &UiContext) -> SelectBox {
     let now = chrono::Local::now();
     let today_date = now.format("%Y/%m/%d").to_string();
     let today_datetime = now.format("%Y/%m/%d %H:%M:%S").to_string();
@@ -70,7 +70,7 @@ pub(crate) fn insert_date_select(context: &StateContext) -> SelectBox {
 }
 
 pub(crate) fn move_category_ui(
-    context: &StateContext,
+    context: &UiContext,
     categorized_memos: &CategorizedMemos,
 ) -> SelectBox {
     let mut options = vec![];
@@ -108,10 +108,7 @@ pub(crate) fn move_category_ui(
     )
 }
 
-pub(crate) fn move_memo_ui(
-    context: &StateContext,
-    categorized_memos: &CategorizedMemos,
-) -> SelectBox {
+pub(crate) fn move_memo_ui(context: &UiContext, categorized_memos: &CategorizedMemos) -> SelectBox {
     let mut options = Vec::new();
     for category in categorized_memos.categories() {
         options.push(SelectOption::new(
@@ -127,7 +124,7 @@ pub(crate) fn move_memo_ui(
     )
 }
 
-pub(crate) fn add_category_ui(context: &StateContext) -> TextInput {
+pub(crate) fn add_category_ui(context: &UiContext) -> TextInput {
     TextInput::new(
         context,
         "追加するカテゴリーを選択".to_string(),
@@ -137,7 +134,7 @@ pub(crate) fn add_category_ui(context: &StateContext) -> TextInput {
 }
 
 pub(crate) fn rename_category_select_ui(
-    context: &StateContext,
+    context: &UiContext,
     categorized_memos: &CategorizedMemos,
 ) -> SelectBox {
     let mut options = Vec::new();
@@ -155,7 +152,7 @@ pub(crate) fn rename_category_select_ui(
     )
 }
 
-pub(crate) fn rename_category_ui(context: &StateContext, category_name: &str) -> TextInput {
+pub(crate) fn rename_category_ui(context: &UiContext, category_name: &str) -> TextInput {
     TextInput::new(
         context,
         "変更後の名前を入力".to_string(),
@@ -165,7 +162,7 @@ pub(crate) fn rename_category_ui(context: &StateContext, category_name: &str) ->
 }
 
 pub(crate) fn remove_category_ui(
-    context: &StateContext,
+    context: &UiContext,
     categorized_memos: &CategorizedMemos,
 ) -> SelectBox {
     let mut options = Vec::new();
@@ -183,7 +180,7 @@ pub(crate) fn remove_category_ui(
     )
 }
 
-pub(crate) fn open_file_ui(context: &StateContext, path: Option<&str>) -> SelectBox {
+pub(crate) fn open_file_ui(context: &UiContext, path: Option<&str>) -> SelectBox {
     let mut options = Vec::new();
     // current directory のファイル一覧を取得
     let current_dir = if let Some(path) = path {

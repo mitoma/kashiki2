@@ -34,13 +34,15 @@ pub struct RasterizerRenderrer {
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
     pub(crate) outline_vertex_buffer: ScreenVertexBuffer,
-
-    // 2 ステージ目のアウトプット(≒ 3 ステージ目のインプット)
-    pub(crate) outline_texture: ScreenTexture,
 }
 impl RasterizerRenderrer {
     /// Create all unchanging resources here.
-    pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        target_texture_format: wgpu::TextureFormat,
+    ) -> Self {
         // overlap
         let overlap_shader = if DEBUG_FLAGS.debug_shader {
             device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -152,8 +154,8 @@ impl RasterizerRenderrer {
             device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR)
         };
 
-        let outline_texture = ScreenTexture::new(device, (width, height), Some("Outline Texture"));
-        let outline_bind_group = OutlineBindGroup::new(device, width);
+        let outline_bind_group =
+            OutlineBindGroup::new(device, width, &overlap_texture, &overlap_count_texture);
         let outline_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Outline Render Pipeline Layout"),
@@ -175,7 +177,7 @@ impl RasterizerRenderrer {
                     module: &outline_shader,
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: outline_texture.texture_format,
+                        format: target_texture_format,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -216,23 +218,34 @@ impl RasterizerRenderrer {
             outline_bind_group,
             outline_render_pipeline,
             outline_vertex_buffer,
-            outline_texture,
         }
     }
 
     #[inline]
-    pub fn render(
+    pub fn prepare(
         &mut self,
-        encoder: &mut wgpu::CommandEncoder,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
-        buffers: Buffers,
     ) {
         self.overlap_bind_group.update(view_proj);
         self.overlap_bind_group.update_buffer(queue);
+        self.outline_bind_group.update_textures(
+            device,
+            &self.overlap_texture,
+            &self.overlap_count_texture,
+        );
+    }
+
+    #[inline]
+    pub fn render(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        buffers: Buffers,
+        target_view: &wgpu::TextureView,
+    ) {
         self.overlap_stage(encoder, buffers.glyph_buffers, buffers.vector_buffers);
-        self.outline_stage(encoder, device);
+        self.outline_stage(encoder, target_view);
     }
 
     #[inline]
@@ -346,22 +359,12 @@ impl RasterizerRenderrer {
         }
     }
 
-    fn outline_stage(&self, encoder: &mut wgpu::CommandEncoder, device: &wgpu::Device) {
-        let outline_view = self
-            .outline_texture
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let outline_bind_group = self.outline_bind_group.to_bind_group(
-            device,
-            &self.overlap_texture,
-            &self.overlap_count_texture,
-        );
-
+    fn outline_stage(&self, encoder: &mut wgpu::CommandEncoder, target_view: &wgpu::TextureView) {
         {
             let mut outline_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &outline_view,
+                    view: target_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
@@ -374,7 +377,7 @@ impl RasterizerRenderrer {
                 occlusion_query_set: None,
             });
             outline_render_pass.set_pipeline(&self.outline_render_pipeline);
-            outline_render_pass.set_bind_group(0, &outline_bind_group, &[]);
+            outline_render_pass.set_bind_group(0, &self.outline_bind_group.bind_group, &[]);
             outline_render_pass
                 .set_vertex_buffer(0, self.outline_vertex_buffer.vertex_buffer.slice(..));
             outline_render_pass.set_index_buffer(

@@ -15,11 +15,17 @@ pub struct Uniforms {
 pub struct OutlineBindGroup {
     _uniforms: Uniforms,
     buffer: wgpu::Buffer,
+    pub(crate) bind_group: wgpu::BindGroup,
     pub(crate) layout: wgpu::BindGroupLayout,
 }
 
 impl OutlineBindGroup {
-    pub fn new(device: &wgpu::Device, width: u32) -> Self {
+    pub fn new(
+        device: &wgpu::Device,
+        width: u32,
+        overlap_texture: &ScreenTexture,
+        overlap_count_texture: &ScreenTexture,
+    ) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 wgpu::BindGroupLayoutEntry {
@@ -74,20 +80,44 @@ impl OutlineBindGroup {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&overlap_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&overlap_texture.sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(&overlap_count_texture.view),
+                },
+            ],
+            label: Some("Outline Bind Group"),
+        });
+
         Self {
             _uniforms: uniforms,
             buffer,
+            bind_group,
             layout,
         }
     }
 
-    pub fn to_bind_group(
-        &self,
+    pub fn update_textures(
+        &mut self,
         device: &wgpu::Device,
         overlap_texture: &ScreenTexture,
         overlap_count_texture: &ScreenTexture,
-    ) -> wgpu::BindGroup {
-        device.create_bind_group(&wgpu::BindGroupDescriptor {
+    ) {
+        self.bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -108,6 +138,6 @@ impl OutlineBindGroup {
                 },
             ],
             label: Some("Outline Bind Group"),
-        })
+        });
     }
 }
