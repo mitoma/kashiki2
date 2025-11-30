@@ -4,6 +4,7 @@
 "aqua:WebAssembly/binaryen" = "latest"
 "aqua:mdbook" = "0.5.1"
 "cargo:wasm-bindgen-cli" = "0.2.105"
+"cargo:cargo-bloat" = "latest"
 
 [tasks.build-sites]
 description = "Showcase 用のプロジェクトをビルドする"
@@ -61,3 +62,7 @@ run = "cargo test --all"
 [tasks.check]
 description = "Run checks"
 depends = ["fmt", "clippy", "clippy-tests"]
+
+[tasks.check-bloat]
+description = "Check binary size with cargo bloat"
+run = "cargo bloat --bin kashikishi --release --crates"
