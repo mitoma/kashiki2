@@ -29,7 +29,7 @@ similar = { workspace = true }
 console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }
 web-sys = { workspace = true, features = ["Document", "Window", "Element"] }
-wgpu = { workspace = true, features = ["webgl"] }
+wgpu = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 

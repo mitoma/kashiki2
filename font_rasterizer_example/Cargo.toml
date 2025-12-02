@@ -23,7 +23,7 @@ ui_support = { path = "../ui_support" }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }
-wgpu = { workspace = true, features = ["webgl"] }
+wgpu = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true, features = ["Document", "Window", "Element"] }
