@@ -6,6 +6,7 @@ pub(crate) struct VectorVertexBuilder {
     vertex: Vec<InternalVertex>,
     index: Vec<u32>,
     current_index: u32,
+    path_start_index: Option<u32>,
     vertex_swap: FlipFlop,
     builder_options: VertexBuilderOptions,
 }
@@ -18,6 +19,7 @@ impl VectorVertexBuilder {
             index: Vec::new(),
             // index 0 は原点B、1 は原点L に予約されているので、2 から開始する
             current_index: 1,
+            path_start_index: None,
             vertex_swap: FlipFlop::Flip,
             builder_options: VertexBuilderOptions::default(),
         }
@@ -28,6 +30,7 @@ impl VectorVertexBuilder {
             vertex: self.vertex,
             index: self.index,
             current_index: self.current_index,
+            path_start_index: self.path_start_index,
             vertex_swap: self.vertex_swap,
             builder_options,
         }
@@ -76,6 +79,7 @@ impl VectorVertexBuilder {
             y,
             wait: wait.for_line(),
         });
+        self.path_start_index = Some(self.current_index);
         self.current_index += 2;
     }
 
@@ -148,7 +152,11 @@ impl VectorVertexBuilder {
     }
 
     pub fn close(&mut self) {
-        // noop
+        if let Some(start_index) = self.path_start_index {
+            let start_vertex = &self.vertex[(start_index) as usize];
+            self.line_to(start_vertex.x, start_vertex.y);
+            self.path_start_index = None;
+        }
     }
 }
 
