@@ -45,482 +45,536 @@ impl From<SolarizedColor> for Color {
     }
 }
 
+#[derive(Clone, Copy)]
+struct ColorPalette {
+    text: Color,
+    text_comment: Color,
+    text_emphasized: Color,
+    background: Color,
+    background_highlights: Color,
+    yellow: Color,
+    orange: Color,
+    red: Color,
+    magenta: Color,
+    violet: Color,
+    blue: Color,
+    cyan: Color,
+    green: Color,
+}
+
 #[allow(dead_code)]
 impl ColorTheme {
-    pub fn text(&self) -> Color {
+    fn palette(&self) -> ColorPalette {
         match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base00.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base0.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base0.into(),
-            ColorTheme::HighContrastLight => Color::Custom { r: 0, g: 0, b: 0 },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 255,
-                g: 255,
-                b: 255,
+            ColorTheme::SolarizedLight => ColorPalette {
+                text: SolarizedColor::Base00.into(),
+                text_comment: SolarizedColor::Base1.into(),
+                text_emphasized: SolarizedColor::Base01.into(),
+                background: SolarizedColor::Base3.into(),
+                background_highlights: SolarizedColor::Base2.into(),
+                yellow: SolarizedColor::Yellow.into(),
+                orange: SolarizedColor::Orange.into(),
+                red: SolarizedColor::Red.into(),
+                magenta: SolarizedColor::Magenta.into(),
+                violet: SolarizedColor::Violet.into(),
+                blue: SolarizedColor::Blue.into(),
+                cyan: SolarizedColor::Cyan.into(),
+                green: SolarizedColor::Green.into(),
             },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 80,
-                g: 60,
-                b: 50,
+            ColorTheme::SolarizedDark => ColorPalette {
+                text: SolarizedColor::Base0.into(),
+                text_comment: SolarizedColor::Base01.into(),
+                text_emphasized: SolarizedColor::Base1.into(),
+                background: SolarizedColor::Base03.into(),
+                background_highlights: SolarizedColor::Base02.into(),
+                yellow: SolarizedColor::Yellow.into(),
+                orange: SolarizedColor::Orange.into(),
+                red: SolarizedColor::Red.into(),
+                magenta: SolarizedColor::Magenta.into(),
+                violet: SolarizedColor::Violet.into(),
+                blue: SolarizedColor::Blue.into(),
+                cyan: SolarizedColor::Cyan.into(),
+                green: SolarizedColor::Green.into(),
             },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 240,
-                g: 230,
-                b: 210,
+            ColorTheme::SolarizedBlackback => ColorPalette {
+                text: SolarizedColor::Base0.into(),
+                text_comment: SolarizedColor::Base01.into(),
+                text_emphasized: SolarizedColor::Base1.into(),
+                background: SolarizedColor::Black.into(),
+                background_highlights: SolarizedColor::Base02.into(),
+                yellow: SolarizedColor::Yellow.into(),
+                orange: SolarizedColor::Orange.into(),
+                red: SolarizedColor::Red.into(),
+                magenta: SolarizedColor::Magenta.into(),
+                violet: SolarizedColor::Violet.into(),
+                blue: SolarizedColor::Blue.into(),
+                cyan: SolarizedColor::Cyan.into(),
+                green: SolarizedColor::Green.into(),
             },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 30,
-                g: 50,
-                b: 70,
+            ColorTheme::HighContrastLight => ColorPalette {
+                text: Color::Custom { r: 0, g: 0, b: 0 },
+                text_comment: Color::Custom {
+                    r: 96,
+                    g: 96,
+                    b: 96,
+                },
+                text_emphasized: Color::Custom { r: 0, g: 0, b: 0 },
+                background: Color::Custom {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                },
+                background_highlights: Color::Custom {
+                    r: 240,
+                    g: 240,
+                    b: 240,
+                },
+                yellow: Color::Custom {
+                    r: 180,
+                    g: 130,
+                    b: 0,
+                },
+                orange: Color::Custom {
+                    r: 200,
+                    g: 100,
+                    b: 0,
+                },
+                red: Color::Custom { r: 180, g: 0, b: 0 },
+                magenta: Color::Custom {
+                    r: 180,
+                    g: 0,
+                    b: 120,
+                },
+                violet: Color::Custom {
+                    r: 100,
+                    g: 60,
+                    b: 180,
+                },
+                blue: Color::Custom {
+                    r: 0,
+                    g: 80,
+                    b: 200,
+                },
+                cyan: Color::Custom {
+                    r: 0,
+                    g: 140,
+                    b: 160,
+                },
+                green: Color::Custom { r: 0, g: 140, b: 0 },
             },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 220,
-                g: 235,
-                b: 245,
+            ColorTheme::HighContrastDark => ColorPalette {
+                text: Color::Custom {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                },
+                text_comment: Color::Custom {
+                    r: 192,
+                    g: 192,
+                    b: 192,
+                },
+                text_emphasized: Color::Custom {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                },
+                background: Color::Custom { r: 0, g: 0, b: 0 },
+                background_highlights: Color::Custom {
+                    r: 32,
+                    g: 32,
+                    b: 32,
+                },
+                yellow: Color::Custom {
+                    r: 255,
+                    g: 220,
+                    b: 0,
+                },
+                orange: Color::Custom {
+                    r: 255,
+                    g: 160,
+                    b: 50,
+                },
+                red: Color::Custom {
+                    r: 255,
+                    g: 100,
+                    b: 100,
+                },
+                magenta: Color::Custom {
+                    r: 255,
+                    g: 120,
+                    b: 220,
+                },
+                violet: Color::Custom {
+                    r: 180,
+                    g: 140,
+                    b: 255,
+                },
+                blue: Color::Custom {
+                    r: 100,
+                    g: 180,
+                    b: 255,
+                },
+                cyan: Color::Custom {
+                    r: 80,
+                    g: 220,
+                    b: 240,
+                },
+                green: Color::Custom {
+                    r: 100,
+                    g: 255,
+                    b: 100,
+                },
             },
-            ColorTheme::Custom { text, .. } => *text,
+            ColorTheme::WarmLight => ColorPalette {
+                text: Color::Custom {
+                    r: 80,
+                    g: 60,
+                    b: 50,
+                },
+                text_comment: Color::Custom {
+                    r: 140,
+                    g: 120,
+                    b: 100,
+                },
+                text_emphasized: Color::Custom {
+                    r: 60,
+                    g: 40,
+                    b: 30,
+                },
+                background: Color::Custom {
+                    r: 250,
+                    g: 245,
+                    b: 235,
+                },
+                background_highlights: Color::Custom {
+                    r: 240,
+                    g: 230,
+                    b: 210,
+                },
+                yellow: Color::Custom {
+                    r: 220,
+                    g: 180,
+                    b: 0,
+                },
+                orange: Color::Custom {
+                    r: 230,
+                    g: 120,
+                    b: 40,
+                },
+                red: Color::Custom {
+                    r: 200,
+                    g: 50,
+                    b: 50,
+                },
+                magenta: Color::Custom {
+                    r: 200,
+                    g: 60,
+                    b: 140,
+                },
+                violet: Color::Custom {
+                    r: 140,
+                    g: 80,
+                    b: 180,
+                },
+                blue: Color::Custom {
+                    r: 60,
+                    g: 100,
+                    b: 180,
+                },
+                cyan: Color::Custom {
+                    r: 40,
+                    g: 140,
+                    b: 140,
+                },
+                green: Color::Custom {
+                    r: 80,
+                    g: 140,
+                    b: 60,
+                },
+            },
+            ColorTheme::WarmDark => ColorPalette {
+                text: Color::Custom {
+                    r: 240,
+                    g: 230,
+                    b: 210,
+                },
+                text_comment: Color::Custom {
+                    r: 180,
+                    g: 165,
+                    b: 145,
+                },
+                text_emphasized: Color::Custom {
+                    r: 255,
+                    g: 245,
+                    b: 230,
+                },
+                background: Color::Custom {
+                    r: 30,
+                    g: 25,
+                    b: 20,
+                },
+                background_highlights: Color::Custom {
+                    r: 45,
+                    g: 38,
+                    b: 30,
+                },
+                yellow: Color::Custom {
+                    r: 255,
+                    g: 220,
+                    b: 80,
+                },
+                orange: Color::Custom {
+                    r: 255,
+                    g: 160,
+                    b: 80,
+                },
+                red: Color::Custom {
+                    r: 255,
+                    g: 120,
+                    b: 120,
+                },
+                magenta: Color::Custom {
+                    r: 255,
+                    g: 140,
+                    b: 200,
+                },
+                violet: Color::Custom {
+                    r: 200,
+                    g: 160,
+                    b: 255,
+                },
+                blue: Color::Custom {
+                    r: 120,
+                    g: 180,
+                    b: 255,
+                },
+                cyan: Color::Custom {
+                    r: 100,
+                    g: 220,
+                    b: 220,
+                },
+                green: Color::Custom {
+                    r: 140,
+                    g: 220,
+                    b: 120,
+                },
+            },
+            ColorTheme::CoolLight => ColorPalette {
+                text: Color::Custom {
+                    r: 30,
+                    g: 50,
+                    b: 70,
+                },
+                text_comment: Color::Custom {
+                    r: 100,
+                    g: 120,
+                    b: 140,
+                },
+                text_emphasized: Color::Custom {
+                    r: 20,
+                    g: 35,
+                    b: 55,
+                },
+                background: Color::Custom {
+                    r: 240,
+                    g: 245,
+                    b: 250,
+                },
+                background_highlights: Color::Custom {
+                    r: 230,
+                    g: 240,
+                    b: 248,
+                },
+                yellow: Color::Custom {
+                    r: 160,
+                    g: 140,
+                    b: 0,
+                },
+                orange: Color::Custom {
+                    r: 180,
+                    g: 100,
+                    b: 40,
+                },
+                red: Color::Custom {
+                    r: 180,
+                    g: 60,
+                    b: 80,
+                },
+                magenta: Color::Custom {
+                    r: 160,
+                    g: 60,
+                    b: 140,
+                },
+                violet: Color::Custom {
+                    r: 100,
+                    g: 80,
+                    b: 200,
+                },
+                blue: Color::Custom {
+                    r: 0,
+                    g: 120,
+                    b: 220,
+                },
+                cyan: Color::Custom {
+                    r: 0,
+                    g: 180,
+                    b: 200,
+                },
+                green: Color::Custom {
+                    r: 0,
+                    g: 160,
+                    b: 120,
+                },
+            },
+            ColorTheme::CoolDark => ColorPalette {
+                text: Color::Custom {
+                    r: 220,
+                    g: 235,
+                    b: 245,
+                },
+                text_comment: Color::Custom {
+                    r: 150,
+                    g: 170,
+                    b: 190,
+                },
+                text_emphasized: Color::Custom {
+                    r: 240,
+                    g: 250,
+                    b: 255,
+                },
+                background: Color::Custom {
+                    r: 15,
+                    g: 20,
+                    b: 30,
+                },
+                background_highlights: Color::Custom {
+                    r: 25,
+                    g: 35,
+                    b: 48,
+                },
+                yellow: Color::Custom {
+                    r: 240,
+                    g: 220,
+                    b: 100,
+                },
+                orange: Color::Custom {
+                    r: 255,
+                    g: 180,
+                    b: 100,
+                },
+                red: Color::Custom {
+                    r: 255,
+                    g: 140,
+                    b: 160,
+                },
+                magenta: Color::Custom {
+                    r: 240,
+                    g: 140,
+                    b: 220,
+                },
+                violet: Color::Custom {
+                    r: 160,
+                    g: 160,
+                    b: 255,
+                },
+                blue: Color::Custom {
+                    r: 100,
+                    g: 200,
+                    b: 255,
+                },
+                cyan: Color::Custom {
+                    r: 80,
+                    g: 240,
+                    b: 255,
+                },
+                green: Color::Custom {
+                    r: 100,
+                    g: 240,
+                    b: 200,
+                },
+            },
+            ColorTheme::Custom {
+                text,
+                text_comment,
+                text_emphasized,
+                background,
+                background_highlights,
+                yellow,
+                orange,
+                red,
+                magenta,
+                violet,
+                blue,
+                cyan,
+                green,
+            } => ColorPalette {
+                text: *text,
+                text_comment: *text_comment,
+                text_emphasized: *text_emphasized,
+                background: *background,
+                background_highlights: *background_highlights,
+                yellow: *yellow,
+                orange: *orange,
+                red: *red,
+                magenta: *magenta,
+                violet: *violet,
+                blue: *blue,
+                cyan: *cyan,
+                green: *green,
+            },
         }
+    }
+
+    pub fn text(&self) -> Color {
+        self.palette().text
     }
 
     pub fn text_comment(&self) -> Color {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base1.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base01.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base01.into(),
-            ColorTheme::HighContrastLight => Color::Custom {
-                r: 96,
-                g: 96,
-                b: 96,
-            },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 192,
-                g: 192,
-                b: 192,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 140,
-                g: 120,
-                b: 100,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 180,
-                g: 165,
-                b: 145,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 100,
-                g: 120,
-                b: 140,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 150,
-                g: 170,
-                b: 190,
-            },
-            ColorTheme::Custom { text_comment, .. } => *text_comment,
-        }
+        self.palette().text_comment
     }
 
     pub fn text_emphasized(&self) -> Color {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base01.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base1.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base1.into(),
-            ColorTheme::HighContrastLight => Color::Custom { r: 0, g: 0, b: 0 },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 255,
-                g: 255,
-                b: 255,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 60,
-                g: 40,
-                b: 30,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 255,
-                g: 245,
-                b: 230,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 20,
-                g: 35,
-                b: 55,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 240,
-                g: 250,
-                b: 255,
-            },
-            ColorTheme::Custom {
-                text_emphasized, ..
-            } => *text_emphasized,
-        }
+        self.palette().text_emphasized
     }
 
     pub fn background(&self) -> Color {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base3.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base03.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Black.into(),
-            ColorTheme::HighContrastLight => Color::Custom {
-                r: 255,
-                g: 255,
-                b: 255,
-            },
-            ColorTheme::HighContrastDark => Color::Custom { r: 0, g: 0, b: 0 },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 250,
-                g: 245,
-                b: 235,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 30,
-                g: 25,
-                b: 20,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 240,
-                g: 245,
-                b: 250,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 15,
-                g: 20,
-                b: 30,
-            },
-            ColorTheme::Custom { background, .. } => *background,
-        }
+        self.palette().background
     }
 
     pub fn background_highlights(&self) -> Color {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base2.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base02.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base02.into(),
-            ColorTheme::HighContrastLight => Color::Custom {
-                r: 240,
-                g: 240,
-                b: 240,
-            },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 32,
-                g: 32,
-                b: 32,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 240,
-                g: 230,
-                b: 210,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 45,
-                g: 38,
-                b: 30,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 230,
-                g: 240,
-                b: 248,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 25,
-                g: 35,
-                b: 48,
-            },
-            ColorTheme::Custom {
-                background_highlights,
-                ..
-            } => *background_highlights,
-        }
+        self.palette().background_highlights
     }
 
     pub fn yellow(&self) -> Color {
-        match self {
-            ColorTheme::HighContrastLight => Color::Custom {
-                r: 180,
-                g: 130,
-                b: 0,
-            },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 255,
-                g: 220,
-                b: 0,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 220,
-                g: 180,
-                b: 0,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 255,
-                g: 220,
-                b: 80,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 160,
-                g: 140,
-                b: 0,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 240,
-                g: 220,
-                b: 100,
-            },
-            ColorTheme::Custom { yellow, .. } => *yellow,
-            _ => SolarizedColor::Yellow.into(),
-        }
+        self.palette().yellow
     }
 
     pub fn orange(&self) -> Color {
-        match self {
-            ColorTheme::HighContrastLight => Color::Custom {
-                r: 200,
-                g: 100,
-                b: 0,
-            },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 255,
-                g: 160,
-                b: 50,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 230,
-                g: 120,
-                b: 40,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 255,
-                g: 160,
-                b: 80,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 180,
-                g: 100,
-                b: 40,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 255,
-                g: 180,
-                b: 100,
-            },
-            ColorTheme::Custom { orange, .. } => *orange,
-            _ => SolarizedColor::Orange.into(),
-        }
+        self.palette().orange
     }
 
     pub fn red(&self) -> Color {
-        match self {
-            ColorTheme::HighContrastLight => Color::Custom { r: 180, g: 0, b: 0 },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 255,
-                g: 100,
-                b: 100,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 200,
-                g: 50,
-                b: 50,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 255,
-                g: 120,
-                b: 120,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 180,
-                g: 60,
-                b: 80,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 255,
-                g: 140,
-                b: 160,
-            },
-            ColorTheme::Custom { red, .. } => *red,
-            _ => SolarizedColor::Red.into(),
-        }
+        self.palette().red
     }
 
     pub fn magenta(&self) -> Color {
-        match self {
-            ColorTheme::HighContrastLight => Color::Custom {
-                r: 180,
-                g: 0,
-                b: 120,
-            },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 255,
-                g: 120,
-                b: 220,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 200,
-                g: 60,
-                b: 140,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 255,
-                g: 140,
-                b: 200,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 160,
-                g: 60,
-                b: 140,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 240,
-                g: 140,
-                b: 220,
-            },
-            ColorTheme::Custom { magenta, .. } => *magenta,
-            _ => SolarizedColor::Magenta.into(),
-        }
+        self.palette().magenta
     }
 
     pub fn violet(&self) -> Color {
-        match self {
-            ColorTheme::HighContrastLight => Color::Custom {
-                r: 100,
-                g: 60,
-                b: 180,
-            },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 180,
-                g: 140,
-                b: 255,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 140,
-                g: 80,
-                b: 180,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 200,
-                g: 160,
-                b: 255,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 100,
-                g: 80,
-                b: 200,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 160,
-                g: 160,
-                b: 255,
-            },
-            ColorTheme::Custom { violet, .. } => *violet,
-            _ => SolarizedColor::Violet.into(),
-        }
+        self.palette().violet
     }
 
     pub fn blue(&self) -> Color {
-        match self {
-            ColorTheme::HighContrastLight => Color::Custom {
-                r: 0,
-                g: 80,
-                b: 200,
-            },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 100,
-                g: 180,
-                b: 255,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 60,
-                g: 100,
-                b: 180,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 120,
-                g: 180,
-                b: 255,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 0,
-                g: 120,
-                b: 220,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 100,
-                g: 200,
-                b: 255,
-            },
-            ColorTheme::Custom { blue, .. } => *blue,
-            _ => SolarizedColor::Blue.into(),
-        }
+        self.palette().blue
     }
 
     pub fn cyan(&self) -> Color {
-        match self {
-            ColorTheme::HighContrastLight => Color::Custom {
-                r: 0,
-                g: 140,
-                b: 160,
-            },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 80,
-                g: 220,
-                b: 240,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 40,
-                g: 140,
-                b: 140,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 100,
-                g: 220,
-                b: 220,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 0,
-                g: 180,
-                b: 200,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 80,
-                g: 240,
-                b: 255,
-            },
-            ColorTheme::Custom { cyan, .. } => *cyan,
-            _ => SolarizedColor::Cyan.into(),
-        }
+        self.palette().cyan
     }
 
     pub fn green(&self) -> Color {
-        match self {
-            ColorTheme::HighContrastLight => Color::Custom { r: 0, g: 140, b: 0 },
-            ColorTheme::HighContrastDark => Color::Custom {
-                r: 100,
-                g: 255,
-                b: 100,
-            },
-            ColorTheme::WarmLight => Color::Custom {
-                r: 80,
-                g: 140,
-                b: 60,
-            },
-            ColorTheme::WarmDark => Color::Custom {
-                r: 140,
-                g: 220,
-                b: 120,
-            },
-            ColorTheme::CoolLight => Color::Custom {
-                r: 0,
-                g: 160,
-                b: 120,
-            },
-            ColorTheme::CoolDark => Color::Custom {
-                r: 100,
-                g: 240,
-                b: 200,
-            },
-            ColorTheme::Custom { green, .. } => *green,
-            _ => SolarizedColor::Green.into(),
-        }
+        self.palette().green
     }
 }
 
@@ -545,15 +599,37 @@ impl From<Color> for wgpu::Color {
     }
 }
 
+impl From<(u8, u8, u8)> for Color {
+    fn from(value: (u8, u8, u8)) -> Self {
+        Color::Custom {
+            r: value.0,
+            g: value.1,
+            b: value.2,
+        }
+    }
+}
+
 impl Color {
     pub fn get_color(&self) -> [f32; 3] {
         match self {
             Color::Solarized(color) => color.get_color(),
             Color::Custom { r, g, b } => {
-                let r = *r as f32 / 255.0;
-                let g = *g as f32 / 255.0;
-                let b = *b as f32 / 255.0;
-                [r, g, b]
+                #[cfg(not(target_family = "wasm"))]
+                {
+                    // Native: sRGB変換
+                    let r = (*r as f32 / 255.0).powf(2.2);
+                    let g = (*g as f32 / 255.0).powf(2.2);
+                    let b = (*b as f32 / 255.0).powf(2.2);
+                    [r, g, b]
+                }
+                #[cfg(target_family = "wasm")]
+                {
+                    // WASM: 線形RGB
+                    let r = *r as f32 / 255.0;
+                    let g = *g as f32 / 255.0;
+                    let b = *b as f32 / 255.0;
+                    [r, g, b]
+                }
             }
         }
     }
