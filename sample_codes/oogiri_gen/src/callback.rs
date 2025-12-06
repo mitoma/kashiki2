@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
-use font_rasterizer::{context::WindowSize, glyph_vertex_buffer::Direction, time::now_millis};
-use glam::Quat;
+use font_rasterizer::{context::WindowSize, time::now_millis};
 use text_buffer::action::EditorOperation;
 use ui_support::{
     SimpleStateCallback,
-    camera::{Camera, CameraAdjustment},
-    layout_engine::{DefaultWorld, Model, ModelOperation, World},
-    ui::{self, TextEdit},
+    camera::CameraAdjustment,
+    layout_engine::{DefaultWorld, World},
+    ui::TextEdit,
 };
 
 pub(crate) struct Callback {
@@ -49,7 +48,8 @@ impl SimpleStateCallback for Callback {
 
                 self.world.editor_operation(op);
             }
-            self.world.look_current(CameraAdjustment::FitBothAndCentering);
+            self.world
+                .look_current(CameraAdjustment::FitBothAndCentering);
         }
 
         self.world.update(context);
@@ -57,23 +57,23 @@ impl SimpleStateCallback for Callback {
 
     fn input(
         &mut self,
-        context: &ui_support::ui_context::UiContext,
-        event: &winit::event::WindowEvent,
+        _context: &ui_support::ui_context::UiContext,
+        _event: &winit::event::WindowEvent,
     ) -> ui_support::InputResult {
         ui_support::InputResult::Noop
     }
 
     fn action(
         &mut self,
-        context: &ui_support::ui_context::UiContext,
-        action: stroke_parser::Action,
+        _context: &ui_support::ui_context::UiContext,
+        _action: stroke_parser::Action,
     ) -> ui_support::InputResult {
         ui_support::InputResult::Noop
     }
 
     fn render(&'_ mut self) -> ui_support::RenderData<'_> {
         ui_support::RenderData {
-            camera: &self.world.camera(),
+            camera: self.world.camera(),
             glyph_instances: self.world.glyph_instances(),
             vector_instances: self.world.vector_instances(),
             glyph_instances_for_modal: vec![],
