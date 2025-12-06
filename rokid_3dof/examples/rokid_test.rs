@@ -88,7 +88,7 @@ impl MyMotion {
             Self::WaveY => MotionFlags::builder()
                 .motion_type(MotionType::EaseOut(EasingFuncType::Sin, false))
                 .motion_detail(MotionDetail::USE_XY_DISTANCE)
-                .motion_target(MotionTarget::ROTATE_Z_MINUX)
+                .motion_target(MotionTarget::ROTATE_Z_MINUS)
                 .build(),
         }
     }

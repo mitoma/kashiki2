@@ -163,7 +163,7 @@ impl Default for CharEasings {
             unselect_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
                     .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, false))
-                    .motion_target(MotionTarget::ROTATE_Y_MINUX)
+                    .motion_target(MotionTarget::ROTATE_Y_MINUS)
                     .build(),
                 duration: Duration::from_millis(300),
                 gain: 1.0,
@@ -302,15 +302,15 @@ impl CharEasings {
                     .motion_target(MotionTarget::ROTATE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
                     .build(),
                 duration: Duration::from_millis(400),
-                gain: 1.5,
+                gain: 1.0,
             },
             unselect_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
                     .motion_type(MotionType::EaseIn(EasingFuncType::Elastic, false))
-                    .motion_target(MotionTarget::ROTATE_Y_MINUX | MotionTarget::STRETCH_X_MINUS)
+                    .motion_target(MotionTarget::ROTATE_Y_MINUS | MotionTarget::STRETCH_X_MINUS)
                     .build(),
                 duration: Duration::from_millis(400),
-                gain: 1.5,
+                gain: 1.0,
             },
             notify_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
@@ -389,7 +389,7 @@ impl CharEasings {
             unselect_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
                     .motion_type(MotionType::EaseInOut(EasingFuncType::Circ, false))
-                    .motion_target(MotionTarget::ROTATE_Y_MINUX)
+                    .motion_target(MotionTarget::ROTATE_Y_MINUS)
                     .build(),
                 duration: Duration::from_millis(300),
                 gain: 0.8,
@@ -438,7 +438,7 @@ impl CharEasings {
                 motion: MotionFlags::builder()
                     .motion_type(MotionType::EaseOut(EasingFuncType::Back, false))
                     .motion_detail(MotionDetail::TO_CURRENT)
-                    .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::ROTATE_Z_MINUX)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::ROTATE_Z_MINUS)
                     .build(),
                 duration: Duration::from_millis(350),
                 gain: 1.0,
@@ -476,7 +476,7 @@ impl CharEasings {
             unselect_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
                     .motion_type(MotionType::EaseIn(EasingFuncType::Back, false))
-                    .motion_target(MotionTarget::ROTATE_Y_MINUX | MotionTarget::STRETCH_X_MINUS)
+                    .motion_target(MotionTarget::ROTATE_Y_MINUS | MotionTarget::STRETCH_X_MINUS)
                     .build(),
                 duration: Duration::from_millis(250),
                 gain: 1.2,
@@ -562,7 +562,7 @@ impl CharEasings {
             unselect_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
                     .motion_type(MotionType::EaseInOut(EasingFuncType::Cubic, false))
-                    .motion_target(MotionTarget::ROTATE_Y_MINUX)
+                    .motion_target(MotionTarget::ROTATE_Y_MINUS)
                     .build(),
                 duration: Duration::from_millis(500),
                 gain: 0.7,
@@ -656,7 +656,7 @@ impl CharEasings {
             unselect_char: GpuEasingConfig {
                 motion: MotionFlags::builder()
                     .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, false))
-                    .motion_target(MotionTarget::ROTATE_Y_MINUX)
+                    .motion_target(MotionTarget::ROTATE_Y_MINUS)
                     .build(),
                 duration: Duration::from_millis(200),
                 gain: 0.5,
