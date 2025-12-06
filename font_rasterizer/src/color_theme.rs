@@ -4,6 +4,12 @@ pub enum ColorTheme {
     SolarizedLight,
     SolarizedDark,
     SolarizedBlackback,
+    HighContrastLight,
+    HighContrastDark,
+    WarmLight,
+    WarmDark,
+    CoolLight,
+    CoolDark,
     Custom {
         text: Color,
         text_comment: Color,
@@ -46,6 +52,32 @@ impl ColorTheme {
             ColorTheme::SolarizedLight => SolarizedColor::Base00.into(),
             ColorTheme::SolarizedDark => SolarizedColor::Base0.into(),
             ColorTheme::SolarizedBlackback => SolarizedColor::Base0.into(),
+            ColorTheme::HighContrastLight => Color::Custom { r: 0, g: 0, b: 0 },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 255,
+                g: 255,
+                b: 255,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 80,
+                g: 60,
+                b: 50,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 240,
+                g: 230,
+                b: 210,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 30,
+                g: 50,
+                b: 70,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 220,
+                g: 235,
+                b: 245,
+            },
             ColorTheme::Custom { text, .. } => *text,
         }
     }
@@ -55,6 +87,36 @@ impl ColorTheme {
             ColorTheme::SolarizedLight => SolarizedColor::Base1.into(),
             ColorTheme::SolarizedDark => SolarizedColor::Base01.into(),
             ColorTheme::SolarizedBlackback => SolarizedColor::Base01.into(),
+            ColorTheme::HighContrastLight => Color::Custom {
+                r: 96,
+                g: 96,
+                b: 96,
+            },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 192,
+                g: 192,
+                b: 192,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 140,
+                g: 120,
+                b: 100,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 180,
+                g: 165,
+                b: 145,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 100,
+                g: 120,
+                b: 140,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 150,
+                g: 170,
+                b: 190,
+            },
             ColorTheme::Custom { text_comment, .. } => *text_comment,
         }
     }
@@ -64,6 +126,32 @@ impl ColorTheme {
             ColorTheme::SolarizedLight => SolarizedColor::Base01.into(),
             ColorTheme::SolarizedDark => SolarizedColor::Base1.into(),
             ColorTheme::SolarizedBlackback => SolarizedColor::Base1.into(),
+            ColorTheme::HighContrastLight => Color::Custom { r: 0, g: 0, b: 0 },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 255,
+                g: 255,
+                b: 255,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 60,
+                g: 40,
+                b: 30,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 255,
+                g: 245,
+                b: 230,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 20,
+                g: 35,
+                b: 55,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 240,
+                g: 250,
+                b: 255,
+            },
             ColorTheme::Custom {
                 text_emphasized, ..
             } => *text_emphasized,
@@ -75,6 +163,32 @@ impl ColorTheme {
             ColorTheme::SolarizedLight => SolarizedColor::Base3.into(),
             ColorTheme::SolarizedDark => SolarizedColor::Base03.into(),
             ColorTheme::SolarizedBlackback => SolarizedColor::Black.into(),
+            ColorTheme::HighContrastLight => Color::Custom {
+                r: 255,
+                g: 255,
+                b: 255,
+            },
+            ColorTheme::HighContrastDark => Color::Custom { r: 0, g: 0, b: 0 },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 250,
+                g: 245,
+                b: 235,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 30,
+                g: 25,
+                b: 20,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 240,
+                g: 245,
+                b: 250,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 15,
+                g: 20,
+                b: 30,
+            },
             ColorTheme::Custom { background, .. } => *background,
         }
     }
@@ -84,6 +198,36 @@ impl ColorTheme {
             ColorTheme::SolarizedLight => SolarizedColor::Base2.into(),
             ColorTheme::SolarizedDark => SolarizedColor::Base02.into(),
             ColorTheme::SolarizedBlackback => SolarizedColor::Base02.into(),
+            ColorTheme::HighContrastLight => Color::Custom {
+                r: 240,
+                g: 240,
+                b: 240,
+            },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 32,
+                g: 32,
+                b: 32,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 240,
+                g: 230,
+                b: 210,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 45,
+                g: 38,
+                b: 30,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 230,
+                g: 240,
+                b: 248,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 25,
+                g: 35,
+                b: 48,
+            },
             ColorTheme::Custom {
                 background_highlights,
                 ..
@@ -93,6 +237,36 @@ impl ColorTheme {
 
     pub fn yellow(&self) -> Color {
         match self {
+            ColorTheme::HighContrastLight => Color::Custom {
+                r: 180,
+                g: 130,
+                b: 0,
+            },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 255,
+                g: 220,
+                b: 0,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 220,
+                g: 180,
+                b: 0,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 255,
+                g: 220,
+                b: 80,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 160,
+                g: 140,
+                b: 0,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 240,
+                g: 220,
+                b: 100,
+            },
             ColorTheme::Custom { yellow, .. } => *yellow,
             _ => SolarizedColor::Yellow.into(),
         }
@@ -100,6 +274,36 @@ impl ColorTheme {
 
     pub fn orange(&self) -> Color {
         match self {
+            ColorTheme::HighContrastLight => Color::Custom {
+                r: 200,
+                g: 100,
+                b: 0,
+            },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 255,
+                g: 160,
+                b: 50,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 230,
+                g: 120,
+                b: 40,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 255,
+                g: 160,
+                b: 80,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 180,
+                g: 100,
+                b: 40,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 255,
+                g: 180,
+                b: 100,
+            },
             ColorTheme::Custom { orange, .. } => *orange,
             _ => SolarizedColor::Orange.into(),
         }
@@ -107,6 +311,32 @@ impl ColorTheme {
 
     pub fn red(&self) -> Color {
         match self {
+            ColorTheme::HighContrastLight => Color::Custom { r: 180, g: 0, b: 0 },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 255,
+                g: 100,
+                b: 100,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 200,
+                g: 50,
+                b: 50,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 255,
+                g: 120,
+                b: 120,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 180,
+                g: 60,
+                b: 80,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 255,
+                g: 140,
+                b: 160,
+            },
             ColorTheme::Custom { red, .. } => *red,
             _ => SolarizedColor::Red.into(),
         }
@@ -114,6 +344,36 @@ impl ColorTheme {
 
     pub fn magenta(&self) -> Color {
         match self {
+            ColorTheme::HighContrastLight => Color::Custom {
+                r: 180,
+                g: 0,
+                b: 120,
+            },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 255,
+                g: 120,
+                b: 220,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 200,
+                g: 60,
+                b: 140,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 255,
+                g: 140,
+                b: 200,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 160,
+                g: 60,
+                b: 140,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 240,
+                g: 140,
+                b: 220,
+            },
             ColorTheme::Custom { magenta, .. } => *magenta,
             _ => SolarizedColor::Magenta.into(),
         }
@@ -121,6 +381,36 @@ impl ColorTheme {
 
     pub fn violet(&self) -> Color {
         match self {
+            ColorTheme::HighContrastLight => Color::Custom {
+                r: 100,
+                g: 60,
+                b: 180,
+            },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 180,
+                g: 140,
+                b: 255,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 140,
+                g: 80,
+                b: 180,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 200,
+                g: 160,
+                b: 255,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 100,
+                g: 80,
+                b: 200,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 160,
+                g: 160,
+                b: 255,
+            },
             ColorTheme::Custom { violet, .. } => *violet,
             _ => SolarizedColor::Violet.into(),
         }
@@ -128,6 +418,36 @@ impl ColorTheme {
 
     pub fn blue(&self) -> Color {
         match self {
+            ColorTheme::HighContrastLight => Color::Custom {
+                r: 0,
+                g: 80,
+                b: 200,
+            },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 100,
+                g: 180,
+                b: 255,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 60,
+                g: 100,
+                b: 180,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 120,
+                g: 180,
+                b: 255,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 0,
+                g: 120,
+                b: 220,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 100,
+                g: 200,
+                b: 255,
+            },
             ColorTheme::Custom { blue, .. } => *blue,
             _ => SolarizedColor::Blue.into(),
         }
@@ -135,6 +455,36 @@ impl ColorTheme {
 
     pub fn cyan(&self) -> Color {
         match self {
+            ColorTheme::HighContrastLight => Color::Custom {
+                r: 0,
+                g: 140,
+                b: 160,
+            },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 80,
+                g: 220,
+                b: 240,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 40,
+                g: 140,
+                b: 140,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 100,
+                g: 220,
+                b: 220,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 0,
+                g: 180,
+                b: 200,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 80,
+                g: 240,
+                b: 255,
+            },
             ColorTheme::Custom { cyan, .. } => *cyan,
             _ => SolarizedColor::Cyan.into(),
         }
@@ -142,6 +492,32 @@ impl ColorTheme {
 
     pub fn green(&self) -> Color {
         match self {
+            ColorTheme::HighContrastLight => Color::Custom { r: 0, g: 140, b: 0 },
+            ColorTheme::HighContrastDark => Color::Custom {
+                r: 100,
+                g: 255,
+                b: 100,
+            },
+            ColorTheme::WarmLight => Color::Custom {
+                r: 80,
+                g: 140,
+                b: 60,
+            },
+            ColorTheme::WarmDark => Color::Custom {
+                r: 140,
+                g: 220,
+                b: 120,
+            },
+            ColorTheme::CoolLight => Color::Custom {
+                r: 0,
+                g: 160,
+                b: 120,
+            },
+            ColorTheme::CoolDark => Color::Custom {
+                r: 100,
+                g: 240,
+                b: 200,
+            },
             ColorTheme::Custom { green, .. } => *green,
             _ => SolarizedColor::Green.into(),
         }
