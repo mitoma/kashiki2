@@ -45,6 +45,31 @@ impl From<SolarizedColor> for Color {
     }
 }
 
+impl From<(u8, u8, u8)> for Color {
+    fn from((r, g, b): (u8, u8, u8)) -> Self {
+        Self::Custom { r, g, b }
+    }
+}
+
+impl From<&str> for Color {
+    // #RRGGBB 形式の文字列を Color に変換する
+    fn from(value: &str) -> Self {
+        let value = value.trim();
+        let value = value.strip_prefix('#').unwrap_or(value);
+
+        if value.len() != 6 {
+            // 不正な形式の場合は黒色を返す
+            return Self::Custom { r: 0, g: 0, b: 0 };
+        }
+
+        let r = u8::from_str_radix(&value[0..2], 16).unwrap_or(0);
+        let g = u8::from_str_radix(&value[2..4], 16).unwrap_or(0);
+        let b = u8::from_str_radix(&value[4..6], 16).unwrap_or(0);
+
+        Self::Custom { r, g, b }
+    }
+}
+
 #[derive(Clone, Copy)]
 struct ColorPalette {
     text: Color,
@@ -112,386 +137,94 @@ impl ColorTheme {
                 green: SolarizedColor::Green.into(),
             },
             ColorTheme::HighContrastLight => ColorPalette {
-                text: Color::Custom { r: 0, g: 0, b: 0 },
-                text_comment: Color::Custom {
-                    r: 96,
-                    g: 96,
-                    b: 96,
-                },
-                text_emphasized: Color::Custom { r: 0, g: 0, b: 0 },
-                background: Color::Custom {
-                    r: 255,
-                    g: 255,
-                    b: 255,
-                },
-                background_highlights: Color::Custom {
-                    r: 240,
-                    g: 240,
-                    b: 240,
-                },
-                yellow: Color::Custom {
-                    r: 180,
-                    g: 130,
-                    b: 0,
-                },
-                orange: Color::Custom {
-                    r: 200,
-                    g: 100,
-                    b: 0,
-                },
-                red: Color::Custom { r: 180, g: 0, b: 0 },
-                magenta: Color::Custom {
-                    r: 180,
-                    g: 0,
-                    b: 120,
-                },
-                violet: Color::Custom {
-                    r: 100,
-                    g: 60,
-                    b: 180,
-                },
-                blue: Color::Custom {
-                    r: 0,
-                    g: 80,
-                    b: 200,
-                },
-                cyan: Color::Custom {
-                    r: 0,
-                    g: 140,
-                    b: 160,
-                },
-                green: Color::Custom { r: 0, g: 140, b: 0 },
+                text: "#000000".into(),
+                text_comment: "#606060".into(),
+                text_emphasized: "#000000".into(),
+                background: "#FFFFFF".into(),
+                background_highlights: "#F0F0F0".into(),
+                yellow: "#B48200".into(),
+                orange: "#C86400".into(),
+                red: "#B40000".into(),
+                magenta: "#B40078".into(),
+                violet: "#643CB4".into(),
+                blue: "#0050C8".into(),
+                cyan: "#008CA0".into(),
+                green: "#008C00".into(),
             },
             ColorTheme::HighContrastDark => ColorPalette {
-                text: Color::Custom {
-                    r: 255,
-                    g: 255,
-                    b: 255,
-                },
-                text_comment: Color::Custom {
-                    r: 192,
-                    g: 192,
-                    b: 192,
-                },
-                text_emphasized: Color::Custom {
-                    r: 255,
-                    g: 255,
-                    b: 255,
-                },
-                background: Color::Custom { r: 0, g: 0, b: 0 },
-                background_highlights: Color::Custom {
-                    r: 32,
-                    g: 32,
-                    b: 32,
-                },
-                yellow: Color::Custom {
-                    r: 255,
-                    g: 220,
-                    b: 0,
-                },
-                orange: Color::Custom {
-                    r: 255,
-                    g: 160,
-                    b: 50,
-                },
-                red: Color::Custom {
-                    r: 255,
-                    g: 100,
-                    b: 100,
-                },
-                magenta: Color::Custom {
-                    r: 255,
-                    g: 120,
-                    b: 220,
-                },
-                violet: Color::Custom {
-                    r: 180,
-                    g: 140,
-                    b: 255,
-                },
-                blue: Color::Custom {
-                    r: 100,
-                    g: 180,
-                    b: 255,
-                },
-                cyan: Color::Custom {
-                    r: 80,
-                    g: 220,
-                    b: 240,
-                },
-                green: Color::Custom {
-                    r: 100,
-                    g: 255,
-                    b: 100,
-                },
+                text: "#FFFFFF".into(),
+                text_comment: "#C0C0C0".into(),
+                text_emphasized: "#FFFFFF".into(),
+                background: "#000000".into(),
+                background_highlights: "#202020".into(),
+                yellow: "#FFDC00".into(),
+                orange: "#FFA032".into(),
+                red: "#FF6464".into(),
+                magenta: "#FF78DC".into(),
+                violet: "#B48CFF".into(),
+                blue: "#64B4FF".into(),
+                cyan: "#50DCF0".into(),
+                green: "#64FF64".into(),
             },
             ColorTheme::WarmLight => ColorPalette {
-                text: Color::Custom {
-                    r: 80,
-                    g: 60,
-                    b: 50,
-                },
-                text_comment: Color::Custom {
-                    r: 140,
-                    g: 120,
-                    b: 100,
-                },
-                text_emphasized: Color::Custom {
-                    r: 60,
-                    g: 40,
-                    b: 30,
-                },
-                background: Color::Custom {
-                    r: 250,
-                    g: 245,
-                    b: 235,
-                },
-                background_highlights: Color::Custom {
-                    r: 240,
-                    g: 230,
-                    b: 210,
-                },
-                yellow: Color::Custom {
-                    r: 220,
-                    g: 180,
-                    b: 0,
-                },
-                orange: Color::Custom {
-                    r: 230,
-                    g: 120,
-                    b: 40,
-                },
-                red: Color::Custom {
-                    r: 200,
-                    g: 50,
-                    b: 50,
-                },
-                magenta: Color::Custom {
-                    r: 200,
-                    g: 60,
-                    b: 140,
-                },
-                violet: Color::Custom {
-                    r: 140,
-                    g: 80,
-                    b: 180,
-                },
-                blue: Color::Custom {
-                    r: 60,
-                    g: 100,
-                    b: 180,
-                },
-                cyan: Color::Custom {
-                    r: 40,
-                    g: 140,
-                    b: 140,
-                },
-                green: Color::Custom {
-                    r: 80,
-                    g: 140,
-                    b: 60,
-                },
+                text: "#503C32".into(),
+                text_comment: "#8C7864".into(),
+                text_emphasized: "#3C281E".into(),
+                background: "#FAF5EB".into(),
+                background_highlights: "#F0E6D2".into(),
+                yellow: "#DCB400".into(),
+                orange: "#E67828".into(),
+                red: "#C83232".into(),
+                magenta: "#C83C8C".into(),
+                violet: "#8C50B4".into(),
+                blue: "#3C64B4".into(),
+                cyan: "#288C8C".into(),
+                green: "#508C3C".into(),
             },
             ColorTheme::WarmDark => ColorPalette {
-                text: Color::Custom {
-                    r: 240,
-                    g: 230,
-                    b: 210,
-                },
-                text_comment: Color::Custom {
-                    r: 180,
-                    g: 165,
-                    b: 145,
-                },
-                text_emphasized: Color::Custom {
-                    r: 255,
-                    g: 245,
-                    b: 230,
-                },
-                background: Color::Custom {
-                    r: 30,
-                    g: 25,
-                    b: 20,
-                },
-                background_highlights: Color::Custom {
-                    r: 45,
-                    g: 38,
-                    b: 30,
-                },
-                yellow: Color::Custom {
-                    r: 255,
-                    g: 220,
-                    b: 80,
-                },
-                orange: Color::Custom {
-                    r: 255,
-                    g: 160,
-                    b: 80,
-                },
-                red: Color::Custom {
-                    r: 255,
-                    g: 120,
-                    b: 120,
-                },
-                magenta: Color::Custom {
-                    r: 255,
-                    g: 140,
-                    b: 200,
-                },
-                violet: Color::Custom {
-                    r: 200,
-                    g: 160,
-                    b: 255,
-                },
-                blue: Color::Custom {
-                    r: 120,
-                    g: 180,
-                    b: 255,
-                },
-                cyan: Color::Custom {
-                    r: 100,
-                    g: 220,
-                    b: 220,
-                },
-                green: Color::Custom {
-                    r: 140,
-                    g: 220,
-                    b: 120,
-                },
+                text: "#F0E6D2".into(),
+                text_comment: "#B4A591".into(),
+                text_emphasized: "#FFF5E6".into(),
+                background: "#1E1914".into(),
+                background_highlights: "#2D261E".into(),
+                yellow: "#FFDC50".into(),
+                orange: "#FFA050".into(),
+                red: "#FF7878".into(),
+                magenta: "#FF8CC8".into(),
+                violet: "#C8A0FF".into(),
+                blue: "#78B4FF".into(),
+                cyan: "#50DCFF".into(),
+                green: "#8CDC78".into(),
             },
             ColorTheme::CoolLight => ColorPalette {
-                text: Color::Custom {
-                    r: 30,
-                    g: 50,
-                    b: 70,
-                },
-                text_comment: Color::Custom {
-                    r: 100,
-                    g: 120,
-                    b: 140,
-                },
-                text_emphasized: Color::Custom {
-                    r: 20,
-                    g: 35,
-                    b: 55,
-                },
-                background: Color::Custom {
-                    r: 240,
-                    g: 245,
-                    b: 250,
-                },
-                background_highlights: Color::Custom {
-                    r: 230,
-                    g: 240,
-                    b: 248,
-                },
-                yellow: Color::Custom {
-                    r: 160,
-                    g: 140,
-                    b: 0,
-                },
-                orange: Color::Custom {
-                    r: 180,
-                    g: 100,
-                    b: 40,
-                },
-                red: Color::Custom {
-                    r: 180,
-                    g: 60,
-                    b: 80,
-                },
-                magenta: Color::Custom {
-                    r: 160,
-                    g: 60,
-                    b: 140,
-                },
-                violet: Color::Custom {
-                    r: 100,
-                    g: 80,
-                    b: 200,
-                },
-                blue: Color::Custom {
-                    r: 0,
-                    g: 120,
-                    b: 220,
-                },
-                cyan: Color::Custom {
-                    r: 0,
-                    g: 180,
-                    b: 200,
-                },
-                green: Color::Custom {
-                    r: 0,
-                    g: 160,
-                    b: 120,
-                },
+                text: "#1E3246".into(),
+                text_comment: "#64788C".into(),
+                text_emphasized: "#142337".into(),
+                background: "#F0F5FA".into(),
+                background_highlights: "#E6F0F8".into(),
+                yellow: "#A08C00".into(),
+                orange: "#B46428".into(),
+                red: "#B43C50".into(),
+                magenta: "#A03C8C".into(),
+                violet: "#6450C8".into(),
+                blue: "#0078DC".into(),
+                cyan: "#00B4C8".into(),
+                green: "#00A078".into(),
             },
             ColorTheme::CoolDark => ColorPalette {
-                text: Color::Custom {
-                    r: 220,
-                    g: 235,
-                    b: 245,
-                },
-                text_comment: Color::Custom {
-                    r: 150,
-                    g: 170,
-                    b: 190,
-                },
-                text_emphasized: Color::Custom {
-                    r: 240,
-                    g: 250,
-                    b: 255,
-                },
-                background: Color::Custom {
-                    r: 15,
-                    g: 20,
-                    b: 30,
-                },
-                background_highlights: Color::Custom {
-                    r: 25,
-                    g: 35,
-                    b: 48,
-                },
-                yellow: Color::Custom {
-                    r: 240,
-                    g: 220,
-                    b: 100,
-                },
-                orange: Color::Custom {
-                    r: 255,
-                    g: 180,
-                    b: 100,
-                },
-                red: Color::Custom {
-                    r: 255,
-                    g: 140,
-                    b: 160,
-                },
-                magenta: Color::Custom {
-                    r: 240,
-                    g: 140,
-                    b: 220,
-                },
-                violet: Color::Custom {
-                    r: 160,
-                    g: 160,
-                    b: 255,
-                },
-                blue: Color::Custom {
-                    r: 100,
-                    g: 200,
-                    b: 255,
-                },
-                cyan: Color::Custom {
-                    r: 80,
-                    g: 240,
-                    b: 255,
-                },
-                green: Color::Custom {
-                    r: 100,
-                    g: 240,
-                    b: 200,
-                },
+                text: "#DCEBF5".into(),
+                text_comment: "#96AABE".into(),
+                text_emphasized: "#F0FAFF".into(),
+                background: "#0F141E".into(),
+                background_highlights: "#192530".into(),
+                yellow: "#F0DC64".into(),
+                orange: "#FFB464".into(),
+                red: "#FF8CA0".into(),
+                magenta: "#FF8CC8".into(),
+                violet: "#C8A0FF".into(),
+                blue: "#78B4FF".into(),
+                cyan: "#50DCFF".into(),
+                green: "#8CDC78".into(),
             },
             ColorTheme::Custom {
                 text,
@@ -595,16 +328,6 @@ impl From<Color> for wgpu::Color {
                 b: b as f64 / 255.0,
                 a: 1.0,
             },
-        }
-    }
-}
-
-impl From<(u8, u8, u8)> for Color {
-    fn from(value: (u8, u8, u8)) -> Self {
-        Color::Custom {
-            r: value.0,
-            g: value.1,
-            b: value.2,
         }
     }
 }
