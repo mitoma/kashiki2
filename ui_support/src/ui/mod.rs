@@ -148,6 +148,8 @@ impl Model for PlaneTextReader {
     fn border(&self) -> ModelBorder {
         Default::default()
     }
+
+    fn set_easing_preset(&mut self, preset: crate::ui_context::CharEasingsPreset) {}
 }
 
 impl PlaneTextReader {

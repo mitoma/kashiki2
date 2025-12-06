@@ -807,6 +807,11 @@ impl TextContext {
         self
     }
 
+    #[inline]
+    pub fn set_char_easings_preset(&mut self, preset: CharEasingsPreset) {
+        self.char_easings = CharEasings::from_preset(preset);
+    }
+
     pub fn instance_scale(&self) -> [f32; 2] {
         match self.direction {
             Direction::Horizontal => [self.col_scale, self.row_scale],

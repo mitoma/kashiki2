@@ -366,6 +366,15 @@ impl World for DefaultWorld {
     fn layout(&self) -> &WorldLayout {
         &self.layout
     }
+
+    fn change_char_easings_preset(&mut self, preset: crate::ui_context::CharEasingsPreset) {
+        self.models.iter_mut().for_each(|m| {
+            m.set_easing_preset(preset);
+        });
+        self.modal_models.iter_mut().for_each(|m| {
+            m.set_easing_preset(preset);
+        });
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

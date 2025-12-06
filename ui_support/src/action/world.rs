@@ -3,7 +3,8 @@ use text_buffer::action::EditorOperation;
 
 use font_rasterizer::glyph_vertex_buffer::Direction;
 
-use crate::ui_context::UiContext;
+use crate::ui::{SelectBox, SelectOption};
+use crate::ui_context::{CharEasingsPreset, UiContext};
 
 use crate::{
     action::add_model_to_world,
@@ -305,4 +306,75 @@ world_processor!(
 );
 fn toggle_highlight_mode(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
     world.model_operation(&ModelOperation::ToggleHighlightMode);
+}
+
+world_processor!(
+    WorldChangeCharEasingsPresetUi,
+    "change-char-easings-preset-ui",
+    change_char_easings_preset_ui
+);
+fn change_char_easings_preset_ui(
+    _arg: &ActionArgument,
+    context: &UiContext,
+    world: &mut dyn World,
+) {
+    let options = vec![
+        SelectOption::new(
+            "デフォルト".into(),
+            Action::new_command_with_argument("world", "change-char-easings-preset", "default"),
+        ),
+        SelectOption::new(
+            "ポップな動き".into(),
+            Action::new_command_with_argument("world", "change-char-easings-preset", "poppy"),
+        ),
+        SelectOption::new(
+            "クールな動き".into(),
+            Action::new_command_with_argument("world", "change-char-easings-preset", "cool"),
+        ),
+        SelectOption::new(
+            "エネルギッシュな動き".into(),
+            Action::new_command_with_argument("world", "change-char-easings-preset", "energetic"),
+        ),
+        SelectOption::new(
+            "優しい動き".into(),
+            Action::new_command_with_argument("world", "change-char-easings-preset", "gentle"),
+        ),
+        SelectOption::new(
+            "ミニマルな動き".into(),
+            Action::new_command_with_argument("world", "change-char-easings-preset", "minimal"),
+        ),
+    ];
+
+    let modal = SelectBox::new(
+        context,
+        "文字のイージングテーマを選択してください".into(),
+        options,
+        None,
+    );
+    add_model_to_world(context, world, Box::new(modal));
+}
+
+world_processor!(
+    WorldChangeCharEasingsPreset,
+    "change-char-easings-preset",
+    change_char_easings_preset
+);
+fn change_char_easings_preset(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    match _arg {
+        ActionArgument::String(preset_name) => {
+            let preset = match preset_name.as_str() {
+                "default" => CharEasingsPreset::Default,
+                "poppy" => CharEasingsPreset::Poppy,
+                "cool" => CharEasingsPreset::Cool,
+                "energetic" => CharEasingsPreset::Energetic,
+                "gentle" => CharEasingsPreset::Gentle,
+                "minimal" => CharEasingsPreset::Minimal,
+                _ => CharEasingsPreset::Default,
+            };
+            world.change_char_easings_preset(preset);
+        }
+        _ => {
+            // Handle invalid argument
+        }
+    }
 }

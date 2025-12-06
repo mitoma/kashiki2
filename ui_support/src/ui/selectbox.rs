@@ -11,7 +11,7 @@ use font_rasterizer::{
     glyph_vertex_buffer::Direction, vector_instances::VectorInstances,
 };
 
-use crate::ui_context::UiContext;
+use crate::ui_context::{CharEasingsPreset, UiContext};
 
 use crate::{
     layout_engine::{Model, ModelBorder},
@@ -497,5 +497,11 @@ impl Model for SelectBox {
 
     fn border(&self) -> ModelBorder {
         self.border
+    }
+
+    fn set_easing_preset(&mut self, preset: CharEasingsPreset) {
+        self.title_text_edit.set_easing_preset(preset);
+        self.search_text_edit.set_easing_preset(preset);
+        self.select_items_text_edit.set_easing_preset(preset);
     }
 }
