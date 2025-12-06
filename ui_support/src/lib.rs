@@ -144,6 +144,7 @@ impl ApplicationHandler for App {
                         callback,
                         font_repository,
                         performance_mode,
+                        flags.contains(Flags::TRANCEPARENT),
                     ));
 
                     // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
@@ -581,6 +582,7 @@ pub async fn generate_images<F>(
         support.callback,
         support.font_repository,
         support.performance_mode,
+        support.flags.contains(Flags::TRANCEPARENT),
     )
     .await;
     state.resize(support.window_size);
@@ -620,6 +622,7 @@ pub async fn generate_image_iter(
         support.callback,
         support.font_repository,
         support.performance_mode,
+        support.flags.contains(Flags::TRANCEPARENT),
     )
     .await;
     state.resize(support.window_size);

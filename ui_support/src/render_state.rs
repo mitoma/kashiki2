@@ -228,6 +228,7 @@ impl RenderState {
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
         font_repository: FontRepository,
         performance_mode: bool,
+        transparent_background: bool,
     ) -> Self {
         let window_size = render_target_request.window_size();
 
@@ -352,13 +353,19 @@ impl RenderState {
 
         // 初期のパイプラインサイズは 256x256 で作成する(window_size が 0 の場合はエラーになるので)
         let initial_pipeline_size = (256, 256);
+
+        let bg_color: wgpu::Color = if transparent_background {
+            wgpu::Color::TRANSPARENT
+        } else {
+            color_theme.background().into()
+        };
         let rasterizer_pipeline = RasterizerPipeline::new(
             &device,
             initial_pipeline_size.0,
             initial_pipeline_size.1,
             render_target.format(),
             quarity,
-            color_theme.background().into(),
+            bg_color,
         );
 
         let font_binaries = font_repository.get_fonts();
@@ -373,8 +380,8 @@ impl RenderState {
         let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
         let (post_action_queue_sender, post_action_queue_receiver) = std::sync::mpsc::channel();
 
-        let [r, g, b] = color_theme.background().get_color();
-        let background_color = EasingPointN::new([r, g, b, 1.0]);
+        let wgpu::Color { r, g, b, a } = bg_color;
+        let background_color = EasingPointN::new([r as f32, g as f32, b as f32, a as f32]);
 
         let state_context = StateContext::new(
             device,

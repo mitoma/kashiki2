@@ -78,6 +78,17 @@ impl ActionRecorder {
         }
     }
 
+    pub fn new_with_time(repository: Box<dyn ActionRecordRepository>, time: u32) -> Self {
+        Self {
+            mode: RecorderMode::None,
+            replay_mode: ReplayMode::Normal,
+            repository,
+            record_data: Vec::new(),
+            replay_queue: VecDeque::new(),
+            pre_time: time,
+        }
+    }
+
     pub fn record(&mut self, action: &Action) {
         if self.mode != RecorderMode::Record {
             return;
@@ -110,6 +121,7 @@ impl ActionRecorder {
                         && command_name == "wait".into() =>
                 {
                     let now = now_millis();
+                    println!("now: {}, pre: {}", now, self.pre_time);
                     let duration = now - self.pre_time;
                     self.pre_time = now;
 
