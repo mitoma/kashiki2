@@ -84,6 +84,27 @@ pub(crate) enum RemoveCharMode {
     Delayed,
 }
 
+/// CharEasings のプリセットを指定するための enum
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CharEasingsPreset {
+    /// デフォルトのアニメーション設定
+    Default,
+    /// 動きのない設定
+    ZeroMotion,
+    /// カメラの影響を受けない設定
+    IgnoreCamera,
+    /// ポップで弾むような動き (Elastic, Bounce 中心)
+    Poppy,
+    /// クールで滑らかな動き (Circ, Quad 中心)
+    Cool,
+    /// エネルギッシュで素早い動き (Back, Expo 中心)
+    Energetic,
+    /// 優しくゆったりした動き (Sin, Cubic 中心、長めの duration)
+    Gentle,
+    /// ミニマルで控えめな動き (Quad のみ、短めの duration)
+    Minimal,
+}
+
 pub(crate) struct CharEasings {
     pub(crate) add_char: GpuEasingConfig,
     pub(crate) move_char: GpuEasingConfig,
@@ -241,6 +262,464 @@ impl CharEasings {
             remove_caret: ignore_camera_config,
         }
     }
+
+    /// ポップで弾むような動きのプリセット。
+    ///
+    /// Elastic と Bounce を活用した楽しく弾むアニメーション。
+    /// カジュアルなUI、ゲーム、子供向けアプリに適しています。
+    pub(crate) fn poppy() -> Self {
+        Self {
+            add_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Elastic, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .build(),
+                duration: Duration::from_millis(600),
+                gain: 1.2,
+            },
+            move_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Bounce, false))
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(400),
+                gain: 0.8,
+            },
+            remove_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Elastic, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS | MotionTarget::ROTATE_Z_PLUS)
+                    .build(),
+                duration: Duration::from_millis(600),
+                gain: 1.2,
+            },
+            remove_char_mode: RemoveCharMode::Delayed,
+            select_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Elastic, false))
+                    .motion_target(MotionTarget::ROTATE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .build(),
+                duration: Duration::from_millis(400),
+                gain: 1.5,
+            },
+            unselect_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Elastic, false))
+                    .motion_target(MotionTarget::ROTATE_Y_MINUX | MotionTarget::STRETCH_X_MINUS)
+                    .build(),
+                duration: Duration::from_millis(400),
+                gain: 1.5,
+            },
+            notify_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Bounce, false))
+                    .motion_target(MotionTarget::STRETCH_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .build(),
+                duration: Duration::from_millis(600),
+                gain: 4.0,
+            },
+            position_easing: CpuEasingConfig::default(),
+            color_easing: CpuEasingConfig::default(),
+            scale_easing: CpuEasingConfig::default(),
+            motion_gain_easing: CpuEasingConfig::default(),
+            add_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Elastic, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(600),
+                gain: 1.2,
+            },
+            move_caret: GpuEasingConfig::default(),
+            remove_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Elastic, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS)
+                    .build(),
+                duration: Duration::from_millis(600),
+                gain: 1.2,
+            },
+        }
+    }
+
+    /// クールで滑らかな動きのプリセット。
+    ///
+    /// Circ と Quad を活用した洗練された滑らかなアニメーション。
+    /// ビジネスアプリ、プロフェッショナルツール、ダッシュボードに適しています。
+    pub(crate) fn cool() -> Self {
+        Self {
+            add_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Circ, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_X_PLUS)
+                    .build(),
+                duration: Duration::from_millis(400),
+                gain: 0.6,
+            },
+            move_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, false))
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(250),
+                gain: 0.3,
+            },
+            remove_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Circ, false))
+                    .motion_target(MotionTarget::MOVE_X_MINUS | MotionTarget::STRETCH_X_MINUS)
+                    .build(),
+                duration: Duration::from_millis(400),
+                gain: 0.6,
+            },
+            remove_char_mode: RemoveCharMode::Delayed,
+            select_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Circ, false))
+                    .motion_target(MotionTarget::ROTATE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 0.8,
+            },
+            unselect_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Circ, false))
+                    .motion_target(MotionTarget::ROTATE_Y_MINUX)
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 0.8,
+            },
+            notify_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, false))
+                    .motion_target(MotionTarget::STRETCH_X_PLUS)
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .build(),
+                duration: Duration::from_millis(400),
+                gain: 2.0,
+            },
+            position_easing: CpuEasingConfig::default(),
+            color_easing: CpuEasingConfig::default(),
+            scale_easing: CpuEasingConfig::default(),
+            motion_gain_easing: CpuEasingConfig::default(),
+            add_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Circ, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(400),
+                gain: 0.6,
+            },
+            move_caret: GpuEasingConfig::default(),
+            remove_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Circ, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS)
+                    .build(),
+                duration: Duration::from_millis(400),
+                gain: 0.6,
+            },
+        }
+    }
+
+    /// エネルギッシュで素早い動きのプリセット。
+    ///
+    /// Back と Expo を活用したダイナミックで力強いアニメーション。
+    /// アクション重視のUI、通知、アラートに適しています。
+    pub(crate) fn energetic() -> Self {
+        Self {
+            add_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Back, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS | MotionTarget::ROTATE_Z_MINUX)
+                    .build(),
+                duration: Duration::from_millis(350),
+                gain: 1.0,
+            },
+            move_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Expo, false))
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(200),
+                gain: 0.7,
+            },
+            remove_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Expo, false))
+                    .motion_target(
+                        MotionTarget::MOVE_Y_MINUS
+                            | MotionTarget::ROTATE_Z_PLUS
+                            | MotionTarget::STRETCH_X_MINUS,
+                    )
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 1.0,
+            },
+            remove_char_mode: RemoveCharMode::Delayed,
+            select_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Back, false))
+                    .motion_target(MotionTarget::ROTATE_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .build(),
+                duration: Duration::from_millis(250),
+                gain: 1.2,
+            },
+            unselect_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Back, false))
+                    .motion_target(MotionTarget::ROTATE_Y_MINUX | MotionTarget::STRETCH_X_MINUS)
+                    .build(),
+                duration: Duration::from_millis(250),
+                gain: 1.2,
+            },
+            notify_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Expo, false))
+                    .motion_target(
+                        MotionTarget::STRETCH_Y_PLUS
+                            | MotionTarget::STRETCH_X_PLUS
+                            | MotionTarget::ROTATE_Z_PLUS,
+                    )
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .build(),
+                duration: Duration::from_millis(400),
+                gain: 3.5,
+            },
+            position_easing: CpuEasingConfig::default(),
+            color_easing: CpuEasingConfig::default(),
+            scale_easing: CpuEasingConfig::default(),
+            motion_gain_easing: CpuEasingConfig::default(),
+            add_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Back, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(350),
+                gain: 1.0,
+            },
+            move_caret: GpuEasingConfig::default(),
+            remove_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Expo, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS)
+                    .build(),
+                duration: Duration::from_millis(300),
+                gain: 1.0,
+            },
+        }
+    }
+
+    /// 優しくゆったりした動きのプリセット。
+    ///
+    /// Sin と Cubic を活用した柔らかくリラックスした長めのアニメーション。
+    /// リーディングアプリ、瞑想アプリ、リラックス系コンテンツに適しています。
+    pub(crate) fn gentle() -> Self {
+        Self {
+            add_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Sin, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(800),
+                gain: 0.5,
+            },
+            move_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Cubic, false))
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(600),
+                gain: 0.3,
+            },
+            remove_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Sin, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS | MotionTarget::STRETCH_X_MINUS)
+                    .build(),
+                duration: Duration::from_millis(800),
+                gain: 0.5,
+            },
+            remove_char_mode: RemoveCharMode::Delayed,
+            select_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Cubic, false))
+                    .motion_target(MotionTarget::ROTATE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 0.7,
+            },
+            unselect_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Cubic, false))
+                    .motion_target(MotionTarget::ROTATE_Y_MINUX)
+                    .build(),
+                duration: Duration::from_millis(500),
+                gain: 0.7,
+            },
+            notify_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, false))
+                    .motion_target(MotionTarget::STRETCH_Y_PLUS | MotionTarget::STRETCH_X_PLUS)
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .build(),
+                duration: Duration::from_millis(700),
+                gain: 2.0,
+            },
+            position_easing: CpuEasingConfig {
+                duration: Duration::from_millis(800),
+                easing_func: nenobi::functions::sin_in_out,
+            },
+            color_easing: CpuEasingConfig {
+                duration: Duration::from_millis(800),
+                easing_func: nenobi::functions::sin_in_out,
+            },
+            scale_easing: CpuEasingConfig {
+                duration: Duration::from_millis(800),
+                easing_func: nenobi::functions::sin_in_out,
+            },
+            motion_gain_easing: CpuEasingConfig {
+                duration: Duration::from_millis(800),
+                easing_func: nenobi::functions::sin_in_out,
+            },
+            add_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Sin, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(800),
+                gain: 0.5,
+            },
+            move_caret: GpuEasingConfig::default(),
+            remove_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Sin, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS)
+                    .build(),
+                duration: Duration::from_millis(800),
+                gain: 0.5,
+            },
+        }
+    }
+
+    /// ミニマルで控えめな動きのプリセット。
+    ///
+    /// Quad のみを使用した短時間で小さな動き。
+    /// データ重視のアプリ、コンソール、ターミナル風UIに適しています。
+    pub(crate) fn minimal() -> Self {
+        Self {
+            add_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Quad, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(200),
+                gain: 0.3,
+            },
+            move_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, false))
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(150),
+                gain: 0.2,
+            },
+            remove_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Quad, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS)
+                    .build(),
+                duration: Duration::from_millis(200),
+                gain: 0.3,
+            },
+            remove_char_mode: RemoveCharMode::Delayed,
+            select_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, false))
+                    .motion_target(MotionTarget::ROTATE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(200),
+                gain: 0.5,
+            },
+            unselect_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, false))
+                    .motion_target(MotionTarget::ROTATE_Y_MINUX)
+                    .build(),
+                duration: Duration::from_millis(200),
+                gain: 0.5,
+            },
+            notify_char: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Quad, false))
+                    .motion_target(MotionTarget::STRETCH_X_PLUS)
+                    .motion_detail(MotionDetail::TURN_BACK)
+                    .build(),
+                duration: Duration::from_millis(250),
+                gain: 1.5,
+            },
+            position_easing: CpuEasingConfig {
+                duration: Duration::from_millis(200),
+                easing_func: nenobi::functions::quad_in_out,
+            },
+            color_easing: CpuEasingConfig {
+                duration: Duration::from_millis(200),
+                easing_func: nenobi::functions::quad_in_out,
+            },
+            scale_easing: CpuEasingConfig {
+                duration: Duration::from_millis(200),
+                easing_func: nenobi::functions::quad_in_out,
+            },
+            motion_gain_easing: CpuEasingConfig {
+                duration: Duration::from_millis(200),
+                easing_func: nenobi::functions::quad_in_out,
+            },
+            add_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseOut(EasingFuncType::Quad, false))
+                    .motion_detail(MotionDetail::TO_CURRENT)
+                    .motion_target(MotionTarget::MOVE_Y_PLUS)
+                    .build(),
+                duration: Duration::from_millis(200),
+                gain: 0.3,
+            },
+            move_caret: GpuEasingConfig::default(),
+            remove_caret: GpuEasingConfig {
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseIn(EasingFuncType::Quad, false))
+                    .motion_target(MotionTarget::MOVE_Y_MINUS)
+                    .build(),
+                duration: Duration::from_millis(200),
+                gain: 0.3,
+            },
+        }
+    }
+
+    /// プリセットから CharEasings を生成する
+    pub fn from_preset(preset: CharEasingsPreset) -> Self {
+        match preset {
+            CharEasingsPreset::Default => Self::default(),
+            CharEasingsPreset::ZeroMotion => Self::zero_motion(),
+            CharEasingsPreset::IgnoreCamera => Self::ignore_camera(),
+            CharEasingsPreset::Poppy => Self::poppy(),
+            CharEasingsPreset::Cool => Self::cool(),
+            CharEasingsPreset::Energetic => Self::energetic(),
+            CharEasingsPreset::Gentle => Self::gentle(),
+            CharEasingsPreset::Minimal => Self::minimal(),
+        }
+    }
 }
 
 pub struct TextContext {
@@ -319,6 +798,12 @@ impl TextContext {
     #[inline]
     pub fn with_max_col(mut self, max_col: usize) -> Self {
         self.max_col = max_col;
+        self
+    }
+
+    #[inline]
+    pub fn with_char_easings_preset(mut self, preset: CharEasingsPreset) -> Self {
+        self.char_easings = CharEasings::from_preset(preset);
         self
     }
 
