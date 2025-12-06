@@ -4,12 +4,14 @@ use text_buffer::action::EditorOperation;
 use ui_support::{
     InputResult, SimpleStateCallback,
     action::ActionProcessorStore,
-    action_recorder::{ActionRecorder, FileActionRecordRepository},
+    action_recorder::{ActionRecordRepository, ActionRecorder},
     camera::CameraAdjustment,
-    layout_engine::{DefaultWorld, World},
-    ui::{ImeInput, TextEdit, caret_char},
+    layout_engine::{DefaultWorld, Model, ModelOperation, World},
+    ui::{ImeInput, TextEdit},
     ui_context::CharEasingsPreset,
 };
+
+use crate::acrion_record_converter::ActionRecordConverter;
 
 pub(crate) struct Callback {
     world: DefaultWorld,
@@ -19,14 +21,16 @@ pub(crate) struct Callback {
 }
 
 impl Callback {
-    pub fn new(window_size: WindowSize) -> Self {
+    pub fn new(
+        window_size: WindowSize,
+        action_record_repository: Box<dyn ActionRecordRepository>,
+    ) -> Self {
         let mut action_processor_store = ActionProcessorStore::default();
         action_processor_store.add_default_system_processors();
         action_processor_store.add_default_edit_processors();
         action_processor_store.add_default_world_processors();
 
-        let repository = FileActionRecordRepository::default();
-        let mut recorder = ActionRecorder::new_with_time(Box::new(repository), 0);
+        let mut recorder = ActionRecorder::new_with_time(action_record_repository, 0);
         recorder.start_replay();
 
         Self {
@@ -41,9 +45,11 @@ impl Callback {
 impl SimpleStateCallback for Callback {
     fn init(&mut self, context: &ui_support::ui_context::UiContext) {
         context.register_string("[]".to_string());
-        let text_edit = TextEdit::default();
+        let mut text_edit = TextEdit::default();
+        text_edit.model_operation(&ModelOperation::ToggleMinBound);
         self.world.add(Box::new(text_edit));
-        self.world.look_current(CameraAdjustment::FitBoth);
+        self.world
+            .look_current(CameraAdjustment::FitBothAndCentering);
         self.world
             .change_char_easings_preset(CharEasingsPreset::Default);
     }
@@ -51,10 +57,11 @@ impl SimpleStateCallback for Callback {
     fn resize(&mut self, _size: WindowSize) {}
 
     fn update(&mut self, context: &ui_support::ui_context::UiContext) {
-        self.world.look_current(CameraAdjustment::FitBoth);
         self.recorder.replay(context);
         self.world.update(context);
         self.ime.update(context);
+        self.world
+            .look_current(CameraAdjustment::FitBothAndCentering);
     }
 
     fn input(

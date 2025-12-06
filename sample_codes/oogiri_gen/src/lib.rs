@@ -1,39 +1,59 @@
+mod acrion_record_converter;
 mod callback;
 
 use std::time::Duration;
 
 use apng::{ParallelEncoder, load_dynamic_image};
-use font_collector::FontRepository;
+use font_collector::{FontCollector, FontRepository};
 use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
 use log::info;
 use ui_support::{Flags, SimpleStateSupport, generate_image_iter};
 
-use crate::callback::Callback;
+use crate::{acrion_record_converter::ActionRecordConverter, callback::Callback};
 
 const FONT_DATA: &[u8] = include_bytes!("../../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../../fonts/NotoEmoji-Regular.ttf");
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
-    let mut font_repository = FontRepository::default();
+    let mut repository = ActionRecordConverter::new();
+    repository.set_direction_vertical();
+    repository.append(
+        r#"どうでもよいことは流行に従い、 
+重大なことは道徳に従い、 
+芸術のことは自分に従う。
+
+　　　　　小津安二郎
+"#,
+    );
+
+    let fps = 24;
+    let sec = repository.all_time_frames().as_secs() as u32 + 2;
+
+    let mut font_collector = FontCollector::default();
+    font_collector.add_system_fonts();
+    let mut font_repository = FontRepository::new(font_collector);
+    ["UD デジタル 教科書体 N", "UD デジタル 教科書体 N-R"]
+        .iter()
+        .for_each(|name| {
+            font_repository.add_fallback_font_from_system(name);
+        });
     font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
     font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
-    let window_size = WindowSize::new(600, 600);
-    let callback = Callback::new(window_size);
+    let window_size = WindowSize::new(300, 400);
+    let callback = Callback::new(window_size, Box::new(repository));
     let support = SimpleStateSupport {
         window_icon: None,
         window_title: "Hello".to_string(),
         window_size,
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
-        color_theme: ColorTheme::Vivid,
-        flags: Flags::DEFAULT,
+        color_theme: ColorTheme::CoolDark,
+        flags: Flags::TRANCEPARENT,
         font_repository,
         performance_mode: false,
     };
-    let fps = 24;
-    let sec = 10;
 
     let path = std::path::Path::new("test-animation.png");
     let frame = apng::Frame {
@@ -57,7 +77,7 @@ pub async fn run() {
         image,
         Some(frame),
         fps * sec,
-        None,
+        Some(1),
         Some(64),
     )
     .unwrap();
