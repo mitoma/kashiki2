@@ -130,6 +130,10 @@ impl ActionProcessor for SystemChangeThemeUi {
                 "Cool Dark".to_string(),
                 Action::new_command_with_argument("system", "change-theme", "cool-dark"),
             ),
+            SelectOption::new(
+                "Vivid".to_string(),
+                Action::new_command_with_argument("system", "change-theme", "vivid"),
+            ),
         ];
         let model = SelectBox::new(
             context,
@@ -173,6 +177,7 @@ impl ActionProcessor for SystemChangeTheme {
                 "warm-dark" => ColorTheme::WarmDark,
                 "cool-light" => ColorTheme::CoolLight,
                 "cool-dark" => ColorTheme::CoolDark,
+                "vivid" => ColorTheme::Vivid,
                 _ => return InputResult::Noop,
             };
             InputResult::ChangeColorTheme(theme)
