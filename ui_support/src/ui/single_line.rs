@@ -8,9 +8,7 @@ use font_rasterizer::{
     motion::MotionFlags, time::now_millis, vector_instances::InstanceAttributes,
 };
 
-use crate::ui_context::UiContext;
-
-use super::get_color;
+use crate::{ui::get_color, ui_context::UiContext};
 
 pub struct SingleLine {
     pub value: String,
