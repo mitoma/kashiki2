@@ -1,5 +1,3 @@
-use std::default;
-
 use clap::{Parser, ValueEnum};
 use font_rasterizer::{color_theme::ColorTheme, context::WindowSize};
 use ui_support::ui_context::CharEasingsPreset;
@@ -18,7 +16,7 @@ pub struct Args {
     pub preset: CharEasingsPresetArg,
     #[arg(short, long, default_value = "solarized-dark")]
     pub color_theme: ColorThemeArg,
-    #[arg(short, long, default_value = "square1x1")]
+    #[arg(short, long, default_value = "square")]
     pub window_size: WindowSizeArg,
 }
 

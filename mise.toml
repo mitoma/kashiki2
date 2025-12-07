@@ -27,12 +27,13 @@ depends = ["build-sites"]
 [tasks.opt-sites]
 description = "Run wasm-opt"
 run = "wasm-opt -Oz -o site/src/wasm/showcase/showcase_bg.wasm site/src/wasm/showcase/showcase_bg.wasm"
-depends = ["bindgen-sites", "oogiri-bindgen-sites"]
+depends = ["bindgen-sites"]
 
 [tasks.dev-sites]
 description = "Run the development server"
 run = "mdbook serve site --open"
-depends = ["bindgen-sites"]
+#depends = ["bindgen-sites", "oogiri-bindgen-sites"]
+depends = ["oogiri-bindgen-sites"]
 
 [tasks.dev-sites-opt]
 description = "Run the development server"

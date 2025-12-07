@@ -58,11 +58,17 @@ impl SimpleStateCallback for Callback {
     fn resize(&mut self, _size: WindowSize) {}
 
     fn update(&mut self, context: &ui_support::ui_context::UiContext) {
+        log::info!("start update!");
+
         self.recorder.replay(context);
+        log::info!("start replayed!");
         self.world.update(context);
+        log::info!("world updated!");
         self.ime.update(context);
+        log::info!("ime updated!");
         self.world
             .look_current(CameraAdjustment::FitBothAndCentering);
+        log::info!("start updated!");
     }
 
     fn input(

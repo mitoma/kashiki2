@@ -2070,6 +2070,7 @@ dependencies = [
  "glam",
  "image",
  "log",
+ "png 0.17.16",
  "pollster",
  "stroke_parser",
  "text_buffer",
