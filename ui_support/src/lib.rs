@@ -179,6 +179,7 @@ impl ApplicationHandler for App {
                             callback,
                             font_repository,
                             performance_mode,
+                            flags.contains(Flags::TRANCEPARENT),
                         )
                         .await;
 

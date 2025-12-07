@@ -6,6 +6,15 @@
 "cargo:wasm-bindgen-cli" = "0.2.105"
 "cargo:cargo-bloat" = "latest"
 
+[tasks.oogiri-build-sites]
+description = "oogiri 用のプロジェクトをビルドする"
+run = "cargo build --target wasm32-unknown-unknown --release -p oogiri_gen"
+
+[tasks.oogiri-bindgen-sites]
+description = "Run wasm-bindgen for oogiri"
+run = "wasm-bindgen target/wasm32-unknown-unknown/release/oogiri_gen.wasm --target web --out-dir site/src/wasm/oogiri_gen"
+depends = ["oogiri-build-sites"]
+
 [tasks.build-sites]
 description = "Showcase 用のプロジェクトをビルドする"
 run = "cargo build --target wasm32-unknown-unknown --release -p showcase"
@@ -18,7 +27,7 @@ depends = ["build-sites"]
 [tasks.opt-sites]
 description = "Run wasm-opt"
 run = "wasm-opt -Oz -o site/src/wasm/showcase/showcase_bg.wasm site/src/wasm/showcase/showcase_bg.wasm"
-depends = ["bindgen-sites"]
+depends = ["bindgen-sites", "oogiri-bindgen-sites"]
 
 [tasks.dev-sites]
 description = "Run the development server"

@@ -318,7 +318,7 @@ impl RenderState {
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
                     view_formats: &[],
                     usage: wgpu::TextureUsages::COPY_SRC
                         | wgpu::TextureUsages::RENDER_ATTACHMENT
@@ -330,7 +330,7 @@ impl RenderState {
                 // create output buffer with proper alignment
                 let padded_bytes_per_row = RenderTarget::padded_bytes_per_row(
                     window_size.width,
-                    wgpu::TextureFormat::Rgba8UnormSrgb,
+                    wgpu::TextureFormat::Rgba8Unorm,
                 );
                 let output_buffer_size =
                     (padded_bytes_per_row * window_size.height) as wgpu::BufferAddress;

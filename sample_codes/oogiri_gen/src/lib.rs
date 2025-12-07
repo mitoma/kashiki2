@@ -1,31 +1,54 @@
 mod acrion_record_converter;
+mod args;
 mod callback;
 
 use std::time::Duration;
 
 use apng::{ParallelEncoder, load_dynamic_image};
+use clap::ValueEnum;
 use font_collector::{FontCollector, FontRepository};
 use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
 use log::info;
-use ui_support::{Flags, SimpleStateSupport, generate_image_iter};
+use ui_support::{Flags, SimpleStateSupport, generate_image_iter, ui_context::CharEasingsPreset};
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
-use crate::{acrion_record_converter::ActionRecordConverter, callback::Callback};
+pub use crate::args::{Args, CharEasingsPresetArg, ColorThemeArg};
+use crate::{
+    acrion_record_converter::ActionRecordConverter, args::WindowSizeArg, callback::Callback,
+};
 
 const FONT_DATA: &[u8] = include_bytes!("../../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../../fonts/NotoEmoji-Regular.ttf");
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
-pub async fn run() {
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+pub async fn run_wasm(
+    target_string: &str,
+    window_size: &str,
+    color_theme: &str,
+    easing_preset: &str,
+) {
+    let window_size = WindowSizeArg::from_str(window_size, true)
+        .unwrap_or_default()
+        .into();
+    let color_theme = ColorThemeArg::from_str(color_theme, true)
+        .unwrap_or_default()
+        .into();
+    let easing_preset = CharEasingsPresetArg::from_str(easing_preset, true)
+        .unwrap_or_default()
+        .into();
+    run(target_string, window_size, color_theme, easing_preset).await
+}
+
+pub async fn run(
+    target_string: &str,
+    window_size: WindowSize,
+    color_theme: ColorTheme,
+    easing_preset: CharEasingsPreset,
+) {
     let mut repository = ActionRecordConverter::new();
     repository.set_direction_vertical();
-    repository.append(
-        r#"どうでもよいことは流行に従い、 
-重大なことは道徳に従い、 
-芸術のことは自分に従う。
-
-　　　　　小津安二郎
-"#,
-    );
+    repository.append(target_string);
 
     let fps = 24;
     let sec = repository.all_time_frames().as_secs() as u32 + 2;
@@ -33,24 +56,28 @@ pub async fn run() {
     let mut font_collector = FontCollector::default();
     font_collector.add_system_fonts();
     let mut font_repository = FontRepository::new(font_collector);
-    ["UD デジタル 教科書体 N", "UD デジタル 教科書体 N-R"]
-        .iter()
-        .for_each(|name| {
-            font_repository.add_fallback_font_from_system(name);
-        });
+    [
+        "Yuji Syuku Regular",
+        "BIZ UDゴシック",
+        "UD デジタル 教科書体 N",
+        "UD デジタル 教科書体 N-R",
+    ]
+    .iter()
+    .for_each(|name| {
+        font_repository.add_fallback_font_from_system(name);
+    });
     font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
     font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
-    let window_size = WindowSize::new(300, 400);
-    let callback = Callback::new(window_size, Box::new(repository));
+    let callback = Callback::new(window_size, Box::new(repository), easing_preset);
     let support = SimpleStateSupport {
         window_icon: None,
         window_title: "Hello".to_string(),
         window_size,
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
-        color_theme: ColorTheme::CoolDark,
-        flags: Flags::TRANCEPARENT,
+        color_theme,
+        flags: Flags::DEFAULT,
         font_repository,
         performance_mode: false,
     };

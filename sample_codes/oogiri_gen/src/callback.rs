@@ -11,12 +11,11 @@ use ui_support::{
     ui_context::CharEasingsPreset,
 };
 
-use crate::acrion_record_converter::ActionRecordConverter;
-
 pub(crate) struct Callback {
     world: DefaultWorld,
     action_processor_store: ActionProcessorStore,
     recorder: ActionRecorder,
+    easing_preset: CharEasingsPreset,
     ime: ImeInput,
 }
 
@@ -24,6 +23,7 @@ impl Callback {
     pub fn new(
         window_size: WindowSize,
         action_record_repository: Box<dyn ActionRecordRepository>,
+        easing_preset: CharEasingsPreset,
     ) -> Self {
         let mut action_processor_store = ActionProcessorStore::default();
         action_processor_store.add_default_system_processors();
@@ -37,6 +37,7 @@ impl Callback {
             world: DefaultWorld::new(window_size),
             action_processor_store,
             recorder,
+            easing_preset,
             ime: ImeInput::default(),
         }
     }
@@ -51,7 +52,7 @@ impl SimpleStateCallback for Callback {
         self.world
             .look_current(CameraAdjustment::FitBothAndCentering);
         self.world
-            .change_char_easings_preset(CharEasingsPreset::Default);
+            .change_char_easings_preset(self.easing_preset.clone());
     }
 
     fn resize(&mut self, _size: WindowSize) {}
