@@ -594,15 +594,23 @@ pub async fn generate_images<F>(
             state.shutdown();
             break;
         }
-        state.update();
+        while let Ok(action) = state.action_queue_receiver.try_recv() {
+            let _ = handle_action_result(state.action(action), &mut state);
+        }
 
+        state.update();
         let image = if let RenderTargetResponse::Image(image) = state.render().unwrap() {
-            image
+            image.clone()
         } else {
             panic!("image is not found")
         };
-        callback(image, frame);
         increment_fixed_clock(frame_gain);
+
+        while let Ok(action) = state.post_action_queue_receiver.try_recv() {
+            let _ = handle_action_result(state.action(action), &mut state);
+        }
+
+        callback(image, frame);
         frame += 1;
     }
 }

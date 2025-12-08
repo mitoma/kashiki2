@@ -4,6 +4,7 @@ mod callback;
 
 use std::{
     io::{Cursor, Write},
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -12,7 +13,9 @@ use clap::ValueEnum;
 use font_collector::{FontCollector, FontRepository};
 use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
 use log::info;
-use ui_support::{Flags, SimpleStateSupport, generate_image_iter, ui_context::CharEasingsPreset};
+use ui_support::{
+    Flags, SimpleStateSupport, generate_image_iter, generate_images, ui_context::CharEasingsPreset,
+};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -58,7 +61,7 @@ pub async fn run_native(
     easing_preset: CharEasingsPreset,
 ) {
     let result = run(target_string, window_size, color_theme, easing_preset).await;
-    let mut file = std::fs::File::create("output.png").unwrap();
+    let mut file = std::fs::File::create("target/output.png").unwrap();
     file.write_all(&result).unwrap();
 }
 
@@ -102,6 +105,27 @@ pub async fn run(
     };
     log::info!("frame initialized.");
 
+    // うまくいかない実装（透明な apng になってしまう）
+    let result = Arc::new(Mutex::new(vec![]));
+    let r_clone = result.clone();
+
+    generate_images(
+        support,
+        fps * sec,
+        Duration::from_millis(1000 / fps as u64),
+        move |image, idx| {
+            let dynimage = image::DynamicImage::ImageRgba8(image);
+            let png_image = load_dynamic_image(dynimage).unwrap();
+            r_clone.lock().unwrap().push((png_image, idx));
+        },
+    )
+    .await;
+
+    let image_iter = result.lock().unwrap();
+    let mut image_iter = image_iter.iter();
+
+    /*
+    // うまくいく実装（きちんと apng が出力される）
     let mut image_iter =
         generate_image_iter(support, fps * sec, Duration::from_millis(1000 / fps as u64))
             .await
@@ -110,6 +134,8 @@ pub async fn run(
                 let png_image = load_dynamic_image(dynimage).unwrap();
                 (png_image, index)
             });
+     */
+
     log::info!("image iterator created.");
     let (image, _idx) = image_iter.next().unwrap();
     log::info!("get first frame.");

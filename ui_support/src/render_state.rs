@@ -1,4 +1,7 @@
-use std::sync::{Arc, mpsc::Receiver};
+use std::{
+    os::raw,
+    sync::{Arc, mpsc::Receiver},
+};
 
 use font_collector::FontRepository;
 use font_rasterizer::{
@@ -23,7 +26,7 @@ use crate::{
 };
 
 use stroke_parser::Action;
-use wgpu::{InstanceDescriptor, SurfaceError};
+use wgpu::{InstanceDescriptor, SubmissionIndex, SurfaceError};
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 // レンダリング対象を表す。
@@ -135,11 +138,26 @@ impl RenderTarget {
                         depth_or_array_layers: 1,
                     },
                 );
+                encoder.map_buffer_on_submit(
+                    output_buffer,
+                    wgpu::MapMode::Read,
+                    ..,
+                    Box::new(|result| {
+                        log::info!("mapping buffer on submit completed.");
+                        if let Err(e) = result {
+                            log::error!("Failed to map buffer on submit: {:?}", e);
+                        }
+                    }),
+                );
             }
         }
     }
 
-    fn flush(&mut self, context: &UiContext) -> RenderTargetResponse {
+    fn flush(
+        &mut self,
+        context: &UiContext,
+        submission_index: SubmissionIndex,
+    ) -> RenderTargetResponse {
         match self {
             RenderTarget::Window {
                 surface_texture, ..
@@ -157,19 +175,27 @@ impl RenderTarget {
                 let padded_bytes_per_row = Self::padded_bytes_per_row(size.width, format);
                 let unpadded_bytes_per_row = bytes_per_pixel * size.width;
                 let buffer = {
+                    loop {
+                        log::info!("polling for buffer mapping...");
+                        let result = context
+                            .device()
+                            .poll(wgpu::wgt::PollType::Wait {
+                                submission_index: Some(submission_index.clone()),
+                                timeout: Some(std::time::Duration::from_secs(5)),
+                            })
+                            .unwrap();
+                        log::info!("puipui...:{:?}", result);
+                        match result {
+                            wgpu::PollStatus::QueueEmpty => break,
+                            wgpu::PollStatus::WaitSucceeded => break,
+                            wgpu::PollStatus::Poll => log::warn!("polling..."),
+                        }
+                    }
+
                     let buffer_slice = output_buffer.slice(..);
-
-                    let (tx, rx) = std::sync::mpsc::channel();
-
-                    // NOTE: We have to create the mapping THEN device.poll() before await
-                    // the future. Otherwise the application will freeze.
-                    buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-                        tx.send(result).unwrap();
-                    });
-                    let _ = context.device().poll(wgpu::PollType::wait_indefinitely());
-                    rx.recv().unwrap().unwrap();
-
                     let data = buffer_slice.get_mapped_range();
+
+                    println!("data all zero?: {}", data.iter().find(|data| data != &&0).is_none());
 
                     // パディングを除去して実際の画像データのみを抽出
                     let raw_data = if padded_bytes_per_row == unpadded_bytes_per_row {
@@ -655,9 +681,9 @@ impl RenderState {
 
         self.render_target.pre_submit(&mut encoder, &self.context);
 
-        self.context.queue().submit(Some(encoder.finish()));
+        let submission_index = self.context.queue().submit(Some(encoder.finish()));
 
-        let result = self.render_target.flush(&self.context);
+        let result = self.render_target.flush(&self.context, submission_index);
 
         Ok(result)
     }
