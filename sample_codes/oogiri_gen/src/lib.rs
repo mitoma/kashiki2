@@ -10,7 +10,7 @@ use std::{
 
 use apng::{Config, Encoder, load_dynamic_image};
 use clap::ValueEnum;
-use font_collector::{FontCollector, FontRepository};
+use font_collector::FontRepository;
 use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
 use log::info;
 use ui_support::{
@@ -123,6 +123,8 @@ pub async fn run(
 
     let image_iter = result.lock().unwrap();
     let mut image_iter = image_iter.iter();
+    /*
+     */
 
     /*
     // うまくいく実装（きちんと apng が出力される）
@@ -137,6 +139,7 @@ pub async fn run(
      */
 
     log::info!("image iterator created.");
+    //let (image, _idx) = image_iter.next().unwrap();
     let (image, _idx) = image_iter.next().unwrap();
     log::info!("get first frame.");
 
@@ -147,7 +150,7 @@ pub async fn run(
         num_plays: 1,
         color: image.color_type,
         depth: image.bit_depth,
-        filter: png::FilterType::NoFilter,
+        filter: png::Filter::NoFilter,
     };
     let mut encoder = Encoder::new(&mut writer, config).unwrap();
     encoder.write_frame(&image, frame.clone()).unwrap();

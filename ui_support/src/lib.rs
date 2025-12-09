@@ -590,7 +590,7 @@ pub async fn generate_images<F>(
 
     let mut frame = 0;
     loop {
-        if frame > num_of_frame {
+        if frame >= num_of_frame {
             state.shutdown();
             break;
         }
@@ -599,8 +599,9 @@ pub async fn generate_images<F>(
         }
 
         state.update();
-        let image = if let RenderTargetResponse::Image(image) = state.render().unwrap() {
-            image.clone()
+        let image = if let RenderTargetResponse::Image(image) = state.async_render().await.unwrap()
+        {
+            image
         } else {
             panic!("image is not found")
         };

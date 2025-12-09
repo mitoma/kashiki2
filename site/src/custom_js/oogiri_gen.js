@@ -2,14 +2,26 @@ import init, * as oogiri from "../wasm/oogiri_gen/oogiri_gen.js";
 console.log("hoihoi");
 
 init().then(() => {
-    console.log("WASM module initialized");
-    oogiri.run_wasm("お題をここに入力してください", "", "", "").then((res) => {
-        console.log("hello");
-        const blob = new Blob([result], { type: "image/apng" });
-        const url = URL.createObjectURL(blob);
-        // Display the generated image
-        const img = document.createElement("img");
-        img.src = url;
-        document.body.appendChild(img);
+    document.getElementById("generate-button").addEventListener("click", () => {
+        console.log("WASM module initialized");
+        const message = document.getElementById("message");
+        const imageSizeSelect = document.getElementById("image-size");
+        const selectedSize = imageSizeSelect.value;
+        const themeSelect = document.getElementById("theme-select");
+        const selectedTheme = themeSelect.value;
+        const motionTypeSelect = document.getElementById("motion-type");
+        const selectedMotionType = motionTypeSelect.value;
+        oogiri.run_wasm(message.value, selectedSize, selectedTheme, selectedMotionType).then((res) => {
+            const blob = new Blob([res], { type: "image/apng" });
+            const url = URL.createObjectURL(blob);
+            // Display the generated image
+            const img = document.createElement("img");
+            img.src = url;
+            const output = document.getElementById("output");
+            // Clear previous output
+            output.innerHTML = "";
+            output.appendChild(img);
+        });
     });
 });
+

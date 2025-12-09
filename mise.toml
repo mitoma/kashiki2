@@ -3,7 +3,7 @@
 # sites 用に必要なツールのインストール
 "aqua:WebAssembly/binaryen" = "latest"
 "aqua:mdbook" = "0.5.1"
-"cargo:wasm-bindgen-cli" = "0.2.105"
+"cargo:wasm-bindgen-cli" = "0.2.106"
 "cargo:cargo-bloat" = "latest"
 
 [tasks.oogiri-build-sites]

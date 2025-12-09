@@ -15,6 +15,7 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
+use futures::future;
 
 use crate::ui_context::{Senders, UiContext};
 use image::{DynamicImage, ImageBuffer, Rgba};
@@ -138,6 +139,7 @@ impl RenderTarget {
                         depth_or_array_layers: 1,
                     },
                 );
+                /*
                 encoder.map_buffer_on_submit(
                     output_buffer,
                     wgpu::MapMode::Read,
@@ -149,11 +151,12 @@ impl RenderTarget {
                         }
                     }),
                 );
+                 */
             }
         }
     }
 
-    fn flush(
+    async fn flush(
         &mut self,
         context: &UiContext,
         submission_index: SubmissionIndex,
@@ -175,6 +178,11 @@ impl RenderTarget {
                 let padded_bytes_per_row = Self::padded_bytes_per_row(size.width, format);
                 let unpadded_bytes_per_row = bytes_per_pixel * size.width;
                 let buffer = {
+                    let buffer_slice = output_buffer.slice(..);
+                    let (tx, rx) = futures::channel::oneshot::channel();
+                    buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+                        tx.send(result).unwrap();
+                    });
                     loop {
                         log::info!("polling for buffer mapping...");
                         let result = context
@@ -191,11 +199,15 @@ impl RenderTarget {
                             wgpu::PollStatus::Poll => log::warn!("polling..."),
                         }
                     }
+                    rx.await.unwrap().unwrap();
 
                     let buffer_slice = output_buffer.slice(..);
                     let data = buffer_slice.get_mapped_range();
 
-                    println!("data all zero?: {}", data.iter().find(|data| data != &&0).is_none());
+                    println!(
+                        "data all zero?: {}",
+                        data.iter().find(|data| data != &&0).is_none()
+                    );
 
                     // パディングを除去して実際の画像データのみを抽出
                     let raw_data = if padded_bytes_per_row == unpadded_bytes_per_row {
@@ -684,7 +696,121 @@ impl RenderState {
         let submission_index = self.context.queue().submit(Some(encoder.finish()));
 
         let result = self.render_target.flush(&self.context, submission_index);
+        //Ok(result)
+        todo!()
+    }
 
+    pub(crate) async fn async_render(
+        &mut self,
+    ) -> Result<RenderTargetResponse, wgpu::SurfaceError> {
+        record_start_of_phase("render 0: append glyph");
+        while let Ok(s) = self.ui_string_receiver.try_recv() {
+            let _ = self.glyph_vertex_buffer.append_chars(
+                self.context.device(),
+                self.context.queue(),
+                s.chars().collect(),
+            );
+        }
+
+        record_start_of_phase("render 0: append svg");
+        while let Ok((key, svg)) = self.ui_svg_receiver.try_recv() {
+            let _ = self.svg_vertex_buffer.append_svg(
+                self.context.device(),
+                self.context.queue(),
+                &key,
+                &svg,
+            );
+        }
+
+        record_start_of_phase("render 1: setup encoder");
+        let mut encoder =
+            self.context
+                .device()
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Encoder"),
+                });
+
+        // run all stage
+        record_start_of_phase("render 2: update buffer");
+        self.rasterizer_pipeline.update_buffer(self.context.queue());
+        record_start_of_phase("render 2-2: create texture");
+        let screen_view = self.render_target.get_screen_view()?;
+
+        record_start_of_phase("render 3: callback render");
+        let RenderData {
+            camera,
+            glyph_instances,
+            vector_instances,
+            glyph_instances_for_modal,
+            vector_instances_for_modal,
+        } = self.simple_state_callback.render();
+
+        record_start_of_phase("render 4: run all stage");
+        let buffers = {
+            let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
+                if glyph_instances.is_empty() {
+                    None
+                } else {
+                    Some((&self.glyph_vertex_buffer, &glyph_instances))
+                };
+            let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
+                if vector_instances.is_empty() {
+                    None
+                } else {
+                    Some((
+                        self.svg_vertex_buffer.vector_vertex_buffer(),
+                        &vector_instances,
+                    ))
+                };
+            Buffers {
+                glyph_buffers,
+                vector_buffers,
+            }
+        };
+        let modal_buffers = {
+            let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
+                if glyph_instances_for_modal.is_empty() {
+                    None
+                } else {
+                    Some((&self.glyph_vertex_buffer, &glyph_instances_for_modal))
+                };
+            let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
+                if vector_instances_for_modal.is_empty() {
+                    None
+                } else {
+                    Some((
+                        self.svg_vertex_buffer.vector_vertex_buffer(),
+                        &vector_instances_for_modal,
+                    ))
+                };
+            Buffers {
+                glyph_buffers,
+                vector_buffers,
+            }
+        };
+
+        self.rasterizer_pipeline.run_all_stage(
+            &mut encoder,
+            self.context.device(),
+            self.context.queue(),
+            (
+                camera.build_view_projection_matrix().to_cols_array_2d(),
+                camera
+                    .build_default_view_projection_matrix()
+                    .to_cols_array_2d(),
+            ),
+            buffers,
+            modal_buffers,
+            screen_view,
+        );
+
+        record_start_of_phase("render 5: submit");
+
+        self.render_target.pre_submit(&mut encoder, &self.context);
+
+        let submission_index = self.context.queue().submit(Some(encoder.finish()));
+
+        let result = self.render_target.flush(&self.context, submission_index).await;
         Ok(result)
     }
 
