@@ -2161,6 +2161,7 @@ dependencies = [
  "log",
  "png 0.18.0",
  "pollster",
+ "regex",
  "stroke_parser",
  "text_buffer",
  "ui_support",

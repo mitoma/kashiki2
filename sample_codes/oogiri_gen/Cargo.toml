@@ -22,6 +22,7 @@ image = { workspace = true }
 apng = { workspace = true }
 glam = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+regex = { workspace = true }
 png = "0.18.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

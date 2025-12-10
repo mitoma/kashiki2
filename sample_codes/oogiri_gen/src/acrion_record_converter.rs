@@ -1,3 +1,4 @@
+use regex::Regex;
 use web_time::Duration;
 
 use stroke_parser::{Action, ActionArgument};
@@ -22,9 +23,34 @@ impl ActionRecordConverter {
         let mut actions = target_string
             .lines()
             .flat_map(|line| {
-                line.chars()
+                let re = Regex::new(r"(<bs>|.)").unwrap();
+
+                let tokens: Vec<&str> = re.find_iter(line).map(|m| m.as_str()).collect();
+                tokens
+                    .into_iter()
+                    .flat_map(|token| {
+                        if token == "<bs>" {
+                            vec![Action::Command(
+                                "edit".into(),
+                                "backspace".into(),
+                                ActionArgument::None,
+                            ), wait(200)]
+                        } else {
+                            token
+                                .chars()
+                                .flat_map(|c| [Action::Keytype(c), wait(200)])
+                                .collect()
+                        }
+                    })
+                    .chain([enter(), wait(500)])
+
+                /*
+
+                line.line
+                    .chars()
                     .flat_map(|c| [Action::Keytype(c), wait(200)])
                     .chain([enter(), wait(500)])
+                     */
             })
             .collect();
         self.actions.append(&mut actions);
@@ -67,5 +93,17 @@ impl ActionRecordRepository for ActionRecordConverter {
 
     fn load(&self) -> Vec<Action> {
         self.actions.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_action_record_converter() {
+        let pattern = Regex::new(r"(<bs>|.)").unwrap();
+        let tokens: Vec<&str> = pattern.find_iter("hello<bs>world").map(|m| m.as_str()).collect();
+        println!("{:?}", tokens);
     }
 }
