@@ -1,3 +1,5 @@
+use std::{cell::OnceCell, sync::OnceLock};
+
 use regex::Regex;
 use web_time::Duration;
 
@@ -20,21 +22,25 @@ impl ActionRecordConverter {
     }
 
     pub fn append(&mut self, target_string: &str) {
+        static REGEX: OnceLock<Regex> = OnceLock::new();
+        let re = REGEX.get_or_init(|| Regex::new(r"(<[a-zA-Z0-9]+>|.)").unwrap());
+
         let mut actions = target_string
             .lines()
             .flat_map(|line| {
-                let re = Regex::new(r"(<bs>|.)").unwrap();
-
                 let tokens: Vec<&str> = re.find_iter(line).map(|m| m.as_str()).collect();
                 tokens
                     .into_iter()
                     .flat_map(|token| {
                         if token == "<bs>" {
-                            vec![Action::Command(
-                                "edit".into(),
-                                "backspace".into(),
-                                ActionArgument::None,
-                            ), wait(200)]
+                            vec![
+                                Action::Command(
+                                    "edit".into(),
+                                    "backspace".into(),
+                                    ActionArgument::None,
+                                ),
+                                wait(200),
+                            ]
                         } else {
                             token
                                 .chars()
@@ -102,8 +108,11 @@ mod tests {
 
     #[test]
     fn test_action_record_converter() {
-        let pattern = Regex::new(r"(<bs>|.)").unwrap();
-        let tokens: Vec<&str> = pattern.find_iter("hello<bs>world").map(|m| m.as_str()).collect();
+        let pattern = Regex::new(r"(<[a-zA-Z0-9]+>|.)").unwrap();
+        let tokens: Vec<&str> = pattern
+            .find_iter("hello<bs>world")
+            .map(|m| m.as_str())
+            .collect();
         println!("{:?}", tokens);
     }
 }
