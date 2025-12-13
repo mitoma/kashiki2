@@ -41,6 +41,7 @@ rand = "0.9.2"
 cfg-if = "1.0.4"
 arboard = "3.5.0"
 dirs = "6.0.0"
+futures = "0.3.31"
 
 # 複数のクレートで使用される依存関係
 unicode-width = "0.2.2"
