@@ -9,7 +9,7 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
 };
 
-use crate::ui_context::UiContext;
+use crate::ui_context::{CharEasingsPreset, UiContext};
 
 use crate::{
     layout_engine::{Model, ModelBorder},
@@ -212,5 +212,10 @@ impl Model for TextInput {
 
     fn border(&self) -> ModelBorder {
         self.border
+    }
+
+    fn set_easing_preset(&mut self, preset: CharEasingsPreset) {
+        self.title_text_edit.set_easing_preset(preset);
+        self.input_text_edit.set_easing_preset(preset);
     }
 }

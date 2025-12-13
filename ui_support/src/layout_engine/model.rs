@@ -8,7 +8,7 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
 };
 
-use crate::ui_context::UiContext;
+use crate::ui_context::{CharEasingsPreset, UiContext};
 
 #[derive(Default, Clone, Copy, PartialEq)]
 pub enum ModelBorder {
@@ -44,6 +44,7 @@ pub trait Model {
     fn in_animation(&self) -> bool;
     fn set_border(&mut self, border: ModelBorder);
     fn border(&self) -> ModelBorder;
+    fn set_easing_preset(&mut self, preset: CharEasingsPreset);
 }
 
 pub enum ModelOperation {

@@ -23,7 +23,7 @@ use crate::{
 };
 
 use stroke_parser::Action;
-use wgpu::{InstanceDescriptor, SurfaceError};
+use wgpu::{InstanceDescriptor, SubmissionIndex, SurfaceError};
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 // レンダリング対象を表す。
@@ -139,7 +139,11 @@ impl RenderTarget {
         }
     }
 
-    fn flush(&mut self, context: &UiContext) -> RenderTargetResponse {
+    async fn flush(
+        &mut self,
+        context: &UiContext,
+        submission_index: SubmissionIndex,
+    ) -> RenderTargetResponse {
         match self {
             RenderTarget::Window {
                 surface_texture, ..
@@ -158,17 +162,27 @@ impl RenderTarget {
                 let unpadded_bytes_per_row = bytes_per_pixel * size.width;
                 let buffer = {
                     let buffer_slice = output_buffer.slice(..);
-
-                    let (tx, rx) = std::sync::mpsc::channel();
-
-                    // NOTE: We have to create the mapping THEN device.poll() before await
-                    // the future. Otherwise the application will freeze.
+                    let (tx, rx) = futures::channel::oneshot::channel();
                     buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
                         tx.send(result).unwrap();
                     });
-                    let _ = context.device().poll(wgpu::PollType::wait_indefinitely());
-                    rx.recv().unwrap().unwrap();
+                    loop {
+                        let result = context
+                            .device()
+                            .poll(wgpu::wgt::PollType::Wait {
+                                submission_index: Some(submission_index.clone()),
+                                timeout: Some(std::time::Duration::from_secs(5)),
+                            })
+                            .unwrap();
+                        match result {
+                            wgpu::PollStatus::QueueEmpty => break,
+                            wgpu::PollStatus::WaitSucceeded => break,
+                            wgpu::PollStatus::Poll => log::warn!("polling..."),
+                        }
+                    }
+                    rx.await.unwrap().unwrap();
 
+                    let buffer_slice = output_buffer.slice(..);
                     let data = buffer_slice.get_mapped_range();
 
                     // パディングを除去して実際の画像データのみを抽出
@@ -228,6 +242,7 @@ impl RenderState {
         mut simple_state_callback: Box<dyn SimpleStateCallback>,
         font_repository: FontRepository,
         performance_mode: bool,
+        transparent_background: bool,
     ) -> Self {
         let window_size = render_target_request.window_size();
 
@@ -317,7 +332,7 @@ impl RenderState {
                     mip_level_count: 1,
                     sample_count: 1,
                     dimension: wgpu::TextureDimension::D2,
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    format: wgpu::TextureFormat::Rgba8Unorm,
                     view_formats: &[],
                     usage: wgpu::TextureUsages::COPY_SRC
                         | wgpu::TextureUsages::RENDER_ATTACHMENT
@@ -329,7 +344,7 @@ impl RenderState {
                 // create output buffer with proper alignment
                 let padded_bytes_per_row = RenderTarget::padded_bytes_per_row(
                     window_size.width,
-                    wgpu::TextureFormat::Rgba8UnormSrgb,
+                    wgpu::TextureFormat::Rgba8Unorm,
                 );
                 let output_buffer_size =
                     (padded_bytes_per_row * window_size.height) as wgpu::BufferAddress;
@@ -352,13 +367,19 @@ impl RenderState {
 
         // 初期のパイプラインサイズは 256x256 で作成する(window_size が 0 の場合はエラーになるので)
         let initial_pipeline_size = (256, 256);
+
+        let bg_color: wgpu::Color = if transparent_background {
+            wgpu::Color::TRANSPARENT
+        } else {
+            color_theme.background().into()
+        };
         let rasterizer_pipeline = RasterizerPipeline::new(
             &device,
             initial_pipeline_size.0,
             initial_pipeline_size.1,
             render_target.format(),
             quarity,
-            color_theme.background().into(),
+            bg_color,
         );
 
         let font_binaries = font_repository.get_fonts();
@@ -373,8 +394,8 @@ impl RenderState {
         let (action_queue_sender, action_queue_receiver) = std::sync::mpsc::channel();
         let (post_action_queue_sender, post_action_queue_receiver) = std::sync::mpsc::channel();
 
-        let [r, g, b] = color_theme.background().get_color();
-        let background_color = EasingPointN::new([r, g, b, 1.0]);
+        let wgpu::Color { r, g, b, a } = bg_color;
+        let background_color = EasingPointN::new([r as f32, g as f32, b as f32, a as f32]);
 
         let state_context = StateContext::new(
             device,
@@ -542,7 +563,9 @@ impl RenderState {
         }
     }
 
-    pub(crate) fn render(&mut self) -> Result<RenderTargetResponse, wgpu::SurfaceError> {
+    pub(crate) async fn async_render(
+        &mut self,
+    ) -> Result<RenderTargetResponse, wgpu::SurfaceError> {
         record_start_of_phase("render 0: append glyph");
         while let Ok(s) = self.ui_string_receiver.try_recv() {
             let _ = self.glyph_vertex_buffer.append_chars(
@@ -648,10 +671,12 @@ impl RenderState {
 
         self.render_target.pre_submit(&mut encoder, &self.context);
 
-        self.context.queue().submit(Some(encoder.finish()));
+        let submission_index = self.context.queue().submit(Some(encoder.finish()));
 
-        let result = self.render_target.flush(&self.context);
-
+        let result = self
+            .render_target
+            .flush(&self.context, submission_index)
+            .await;
         Ok(result)
     }
 

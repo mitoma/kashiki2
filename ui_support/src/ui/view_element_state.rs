@@ -22,7 +22,7 @@ use crate::{
     easing_value::EasingPointN,
     layout_engine::ModelAttributes,
     text_instances::{BorderFragment, BorderInstances, BorderType, CaretInstances, TextInstances},
-    ui_context::{GpuEasingConfig, RemoveCharMode, TextContext},
+    ui_context::{CharEasings, GpuEasingConfig, RemoveCharMode, TextContext},
 };
 
 use super::caret_char;
@@ -172,6 +172,7 @@ impl CharStates {
         text_context: &TextContext,
     ) {
         if let Some(c_pos) = self.chars.get_mut(c) {
+            update_easings(c_pos, &text_context.char_easings);
             if let Some(base_color) = update_request.base_color {
                 c_pos.base_color = base_color;
                 let color = if c_pos.in_selection {
@@ -536,6 +537,7 @@ impl CaretStates {
             position: [f32; 3],
             config: &TextContext,
         ) {
+            update_easings(state, &config.char_easings);
             state.position.update(position);
             state.scale.update(config.instance_scale());
             state
@@ -881,4 +883,23 @@ impl BorderStates {
         self.instances
             .add(fragment, InstanceAttributes::default(), device);
     }
+}
+
+fn update_easings(view_char_state: &mut ViewElementState, char_easings: &CharEasings) {
+    view_char_state.position.update_duration_and_easing_func(
+        char_easings.position_easing.duration,
+        char_easings.position_easing.easing_func,
+    );
+    view_char_state.color.update_duration_and_easing_func(
+        char_easings.color_easing.duration,
+        char_easings.color_easing.easing_func,
+    );
+    view_char_state.scale.update_duration_and_easing_func(
+        char_easings.scale_easing.duration,
+        char_easings.scale_easing.easing_func,
+    );
+    view_char_state.motion_gain.update_duration_and_easing_func(
+        char_easings.motion_gain_easing.duration,
+        char_easings.motion_gain_easing.easing_func,
+    );
 }

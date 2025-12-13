@@ -6,7 +6,7 @@ use font_rasterizer::{
     context::WindowSize, glyph_instances::GlyphInstances, vector_instances::VectorInstances,
 };
 
-use crate::ui_context::UiContext;
+use crate::ui_context::{CharEasingsPreset, UiContext};
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraOperation},
@@ -54,6 +54,8 @@ pub trait World {
     fn change_window_size(&mut self, window_size: WindowSize);
     // レイアウトを変更する
     fn change_layout(&mut self, layout: WorldLayout);
+    // 文字のイージングプリセットを変更する
+    fn change_char_easings_preset(&mut self, preset: CharEasingsPreset);
     // レイアウトを返す
     fn layout(&self) -> &WorldLayout;
     // glyph_instances を返す
