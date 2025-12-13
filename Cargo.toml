@@ -80,6 +80,7 @@ windows-future = "0.3.2"
 winresource = "0.1.27"
 
 regex = "1.12.2"
+png = "0.18.0"
 
 [profile.release-optimized]
 inherits = "release"

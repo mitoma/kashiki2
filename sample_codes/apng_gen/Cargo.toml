@@ -23,7 +23,7 @@ apng = { workspace = true }
 glam = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 regex = { workspace = true }
-png = "0.18.0"
+png = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = { workspace = true }
