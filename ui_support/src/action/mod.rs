@@ -104,6 +104,8 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(WorldIncreaseMaxCol));
         self.add_processor(Box::new(WorldDecreaseMaxCol));
         self.add_processor(Box::new(WorldToggleHighlightMode));
+        self.add_processor(Box::new(WorldChangeCharEasingsPresetUi));
+        self.add_processor(Box::new(WorldChangeCharEasingsPreset));
     }
 
     pub fn add_lambda_processor(

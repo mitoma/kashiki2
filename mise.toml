@@ -3,8 +3,17 @@
 # sites 用に必要なツールのインストール
 "aqua:WebAssembly/binaryen" = "latest"
 "aqua:mdbook" = "0.5.1"
-"github:wasm-bindgen/wasm-bindgen" = "0.2.105"
+"github:wasm-bindgen/wasm-bindgen" = "0.2.106"
 "cargo:cargo-bloat" = "latest"
+
+[tasks.apng-build-sites]
+description = "apng 用のプロジェクトをビルドする"
+run = "cargo build --target wasm32-unknown-unknown --release -p apng_gen"
+
+[tasks.apng-bindgen-sites]
+description = "Run wasm-bindgen for apng"
+run = "wasm-bindgen target/wasm32-unknown-unknown/release/apng_gen.wasm --target web --out-dir site/src/wasm/apng_gen"
+depends = ["apng-build-sites"]
 
 [tasks.build-sites]
 description = "Showcase 用のプロジェクトをビルドする"
@@ -23,7 +32,7 @@ depends = ["bindgen-sites"]
 [tasks.dev-sites]
 description = "Run the development server"
 run = "mdbook serve site --open"
-depends = ["bindgen-sites"]
+depends = ["bindgen-sites", "apng-bindgen-sites"]
 
 [tasks.dev-sites-opt]
 description = "Run the development server"

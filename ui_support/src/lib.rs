@@ -11,8 +11,6 @@ pub mod ui;
 pub mod ui_context;
 
 use glam::Mat4;
-use log::warn;
-use pollster::block_on;
 pub use render_state::RenderTargetResponse;
 use text_instances::BorderType;
 use ui::caret_char;
@@ -135,7 +133,7 @@ impl ApplicationHandler for App {
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    let state = block_on(RenderState::new(
+                    let state = futures::executor::block_on(RenderState::new(
                         RenderTargetRequest::Window {
                             window: window.clone(),
                         },
@@ -144,6 +142,7 @@ impl ApplicationHandler for App {
                         callback,
                         font_repository,
                         performance_mode,
+                        flags.contains(Flags::TRANCEPARENT),
                     ));
 
                     // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
@@ -178,6 +177,7 @@ impl ApplicationHandler for App {
                             callback,
                             font_repository,
                             performance_mode,
+                            flags.contains(Flags::TRANCEPARENT),
                         )
                         .await;
 
@@ -362,7 +362,7 @@ impl ApplicationHandler for App {
                         }
                         state.update();
                         record_start_of_phase("state render");
-                        match state.render() {
+                        match futures::executor::block_on(async { state.async_render().await }) {
                             Ok(_) => {}
                             // Reconfigure the surface if it's lost or outdated
                             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -473,7 +473,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         } else {
             match env_logger::try_init() {
                 Ok(_) => {},
-                Err(_) => warn!("Logger is already initialized"),
+                Err(_) => log::warn!("Logger is already initialized"),
             }
             use std::io::Write;
             let default_hook = std::panic::take_hook();
@@ -581,25 +581,35 @@ pub async fn generate_images<F>(
         support.callback,
         support.font_repository,
         support.performance_mode,
+        support.flags.contains(Flags::TRANCEPARENT),
     )
     .await;
     state.resize(support.window_size);
 
     let mut frame = 0;
     loop {
-        if frame > num_of_frame {
+        if frame >= num_of_frame {
             state.shutdown();
             break;
         }
-        state.update();
+        while let Ok(action) = state.action_queue_receiver.try_recv() {
+            let _ = handle_action_result(state.action(action), &mut state);
+        }
 
-        let image = if let RenderTargetResponse::Image(image) = state.render().unwrap() {
+        state.update();
+        let image = if let RenderTargetResponse::Image(image) = state.async_render().await.unwrap()
+        {
             image
         } else {
             panic!("image is not found")
         };
-        callback(image, frame);
         increment_fixed_clock(frame_gain);
+
+        while let Ok(action) = state.post_action_queue_receiver.try_recv() {
+            let _ = handle_action_result(state.action(action), &mut state);
+        }
+
+        callback(image, frame);
         frame += 1;
     }
 }
@@ -620,6 +630,7 @@ pub async fn generate_image_iter(
         support.callback,
         support.font_repository,
         support.performance_mode,
+        support.flags.contains(Flags::TRANCEPARENT),
     )
     .await;
     state.resize(support.window_size);
@@ -630,9 +641,9 @@ pub async fn generate_image_iter(
         }
 
         state.update();
-        let image = if let RenderTargetResponse::Image(image) = state.render().unwrap() {
-            image
-        } else {
+        let Ok(RenderTargetResponse::Image(image)) =
+            futures::executor::block_on(async { state.async_render().await })
+        else {
             panic!("image is not found")
         };
         increment_fixed_clock(frame_gain);

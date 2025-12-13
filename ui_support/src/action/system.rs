@@ -106,6 +106,34 @@ impl ActionProcessor for SystemChangeThemeUi {
                 "Solarized Light".to_string(),
                 Action::new_command_with_argument("system", "change-theme", "light"),
             ),
+            SelectOption::new(
+                "High Contrast Light".to_string(),
+                Action::new_command_with_argument("system", "change-theme", "high-contrast-light"),
+            ),
+            SelectOption::new(
+                "High Contrast Dark".to_string(),
+                Action::new_command_with_argument("system", "change-theme", "high-contrast-dark"),
+            ),
+            SelectOption::new(
+                "Warm Light".to_string(),
+                Action::new_command_with_argument("system", "change-theme", "warm-light"),
+            ),
+            SelectOption::new(
+                "Warm Dark".to_string(),
+                Action::new_command_with_argument("system", "change-theme", "warm-dark"),
+            ),
+            SelectOption::new(
+                "Cool Light".to_string(),
+                Action::new_command_with_argument("system", "change-theme", "cool-light"),
+            ),
+            SelectOption::new(
+                "Cool Dark".to_string(),
+                Action::new_command_with_argument("system", "change-theme", "cool-dark"),
+            ),
+            SelectOption::new(
+                "Vivid".to_string(),
+                Action::new_command_with_argument("system", "change-theme", "vivid"),
+            ),
         ];
         let model = SelectBox::new(
             context,
@@ -143,6 +171,13 @@ impl ActionProcessor for SystemChangeTheme {
                 "light" => ColorTheme::SolarizedLight,
                 "dark" => ColorTheme::SolarizedDark,
                 "black" => ColorTheme::SolarizedBlackback,
+                "high-contrast-light" => ColorTheme::HighContrastLight,
+                "high-contrast-dark" => ColorTheme::HighContrastDark,
+                "warm-light" => ColorTheme::WarmLight,
+                "warm-dark" => ColorTheme::WarmDark,
+                "cool-light" => ColorTheme::CoolLight,
+                "cool-dark" => ColorTheme::CoolDark,
+                "vivid" => ColorTheme::Vivid,
                 _ => return InputResult::Noop,
             };
             InputResult::ChangeColorTheme(theme)

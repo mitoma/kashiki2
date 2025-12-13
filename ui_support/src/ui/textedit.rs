@@ -22,7 +22,7 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
 };
 
-use crate::ui_context::UiContext;
+use crate::ui_context::{CharEasingsPreset, UiContext};
 
 use crate::{
     easing_value::EasingPointN,
@@ -361,6 +361,10 @@ impl Model for TextEdit {
 
     fn border(&self) -> ModelBorder {
         self.border
+    }
+
+    fn set_easing_preset(&mut self, preset: CharEasingsPreset) {
+        self.config.set_char_easings_preset(preset);
     }
 }
 

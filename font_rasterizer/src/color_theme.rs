@@ -1,9 +1,18 @@
+use cached::proc_macro::cached;
+
 #[allow(dead_code)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ColorTheme {
     SolarizedLight,
     SolarizedDark,
     SolarizedBlackback,
+    HighContrastLight,
+    HighContrastDark,
+    WarmLight,
+    WarmDark,
+    CoolLight,
+    CoolDark,
+    Vivid,
     Custom {
         text: Color,
         text_comment: Color,
@@ -39,116 +48,292 @@ impl From<SolarizedColor> for Color {
     }
 }
 
-#[allow(dead_code)]
-impl ColorTheme {
-    pub fn text(&self) -> Color {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base00.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base0.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base0.into(),
-            ColorTheme::Custom { text, .. } => *text,
-        }
-    }
-
-    pub fn text_comment(&self) -> Color {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base1.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base01.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base01.into(),
-            ColorTheme::Custom { text_comment, .. } => *text_comment,
-        }
-    }
-
-    pub fn text_emphasized(&self) -> Color {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base01.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base1.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base1.into(),
-            ColorTheme::Custom {
-                text_emphasized, ..
-            } => *text_emphasized,
-        }
-    }
-
-    pub fn background(&self) -> Color {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base3.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base03.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Black.into(),
-            ColorTheme::Custom { background, .. } => *background,
-        }
-    }
-
-    pub fn background_highlights(&self) -> Color {
-        match self {
-            ColorTheme::SolarizedLight => SolarizedColor::Base2.into(),
-            ColorTheme::SolarizedDark => SolarizedColor::Base02.into(),
-            ColorTheme::SolarizedBlackback => SolarizedColor::Base02.into(),
-            ColorTheme::Custom {
-                background_highlights,
-                ..
-            } => *background_highlights,
-        }
-    }
-
-    pub fn yellow(&self) -> Color {
-        match self {
-            ColorTheme::Custom { yellow, .. } => *yellow,
-            _ => SolarizedColor::Yellow.into(),
-        }
-    }
-
-    pub fn orange(&self) -> Color {
-        match self {
-            ColorTheme::Custom { orange, .. } => *orange,
-            _ => SolarizedColor::Orange.into(),
-        }
-    }
-
-    pub fn red(&self) -> Color {
-        match self {
-            ColorTheme::Custom { red, .. } => *red,
-            _ => SolarizedColor::Red.into(),
-        }
-    }
-
-    pub fn magenta(&self) -> Color {
-        match self {
-            ColorTheme::Custom { magenta, .. } => *magenta,
-            _ => SolarizedColor::Magenta.into(),
-        }
-    }
-
-    pub fn violet(&self) -> Color {
-        match self {
-            ColorTheme::Custom { violet, .. } => *violet,
-            _ => SolarizedColor::Violet.into(),
-        }
-    }
-
-    pub fn blue(&self) -> Color {
-        match self {
-            ColorTheme::Custom { blue, .. } => *blue,
-            _ => SolarizedColor::Blue.into(),
-        }
-    }
-
-    pub fn cyan(&self) -> Color {
-        match self {
-            ColorTheme::Custom { cyan, .. } => *cyan,
-            _ => SolarizedColor::Cyan.into(),
-        }
-    }
-
-    pub fn green(&self) -> Color {
-        match self {
-            ColorTheme::Custom { green, .. } => *green,
-            _ => SolarizedColor::Green.into(),
-        }
+impl From<(u8, u8, u8)> for Color {
+    fn from((r, g, b): (u8, u8, u8)) -> Self {
+        Self::Custom { r, g, b }
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+impl From<&str> for Color {
+    // #RRGGBB 形式の文字列を Color に変換する
+    fn from(value: &str) -> Self {
+        let value = value.trim();
+        let value = value.strip_prefix('#').unwrap_or(value);
+
+        if value.len() != 6 {
+            // 不正な形式の場合は黒色を返す
+            return Self::Custom { r: 0, g: 0, b: 0 };
+        }
+
+        let r = u8::from_str_radix(&value[0..2], 16).unwrap_or(0);
+        let g = u8::from_str_radix(&value[2..4], 16).unwrap_or(0);
+        let b = u8::from_str_radix(&value[4..6], 16).unwrap_or(0);
+
+        Self::Custom { r, g, b }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct ColorPalette {
+    text: Color,
+    text_comment: Color,
+    text_emphasized: Color,
+    background: Color,
+    background_highlights: Color,
+    yellow: Color,
+    orange: Color,
+    red: Color,
+    magenta: Color,
+    violet: Color,
+    blue: Color,
+    cyan: Color,
+    green: Color,
+}
+
+#[cached]
+fn cached_palette(theme: ColorTheme) -> ColorPalette {
+    match theme {
+        ColorTheme::SolarizedLight => ColorPalette {
+            text: SolarizedColor::Base00.into(),
+            text_comment: SolarizedColor::Base1.into(),
+            text_emphasized: SolarizedColor::Base01.into(),
+            background: SolarizedColor::Base3.into(),
+            background_highlights: SolarizedColor::Base2.into(),
+            yellow: SolarizedColor::Yellow.into(),
+            orange: SolarizedColor::Orange.into(),
+            red: SolarizedColor::Red.into(),
+            magenta: SolarizedColor::Magenta.into(),
+            violet: SolarizedColor::Violet.into(),
+            blue: SolarizedColor::Blue.into(),
+            cyan: SolarizedColor::Cyan.into(),
+            green: SolarizedColor::Green.into(),
+        },
+        ColorTheme::SolarizedDark => ColorPalette {
+            text: SolarizedColor::Base0.into(),
+            text_comment: SolarizedColor::Base01.into(),
+            text_emphasized: SolarizedColor::Base1.into(),
+            background: SolarizedColor::Base03.into(),
+            background_highlights: SolarizedColor::Base02.into(),
+            yellow: SolarizedColor::Yellow.into(),
+            orange: SolarizedColor::Orange.into(),
+            red: SolarizedColor::Red.into(),
+            magenta: SolarizedColor::Magenta.into(),
+            violet: SolarizedColor::Violet.into(),
+            blue: SolarizedColor::Blue.into(),
+            cyan: SolarizedColor::Cyan.into(),
+            green: SolarizedColor::Green.into(),
+        },
+        ColorTheme::SolarizedBlackback => ColorPalette {
+            text: SolarizedColor::Base0.into(),
+            text_comment: SolarizedColor::Base01.into(),
+            text_emphasized: SolarizedColor::Base1.into(),
+            background: SolarizedColor::Black.into(),
+            background_highlights: SolarizedColor::Base02.into(),
+            yellow: SolarizedColor::Yellow.into(),
+            orange: SolarizedColor::Orange.into(),
+            red: SolarizedColor::Red.into(),
+            magenta: SolarizedColor::Magenta.into(),
+            violet: SolarizedColor::Violet.into(),
+            blue: SolarizedColor::Blue.into(),
+            cyan: SolarizedColor::Cyan.into(),
+            green: SolarizedColor::Green.into(),
+        },
+        ColorTheme::HighContrastLight => ColorPalette {
+            text: "#000000".into(),
+            text_comment: "#606060".into(),
+            text_emphasized: "#000000".into(),
+            background: "#FFFFFF".into(),
+            background_highlights: "#F0F0F0".into(),
+            yellow: "#B48200".into(),
+            orange: "#C86400".into(),
+            red: "#B40000".into(),
+            magenta: "#B40078".into(),
+            violet: "#643CB4".into(),
+            blue: "#0050C8".into(),
+            cyan: "#008CA0".into(),
+            green: "#008C00".into(),
+        },
+        ColorTheme::HighContrastDark => ColorPalette {
+            text: "#FFFFFF".into(),
+            text_comment: "#C0C0C0".into(),
+            text_emphasized: "#FFFFFF".into(),
+            background: "#000000".into(),
+            background_highlights: "#202020".into(),
+            yellow: "#FFDC00".into(),
+            orange: "#FFA032".into(),
+            red: "#FF6464".into(),
+            magenta: "#FF78DC".into(),
+            violet: "#B48CFF".into(),
+            blue: "#64B4FF".into(),
+            cyan: "#50DCF0".into(),
+            green: "#64FF64".into(),
+        },
+        ColorTheme::WarmLight => ColorPalette {
+            text: "#503C32".into(),
+            text_comment: "#8C7864".into(),
+            text_emphasized: "#3C281E".into(),
+            background: "#FAF5EB".into(),
+            background_highlights: "#F0E6D2".into(),
+            yellow: "#DCB400".into(),
+            orange: "#E67828".into(),
+            red: "#C83232".into(),
+            magenta: "#C83C8C".into(),
+            violet: "#8C50B4".into(),
+            blue: "#3C64B4".into(),
+            cyan: "#288C8C".into(),
+            green: "#508C3C".into(),
+        },
+        ColorTheme::WarmDark => ColorPalette {
+            text: "#F0E6D2".into(),
+            text_comment: "#B4A591".into(),
+            text_emphasized: "#FFF5E6".into(),
+            background: "#1E1914".into(),
+            background_highlights: "#2D261E".into(),
+            yellow: "#FFDC50".into(),
+            orange: "#FFA050".into(),
+            red: "#FF7878".into(),
+            magenta: "#FF8CC8".into(),
+            violet: "#C8A0FF".into(),
+            blue: "#78B4FF".into(),
+            cyan: "#50DCFF".into(),
+            green: "#8CDC78".into(),
+        },
+        ColorTheme::CoolLight => ColorPalette {
+            text: "#1E3246".into(),
+            text_comment: "#64788C".into(),
+            text_emphasized: "#142337".into(),
+            background: "#EEF4FC".into(),
+            background_highlights: "#E0EBFA".into(),
+            yellow: "#A08C00".into(),
+            orange: "#B46428".into(),
+            red: "#B43C50".into(),
+            magenta: "#A03C8C".into(),
+            violet: "#6450C8".into(),
+            blue: "#0078DC".into(),
+            cyan: "#00B4C8".into(),
+            green: "#00A078".into(),
+        },
+        ColorTheme::CoolDark => ColorPalette {
+            text: "#DCEBF5".into(),
+            text_comment: "#96AABE".into(),
+            text_emphasized: "#F0FAFF".into(),
+            background: "#0F1B2E".into(),
+            background_highlights: "#162A3F".into(),
+            yellow: "#F0DC64".into(),
+            orange: "#FFB464".into(),
+            red: "#FF8CA0".into(),
+            magenta: "#FF8CC8".into(),
+            violet: "#C8A0FF".into(),
+            blue: "#78B4FF".into(),
+            cyan: "#50DCFF".into(),
+            green: "#8CDC78".into(),
+        },
+        ColorTheme::Vivid => ColorPalette {
+            text: "#003344".into(),
+            text_comment: "#8888FF".into(),
+            text_emphasized: "#005566".into(),
+            background: "#FFFF88".into(),
+            background_highlights: "#CCFFFF".into(),
+            yellow: "#FFFF00".into(),
+            orange: "#FF8800".into(),
+            red: "#FF0000".into(),
+            magenta: "#FF00FF".into(),
+            violet: "#8800FF".into(),
+            blue: "#0088FF".into(),
+            cyan: "#00FFFF".into(),
+            green: "#00FF00".into(),
+        },
+        ColorTheme::Custom {
+            text,
+            text_comment,
+            text_emphasized,
+            background,
+            background_highlights,
+            yellow,
+            orange,
+            red,
+            magenta,
+            violet,
+            blue,
+            cyan,
+            green,
+        } => ColorPalette {
+            text,
+            text_comment,
+            text_emphasized,
+            background,
+            background_highlights,
+            yellow,
+            orange,
+            red,
+            magenta,
+            violet,
+            blue,
+            cyan,
+            green,
+        },
+    }
+}
+
+impl ColorTheme {
+    fn palette(&self) -> ColorPalette {
+        cached_palette(*self)
+    }
+
+    pub fn text(&self) -> Color {
+        self.palette().text
+    }
+
+    pub fn text_comment(&self) -> Color {
+        self.palette().text_comment
+    }
+
+    pub fn text_emphasized(&self) -> Color {
+        self.palette().text_emphasized
+    }
+
+    pub fn background(&self) -> Color {
+        self.palette().background
+    }
+
+    pub fn background_highlights(&self) -> Color {
+        self.palette().background_highlights
+    }
+
+    pub fn yellow(&self) -> Color {
+        self.palette().yellow
+    }
+
+    pub fn orange(&self) -> Color {
+        self.palette().orange
+    }
+
+    pub fn red(&self) -> Color {
+        self.palette().red
+    }
+
+    pub fn magenta(&self) -> Color {
+        self.palette().magenta
+    }
+
+    pub fn violet(&self) -> Color {
+        self.palette().violet
+    }
+
+    pub fn blue(&self) -> Color {
+        self.palette().blue
+    }
+
+    pub fn cyan(&self) -> Color {
+        self.palette().cyan
+    }
+
+    pub fn green(&self) -> Color {
+        self.palette().green
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 
 pub enum Color {
     Solarized(SolarizedColor),
@@ -174,17 +359,29 @@ impl Color {
         match self {
             Color::Solarized(color) => color.get_color(),
             Color::Custom { r, g, b } => {
-                let r = *r as f32 / 255.0;
-                let g = *g as f32 / 255.0;
-                let b = *b as f32 / 255.0;
-                [r, g, b]
+                #[cfg(not(target_family = "wasm"))]
+                {
+                    // Native: sRGB変換
+                    let r = (*r as f32 / 255.0).powf(2.2);
+                    let g = (*g as f32 / 255.0).powf(2.2);
+                    let b = (*b as f32 / 255.0).powf(2.2);
+                    [r, g, b]
+                }
+                #[cfg(target_family = "wasm")]
+                {
+                    // WASM: 線形RGB
+                    let r = *r as f32 / 255.0;
+                    let g = *g as f32 / 255.0;
+                    let b = *b as f32 / 255.0;
+                    [r, g, b]
+                }
             }
         }
     }
 }
 
 #[allow(dead_code)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SolarizedColor {
     Base03,
     Base02,

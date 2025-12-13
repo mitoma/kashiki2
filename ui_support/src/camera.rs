@@ -248,7 +248,7 @@ impl CameraController {
         };
 
         let target_position: Vec3 = if adjustment == CameraAdjustment::FitBothAndCentering {
-            target.position()
+            target.last_position()
         } else {
             target.focus_position()
         };

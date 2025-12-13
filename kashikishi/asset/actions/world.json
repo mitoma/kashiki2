@@ -153,5 +153,10 @@
         "namespace": "world",
         "name": "toggle-highlight-mode",
         "description": "ハイライトモードを切り替える"
+    },
+    {
+        "namespace": "world",
+        "name": "change-char-easings-preset-ui",
+        "description": "文字のイージングプリセットを変更する"
     }
 ]
