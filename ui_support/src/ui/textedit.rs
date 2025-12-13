@@ -107,6 +107,7 @@ impl Model for TextEdit {
             return;
         }
         self.position.update(position.into());
+        self.config_updated = true;
     }
 
     fn position(&self) -> Vec3 {
