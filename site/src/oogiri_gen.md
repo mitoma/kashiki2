@@ -36,4 +36,5 @@
 </select>
 <input id="fps" type="number" value="24" min="1" max="120"/>
 <input id="generate-button" type="button" value="Generate"/>
+<div id="progress"></div>
 <div id="output"></div>

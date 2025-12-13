@@ -57,6 +57,21 @@ pub async fn run_wasm(
         color_theme,
         easing_preset,
         fps_num,
+        Some(Box::new(|idx, total| {
+            #[cfg(target_arch = "wasm32")]
+            web_sys::window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .get_element_by_id("progress")
+                .unwrap()
+                .set_inner_html(&format!(
+                    "Progress: {}/{} ({:.2}%)",
+                    idx,
+                    total,
+                    (idx as f64 / total as f64) * 100.0
+                ));
+        })),
     )
     .await
 }
@@ -68,7 +83,15 @@ pub async fn run_native(
     easing_preset: CharEasingsPreset,
     fps: u32,
 ) {
-    let result = run(target_string, window_size, color_theme, easing_preset, fps).await;
+    let result = run(
+        target_string,
+        window_size,
+        color_theme,
+        easing_preset,
+        fps,
+        None,
+    )
+    .await;
     let mut file = std::fs::File::create("target/output.png").unwrap();
     file.write_all(&result).unwrap();
 }
@@ -79,6 +102,7 @@ pub async fn run(
     color_theme: ColorTheme,
     easing_preset: CharEasingsPreset,
     fps: u32,
+    per_frame_callback: Option<Box<dyn Fn(u32, u32) + Send + 'static>>,
 ) -> Vec<u8> {
     let mut repository = ActionRecordConverter::new();
     repository.set_direction_vertical();
@@ -142,6 +166,9 @@ pub async fn run(
 
             if let Some(enc) = encoder_wrapper.as_mut() {
                 info!("encoding... frame: {}/{}", idx + 1, fps * sec);
+                if let Some(per_frame_callback) = &per_frame_callback {
+                    per_frame_callback(idx + 1, fps * sec);
+                }
                 enc.write_frame(&png_image, frame.clone()).unwrap();
             }
         },
