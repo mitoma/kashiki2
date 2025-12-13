@@ -6,14 +6,14 @@
 "cargo:wasm-bindgen-cli" = "0.2.106"
 "cargo:cargo-bloat" = "latest"
 
-[tasks.oogiri-build-sites]
-description = "oogiri 用のプロジェクトをビルドする"
-run = "cargo build --target wasm32-unknown-unknown --release -p oogiri_gen"
+[tasks.apng-build-sites]
+description = "apng 用のプロジェクトをビルドする"
+run = "cargo build --target wasm32-unknown-unknown --release -p apng_gen"
 
-[tasks.oogiri-bindgen-sites]
-description = "Run wasm-bindgen for oogiri"
-run = "wasm-bindgen target/wasm32-unknown-unknown/release/oogiri_gen.wasm --target web --out-dir site/src/wasm/oogiri_gen"
-depends = ["oogiri-build-sites"]
+[tasks.apng-bindgen-sites]
+description = "Run wasm-bindgen for apng"
+run = "wasm-bindgen target/wasm32-unknown-unknown/release/apng_gen.wasm --target web --out-dir site/src/wasm/apng_gen"
+depends = ["apng-build-sites"]
 
 [tasks.build-sites]
 description = "Showcase 用のプロジェクトをビルドする"
@@ -32,7 +32,7 @@ depends = ["bindgen-sites"]
 [tasks.dev-sites]
 description = "Run the development server"
 run = "mdbook serve site --open"
-depends = ["bindgen-sites", "oogiri-bindgen-sites"]
+depends = ["bindgen-sites", "apng-bindgen-sites"]
 
 [tasks.dev-sites-opt]
 description = "Run the development server"

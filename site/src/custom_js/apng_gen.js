@@ -1,4 +1,4 @@
-import init, * as oogiri from "../wasm/oogiri_gen/oogiri_gen.js";
+import init, * as apng from "../wasm/apng_gen/apng_gen.js";
 console.log("hoihoi");
 
 init().then(() => {
@@ -13,7 +13,7 @@ init().then(() => {
         const selectedMotionType = motionTypeSelect.value;
         const fps = document.getElementById("fps");
         const fpsNum = fps.value;
-        oogiri.run_wasm(message.value, selectedSize, selectedTheme, selectedMotionType, fpsNum).then((res) => {
+        apng.run_wasm(message.value, selectedSize, selectedTheme, selectedMotionType, fpsNum).then((res) => {
             const blob = new Blob([res], { type: "image/apng" });
             const url = URL.createObjectURL(blob);
             // Display the generated image

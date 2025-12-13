@@ -1,5 +1,5 @@
 use clap::Parser;
-use oogiri_gen::{Args, run_native};
+use apng_gen::{Args, run_native};
 
 fn main() {
     let args = Args::parse();

@@ -25,8 +25,8 @@ build_wasm_project() {
 # showcase をビルド
 build_wasm_project "showcase" "${GIT_ROOT_DIR}/sample_codes/showcase"
 
-# oogiri_gen をビルド
-build_wasm_project "oogiri_gen" "${GIT_ROOT_DIR}/sample_codes/oogiri_gen"
+# apng_gen をビルド
+build_wasm_project "apng_gen" "${GIT_ROOT_DIR}/sample_codes/apng_gen"
 
 cd "${GIT_ROOT_DIR}/site"
 mdbook clean

@@ -10,7 +10,7 @@
 
 以下のテキストエリアに文章を入力し、各種設定を選択して「Generate」ボタンを押すと Animation PNG が生成されます。
 
-<script type="module" src="./custom_js/oogiri_gen.js"></script>
+<script type="module" src="./custom_js/apng_gen.js"></script>
 <textarea id="message" cols="100" rows="10">
 &lt;tate&gt;あしびきの
 やまどり&lt;wait-500&gt;&lt;bs&gt;&lt;bs&gt;&lt;bs&gt;&lt;bs&gt;山鳥の尾の

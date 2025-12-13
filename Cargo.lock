@@ -177,6 +177,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "apng_gen"
+version = "0.1.0"
+dependencies = [
+ "apng",
+ "clap",
+ "console_error_panic_hook",
+ "console_log",
+ "env_logger",
+ "font_collector",
+ "font_rasterizer",
+ "getrandom 0.3.4",
+ "glam",
+ "image",
+ "log",
+ "png 0.18.0",
+ "pollster",
+ "regex",
+ "stroke_parser",
+ "text_buffer",
+ "ui_support",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+ "web-time",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2143,35 +2172,6 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
-
-[[package]]
-name = "oogiri_gen"
-version = "0.1.0"
-dependencies = [
- "apng",
- "clap",
- "console_error_panic_hook",
- "console_log",
- "env_logger",
- "font_collector",
- "font_rasterizer",
- "getrandom 0.3.4",
- "glam",
- "image",
- "log",
- "png 0.18.0",
- "pollster",
- "regex",
- "stroke_parser",
- "text_buffer",
- "ui_support",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
- "web-time",
- "wgpu",
- "winit",
-]
 
 [[package]]
 name = "option-ext"
