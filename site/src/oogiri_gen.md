@@ -1,10 +1,21 @@
-# ShowCase
+# 文字アニメーション画像ジェネレーター
+
+| コマンド                           | 説明                       |
+| ---------------------------------- | -------------------------- |
+| `<tate>`, `<vert>`, `<vertical>`   | 縦書きモードに切り替え     |
+| `<yoko>`, `<hori>`, `<horizontal>` | 横書きモードに切り替え     |
+| `<bs>` , `<backspace>`             | 1文字削除                  |
+| `<enter>`, `<return>`              | 改行                       |
+| `<wait-X>`                         | Xミリ秒待機(Xは任意の整数) |
+
+以下のテキストエリアに文章を入力し、各種設定を選択して「Generate」ボタンを押すと Animation PNG が生成されます。
+
 <script type="module" src="./custom_js/oogiri_gen.js"></script>
-<textarea id="message" cols="30" rows="10">
-あしびきの
-山鳥の尾の
+<textarea id="message" cols="100" rows="10">
+&lt;tate&gt;あしびきの
+やまどり&lt;wait-500&gt;&lt;bs&gt;&lt;bs&gt;&lt;bs&gt;&lt;bs&gt;山鳥の尾の
 しだり尾の
-ながながし夜を
+&lt;yoko&gt;ながながし夜を
 ひとりかも寝む
 </textarea>
 <br/>

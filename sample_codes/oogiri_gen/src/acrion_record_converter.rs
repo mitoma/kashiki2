@@ -23,7 +23,7 @@ impl ActionRecordConverter {
 
     pub fn append(&mut self, target_string: &str) {
         static REGEX: OnceLock<Regex> = OnceLock::new();
-        let re = REGEX.get_or_init(|| Regex::new(r"(<[a-zA-Z0-9]+>|.)").unwrap());
+        let re = REGEX.get_or_init(|| Regex::new(r"(<[a-zA-Z0-9-]+>|.)").unwrap());
 
         let mut actions = target_string
             .lines()
@@ -50,6 +50,14 @@ impl ActionRecordConverter {
                         }
                         "<yoko>" | "<hori>" | "<horizontal>" => {
                             vec![direction_horizontal(), wait(200)]
+                        }
+                        token if token.starts_with("<wait-") && token.ends_with('>') => {
+                            let millis_str = &token[6..token.len() - 1];
+                            if let Ok(millis) = millis_str.parse::<u32>() {
+                                vec![wait(millis)]
+                            } else {
+                                vec![]
+                            }
                         }
                         _ => token
                             .chars()
@@ -112,9 +120,9 @@ mod tests {
 
     #[test]
     fn test_action_record_converter() {
-        let pattern = Regex::new(r"(<[a-zA-Z0-9]+>|.)").unwrap();
+        let pattern = Regex::new(r"(<[a-zA-Z0-9-]+>|.)").unwrap();
         let tokens: Vec<&str> = pattern
-            .find_iter("hello<bs>world")
+            .find_iter("hello<bs>world<wait-1000>")
             .map(|m| m.as_str())
             .collect();
         println!("{:?}", tokens);
