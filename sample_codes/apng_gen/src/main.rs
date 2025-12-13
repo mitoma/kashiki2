@@ -1,5 +1,5 @@
-use clap::Parser;
 use apng_gen::{Args, run_native};
+use clap::Parser;
 
 fn main() {
     let args = Args::parse();

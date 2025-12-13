@@ -9,6 +9,7 @@ use std::{
 };
 
 use apng::{Config, Encoder, load_dynamic_image};
+#[cfg(target_arch = "wasm32")]
 use clap::ValueEnum;
 use font_collector::FontRepository;
 use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
@@ -17,10 +18,10 @@ use ui_support::{Flags, SimpleStateSupport, generate_images, ui_context::CharEas
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+#[cfg(target_arch = "wasm32")]
+use crate::args::WindowSizeArg;
 pub use crate::args::{Args, CharEasingsPresetArg, ColorThemeArg};
-use crate::{
-    acrion_record_converter::ActionRecordConverter, args::WindowSizeArg, callback::Callback,
-};
+use crate::{acrion_record_converter::ActionRecordConverter, callback::Callback};
 
 const FONT_DATA: &[u8] = include_bytes!("../../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../../fonts/NotoEmoji-Regular.ttf");
@@ -34,6 +35,7 @@ pub async fn start() {
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+#[cfg(target_arch = "wasm32")]
 pub async fn run_wasm(
     target_string: &str,
     window_size: &str,
@@ -58,7 +60,6 @@ pub async fn run_wasm(
         easing_preset,
         fps_num,
         Some(Box::new(|idx, total| {
-            #[cfg(target_arch = "wasm32")]
             web_sys::window()
                 .unwrap()
                 .document()
