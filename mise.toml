@@ -32,8 +32,7 @@ depends = ["bindgen-sites"]
 [tasks.dev-sites]
 description = "Run the development server"
 run = "mdbook serve site --open"
-#depends = ["bindgen-sites", "oogiri-bindgen-sites"]
-depends = ["oogiri-bindgen-sites"]
+depends = ["bindgen-sites", "oogiri-bindgen-sites"]
 
 [tasks.dev-sites-opt]
 description = "Run the development server"
