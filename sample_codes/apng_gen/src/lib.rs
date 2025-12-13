@@ -42,6 +42,7 @@ pub async fn run_wasm(
     color_theme: &str,
     easing_preset: &str,
     fps: &str,
+    transparent_bg: bool,
 ) -> Vec<u8> {
     let window_size = WindowSizeArg::from_str(window_size, true)
         .unwrap_or_default()
@@ -59,6 +60,7 @@ pub async fn run_wasm(
         color_theme,
         easing_preset,
         fps_num,
+        transparent_bg,
         Some(Box::new(|idx, total| {
             web_sys::window()
                 .unwrap()
@@ -83,6 +85,7 @@ pub async fn run_native(
     color_theme: ColorTheme,
     easing_preset: CharEasingsPreset,
     fps: u32,
+    transparent_bg: bool,
 ) {
     let result = run(
         target_string,
@@ -90,6 +93,7 @@ pub async fn run_native(
         color_theme,
         easing_preset,
         fps,
+        transparent_bg,
         None,
     )
     .await;
@@ -103,6 +107,7 @@ pub async fn run(
     color_theme: ColorTheme,
     easing_preset: CharEasingsPreset,
     fps: u32,
+    transparent_bg: bool,
     per_frame_callback: Option<Box<dyn Fn(u32, u32) + Send + 'static>>,
 ) -> Vec<u8> {
     let mut repository = ActionRecordConverter::new();
@@ -124,7 +129,12 @@ pub async fn run(
         callback: Box::new(callback),
         quarity: Quarity::VeryHigh,
         color_theme,
-        flags: Flags::DEFAULT,
+        flags: Flags::DEFAULT
+            | if transparent_bg {
+                Flags::TRANCEPARENT
+            } else {
+                Flags::empty()
+            },
         font_repository,
         performance_mode: false,
     };

@@ -13,7 +13,9 @@ init().then(() => {
         const selectedMotionType = motionTypeSelect.value;
         const fps = document.getElementById("fps");
         const fpsNum = fps.value;
-        apng.run_wasm(message.value, selectedSize, selectedTheme, selectedMotionType, fpsNum).then((res) => {
+        const transparentBgCheckbox = document.getElementById("transparent-bg");
+        const transparentBg = transparentBgCheckbox.checked ? true : false;
+        apng.run_wasm(message.value, selectedSize, selectedTheme, selectedMotionType, fpsNum, transparentBg).then((res) => {
             const blob = new Blob([res], { type: "image/apng" });
             const url = URL.createObjectURL(blob);
             // Display the generated image

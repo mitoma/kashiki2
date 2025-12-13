@@ -13,5 +13,6 @@ fn main() {
         args.color_theme.into(),
         args.preset.into(),
         24,
+        args.transparent_bg,
     ));
 }

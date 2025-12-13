@@ -18,6 +18,8 @@ pub struct Args {
     pub color_theme: ColorThemeArg,
     #[arg(short, long, default_value = "square")]
     pub window_size: WindowSizeArg,
+    #[arg(long, default_value_t = false)]
+    pub transparent_bg: bool,
 }
 
 #[derive(Clone, Debug, ValueEnum, Default)]
