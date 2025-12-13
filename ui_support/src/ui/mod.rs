@@ -3,6 +3,7 @@ mod ime_input;
 mod select_option;
 mod selectbox;
 mod single_line;
+mod single_svg;
 mod text_input;
 mod textedit;
 mod view_element_state;
@@ -12,6 +13,7 @@ pub use ime_input::ImeInput;
 pub use select_option::SelectOption;
 pub use selectbox::SelectBox;
 pub use single_line::SingleLine;
+pub use single_svg::SingleSvg;
 pub use text_input::TextInput;
 pub use textedit::TextEdit;
 
