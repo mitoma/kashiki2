@@ -7,6 +7,7 @@
 ながながし夜を
 ひとりかも寝む
 </textarea>
+<br/>
 <select id="image-size">
     <option value="square">Square</option>
     <option value="square4x3">Square 4:3</option>
@@ -33,5 +34,6 @@
     <option value="gentle">Gentle</option>
     <option value="minimal">Minimal</option>
 </select>
-<input id="generate-button" type="button" value="Generate">
+<input id="fps" type="number" value="24" min="1" max="120"/>
+<input id="generate-button" type="button" value="Generate"/>
 <div id="output"></div>

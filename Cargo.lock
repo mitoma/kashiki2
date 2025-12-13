@@ -165,7 +165,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 [[package]]
 name = "apng"
 version = "0.3.1"
-source = "git+https://github.com/mitoma/apng?branch=master#a21178296ab0c8da23496251a9e41902472c6583"
+source = "git+https://github.com/mitoma/apng?branch=master#e9f95aeeb7ef8b0078e4e38d048d18a0404cc4ef"
 dependencies = [
  "byteorder",
  "flate2",
@@ -3237,9 +3237,9 @@ dependencies = [
 
 [[package]]
 name = "tree-sitter-language"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4013970217383f67b18aef68f6fb2e8d409bc5755227092d32efb0422ba24b8"
+checksum = "4ae62f7eae5eb549c71b76658648b72cc6111f2d87d24a1e31fa907f4943e3ce"
 
 [[package]]
 name = "tree-sitter-md"

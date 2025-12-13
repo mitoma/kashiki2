@@ -51,24 +51,17 @@ impl SimpleStateCallback for Callback {
         self.world.add(Box::new(text_edit));
         self.world
             .look_current(CameraAdjustment::FitBothAndCentering);
-        self.world
-            .change_char_easings_preset(self.easing_preset.clone());
+        self.world.change_char_easings_preset(self.easing_preset);
     }
 
     fn resize(&mut self, _size: WindowSize) {}
 
     fn update(&mut self, context: &ui_support::ui_context::UiContext) {
-        log::info!("start update!");
-
         self.recorder.replay(context);
-        log::info!("start replayed!");
         self.world.update(context);
-        log::info!("world updated!");
         self.ime.update(context);
-        log::info!("ime updated!");
         self.world
             .look_current(CameraAdjustment::FitBothAndCentering);
-        log::info!("start updated!");
     }
 
     fn input(

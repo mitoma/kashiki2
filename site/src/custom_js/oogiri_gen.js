@@ -11,7 +11,9 @@ init().then(() => {
         const selectedTheme = themeSelect.value;
         const motionTypeSelect = document.getElementById("motion-type");
         const selectedMotionType = motionTypeSelect.value;
-        oogiri.run_wasm(message.value, selectedSize, selectedTheme, selectedMotionType).then((res) => {
+        const fps = document.getElementById("fps");
+        const fpsNum = fps.value;
+        oogiri.run_wasm(message.value, selectedSize, selectedTheme, selectedMotionType, fpsNum).then((res) => {
             const blob = new Blob([res], { type: "image/apng" });
             const url = URL.createObjectURL(blob);
             // Display the generated image

@@ -113,34 +113,41 @@ impl ActionRecorder {
         if self.mode != RecorderMode::Replay {
             return;
         }
-        if let Some(action) = self.replay_queue.pop_front() {
-            match action {
-                // action_recorder::wait は特別な action なので送信しないで replay のタイミングを調整する
-                Action::Command(command_namespace, command_name, ActionArgument::Integer(time))
-                    if command_namespace == "action_recorder".into()
+        loop {
+            if let Some(action) = self.replay_queue.pop_front() {
+                match action {
+                    // action_recorder::wait は特別な action なので送信しないで replay のタイミングを調整する
+                    Action::Command(
+                        command_namespace,
+                        command_name,
+                        ActionArgument::Integer(time),
+                    ) if command_namespace == "action_recorder".into()
                         && command_name == "wait".into() =>
-                {
-                    let now = now_millis();
-                    println!("now: {}, pre: {}", now, self.pre_time);
-                    let duration = now - self.pre_time;
-                    self.pre_time = now;
+                    {
+                        let now = now_millis();
+                        log::info!("now: {}, pre: {}", now, self.pre_time);
+                        let duration = now - self.pre_time;
+                        self.pre_time = now;
 
-                    let duration = match self.replay_mode {
-                        ReplayMode::Normal => duration,
-                        ReplayMode::Fast => duration / 10,
-                    };
-                    if duration < time as u32 {
-                        self.replay_queue.push_front(Action::Command(
-                            command_namespace,
-                            command_name,
-                            ActionArgument::Integer(time - duration as i32),
-                        ));
+                        let duration = match self.replay_mode {
+                            ReplayMode::Normal => duration,
+                            ReplayMode::Fast => duration / 10,
+                        };
+                        if duration < time as u32 {
+                            self.replay_queue.push_front(Action::Command(
+                                command_namespace,
+                                command_name,
+                                ActionArgument::Integer(time - duration as i32),
+                            ));
+                            break;
+                        }
                     }
+                    other => context.register_action(other),
                 }
-                other => context.register_action(other),
+            } else {
+                self.mode = RecorderMode::None;
+                break;
             }
-        } else {
-            self.mode = RecorderMode::None;
         }
     }
 

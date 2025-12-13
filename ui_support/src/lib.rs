@@ -11,8 +11,6 @@ pub mod ui;
 pub mod ui_context;
 
 use glam::Mat4;
-use log::warn;
-use pollster::block_on;
 pub use render_state::RenderTargetResponse;
 use text_instances::BorderType;
 use ui::caret_char;
@@ -135,7 +133,7 @@ impl ApplicationHandler for App {
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    let state = block_on(RenderState::new(
+                    let state = futures::executor::block_on(RenderState::new(
                         RenderTargetRequest::Window {
                             window: window.clone(),
                         },
@@ -364,7 +362,7 @@ impl ApplicationHandler for App {
                         }
                         state.update();
                         record_start_of_phase("state render");
-                        match state.render() {
+                        match futures::executor::block_on(async { state.async_render().await }) {
                             Ok(_) => {}
                             // Reconfigure the surface if it's lost or outdated
                             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -475,7 +473,7 @@ pub async fn run_support(support: SimpleStateSupport) {
         } else {
             match env_logger::try_init() {
                 Ok(_) => {},
-                Err(_) => warn!("Logger is already initialized"),
+                Err(_) => log::warn!("Logger is already initialized"),
             }
             use std::io::Write;
             let default_hook = std::panic::take_hook();
@@ -643,9 +641,9 @@ pub async fn generate_image_iter(
         }
 
         state.update();
-        let image = if let RenderTargetResponse::Image(image) = state.render().unwrap() {
-            image
-        } else {
+        let Ok(RenderTargetResponse::Image(image)) =
+            futures::executor::block_on(async { state.async_render().await })
+        else {
             panic!("image is not found")
         };
         increment_fixed_clock(frame_gain);

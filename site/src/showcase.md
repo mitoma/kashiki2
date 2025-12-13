@@ -5,17 +5,16 @@ This demo use WASM & WebGL.
 
 Click area and edit it!
 <div><canvas id="kashikishi-area"></canvas></div>
-<input id="toggle-direction-button" type="button" value="Toggle direction"></input>
-<input id="centering-button" type="button" value="Fit the entire document"></input>
-<input id="dark-mode-button" type="button" value="Dark mode"></input>
-<input id="light-mode-button" type="button" value="Light mode"></input>
+<input id="toggle-direction-button" type="button" value="Toggle direction"/>
+<input id="centering-button" type="button" value="Fit the entire document"/>
+<input id="dark-mode-button" type="button" value="Dark mode"/>
+<input id="light-mode-button" type="button" value="Light mode"/>
 
-<input id="zoom-in-button" type="button" value="Zoom In"></input>
-<input id="zoom-out-button" type="button" value="Zoom Out"></input>
+<input id="zoom-in-button" type="button" value="Zoom In"/>
+<input id="zoom-out-button" type="button" value="Zoom Out"/>
 
-<input id="change-window-size" type="button" value="Change WindowSize"></input>
-<input id="psychedelic-mode-button" type="button" value="TOGGLE PSYCHEDELIC MODE"></input>
-
+<input id="change-window-size" type="button" value="Change WindowSize"/>
+<input id="psychedelic-mode-button" type="button" value="TOGGLE PSYCHEDELIC MODE"/>
 <script type="module" src="./custom_js/showcase.js"></script>
 
 Usage

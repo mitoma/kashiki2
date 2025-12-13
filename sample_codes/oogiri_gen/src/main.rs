@@ -12,5 +12,6 @@ fn main() {
         args.window_size.into(),
         args.color_theme.into(),
         args.preset.into(),
+        24,
     ));
 }

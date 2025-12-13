@@ -13,9 +13,7 @@ use clap::ValueEnum;
 use font_collector::FontRepository;
 use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
 use log::info;
-use ui_support::{
-    Flags, SimpleStateSupport, generate_image_iter, generate_images, ui_context::CharEasingsPreset,
-};
+use ui_support::{Flags, SimpleStateSupport, generate_images, ui_context::CharEasingsPreset};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -41,6 +39,7 @@ pub async fn run_wasm(
     window_size: &str,
     color_theme: &str,
     easing_preset: &str,
+    fps: &str,
 ) -> Vec<u8> {
     let window_size = WindowSizeArg::from_str(window_size, true)
         .unwrap_or_default()
@@ -51,7 +50,15 @@ pub async fn run_wasm(
     let easing_preset = CharEasingsPresetArg::from_str(easing_preset, true)
         .unwrap_or_default()
         .into();
-    run(target_string, window_size, color_theme, easing_preset).await
+    let fps_num: u32 = fps.parse().unwrap_or(24);
+    run(
+        target_string,
+        window_size,
+        color_theme,
+        easing_preset,
+        fps_num,
+    )
+    .await
 }
 
 pub async fn run_native(
@@ -59,8 +66,9 @@ pub async fn run_native(
     window_size: WindowSize,
     color_theme: ColorTheme,
     easing_preset: CharEasingsPreset,
+    fps: u32,
 ) {
-    let result = run(target_string, window_size, color_theme, easing_preset).await;
+    let result = run(target_string, window_size, color_theme, easing_preset, fps).await;
     let mut file = std::fs::File::create("target/output.png").unwrap();
     file.write_all(&result).unwrap();
 }
@@ -70,12 +78,12 @@ pub async fn run(
     window_size: WindowSize,
     color_theme: ColorTheme,
     easing_preset: CharEasingsPreset,
+    fps: u32,
 ) -> Vec<u8> {
     let mut repository = ActionRecordConverter::new();
     repository.set_direction_vertical();
     repository.append(target_string);
 
-    let fps = 24;
     let sec = repository.all_time_frames().as_secs() as u32 + 2;
 
     let mut font_repository = FontRepository::default();
@@ -97,17 +105,16 @@ pub async fn run(
     };
     log::info!("support initialized.");
 
-    let mut writer: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+    // EncoderをスレッドセーフにするためにArc<Mutex<>>でラップする
+    type EncoderWrapper = Arc<Mutex<Option<Encoder<Cursor<Vec<u8>>>>>>;
+    let encoder: EncoderWrapper = Arc::new(Mutex::new(None));
+    let encoder_clone = encoder.clone();
     let frame = apng::Frame {
         delay_num: Some(1),
         delay_den: Some(fps as u16),
         ..Default::default()
     };
     log::info!("frame initialized.");
-
-    // うまくいかない実装（透明な apng になってしまう）
-    let result = Arc::new(Mutex::new(vec![]));
-    let r_clone = result.clone();
 
     generate_images(
         support,
@@ -116,50 +123,36 @@ pub async fn run(
         move |image, idx| {
             let dynimage = image::DynamicImage::ImageRgba8(image);
             let png_image = load_dynamic_image(dynimage).unwrap();
-            r_clone.lock().unwrap().push((png_image, idx));
+
+            // ロックを1回だけ取得し、このスコープで初期化と書き込みを行う
+            let mut encoder_wrapper = encoder_clone.lock().unwrap();
+            if encoder_wrapper.is_none() {
+                let config = Config {
+                    width: window_size.width,
+                    height: window_size.height,
+                    num_frames: fps * sec,
+                    num_plays: 1,
+                    color: png_image.color_type,
+                    depth: png_image.bit_depth,
+                    filter: png::Filter::NoFilter,
+                };
+                let enc = Encoder::new(Cursor::new(Vec::new()), config).unwrap();
+                encoder_wrapper.replace(enc);
+            }
+
+            if let Some(enc) = encoder_wrapper.as_mut() {
+                info!("encoding... frame: {}/{}", idx + 1, fps * sec);
+                enc.write_frame(&png_image, frame.clone()).unwrap();
+            }
         },
     )
     .await;
 
-    let image_iter = result.lock().unwrap();
-    let mut image_iter = image_iter.iter();
-    /*
-     */
-
-    /*
-    // うまくいく実装（きちんと apng が出力される）
-    let mut image_iter =
-        generate_image_iter(support, fps * sec, Duration::from_millis(1000 / fps as u64))
-            .await
-            .map(|(image, index)| {
-                let dynimage = image::DynamicImage::ImageRgba8(image);
-                let png_image = load_dynamic_image(dynimage).unwrap();
-                (png_image, index)
-            });
-     */
-
-    log::info!("image iterator created.");
-    //let (image, _idx) = image_iter.next().unwrap();
-    let (image, _idx) = image_iter.next().unwrap();
-    log::info!("get first frame.");
-
-    let config = Config {
-        width: window_size.width,
-        height: window_size.height,
-        num_frames: fps * sec,
-        num_plays: 1,
-        color: image.color_type,
-        depth: image.bit_depth,
-        filter: png::Filter::NoFilter,
+    log::info!("finish!");
+    let encoder_lock = encoder.lock().unwrap().take();
+    let Some(mut encoder) = encoder_lock else {
+        panic!("Encoder was not initialized.");
     };
-    let mut encoder = Encoder::new(&mut writer, config).unwrap();
-    encoder.write_frame(&image, frame.clone()).unwrap();
-
-    for (png_image, idx) in image_iter {
-        info!("encoding... frame: {}/{}", idx + 1, fps * sec);
-        encoder.write_frame(&png_image, frame.clone()).unwrap();
-    }
     encoder.finish_encode().unwrap();
-    info!("finish!");
-    writer.into_inner()
+    encoder.get_writer().into_inner()
 }
