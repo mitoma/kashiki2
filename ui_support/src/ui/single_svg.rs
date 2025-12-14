@@ -90,14 +90,12 @@ impl Model for SingleSvg {
 
     fn update(&mut self, context: &crate::ui_context::UiContext) {
         let color = self.themed_color.get_color(context.color_theme());
-
-        self.svg_instance
-            .get_mut(&InstanceKey::Monotonic(1))
-            .map(|attributes| {
-                attributes.position = self.position.current().into();
-                attributes.rotation = Quat::from_array(self.rotation.current());
-                attributes.color = color;
-            });
+        if let Some(attributes) = self.svg_instance.get_mut(&InstanceKey::Monotonic(1)) {
+            attributes.position = self.position.current().into();
+            attributes.rotation = Quat::from_array(self.rotation.current());
+            attributes.color = color;
+            attributes.world_scale = self.world_scale;
+        }
         self.svg_instance
             .update_buffer(context.device(), context.queue());
     }
