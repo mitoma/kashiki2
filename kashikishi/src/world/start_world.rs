@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use font_rasterizer::glyph_vertex_buffer::Direction;
+use font_rasterizer::{color_theme::ThemedColor, glyph_vertex_buffer::Direction};
 use ui_support::{
     InputResult,
     camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, World},
-    ui::{SelectBox, SelectOption},
+    ui::{SelectBox, SelectOption, SingleSvg, StackLayout},
     ui_context::UiContext,
 };
 
@@ -22,6 +22,15 @@ impl StartWorld {
         let mut result = Self {
             world: DefaultWorld::new(context.window_size()),
         };
+
+        let mut layout = StackLayout::new(context.global_direction());
+
+        let logo = SingleSvg::new(
+            include_str!("../../../ui_support/asset/kashikishi-icon-toon-flat.svg").to_string(),
+            context,
+            ThemedColor::Blue,
+        );
+        layout.add_model(Box::new(logo));
 
         let options = vec![
             SelectOption::new(
@@ -44,8 +53,10 @@ impl StartWorld {
             None,
         )
         .without_cancellable();
+        layout.add_model(Box::new(start_select));
+        layout.set_focus_model_index(1);
 
-        result.world.add(Box::new(start_select));
+        result.world.add(Box::new(layout));
         result.world.re_layout();
         result
     }
