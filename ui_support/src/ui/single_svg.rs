@@ -11,7 +11,7 @@ pub struct SingleSvg {
 
     position: EasingPointN<3>,
     rotation: EasingPointN<4>,
-    world_scale: [f32; 2],
+    instance_scale: [f32; 2],
     themed_color: ThemedColor,
 
     bound: EasingPointN<2>,
@@ -32,10 +32,9 @@ impl SingleSvg {
         Self {
             svg_instance,
             themed_color,
-
             position: EasingPointN::new([0.0, 0.0, 0.0]),
             rotation: EasingPointN::new([0.0, 0.0, 0.0, 1.0]),
-            world_scale: [10.0, 10.0],
+            instance_scale: [1.0, 1.0],
             bound: EasingPointN::new([0.0, 0.0]),
         }
     }
@@ -89,12 +88,13 @@ impl Model for SingleSvg {
     }
 
     fn update(&mut self, context: &crate::ui_context::UiContext) {
+        self.bound.update(self.instance_scale);
         let color = self.themed_color.get_color(context.color_theme());
         if let Some(attributes) = self.svg_instance.get_mut(&InstanceKey::Monotonic(1)) {
             attributes.position = self.position.current().into();
             attributes.rotation = Quat::from_array(self.rotation.current());
             attributes.color = color;
-            attributes.world_scale = self.world_scale;
+            attributes.instance_scale = self.instance_scale;
         }
         self.svg_instance
             .update_buffer(context.device(), context.queue());
@@ -114,13 +114,13 @@ impl Model for SingleSvg {
     }
 
     fn in_animation(&self) -> bool {
-        false
+        self.position.in_animation() || self.rotation.in_animation() || self.bound.in_animation()
     }
 
     fn set_border(&mut self, _border: crate::layout_engine::ModelBorder) {}
 
     fn border(&self) -> crate::layout_engine::ModelBorder {
-        todo!()
+        crate::layout_engine::ModelBorder::None
     }
 
     fn set_easing_preset(&mut self, _preset: crate::ui_context::CharEasingsPreset) {}
