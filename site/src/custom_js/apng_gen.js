@@ -16,7 +16,7 @@ async function loadLocalFonts() {
                 family: font.family,
                 fullName: font.fullName || font.family,
                 postscriptName: font.postscriptName,
-                blob: await font.blob(),
+                fontObject: font, // blob は後で取得
             });
         }
         return fonts;
@@ -35,10 +35,12 @@ async function blobToUint8Array(blob) {
 init().then(async () => {
     const generateButton = document.getElementById("generate-button");
     const fontSelect = document.getElementById("font-select");
-    let selectedFontBinary = null;
+    let selectedFontIndex = null;
+    let fonts = [];
 
     // フォント選択のドロップダウン初期化
-    loadLocalFonts().then((fonts) => {
+    loadLocalFonts().then((loadedFonts) => {
+        fonts = loadedFonts;
         // "No local font" オプションを追加
         const option = document.createElement("option");
         option.value = "";
@@ -54,21 +56,19 @@ init().then(async () => {
         });
 
         // フォント選択の変更イベント
-        fontSelect.addEventListener("change", async (e) => {
+        fontSelect.addEventListener("change", (e) => {
             const selectedIndex = parseInt(e.target.value);
             if (isNaN(selectedIndex)) {
-                selectedFontBinary = null;
+                selectedFontIndex = null;
                 console.log("Using embedded fonts");
             } else {
-                selectedFontBinary = await blobToUint8Array(fonts[selectedIndex].blob);
-                console.log(
-                    `Selected font: ${fonts[selectedIndex].fullName}, size: ${selectedFontBinary.length} bytes`
-                );
+                selectedFontIndex = selectedIndex;
+                console.log(`Selected font: ${fonts[selectedIndex].fullName}`);
             }
         });
     });
 
-    generateButton.addEventListener("click", () => {
+    generateButton.addEventListener("click", async () => {
         console.log("WASM module initialized");
         const message = document.getElementById("message");
         const imageSizeSelect = document.getElementById("image-size");
@@ -81,6 +81,17 @@ init().then(async () => {
         const fpsNum = fps.value;
         const transparentBgCheckbox = document.getElementById("transparent-bg");
         const transparentBg = transparentBgCheckbox.checked ? true : false;
+
+        // generateButton を押したときに選択されたフォントの blob を取得
+        let selectedFontBinary = null;
+        if (selectedFontIndex !== null && fonts[selectedFontIndex]) {
+            const blob = await fonts[selectedFontIndex].fontObject.blob();
+            selectedFontBinary = await blobToUint8Array(blob);
+            console.log(
+                `Loading font binary: ${fonts[selectedFontIndex].fullName}, size: ${selectedFontBinary.length} bytes`
+            );
+        }
+
         apng.run_wasm(
             message.value,
             selectedSize,
