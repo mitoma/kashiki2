@@ -13,12 +13,12 @@ use apng::{Config, Encoder, load_dynamic_image};
 use clap::ValueEnum;
 use font_collector::FontRepository;
 use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
+#[cfg(target_arch = "wasm32")]
+use js_sys::Uint8Array;
 use log::info;
 use ui_support::{Flags, SimpleStateSupport, generate_images, ui_context::CharEasingsPreset};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
-use js_sys::Uint8Array;
 
 #[cfg(target_arch = "wasm32")]
 use crate::args::WindowSizeArg;
@@ -46,6 +46,7 @@ pub async fn run_wasm(
     fps: &str,
     transparent_bg: bool,
     font_binary: Option<Uint8Array>,
+    background_image_binary: Option<Uint8Array>,
 ) -> Vec<u8> {
     let window_size = WindowSizeArg::from_str(window_size, true)
         .unwrap_or_default()
@@ -57,10 +58,11 @@ pub async fn run_wasm(
         .unwrap_or_default()
         .into();
     let fps_num: u32 = fps.parse().unwrap_or(24);
-    
+
     // Convert Uint8Array to Vec<u8> if provided
     let font_binary_vec = font_binary.map(|arr| arr.to_vec());
-    
+    let background_image_binary_vec = background_image_binary.map(|arr| arr.to_vec());
+
     run(
         target_string,
         window_size,
@@ -69,6 +71,7 @@ pub async fn run_wasm(
         fps_num,
         transparent_bg,
         font_binary_vec,
+        background_image_binary_vec,
         Some(Box::new(|idx, total| {
             web_sys::window()
                 .unwrap()
@@ -94,6 +97,8 @@ pub async fn run_native(
     easing_preset: CharEasingsPreset,
     fps: u32,
     transparent_bg: bool,
+    font_binary: Option<Vec<u8>>,
+    background_image_binary: Option<Vec<u8>>,
 ) {
     let result = run(
         target_string,
@@ -102,7 +107,8 @@ pub async fn run_native(
         easing_preset,
         fps,
         transparent_bg,
-        None,
+        font_binary,
+        background_image_binary,
         None,
     )
     .await;
@@ -118,6 +124,7 @@ pub async fn run(
     fps: u32,
     transparent_bg: bool,
     font_binary: Option<Vec<u8>>,
+    background_image_binary: Option<Vec<u8>>,
     per_frame_callback: Option<Box<dyn Fn(u32, u32) + Send + 'static>>,
 ) -> Vec<u8> {
     let mut repository = ActionRecordConverter::new();
@@ -135,6 +142,19 @@ pub async fn run(
     font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
     font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
     log::info!("font_repository initialized.");
+
+    // Load background image if provided
+    log::info!("loading background image...");
+    let background_image = background_image_binary.and_then(|data| {
+        image::load_from_memory(&data)
+            .map_err(|e| {
+                log::error!("Failed to load background image: {}", e);
+                e
+            })
+            .ok()
+    });
+    log::info!("image is some?: {}", background_image.is_some());
+
     let callback = Callback::new(window_size, Box::new(repository), easing_preset);
     log::info!("callback new.");
     let support = SimpleStateSupport {
@@ -152,6 +172,7 @@ pub async fn run(
             },
         font_repository,
         performance_mode: false,
+        background_image,
     };
     log::info!("support initialized.");
 

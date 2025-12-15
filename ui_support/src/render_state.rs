@@ -243,6 +243,7 @@ impl RenderState {
         font_repository: FontRepository,
         performance_mode: bool,
         transparent_background: bool,
+        background_image: Option<DynamicImage>,
     ) -> Self {
         let window_size = render_target_request.window_size();
 
@@ -418,7 +419,7 @@ impl RenderState {
 
         simple_state_callback.init(&context);
 
-        Self {
+        let mut render_state = Self {
             context,
             quarity,
 
@@ -431,13 +432,26 @@ impl RenderState {
             simple_state_callback,
 
             background_color,
-            background_image: None,
+            background_image: background_image.clone(),
 
             ui_string_receiver,
             ui_svg_receiver,
             action_queue_receiver,
             post_action_queue_receiver,
+        };
+
+        // Set background image if provided
+        if let Some(ref bg_image) = background_image {
+            render_state.rasterizer_pipeline.set_background_image(
+                render_state.context.device(),
+                render_state.context.queue(),
+                Some(bg_image),
+            );
+            let [r, g, b] = render_state.context.color_theme().background().get_color();
+            render_state.background_color.update([r, g, b, 0.0]);
         }
+
+        render_state
     }
 
     pub(crate) fn redraw(&mut self) {

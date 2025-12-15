@@ -92,6 +92,17 @@ init().then(async () => {
             );
         }
 
+        // 背景画像の blob を取得
+        let backgroundImageBinary = null;
+        const backgroundImageInput = document.getElementById("background-image");
+        if (backgroundImageInput.files && backgroundImageInput.files[0]) {
+            const imageFile = backgroundImageInput.files[0];
+            backgroundImageBinary = await blobToUint8Array(imageFile);
+            console.log(
+                `Loading background image: ${imageFile.name}, size: ${backgroundImageBinary.length} bytes`
+            );
+        }
+
         apng.run_wasm(
             message.value,
             selectedSize,
@@ -99,7 +110,8 @@ init().then(async () => {
             selectedMotionType,
             fpsNum,
             transparentBg,
-            selectedFontBinary
+            selectedFontBinary,
+            backgroundImageBinary
         ).then((res) => {
             const blob = new Blob([res], { type: "image/apng" });
             const url = URL.createObjectURL(blob);

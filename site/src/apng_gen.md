@@ -48,6 +48,10 @@
 </select>
 <input id="fps" type="number" value="24" min="1" max="120"/>
 <input id="transparent-bg" type="checkbox"/><label for="transparent-bg">Transparent Background</label>
+<br/>
+<label for="background-image">Background Image:</label>
+<input id="background-image" type="file" accept="image/*"/>
+<br/>
 <input id="generate-button" type="button" value="Generate"/>
 <div id="progress"></div>
 <div id="output"></div>
