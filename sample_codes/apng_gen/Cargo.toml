@@ -32,6 +32,7 @@ wgpu = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true, features = ["Document", "Window", "Element"] }
+js-sys = "0.3.83"
 # wasm-pack する時に js features を有効にする必要がある。
 # getrandom は複数の crate から間接的に依存されているので本来はもっといい指定の方法があるのではないかと思うが
 # 確たる答はないのでとりあえずこの指定で行く。

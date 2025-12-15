@@ -18,7 +18,8 @@
 &lt;yoko&gt;ながながし夜を
 ひとりかも寝む
 </textarea>
-<br/>
+<select id="font-select">
+</select>
 <select id="image-size">
     <option value="square">Square</option>
     <option value="square4x3">Square 4:3</option>
@@ -46,7 +47,7 @@
     <option value="minimal">Minimal</option>
 </select>
 <input id="fps" type="number" value="24" min="1" max="120"/>
+<input id="transparent-bg" type="checkbox"/><label for="transparent-bg">Transparent Background</label>
 <input id="generate-button" type="button" value="Generate"/>
-<input id="transparent-bg" type="checkbox"/>Transparent Background
 <div id="progress"></div>
 <div id="output"></div>

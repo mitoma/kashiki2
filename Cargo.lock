@@ -190,6 +190,7 @@ dependencies = [
  "getrandom 0.3.4",
  "glam",
  "image",
+ "js-sys",
  "log",
  "png 0.18.0",
  "pollster",
