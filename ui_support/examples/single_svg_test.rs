@@ -43,6 +43,7 @@ pub async fn run() {
         flags: Flags::DEFAULT,
         font_repository,
         performance_mode: false,
+        background_image: None,
     };
 
     info!("start generate images");

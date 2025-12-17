@@ -235,6 +235,7 @@ pub(crate) struct RenderState {
 }
 
 impl RenderState {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn new(
         render_target_request: RenderTargetRequest,
         quarity: Quarity,

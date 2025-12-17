@@ -90,6 +90,7 @@ pub async fn run_wasm(
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_native(
     target_string: &str,
     window_size: WindowSize,
@@ -116,6 +117,7 @@ pub async fn run_native(
     file.write_all(&result).unwrap();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run(
     target_string: &str,
     window_size: WindowSize,
