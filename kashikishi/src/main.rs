@@ -143,6 +143,7 @@ pub async fn run(args: Args) {
         flags: Flags::DEFAULT,
         font_repository,
         performance_mode: args.performance_mode,
+        background_image: None,
     };
     run_support(support).await;
 }

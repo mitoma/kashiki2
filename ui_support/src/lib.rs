@@ -85,6 +85,7 @@ impl ApplicationHandler for App {
             flags,
             font_repository,
             performance_mode,
+            background_image,
         } = self.support.take().expect("Support is not set");
         #[allow(unused_mut)]
         let mut window_attributes = WindowAttributes::default()
@@ -143,6 +144,7 @@ impl ApplicationHandler for App {
                         font_repository,
                         performance_mode,
                         flags.contains(Flags::TRANCEPARENT),
+                        background_image,
                     ));
 
                     // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
@@ -178,6 +180,7 @@ impl ApplicationHandler for App {
                             font_repository,
                             performance_mode,
                             flags.contains(Flags::TRANCEPARENT),
+                            background_image,
                         )
                         .await;
 
@@ -463,6 +466,7 @@ pub struct SimpleStateSupport {
     pub flags: Flags,
     pub font_repository: FontRepository,
     pub performance_mode: bool,
+    pub background_image: Option<DynamicImage>,
 }
 
 pub async fn run_support(support: SimpleStateSupport) {
@@ -582,6 +586,7 @@ pub async fn generate_images<F>(
         support.font_repository,
         support.performance_mode,
         support.flags.contains(Flags::TRANCEPARENT),
+        support.background_image,
     )
     .await;
     state.resize(support.window_size);
@@ -631,6 +636,7 @@ pub async fn generate_image_iter(
         support.font_repository,
         support.performance_mode,
         support.flags.contains(Flags::TRANCEPARENT),
+        support.background_image,
     )
     .await;
     state.resize(support.window_size);

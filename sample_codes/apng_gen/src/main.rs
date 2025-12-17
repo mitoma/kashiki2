@@ -14,5 +14,7 @@ fn main() {
         args.preset.into(),
         24,
         args.transparent_bg,
+        None,
+        Some(include_bytes!("../../../kashikishi/asset/image/wallpaper.jpg").to_vec()),
     ));
 }
