@@ -81,6 +81,7 @@ Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタ�
 
 ### sample_codes/
 - **showcase/**: プロジェクトのデモンストレーション
+- **apng_gen/**: APNG生成ツールのサンプルコード
 - **win_hello/**: Windows向けのHello Worldサンプル
 
 ## ドキュメント・リソース
