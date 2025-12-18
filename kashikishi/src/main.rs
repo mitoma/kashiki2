@@ -12,7 +12,7 @@ mod world;
 use std::{rc::Rc, sync::Mutex};
 
 use arboard::Clipboard;
-use clap::{Parser, command};
+use clap::Parser;
 use font_collector::{FontCollector, FontRepository};
 use rokid_max_ext::RokidMaxAction;
 use stroke_parser::{

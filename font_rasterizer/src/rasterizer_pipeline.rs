@@ -158,7 +158,7 @@ impl RasterizerPipeline {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Background Image Render Pipeline Layout"),
                 bind_group_layouts: &[&background_image_bind_group.layout],
-                push_constant_ranges: &[],
+                immediate_size: 0,
             });
 
         let background_image_render_pipeline =
@@ -200,11 +200,9 @@ impl RasterizerPipeline {
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: None,
                 // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
                 cache: None,
+                multiview_mask: None,
             });
 
         // default screen render pipeline
@@ -216,7 +214,7 @@ impl RasterizerPipeline {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Screen Render Pipeline Layout"),
                 bind_group_layouts: &[&screen_bind_group.layout],
-                push_constant_ranges: &[],
+                immediate_size: 0,
             });
 
         let screen_render_pipeline =
@@ -260,9 +258,9 @@ impl RasterizerPipeline {
                 },
                 // If the pipeline will be used with a multiview render pass, this
                 // indicates how many array layers the attachments will have.
-                multiview: None,
                 // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
                 cache: None,
+                multiview_mask: None,
             });
 
         let screen_render_modal_background_pipeline =
@@ -304,11 +302,9 @@ impl RasterizerPipeline {
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: None,
                 // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
                 cache: None,
+                multiview_mask: None,
             });
 
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
@@ -393,6 +389,7 @@ impl RasterizerPipeline {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
             if has_modal_background {
                 screen_render_pass.set_pipeline(&self.screen_render_modal_background_pipeline);
@@ -446,6 +443,7 @@ impl RasterizerPipeline {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         let Some(background_image_texture) = self.background_image_texture.as_ref() else {

@@ -76,7 +76,7 @@ impl RasterizerRenderrer {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Overlap Render Pipeline Layout"),
                 bind_group_layouts: &[&overlap_bind_group.layout],
-                push_constant_ranges: &[],
+                immediate_size: 0,
             });
 
         let overlap_render_pipeline =
@@ -137,11 +137,9 @@ impl RasterizerRenderrer {
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: None,
                 // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
                 cache: None,
+                multiview_mask: None,
             });
 
         // outline
@@ -164,7 +162,7 @@ impl RasterizerRenderrer {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Outline Render Pipeline Layout"),
                 bind_group_layouts: &[&outline_bind_group.layout],
-                push_constant_ranges: &[],
+                immediate_size: 0,
             });
 
         let outline_render_pipeline =
@@ -206,11 +204,9 @@ impl RasterizerRenderrer {
                     mask: !0,
                     alpha_to_coverage_enabled: false,
                 },
-                // If the pipeline will be used with a multiview render pass, this
-                // indicates how many array layers the attachments will have.
-                multiview: None,
                 // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
                 cache: None,
+                multiview_mask: None,
             });
         let outline_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
@@ -287,6 +283,7 @@ impl RasterizerRenderrer {
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
 
         overlay_render_pass.set_pipeline(&self.overlap_render_pipeline);
@@ -371,6 +368,7 @@ impl RasterizerRenderrer {
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
             outline_render_pass.set_pipeline(&self.outline_render_pipeline);
             outline_render_pass.set_bind_group(0, &self.outline_bind_group.bind_group, &[]);
