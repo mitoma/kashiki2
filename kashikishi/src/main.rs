@@ -320,6 +320,10 @@ impl SimpleStateCallback for KashikishiCallback {
                 context.register_string(value.clone());
                 self.ime
                     .apply_ime_event(&Action::ImeInput(value.clone()), context);
+                // インラインプレエディットをクリア
+                self.world
+                    .get_mut()
+                    .model_operation(&ui_support::layout_engine::ModelOperation::SetPreedit(None));
                 self.world
                     .get_mut()
                     .editor_operation(&EditorOperation::InsertString(value));
@@ -328,7 +332,11 @@ impl SimpleStateCallback for KashikishiCallback {
             Action::ImePreedit(value, position) => {
                 context.register_string(value.clone());
                 self.ime
-                    .apply_ime_event(&Action::ImePreedit(value, position), context);
+                    .apply_ime_event(&Action::ImePreedit(value.clone(), position), context);
+                // フォーカス中の TextEdit にプレエディットを反映
+                self.world.get_mut().model_operation(
+                    &ui_support::layout_engine::ModelOperation::SetPreedit(Some((value, position))),
+                );
                 InputResult::InputConsumed
             }
             Action::ImeEnable => InputResult::Noop,

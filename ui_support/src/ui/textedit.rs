@@ -19,6 +19,7 @@ use font_rasterizer::{
     color_theme::{ColorTheme, ThemedColor},
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
+    vector_instances::InstanceAttributes,
     vector_instances::VectorInstances,
 };
 
@@ -36,6 +37,13 @@ use super::{
     view_element_state::{BorderStates, CaretStates, CharStates, ViewElementStateUpdateRequest},
 };
 
+// IME プレエディットの状態
+#[derive(Clone, Debug)]
+struct PreeditState {
+    value: String,
+    selection: Option<(usize, usize)>,
+}
+
 pub struct TextEdit {
     config: TextContext,
 
@@ -48,6 +56,10 @@ pub struct TextEdit {
     char_states: CharStates,
     caret_states: CaretStates,
     border_states: Option<BorderStates>,
+
+    // IME プレエディットの描画用インスタンス
+    preedit_instances: crate::text_instances::TextInstances,
+    preedit: Option<PreeditState>,
 
     // バッファが更新されたかどうか。カーソルの移動も含む
     buffer_updated: bool,
@@ -86,6 +98,9 @@ impl Default for TextEdit {
             char_states: CharStates::default(),
             caret_states: CaretStates::default(),
             border_states: None,
+
+            preedit_instances: Default::default(),
+            preedit: None,
 
             buffer_updated: true,
             text_updated: true,
@@ -161,7 +176,12 @@ impl Model for TextEdit {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        self.char_states.instances.to_instances()
+        let mut list = self.char_states.instances.to_instances();
+        let mut preedit = self.preedit_instances.to_instances();
+        if !preedit.is_empty() {
+            list.append(&mut preedit);
+        }
+        list
     }
 
     fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
@@ -198,6 +218,14 @@ impl Model for TextEdit {
             let layout = self.calc_phisical_layout(context.char_width_calcurator().clone());
             let bound = self.calc_bound(&layout);
             self.calc_position(context.char_width_calcurator(), &layout, bound);
+            // preedit のレイアウトは buffer のレイアウトに依存するため、同タイミングで再構築する
+            self.rebuild_preedit_instances(
+                device,
+                context.char_width_calcurator(),
+                &layout,
+                bound,
+                color_theme,
+            );
         }
         if self.text_updated {
             self.highlight();
@@ -205,6 +233,7 @@ impl Model for TextEdit {
         self.calc_instance_positions(context.char_width_calcurator());
         self.char_states.instances.update(device, queue);
         self.caret_states.instances.update(device, queue);
+        self.preedit_instances.update(device, queue);
         if let Some(state) = self.border_states.as_mut() {
             state.instances.update(device, queue);
         }
@@ -340,6 +369,14 @@ impl Model for TextEdit {
                 };
                 // バッファを更新したわけではないがハイライトが変わるため text_updated を true にする
                 self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::SetPreedit(opt) => {
+                self.preedit = opt
+                    .clone()
+                    .map(|(value, selection)| PreeditState { value, selection });
+                // レイアウトに依存するので再レイアウト相当の更新を要求
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
         }
@@ -637,6 +674,7 @@ impl TextEdit {
     pub(crate) fn set_config(&mut self, config: TextContext) {
         // direction が変わった場合は char_states の direction も更新する
         self.char_states.instances.set_direction(&config.direction);
+        self.preedit_instances.set_direction(&config.direction);
         self.config = config;
         self.position.update_duration_and_easing_func(
             self.config.char_easings.position_easing.duration,
@@ -647,6 +685,123 @@ impl TextEdit {
             self.config.char_easings.position_easing.easing_func,
         );
         self.config_updated = true;
+    }
+
+    // preedit 用の GlyphInstances を再構築する
+    fn rebuild_preedit_instances(
+        &mut self,
+        device: &wgpu::Device,
+        char_width_calcurator: &CharWidthCalculator,
+        layout: &PhisicalLayout,
+        bound: [f32; 2],
+        color_theme: &ColorTheme,
+    ) {
+        // クリアして作り直す
+        self.preedit_instances = Default::default();
+        self.preedit_instances.set_direction(&self.config.direction);
+
+        let Some(preedit) = self.preedit.as_ref() else {
+            return;
+        };
+
+        // 表示文字列を構築（[center] を挿入）
+        let (first, center, last) = match preedit.selection {
+            Some((start, end)) if start != end => {
+                // split_preedit_string はバイト位置で分割
+                let (f, c, l) = crate::ui::split_preedit_string(preedit.value.clone(), start, end);
+                (f, c, l)
+            }
+            _ => (String::new(), preedit.value.clone(), String::new()),
+        };
+
+        let mut chars: Vec<(char, ThemedColor)> = Vec::new();
+        // first
+        chars.extend(first.chars().map(|c| (c, ThemedColor::Text)));
+        // left bracket
+        if !center.is_empty() {
+            chars.push(('[', ThemedColor::TextComment));
+        }
+        // center
+        chars.extend(center.chars().map(|c| (c, ThemedColor::Text)));
+        // right bracket
+        if !center.is_empty() {
+            chars.push((']', ThemedColor::TextComment));
+        }
+        // last
+        chars.extend(last.chars().map(|c| (c, ThemedColor::Text)));
+
+        if chars.is_empty() {
+            return;
+        }
+
+        // caret の論理位置を基準に配置
+        let row = layout.main_caret_pos.row;
+        let mut col = layout.main_caret_pos.col;
+
+        // モデル属性（ワールド座標変換に必要）
+        let model_attributes = self.model_attributes();
+
+        for (c, themed_color) in chars.into_iter() {
+            // 位置（モデル座標）を算出
+            let width = char_width_calcurator.get_width(c);
+            let position = Self::get_adjusted_position(&self.config, width, bound, [col, row]);
+
+            // インスタンス属性を構築（既定値を基に必要フィールドを初期化）
+            let mut instance = InstanceAttributes {
+                color: themed_color.get_color(color_theme),
+                world_scale: model_attributes.world_scale,
+                ..Default::default()
+            };
+            // 縦書き時の回転
+            let char_rotation = match self.config.direction {
+                Direction::Horizontal => None,
+                Direction::Vertical => match width {
+                    CharWidth::Regular => Some(glam::Quat::from_axis_angle(
+                        glam::Vec3::Z,
+                        -90.0f32.to_radians(),
+                    )),
+                    CharWidth::Wide => None,
+                },
+            };
+            // スケール
+            let scale = self.config.instance_scale();
+            instance.instance_scale = if char_rotation.is_some() {
+                [scale[1], scale[0]]
+            } else {
+                scale
+            };
+
+            // 位置（ワールド座標）と回転
+            let [x, y, z] = position;
+            let pos_local = glam::Vec3::new(
+                x - model_attributes.center.x,
+                y - model_attributes.center.y,
+                z,
+            );
+            let pos_world = (glam::Mat4::from_quat(model_attributes.rotation)
+                * glam::Mat4::from_translation(pos_local))
+            .w_axis;
+            instance.position = glam::Vec3::new(
+                pos_world.x + model_attributes.position.x,
+                pos_world.y + model_attributes.position.y,
+                pos_world.z + model_attributes.position.z,
+            );
+            instance.rotation = match char_rotation {
+                Some(r) => model_attributes.rotation * r,
+                None => model_attributes.rotation,
+            };
+
+            // 追加
+            self.preedit_instances.add_char_at_position(
+                c,
+                CellPosition { row, col },
+                instance,
+                device,
+            );
+
+            // col を前進（1=半角、2=全角）
+            col += char_width_calcurator.resolve_width(c);
+        }
     }
 
     pub(crate) fn direction(&self) -> Direction {

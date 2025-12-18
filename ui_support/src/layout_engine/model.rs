@@ -79,6 +79,9 @@ pub enum ModelOperation {
     IncreaseMaxCol,
     DecreaseMaxCol,
     ToggleHighlightMode,
+    // IME のプレエディット（未確定文字列）をモデルへ設定/解除する
+    // None で解除、Some((value, selection)) で設定
+    SetPreedit(Option<(String, Option<(usize, usize)>)>),
 }
 
 pub enum ModelOperationResult {
