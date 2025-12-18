@@ -1,5 +1,4 @@
 import init, * as apng from "../wasm/apng_gen/apng_gen.js";
-console.log("hoihoi");
 
 // ローカルフォント一覧を取得
 async function loadLocalFonts() {
@@ -35,38 +34,84 @@ async function blobToUint8Array(blob) {
 init().then(async () => {
     const generateButton = document.getElementById("generate-button");
     const fontSelect = document.getElementById("font-select");
+    const enableFontsBtn = document.getElementById("enable-local-fonts");
+    const localFontsStatus = document.getElementById("local-fonts-status");
     let selectedFontIndex = null;
     let fonts = [];
 
-    // フォント選択のドロップダウン初期化
-    loadLocalFonts().then((loadedFonts) => {
-        fonts = loadedFonts;
-        // "No local font" オプションを追加
-        const option = document.createElement("option");
-        option.value = "";
-        option.textContent = "No local font (use embedded)";
-        fontSelect.appendChild(option);
+    // まずは埋め込みフォントのみ選択可能にしておく
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "No local font (use embedded)";
+    fontSelect.appendChild(defaultOption);
 
-        // 取得したフォントをオプションに追加
-        fonts.forEach((font, index) => {
-            const option = document.createElement("option");
-            option.value = index.toString();
-            option.textContent = font.fullName;
-            fontSelect.appendChild(option);
-        });
-
-        // フォント選択の変更イベント
-        fontSelect.addEventListener("change", (e) => {
-            const selectedIndex = parseInt(e.target.value);
-            if (isNaN(selectedIndex)) {
-                selectedFontIndex = null;
-                console.log("Using embedded fonts");
-            } else {
-                selectedFontIndex = selectedIndex;
+    // フォント選択の変更イベント（常時アタッチ）
+    fontSelect.addEventListener("change", (e) => {
+        const selectedIndex = parseInt(e.target.value);
+        if (isNaN(selectedIndex)) {
+            selectedFontIndex = null;
+            console.log("Using embedded fonts");
+        } else {
+            selectedFontIndex = selectedIndex;
+            if (fonts[selectedIndex]) {
                 console.log(`Selected font: ${fonts[selectedIndex].fullName}`);
             }
-        });
+        }
     });
+
+    // クリック（ユーザー操作）でローカルフォントアクセスを要求し、選択肢に追加
+    async function populateLocalFontsViaClick() {
+        if (!("queryLocalFonts" in window)) {
+            console.warn("Local Font Access API is not supported in this browser");
+            if (localFontsStatus) {
+                localFontsStatus.textContent = "Local Font Access API is not supported in this browser.";
+            }
+            return;
+        }
+
+        try {
+            if (localFontsStatus) localFontsStatus.textContent = "Requesting access to local fonts...";
+
+            // ユーザー操作内で実行することでパーミッションプロンプトを表示可能にする
+            const loadedFonts = await loadLocalFonts();
+            fonts = loadedFonts || [];
+
+            // 既存のローカルフォント候補を一旦クリア（先頭の埋め込みオプションは保持）
+            while (fontSelect.options.length > 1) {
+                fontSelect.remove(1);
+            }
+
+            if (fonts.length === 0) {
+                if (localFontsStatus) localFontsStatus.textContent = "No local fonts available or permission denied.";
+            } else {
+                fonts.forEach((font, index) => {
+                    const option = document.createElement("option");
+                    option.value = index.toString();
+                    option.textContent = font.fullName;
+                    fontSelect.appendChild(option);
+                });
+                if (localFontsStatus) localFontsStatus.textContent = "Local fonts enabled.";
+                if (enableFontsBtn) {
+                    enableFontsBtn.disabled = true;
+                    enableFontsBtn.textContent = "Local Fonts Enabled";
+                }
+            }
+        } catch (err) {
+            console.error("Error while enabling local fonts:", err);
+            if (localFontsStatus) localFontsStatus.textContent = "Failed to enable local fonts.";
+        }
+    }
+
+    if (enableFontsBtn) {
+        enableFontsBtn.addEventListener("click", populateLocalFontsViaClick);
+        // 対応可否を表示
+        if (!("queryLocalFonts" in window)) {
+            enableFontsBtn.disabled = true;
+            if (localFontsStatus) {
+                localFontsStatus.textContent = "Local Font Access API is not supported in this browser.";
+            }
+        }
+    }
 
     generateButton.addEventListener("click", async () => {
         console.log("WASM module initialized");

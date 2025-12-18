@@ -54,6 +54,8 @@
         <div class="row">
             <label for="font-select">Font</label>
             <select id="font-select"></select>
+            <button id="enable-local-fonts" type="button" style="margin-top:6px;">Enable Local Fonts</button>
+            <small id="local-fonts-status" style="display:block;opacity:.8;margin-top:4px;"></small>
         </div>
         <div class="row">
             <label for="image-size">Canvas & Ratio</label>
