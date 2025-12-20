@@ -356,17 +356,15 @@ impl Editor {
                 };
                 chars.push((*buffer_char, phisical_position));
 
-                // キャレットの位置を確定（preedit で確定済みなら更新しない）
-                if !main_caret_fixed {
-                    Self::update_caret_position(
-                        &mut main_caret_pos,
-                        &self.main_caret,
-                        buffer_char,
-                        phisical_row,
-                        phisical_col,
-                        char_width,
-                    );
-                }
+                // キャレットの位置を確定
+                Self::update_caret_position(
+                    &mut main_caret_pos,
+                    &self.main_caret,
+                    buffer_char,
+                    phisical_row,
+                    phisical_col,
+                    char_width,
+                );
                 if let Some(mark) = mark_pos.as_mut() {
                     Self::update_caret_position(
                         mark,
@@ -613,7 +611,7 @@ mod tests {
                 mark_pos: Some(PhisicalPosition { row: 0, col: 1 }),
             },
         ];
-        for case in cases.iter() {
+        for (idx, case) in cases.iter().enumerate() {
             let (sender, receiver) = std::sync::mpsc::channel();
             let mut editor = Editor::new(sender.clone());
             case.input.iter().for_each(|op| editor.operation(op));
@@ -625,9 +623,13 @@ mod tests {
                 Arc::new(TestWidthResolver),
                 None,
             );
-            assert_eq!(layout.to_string(), case.output);
-            assert_eq!(layout.main_caret_pos, case.main_caret_pos);
-            assert_eq!(layout.mark_pos, case.mark_pos);
+            assert_eq!(layout.to_string(), case.output, "case index: {}", idx);
+            assert_eq!(
+                layout.main_caret_pos, case.main_caret_pos,
+                "case index: {}",
+                idx
+            );
+            assert_eq!(layout.mark_pos, case.mark_pos, "case index: {}", idx);
         }
     }
 
