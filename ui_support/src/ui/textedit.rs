@@ -23,7 +23,10 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
 };
 
-use crate::ui_context::{CharEasingsPreset, UiContext};
+use crate::{
+    ui::split_preedit_string,
+    ui_context::{CharEasingsPreset, UiContext},
+};
 
 use crate::{
     easing_value::EasingPointN,
@@ -42,6 +45,18 @@ use super::{
 struct PreeditState {
     value: String,
     selection: Option<(usize, usize)>,
+}
+
+impl PreeditState {
+    fn preedit_string(&self) -> String {
+        if let Some((start_bytes, end_bytes)) = self.selection {
+            let (start, middle, end) =
+                split_preedit_string(self.value.to_string(), start_bytes, end_bytes);
+            format!("{}[{}]{}", start, middle, end)
+        } else {
+            format!("[{}]", self.value)
+        }
+    }
 }
 
 pub struct TextEdit {
@@ -308,6 +323,7 @@ impl Model for TextEdit {
                             self.max_display_width(),
                             &self.config.line_prohibited_chars,
                             width_resolver.clone(),
+                            self.preedit.as_ref().map(|p| p.preedit_string()),
                         )
                         .to_string(),
                 );
@@ -520,6 +536,7 @@ impl TextEdit {
             self.max_display_width(),
             &self.config.line_prohibited_chars,
             char_width_calcurator,
+            self.preedit.as_ref().map(|p| p.preedit_string()),
         )
     }
 
