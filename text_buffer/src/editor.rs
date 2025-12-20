@@ -194,245 +194,154 @@ impl Editor {
         width_resolver: Arc<dyn CharWidthResolver>,
         preedit_string: Option<String>,
     ) -> PhisicalLayout {
-        let mut chars = Vec::new();
-        let mut preedit_chars = Vec::new();
-        let mut phisical_row = 0;
-
-        let mut main_caret_pos = PhisicalPosition { row: 0, col: 0 };
-        let mut mark_pos = self.mark.map(|_| PhisicalPosition { row: 0, col: 0 });
-
-        let mut preedit_injected = false;
-        let preedit_opt = preedit_string.map(|s| s.to_string());
+        let mut state = LayoutState::new(self.mark);
+        let preedit_opt = preedit_string.as_ref();
 
         for line in self.buffer.lines.iter() {
-            let mut phisical_col = 0;
+            state.phisical_col = 0;
             let is_caret_row = self.main_caret.position.row == line.row_num;
 
             // 空行に caret だけ存在するケース
             if line.chars.is_empty() {
                 if is_caret_row {
-                    main_caret_pos.row = phisical_row;
-                    main_caret_pos.col = phisical_col;
+                    state.main_caret_pos.row = state.phisical_row;
+                    state.main_caret_pos.col = state.phisical_col;
                 }
-                if let Some(mark) = mark_pos.as_mut()
+                if let Some(mark) = state.mark_pos.as_mut()
                     && self.mark.unwrap().position.row == line.row_num
                 {
-                    mark.row = phisical_row;
-                    mark.col = phisical_col;
+                    mark.row = state.phisical_row;
+                    mark.col = state.phisical_col;
                 }
 
                 // 空行での preedit の挿入（clippy 対応で let-chains を使用）
                 if is_caret_row
-                    && !preedit_injected
-                    && let Some(preedit) = preedit_opt.as_ref()
+                    && !state.preedit_injected
+                    && let Some(preedit) = preedit_opt
                 {
                     // caret 位置は preedit 開始位置（空行なので現在位置）
                     let indent = 0; // 空行ではインデントは 0 とする
-                    for (i, c) in preedit.chars().enumerate() {
-                        let char_width = width_resolver.resolve_width(c);
-                        // 禁則処理（空行なので論理行先頭判定は caret が 0 の時のみ）
-                        let is_line_head = self.main_caret.position.col == 0 && i == 0;
-                        if !is_line_head
-                            && phisical_col + char_width >= max_line_width
-                            && line_boundary_prohibited_chars.end.contains(&c)
-                        {
-                            phisical_row += 1;
-                            phisical_col = indent;
-                        } else if !is_line_head && phisical_col + char_width > max_line_width {
-                            if line_boundary_prohibited_chars.start.contains(&c)
-                                && max_line_width >= phisical_col
-                            {
-                                // 行頭禁則文字の 1 文字だけ改行しない処理
-                            } else {
-                                phisical_row += 1;
-                                phisical_col = indent;
-                            }
-                        }
-
-                        let phisical_position = PhisicalPosition {
-                            row: phisical_row,
-                            col: phisical_col,
-                        };
-                        let logical_pos = [line.row_num, self.main_caret.position.col + i].into();
-                        preedit_chars.push((
-                            BufferChar {
-                                position: logical_pos,
-                                c,
-                            },
-                            phisical_position,
-                        ));
-                        phisical_col += char_width;
-                    }
-                    preedit_injected = true;
+                    self.insert_preedit_chars(
+                        preedit,
+                        line.row_num,
+                        self.main_caret.position.col,
+                        &mut state.phisical_row,
+                        &mut state.phisical_col,
+                        indent,
+                        max_line_width,
+                        line_boundary_prohibited_chars,
+                        &width_resolver,
+                        &mut state.preedit_chars,
+                    );
+                    state.preedit_injected = true;
                 }
             }
 
             // 箇条書きっぽい行では折り返し時にインデントを入れる
             let indent = Self::calc_indent(&line.to_line_string(), width_resolver.clone());
-            let mut main_caret_fixed = false; // preedit により caret を先行確定したかどうか
 
             for buffer_char in line.chars.iter() {
                 // preedit を caret の直前に挿入する
                 if is_caret_row
-                    && !preedit_injected
+                    && !state.preedit_injected
                     && buffer_char.position.col == self.main_caret.position.col
                 {
                     // caret の位置を先に確定（preedit は caret 位置から始まるため）
-                    main_caret_pos.row = phisical_row;
-                    main_caret_pos.col = phisical_col;
-                    main_caret_fixed = true;
+                    state.main_caret_pos.row = state.phisical_row;
+                    state.main_caret_pos.col = state.phisical_col;
 
-                    if let Some(preedit) = preedit_opt.as_ref() {
-                        for (i, c) in preedit.chars().enumerate() {
-                            let char_width = width_resolver.resolve_width(c);
-                            let is_line_head = self.main_caret.position.col == 0 && i == 0;
-
-                            // 禁則文字の計算（preedit）
-                            if !is_line_head
-                                && phisical_col + char_width >= max_line_width
-                                && line_boundary_prohibited_chars.end.contains(&c)
-                            {
-                                phisical_row += 1;
-                                phisical_col = indent;
-                            } else if !is_line_head && phisical_col + char_width > max_line_width {
-                                if line_boundary_prohibited_chars.start.contains(&c)
-                                    && max_line_width >= phisical_col
-                                {
-                                    // 行頭禁則文字の場合は 1 文字だけ改行しない
-                                } else {
-                                    phisical_row += 1;
-                                    phisical_col = indent;
-                                }
-                            }
-
-                            let phisical_position = PhisicalPosition {
-                                row: phisical_row,
-                                col: phisical_col,
-                            };
-                            let logical_pos =
-                                [line.row_num, self.main_caret.position.col + i].into();
-                            preedit_chars.push((
-                                BufferChar {
-                                    position: logical_pos,
-                                    c,
-                                },
-                                phisical_position,
-                            ));
-                            phisical_col += char_width;
-                        }
+                    if let Some(preedit) = preedit_opt {
+                        self.insert_preedit_chars(
+                            preedit,
+                            line.row_num,
+                            self.main_caret.position.col,
+                            &mut state.phisical_row,
+                            &mut state.phisical_col,
+                            indent,
+                            max_line_width,
+                            line_boundary_prohibited_chars,
+                            &width_resolver,
+                            &mut state.preedit_chars,
+                        );
                     }
-                    preedit_injected = true;
+                    state.preedit_injected = true;
                 }
 
                 // 物理位置を計算（通常のバッファ文字）
                 let char_width = width_resolver.resolve_width(buffer_char.c);
 
                 // 禁則文字の計算
-                if buffer_char.position.col == 0 {
-                    // 論理行の行頭では禁則文字を考慮しない
-                } else if phisical_col + char_width >= max_line_width
-                    && line_boundary_prohibited_chars.end.contains(&buffer_char.c)
-                {
-                    // 行末禁則文字の場合は max_line_width に達する前に改行する
-                    phisical_row += 1;
-                    phisical_col = indent;
-                } else if phisical_col + char_width > max_line_width {
-                    if line_boundary_prohibited_chars
-                        .start
-                        .contains(&buffer_char.c)
-                        && max_line_width >= phisical_col
-                    {
-                        // 行頭禁則文字の場合は max_line_width を超えていても 1 文字だけ改行しない
-                    } else {
-                        phisical_row += 1;
-                        phisical_col = indent;
-                    }
-                }
+                let is_line_head = buffer_char.position.col == 0;
+                Self::apply_line_break_rules(
+                    buffer_char.c,
+                    char_width,
+                    is_line_head,
+                    &mut state.phisical_row,
+                    &mut state.phisical_col,
+                    indent,
+                    max_line_width,
+                    line_boundary_prohibited_chars,
+                );
 
                 // char の位置を確定
                 let phisical_position = PhisicalPosition {
-                    row: phisical_row,
-                    col: phisical_col,
+                    row: state.phisical_row,
+                    col: state.phisical_col,
                 };
-                chars.push((*buffer_char, phisical_position));
+                state.chars.push((*buffer_char, phisical_position));
 
                 // キャレットの位置を確定
                 Self::update_caret_position(
-                    &mut main_caret_pos,
+                    &mut state.main_caret_pos,
                     &self.main_caret,
                     buffer_char,
-                    phisical_row,
-                    phisical_col,
+                    state.phisical_row,
+                    state.phisical_col,
                     char_width,
                 );
-                if let Some(mark) = mark_pos.as_mut() {
+                if let Some(mark) = state.mark_pos.as_mut() {
                     Self::update_caret_position(
                         mark,
                         &self.mark.unwrap(),
                         buffer_char,
-                        phisical_row,
-                        phisical_col,
+                        state.phisical_row,
+                        state.phisical_col,
                         char_width,
                     );
                 }
 
-                phisical_col += char_width;
+                state.phisical_col += char_width;
             }
 
             // 行末で caret の場合に preedit を挿入
-            if is_caret_row && !preedit_injected && self.main_caret.position.col >= line.chars.len()
+            if is_caret_row
+                && !state.preedit_injected
+                && self.main_caret.position.col >= line.chars.len()
             {
                 // caret の位置を先に確定（行末）
-                main_caret_pos.row = phisical_row;
-                main_caret_pos.col = phisical_col;
-                if let Some(preedit) = preedit_opt.as_ref() {
-                    for (i, c) in preedit.chars().enumerate() {
-                        let char_width = width_resolver.resolve_width(c);
-                        let is_line_head = self.main_caret.position.col == 0 && i == 0;
-                        if !is_line_head
-                            && phisical_col + char_width >= max_line_width
-                            && line_boundary_prohibited_chars.end.contains(&c)
-                        {
-                            phisical_row += 1;
-                            phisical_col = indent;
-                        } else if !is_line_head && phisical_col + char_width > max_line_width {
-                            if line_boundary_prohibited_chars.start.contains(&c)
-                                && max_line_width >= phisical_col
-                            {
-                                // 行頭禁則文字の場合は 1 文字だけ改行しない
-                            } else {
-                                phisical_row += 1;
-                                phisical_col = indent;
-                            }
-                        }
-
-                        let phisical_position = PhisicalPosition {
-                            row: phisical_row,
-                            col: phisical_col,
-                        };
-                        let logical_pos = [line.row_num, self.main_caret.position.col + i].into();
-                        preedit_chars.push((
-                            BufferChar {
-                                position: logical_pos,
-                                c,
-                            },
-                            phisical_position,
-                        ));
-                        phisical_col += char_width;
-                    }
+                state.main_caret_pos.row = state.phisical_row;
+                state.main_caret_pos.col = state.phisical_col;
+                if let Some(preedit) = preedit_opt {
+                    self.insert_preedit_chars(
+                        preedit,
+                        line.row_num,
+                        self.main_caret.position.col,
+                        &mut state.phisical_row,
+                        &mut state.phisical_col,
+                        indent,
+                        max_line_width,
+                        line_boundary_prohibited_chars,
+                        &width_resolver,
+                        &mut state.preedit_chars,
+                    );
                 }
-                preedit_injected = true;
+                state.preedit_injected = true;
             }
 
-            phisical_row += 1;
+            state.phisical_row += 1;
         }
 
-        PhisicalLayout {
-            chars,
-            preedit_chars,
-            main_caret_pos,
-            mark_pos,
-        }
+        state.into_layout()
     }
 
     #[inline]
@@ -454,6 +363,121 @@ impl Editor {
                 caret_pos.row = phisical_row;
                 caret_pos.col = phisical_col + char_width;
             }
+        }
+    }
+
+    /// 禁則文字を考慮した改行判定を行い、必要に応じて物理位置を更新する
+    #[inline]
+    #[allow(clippy::too_many_arguments)]
+    fn apply_line_break_rules(
+        c: char,
+        char_width: usize,
+        is_line_head: bool,
+        phisical_row: &mut usize,
+        phisical_col: &mut usize,
+        indent: usize,
+        max_line_width: usize,
+        line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
+    ) {
+        if is_line_head {
+            // 論理行の行頭では禁則文字を考慮しない
+            return;
+        }
+
+        if *phisical_col + char_width >= max_line_width
+            && line_boundary_prohibited_chars.end.contains(&c)
+        {
+            // 行末禁則文字の場合は max_line_width に達する前に改行する
+            *phisical_row += 1;
+            *phisical_col = indent;
+        } else if *phisical_col + char_width > max_line_width {
+            if line_boundary_prohibited_chars.start.contains(&c) && max_line_width >= *phisical_col
+            {
+                // 行頭禁則文字の場合は max_line_width を超えていても 1 文字だけ改行しない
+            } else {
+                *phisical_row += 1;
+                *phisical_col = indent;
+            }
+        }
+    }
+
+    /// preedit文字列を物理レイアウトに挿入する
+    #[allow(clippy::too_many_arguments)]
+    fn insert_preedit_chars(
+        &self,
+        preedit: &str,
+        line_row_num: usize,
+        caret_col: usize,
+        phisical_row: &mut usize,
+        phisical_col: &mut usize,
+        indent: usize,
+        max_line_width: usize,
+        line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
+        width_resolver: &Arc<dyn CharWidthResolver>,
+        preedit_chars: &mut Vec<(BufferChar, PhisicalPosition)>,
+    ) {
+        for (i, c) in preedit.chars().enumerate() {
+            let char_width = width_resolver.resolve_width(c);
+            let is_line_head = caret_col == 0 && i == 0;
+
+            Self::apply_line_break_rules(
+                c,
+                char_width,
+                is_line_head,
+                phisical_row,
+                phisical_col,
+                indent,
+                max_line_width,
+                line_boundary_prohibited_chars,
+            );
+
+            let phisical_position = PhisicalPosition {
+                row: *phisical_row,
+                col: *phisical_col,
+            };
+            let logical_pos = [line_row_num, caret_col + i].into();
+            preedit_chars.push((
+                BufferChar {
+                    position: logical_pos,
+                    c,
+                },
+                phisical_position,
+            ));
+            *phisical_col += char_width;
+        }
+    }
+}
+
+/// レイアウト計算中の状態を管理する構造体
+struct LayoutState {
+    chars: Vec<(BufferChar, PhisicalPosition)>,
+    preedit_chars: Vec<(BufferChar, PhisicalPosition)>,
+    phisical_row: usize,
+    phisical_col: usize,
+    main_caret_pos: PhisicalPosition,
+    mark_pos: Option<PhisicalPosition>,
+    preedit_injected: bool,
+}
+
+impl LayoutState {
+    fn new(mark: Option<Caret>) -> Self {
+        Self {
+            chars: Vec::new(),
+            preedit_chars: Vec::new(),
+            phisical_row: 0,
+            phisical_col: 0,
+            main_caret_pos: PhisicalPosition { row: 0, col: 0 },
+            mark_pos: mark.map(|_| PhisicalPosition { row: 0, col: 0 }),
+            preedit_injected: false,
+        }
+    }
+
+    fn into_layout(self) -> PhisicalLayout {
+        PhisicalLayout {
+            chars: self.chars,
+            preedit_chars: self.preedit_chars,
+            main_caret_pos: self.main_caret_pos,
+            mark_pos: self.mark_pos,
         }
     }
 }
