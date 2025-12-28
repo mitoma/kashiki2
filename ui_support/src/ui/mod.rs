@@ -171,7 +171,7 @@ impl CharAttribute {
 pub(crate) enum BulkedChangeEvent {
     SingleEvent(ChangeEvent),
     // ChangeEvent::MoveChar { from, to } の中身だけ受け付ける必要があるので from, to の組を保持する
-    MultipleEvents(Vec<(BufferChar, BufferChar)>),
+    MultipleMoveCharEvents(Vec<(BufferChar, BufferChar)>),
 }
 
 pub(crate) fn bulk_change_events(receiver: &Receiver<ChangeEvent>) -> Vec<BulkedChangeEvent> {
@@ -186,7 +186,7 @@ pub(crate) fn bulk_change_events(receiver: &Receiver<ChangeEvent>) -> Vec<Bulked
             return;
         }
         let events = std::mem::take(buffered_move_char);
-        bulked_events.push(BulkedChangeEvent::MultipleEvents(events));
+        bulked_events.push(BulkedChangeEvent::MultipleMoveCharEvents(events));
     }
 
     for event in receiver.try_iter() {
@@ -271,7 +271,7 @@ mod test {
         assert_eq!(events.len(), 2);
 
         match &events[0] {
-            BulkedChangeEvent::MultipleEvents(buffered) => {
+            BulkedChangeEvent::MultipleMoveCharEvents(buffered) => {
                 assert_eq!(buffered, &vec![(from1, to1), (from2, to2)]);
             }
             other => panic!("expected MultipleEvents, got {:?}", other),
@@ -311,7 +311,7 @@ mod test {
         assert_eq!(events.len(), 3);
 
         match &events[0] {
-            BulkedChangeEvent::MultipleEvents(buffered) => {
+            BulkedChangeEvent::MultipleMoveCharEvents(buffered) => {
                 assert_eq!(buffered, &vec![(from1, to1)]);
             }
             other => panic!("expected first MultipleEvents, got {:?}", other),
@@ -325,7 +325,7 @@ mod test {
         }
 
         match &events[2] {
-            BulkedChangeEvent::MultipleEvents(buffered) => {
+            BulkedChangeEvent::MultipleMoveCharEvents(buffered) => {
                 assert_eq!(buffered, &vec![(from2, to2)]);
             }
             other => panic!("expected last MultipleEvents, got {:?}", other),

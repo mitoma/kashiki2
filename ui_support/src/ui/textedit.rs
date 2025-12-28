@@ -399,7 +399,7 @@ impl TextEdit {
                 BulkedChangeEvent::SingleEvent(ChangeEvent::AddChar(_))
                     | BulkedChangeEvent::SingleEvent(ChangeEvent::MoveChar { .. })
                     | BulkedChangeEvent::SingleEvent(ChangeEvent::RemoveChar(_))
-                    | BulkedChangeEvent::MultipleEvents(_)
+                    | BulkedChangeEvent::MultipleMoveCharEvents(_)
             ) {
                 self.text_updated = true;
             }
@@ -467,7 +467,7 @@ impl TextEdit {
                 BulkedChangeEvent::SingleEvent(ChangeEvent::RemoveCaret(c)) => {
                     self.caret_states.caret_to_dustbox(c, &self.config);
                 }
-                BulkedChangeEvent::MultipleEvents(events) => {
+                BulkedChangeEvent::MultipleMoveCharEvents(events) => {
                     // events は昇順、または降順でソートされている場合があり、その順序を無視して move_char を実行すると
                     // AA というように文字が連続している場合に正しく移動が行われないため順序を尊重する。
                     // ただし、アニメーションの順序はソート順とは異なるためそのカウンターは降順の時にも昇順で与える。
