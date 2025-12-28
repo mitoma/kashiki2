@@ -22,7 +22,10 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
 };
 
-use crate::ui_context::{CharEasingsPreset, UiContext};
+use crate::{
+    ui::{BulkedChangeEvent, SortOrder, bulk_change_events, detect_sort_order},
+    ui_context::{CharEasingsPreset, UiContext},
+};
 
 use crate::{
     easing_value::EasingPointN,
@@ -385,18 +388,24 @@ impl TextEdit {
         }
 
         let mut char_change_counter = CharChangeCounter::default();
-        while let Ok(event) = self.receiver.try_recv() {
+
+        let event = bulk_change_events(&self.receiver);
+
+        for event in event.into_iter() {
             self.buffer_updated = true;
             // 変更イベントがバッファを変更するかどうかを判定する
             if matches!(
                 event,
-                ChangeEvent::AddChar(_) | ChangeEvent::MoveChar { .. } | ChangeEvent::RemoveChar(_)
+                BulkedChangeEvent::SingleEvent(ChangeEvent::AddChar(_))
+                    | BulkedChangeEvent::SingleEvent(ChangeEvent::MoveChar { .. })
+                    | BulkedChangeEvent::SingleEvent(ChangeEvent::RemoveChar(_))
+                    | BulkedChangeEvent::MultipleEvents(_)
             ) {
                 self.text_updated = true;
             }
 
             match event {
-                ChangeEvent::AddChar(c) => {
+                BulkedChangeEvent::SingleEvent(ChangeEvent::AddChar(c)) => {
                     let caret_pos = self
                         .caret_states
                         .main_caret_position()
@@ -411,7 +420,7 @@ impl TextEdit {
                     );
                     char_change_counter.add_char += 1;
                 }
-                ChangeEvent::MoveChar { from, to } => {
+                BulkedChangeEvent::SingleEvent(ChangeEvent::MoveChar { from, to }) => {
                     if let Some([row, _col]) = self.caret_states.main_caret_logical_position() {
                         if from.position.row == row || to.position.row == row {
                             self.char_states.move_char(
@@ -430,7 +439,7 @@ impl TextEdit {
                     self.char_states
                         .move_char(from, to, 0, &self.config, device);
                 }
-                ChangeEvent::RemoveChar(c) => {
+                BulkedChangeEvent::SingleEvent(ChangeEvent::RemoveChar(c)) => {
                     self.char_states.char_to_dustbox(
                         c,
                         char_change_counter.remove_char,
@@ -438,9 +447,13 @@ impl TextEdit {
                     );
                     char_change_counter.remove_char += 1;
                 }
-                ChangeEvent::SelectChar(c) => self.char_states.select_char(c, &self.config),
-                ChangeEvent::UnSelectChar(c) => self.char_states.unselect_char(c, &self.config),
-                ChangeEvent::AddCaret(c) => {
+                BulkedChangeEvent::SingleEvent(ChangeEvent::SelectChar(c)) => {
+                    self.char_states.select_char(c, &self.config)
+                }
+                BulkedChangeEvent::SingleEvent(ChangeEvent::UnSelectChar(c)) => {
+                    self.char_states.unselect_char(c, &self.config)
+                }
+                BulkedChangeEvent::SingleEvent(ChangeEvent::AddCaret(c)) => {
                     self.caret_states.add_caret(
                         c,
                         color_theme.text_emphasized().get_color(),
@@ -448,11 +461,35 @@ impl TextEdit {
                         device,
                     );
                 }
-                ChangeEvent::MoveCaret { from, to } => {
+                BulkedChangeEvent::SingleEvent(ChangeEvent::MoveCaret { from, to }) => {
                     self.caret_states.move_caret(from, to, &self.config, device);
                 }
-                ChangeEvent::RemoveCaret(c) => {
+                BulkedChangeEvent::SingleEvent(ChangeEvent::RemoveCaret(c)) => {
                     self.caret_states.caret_to_dustbox(c, &self.config);
+                }
+                BulkedChangeEvent::MultipleEvents(events) => {
+                    // events は昇順、または降順でソートされている場合があり、その順序を無視して move_char を実行すると
+                    // AA というように文字が連続している場合に正しく移動が行われないため順序を尊重する。
+                    // ただし、アニメーションの順序はソート順とは異なるためそのカウンターは降順の時にも昇順で与える。
+                    let events_len = events.len();
+                    let sort_order = detect_sort_order(&events);
+
+                    for (from, to) in events.into_iter() {
+                        let gain = char_change_counter.move_char as f32 / events_len as f32;
+                        let gain = match sort_order {
+                            SortOrder::Ascending => gain,
+                            SortOrder::Descending => 1.0 - gain,
+                            SortOrder::Unsorted => gain,
+                        };
+                        self.char_states.move_char(
+                            from,
+                            to,
+                            (500.0 * gain) as u32,
+                            &self.config,
+                            device,
+                        );
+                        char_change_counter.move_char += 1;
+                    }
                 }
             }
         }

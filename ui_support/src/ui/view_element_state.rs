@@ -141,7 +141,7 @@ impl CharStates {
         if let Some(mut instance) = self.instances.remove(&from.into()) {
             instance.motion = text_context.char_easings.move_char.motion;
             if instance.start_time + (instance.duration.as_millis() as u32) < now_millis() {
-                instance.start_time = now_millis() + counter * 10;
+                instance.start_time = now_millis() + counter;
             }
             instance.duration = text_context.char_easings.move_char.duration;
             self.instances.add(to.into(), instance, device);
