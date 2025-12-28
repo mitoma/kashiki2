@@ -148,6 +148,21 @@ impl MotionFlags {
             CameraDetail::empty(),
         )
     }
+
+    pub fn swap_target_xy(&self) -> Self {
+        let mut new_bits = self.0;
+
+        let x_bits = self.0 & 0b_0000_0000_0000_0000_0000_0000_0011_0000_1100_0011;
+        let y_bits = self.0 & 0b_0000_0000_0000_0000_0000_0000_1100_0011_0000_1100;
+
+        new_bits &= !x_bits;
+        new_bits &= !y_bits;
+
+        new_bits |= x_bits << 2;
+        new_bits |= y_bits >> 2;
+
+        MotionFlags(new_bits)
+    }
 }
 
 impl From<MotionFlags> for u32 {
@@ -319,5 +334,58 @@ mod test {
             CameraDetail::IGNORE_CAMERA,
         );
         println!("{:#034b}", flags.0);
+    }
+
+    #[test]
+    fn swap_test() {
+        (0..100).for_each(|_| {
+            let flags = MotionFlags::random_motion();
+            let target = MotionTarget::from_bits(flags.0 as u16).unwrap();
+
+            let move_x_plus = target.contains(MotionTarget::MOVE_X_PLUS);
+            let move_x_minus = target.contains(MotionTarget::MOVE_X_MINUS);
+            let move_y_plus = target.contains(MotionTarget::MOVE_Y_PLUS);
+            let move_y_minus = target.contains(MotionTarget::MOVE_Y_MINUS);
+
+            let rotate_x_plus = target.contains(MotionTarget::ROTATE_X_PLUS);
+            let rotate_x_minus = target.contains(MotionTarget::ROTATE_X_MINUS);
+            let rotate_y_plus = target.contains(MotionTarget::ROTATE_Y_PLUS);
+            let rotate_y_minus = target.contains(MotionTarget::ROTATE_Y_MINUS);
+
+            let stretch_x_plus = target.contains(MotionTarget::STRETCH_X_PLUS);
+            let stretch_x_minus = target.contains(MotionTarget::STRETCH_X_MINUS);
+            let stretch_y_plus = target.contains(MotionTarget::STRETCH_Y_PLUS);
+            let stretch_y_minus = target.contains(MotionTarget::STRETCH_Y_MINUS);
+
+            let swapped_flags = flags.swap_target_xy();
+            let swapped_target = MotionTarget::from_bits(swapped_flags.0 as u16).unwrap();
+            let swapped_move_x_plus = swapped_target.contains(MotionTarget::MOVE_X_PLUS);
+            let swapped_move_x_minus = swapped_target.contains(MotionTarget::MOVE_X_MINUS);
+            let swapped_move_y_plus = swapped_target.contains(MotionTarget::MOVE_Y_PLUS);
+            let swapped_move_y_minus = swapped_target.contains(MotionTarget::MOVE_Y_MINUS);
+
+            let swapped_rotate_x_plus = swapped_target.contains(MotionTarget::ROTATE_X_PLUS);
+            let swapped_rotate_x_minus = swapped_target.contains(MotionTarget::ROTATE_X_MINUS);
+            let swapped_rotate_y_plus = swapped_target.contains(MotionTarget::ROTATE_Y_PLUS);
+            let swapped_rotate_y_minus = swapped_target.contains(MotionTarget::ROTATE_Y_MINUS);
+
+            let swapped_stretch_x_plus = swapped_target.contains(MotionTarget::STRETCH_X_PLUS);
+            let swapped_stretch_x_minus = swapped_target.contains(MotionTarget::STRETCH_X_MINUS);
+            let swapped_stretch_y_plus = swapped_target.contains(MotionTarget::STRETCH_Y_PLUS);
+            let swapped_stretch_y_minus = swapped_target.contains(MotionTarget::STRETCH_Y_MINUS);
+
+            assert_eq!(move_x_plus, swapped_move_y_plus);
+            assert_eq!(move_x_minus, swapped_move_y_minus);
+            assert_eq!(move_y_plus, swapped_move_x_plus);
+            assert_eq!(move_y_minus, swapped_move_x_minus);
+            assert_eq!(rotate_x_plus, swapped_rotate_y_plus);
+            assert_eq!(rotate_x_minus, swapped_rotate_y_minus);
+            assert_eq!(rotate_y_plus, swapped_rotate_x_plus);
+            assert_eq!(rotate_y_minus, swapped_rotate_x_minus);
+            assert_eq!(stretch_x_plus, swapped_stretch_y_plus);
+            assert_eq!(stretch_x_minus, swapped_stretch_y_minus);
+            assert_eq!(stretch_y_plus, swapped_stretch_x_plus);
+            assert_eq!(stretch_y_minus, swapped_stretch_x_minus);
+        })
     }
 }
