@@ -163,6 +163,9 @@ impl Editor {
         }
     }
 
+    /// 箇条書きのような行では折り返す場合のインデント数を計算する
+    /// 例えば "  - ABCDEFG" という行があった場合、折り返し時には "    EFG" のようにインデントを入れるため 4 を返す
+    /// 引数の line_string は行全体の文字列を表す
     #[inline]
     fn calc_indent(line_string: &str, width_resolver: Arc<dyn CharWidthResolver>) -> usize {
         let mut list_indent_pattern = DEFAULT_LIST_INDENT_PATTERN.to_vec();
@@ -282,6 +285,7 @@ impl Editor {
         }
     }
 
+    /// caret_pos を更新するヘルパー関数
     #[inline]
     fn update_caret_position(
         caret_pos: &mut PhisicalPosition,
@@ -293,11 +297,14 @@ impl Editor {
     ) {
         let caret = caret.position;
         let buffer_char = buffer_char.position;
+        // caret と buffer_char が同じ位置にある場合、caret_pos を更新する
         if caret.row == buffer_char.row {
             if caret.col == buffer_char.col {
                 caret_pos.row = phisical_row;
                 caret_pos.col = phisical_col;
             } else if caret.col == buffer_char.col + 1 {
+                // caret が buffer_char の次の位置にある場合、caret_pos を更新する
+                // (行末の場合に位置を計算するためにこの処理が必要になる)
                 caret_pos.row = phisical_row;
                 caret_pos.col = phisical_col + char_width;
             }
