@@ -55,7 +55,7 @@ impl RokidMax {
     pub fn quaternion(&self) -> Quat {
         if let Ok(vqf) = self.ahrs.lock() {
             let quat_vec = vqf.quat_3d();
-            Quat::from_xyzw(quat_vec.0, quat_vec.1, quat_vec.2, quat_vec.3).inverse()
+            Quat::from_xyzw(quat_vec.1, quat_vec.2, quat_vec.3, quat_vec.0).inverse()
         } else {
             Quat::IDENTITY
         }
