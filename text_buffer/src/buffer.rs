@@ -1,6 +1,12 @@
 use std::{ops::RangeBounds, sync::mpsc::Sender};
 
-use crate::{caret::Caret, char_type::CharType, editor::ChangeEvent};
+use crate::{caret::Caret, char_type::CharType, editor::ChangeEvent, notifier::notify_sender};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct HighlightMatch {
+    position: CellPosition,
+    char_len: usize,
+}
 
 pub struct Buffer {
     pub lines: Vec<BufferLine>,
@@ -91,6 +97,7 @@ impl Buffer {
     }
 
     pub(crate) fn back_word(&mut self, caret: &mut Caret) {
+        self.clamp_caret_col(caret);
         match (self.is_line_head(caret), self.is_buffer_head(caret)) {
             // 行頭かつバッファの先頭であればなにもしない
             (true, true) => {}
@@ -101,26 +108,9 @@ impl Buffer {
             }
             // 行頭でなければ前のワードに移動
             (false, true) | (false, false) => {
-                // 前の word の先頭に移動する
-                if let Some(line) = self.lines.get(caret.position.row) {
-                    let mut chars = line
-                        .chars
-                        .iter()
-                        .rev()
-                        .skip(line.chars.len() - caret.position.col);
-                    let mut next_col = caret.position.col;
-                    let mut current_char_type = CharType::from_char(chars.next().unwrap().c);
-                    for c in chars {
-                        next_col -= 1;
-                        let next_char_type = CharType::from_char(c.c);
-                        if current_char_type.skip_word(&next_char_type) {
-                            current_char_type = next_char_type;
-                            continue;
-                        }
-                        caret.move_to(caret.position.with_col(next_col), &self.sender);
-                        return;
-                    }
-                    // ループを抜けた場合は行頭にいく
+                if let Some(next_col) = self.find_word_start_backward(caret) {
+                    caret.move_to(caret.position.with_col(next_col), &self.sender);
+                } else {
                     self.head(caret);
                 }
             }
@@ -144,6 +134,7 @@ impl Buffer {
     }
 
     pub(crate) fn forward_word(&mut self, caret: &mut Caret) {
+        self.clamp_caret_col(caret);
         match (self.is_line_last(caret), self.is_buffer_last(caret)) {
             // 行末かつバッファの最後であればなにもしない
             (true, true) => {}
@@ -154,25 +145,58 @@ impl Buffer {
             }
             // 行末でなければ次のワードに移動
             (false, true) | (false, false) => {
-                // 次の word の先頭に移動する
-                if let Some(line) = self.lines.get(caret.position.row) {
-                    let mut chars = line.chars.iter().skip(caret.position.col);
-                    let mut next_col = caret.position.col;
-                    let mut current_char_type = CharType::from_char(chars.next().unwrap().c);
-                    for c in chars {
-                        next_col += 1;
-                        let next_char_type = CharType::from_char(c.c);
-                        if current_char_type.skip_word(&next_char_type) {
-                            current_char_type = next_char_type;
-                            continue;
-                        }
-                        caret.move_to(caret.position.with_col(next_col), &self.sender);
-                        return;
-                    }
-                    // ループを抜けた場合は行末にいく
+                if let Some(next_col) = self.find_word_start_forward(caret) {
+                    caret.move_to(caret.position.with_col(next_col), &self.sender);
+                } else {
                     self.last(caret);
                 }
             }
+        }
+    }
+
+    fn find_word_start_backward(&self, caret: &Caret) -> Option<usize> {
+        let line = self.lines.get(caret.position.row)?;
+        let safe_col = caret.position.col.min(line.chars.len());
+        let mut chars = line.chars[..safe_col].iter().rev();
+        let mut next_col = safe_col;
+        let mut current_char_type = CharType::from_char(chars.next()?.c);
+        for c in chars {
+            next_col = next_col.saturating_sub(1);
+            let next_char_type = CharType::from_char(c.c);
+            if current_char_type.skip_word(&next_char_type) {
+                current_char_type = next_char_type;
+                continue;
+            }
+            return Some(next_col);
+        }
+        Some(0)
+    }
+
+    fn find_word_start_forward(&self, caret: &Caret) -> Option<usize> {
+        let line = self.lines.get(caret.position.row)?;
+        let safe_col = caret.position.col.min(line.chars.len());
+        let mut chars = line.chars.iter().skip(safe_col);
+        let mut next_col = safe_col;
+        let mut current_char_type = CharType::from_char(chars.next()?.c);
+        for c in chars {
+            next_col += 1;
+            let next_char_type = CharType::from_char(c.c);
+            if current_char_type.skip_word(&next_char_type) {
+                current_char_type = next_char_type;
+                continue;
+            }
+            return Some(next_col);
+        }
+        Some(line.chars.len())
+    }
+
+    fn clamp_caret_col(&self, caret: &mut Caret) {
+        let Some(line) = self.lines.get(caret.position.row) else {
+            return;
+        };
+        let max_col = line.chars.len();
+        if caret.position.col > max_col {
+            caret.move_to(caret.position.with_col(max_col), &self.sender);
         }
     }
 
@@ -246,10 +270,13 @@ impl Buffer {
         if self.is_line_last(caret) {
             if !self.is_buffer_last(caret) {
                 let next_line = self.lines.remove(caret.position.row + 1);
-                let current_line = self.lines.get_mut(caret.position.row).unwrap();
-                current_line.join(next_line, &self.sender);
-                self.update_position();
-                RemovedChar::Enter
+                if let Some(current_line) = self.lines.get_mut(caret.position.row) {
+                    current_line.join(next_line, &self.sender);
+                    self.update_position();
+                    RemovedChar::Enter
+                } else {
+                    RemovedChar::None
+                }
             } else {
                 RemovedChar::None
             }
@@ -296,20 +323,22 @@ impl Buffer {
     }
 
     #[inline]
-    fn byte_to_char_index(s: &str, byte_index: usize) -> Option<usize> {
-        s.char_indices()
-            .enumerate()
-            .find_map(|(char_index, (byte_pos, _))| {
-                if byte_pos == byte_index {
-                    Some(char_index)
-                } else {
-                    None
-                }
-            })
+    fn byte_range_to_char_range(
+        line_string: &str,
+        start: usize,
+        end: usize,
+    ) -> Option<(usize, usize)> {
+        let prefix = line_string.get(..start)?;
+        let matched = line_string.get(start..end)?;
+        Some((prefix.chars().count(), matched.chars().count()))
     }
 
     #[inline]
-    fn highlight_positions(&self, highlight_string: &str) -> Vec<CellPosition> {
+    fn highlight_matches(&self, highlight_string: &str) -> Vec<HighlightMatch> {
+        if highlight_string.is_empty() {
+            return Vec::new();
+        }
+
         let mut result = Vec::new();
         for line in &self.lines {
             let line_string = line.to_line_string();
@@ -319,10 +348,17 @@ impl Buffer {
             while let Some(idx) = search_target.find(highlight_string) {
                 let start = slice_start + idx;
                 let end = start + highlight_string.len();
-                result.push(CellPosition {
-                    row: line.row_num,
-                    col: Self::byte_to_char_index(&line_string, start).unwrap(),
-                });
+                if let Some((char_start, char_len)) =
+                    Self::byte_range_to_char_range(&line_string, start, end)
+                {
+                    result.push(HighlightMatch {
+                        position: CellPosition {
+                            row: line.row_num,
+                            col: char_start,
+                        },
+                        char_len,
+                    });
+                }
                 slice_start = end;
                 search_target = &line_string[slice_start..];
             }
@@ -330,31 +366,43 @@ impl Buffer {
         result
     }
 
+    #[inline]
+    fn highlight_positions(&self, highlight_string: &str) -> Vec<CellPosition> {
+        self.highlight_matches(highlight_string)
+            .into_iter()
+            .map(|matched| matched.position)
+            .collect()
+    }
+
     pub fn highlight(&self, highlight_string: &str) {
-        self.highlight_positions(highlight_string)
+        self.highlight_matches(highlight_string)
             .iter()
-            .flat_map(|pos| {
-                self.lines[pos.row].chars[pos.col..(pos.col + highlight_string.chars().count())]
-                    .to_vec()
+            .filter_map(|matched| {
+                self.lines.get(matched.position.row).and_then(|line| {
+                    line.chars
+                        .get(matched.position.col..(matched.position.col + matched.char_len))
+                        .map(|chars| chars.to_vec())
+                })
             })
+            .flatten()
             .for_each(|buffer_char| {
-                self.sender
-                    .send(ChangeEvent::SelectChar(buffer_char))
-                    .unwrap();
+                notify_sender(&self.sender, ChangeEvent::SelectChar(buffer_char));
             });
     }
 
     pub fn unhighlight(&self, highlight_string: &str) {
-        self.highlight_positions(highlight_string)
+        self.highlight_matches(highlight_string)
             .iter()
-            .flat_map(|pos| {
-                self.lines[pos.row].chars[pos.col..(pos.col + highlight_string.chars().count())]
-                    .to_vec()
+            .filter_map(|matched| {
+                self.lines.get(matched.position.row).and_then(|line| {
+                    line.chars
+                        .get(matched.position.col..(matched.position.col + matched.char_len))
+                        .map(|chars| chars.to_vec())
+                })
             })
+            .flatten()
             .for_each(|buffer_char| {
-                self.sender
-                    .send(ChangeEvent::UnSelectChar(buffer_char))
-                    .unwrap();
+                notify_sender(&self.sender, ChangeEvent::UnSelectChar(buffer_char));
             });
     }
 
@@ -435,7 +483,7 @@ impl BufferLine {
 
     fn remove_char(&mut self, col: usize, sender: &Sender<ChangeEvent>) -> RemovedChar {
         let removed = self.chars.remove(col);
-        sender.send(ChangeEvent::RemoveChar(removed)).unwrap();
+        notify_sender(sender, ChangeEvent::RemoveChar(removed));
         self.chars
             .iter_mut()
             .skip(col)
@@ -474,6 +522,10 @@ impl BufferLine {
         } else {
             end
         };
+        let start = start.min(self.chars.len());
+        if start >= end {
+            return String::new();
+        }
         self.chars[start..end].iter().map(|c| c.c).collect()
     }
 }
@@ -576,7 +628,7 @@ pub struct BufferChar {
 impl BufferChar {
     fn new(position: CellPosition, c: char, sender: &Sender<ChangeEvent>) -> Self {
         let instance = Self { position, c };
-        sender.send(ChangeEvent::AddChar(instance)).unwrap();
+        notify_sender(sender, ChangeEvent::AddChar(instance));
         instance
     }
 
@@ -587,7 +639,7 @@ impl BufferChar {
         let from = *self;
         self.position = position;
         let event = ChangeEvent::MoveChar { from, to: *self };
-        sender.send(event).unwrap();
+        notify_sender(sender, event);
     }
 
     // to は含まない
@@ -1352,5 +1404,37 @@ mod tests {
                 assert_eq!(caret.position, *p);
             });
         }
+    }
+
+    #[test]
+    fn word_move_out_of_bounds_is_clamped() {
+        let (tx, _rx) = channel::<ChangeEvent>();
+        let mut sut = Buffer::new(tx.clone());
+        sut.insert_string(&mut Caret::new([0, 0].into(), &tx), "abc def".to_string());
+
+        let mut caret = Caret::new([0, 99].into(), &tx);
+        sut.back_word(&mut caret);
+        assert_eq!(caret.position, [0, 3].into());
+
+        let mut caret = Caret::new([0, 99].into(), &tx);
+        sut.forward_word(&mut caret);
+        assert_eq!(caret.position, [0, 7].into());
+    }
+
+    #[test]
+    fn empty_highlight_is_noop() {
+        let (tx, rx) = channel::<ChangeEvent>();
+        let mut sut = Buffer::new(tx.clone());
+        let mut caret = Caret::new([0, 0].into(), &tx);
+        sut.insert_string(&mut caret, "abc".to_string());
+        let _ = rx.try_iter().collect::<Vec<_>>();
+
+        sut.highlight("");
+        sut.unhighlight("");
+        sut.move_to_next(&mut caret, "");
+        sut.move_to_previous(&mut caret, "");
+
+        assert!(rx.try_iter().collect::<Vec<_>>().is_empty());
+        assert_eq!(caret.position, [0, 3].into());
     }
 }
