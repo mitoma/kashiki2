@@ -29,7 +29,8 @@ pub(crate) fn cmp_clockwise(base: &Point, l: &Point, r: &Point) -> Ordering {
 
 #[cfg(test)]
 mod tests {
-    use rand::RngCore;
+
+    use rand::Rng;
 
     use super::*;
     use std::{cmp::Ordering, f32::consts::PI};

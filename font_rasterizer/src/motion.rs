@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use rand::Rng;
+use rand::RngExt;
 
 /// motion 仕様
 /// bit

@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, ops::Range};
 
 use glam::{Mat4, Quat, Vec3};
-use rand::Rng;
+use rand::RngExt;
 use text_buffer::{
     buffer::{BufferChar, CellPosition},
     caret::{Caret, CaretType},
