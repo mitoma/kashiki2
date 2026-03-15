@@ -2,6 +2,18 @@
 
 外部利用が多い Editor/EditorOperation/ChangeEvent の公開面は維持しつつ、内部の責務分離・安全性・テスト容易性を段階的に改善する。まず panic 要因とイベント送信依存を減らし、次に action/editor の責務境界を整理し、最後に性能と拡張性を補強する方針。
 
+**TODO (Progress)**
+- [x] 公開利用点を棚卸しし、互換維持対象を明文化
+- [x] text_buffer の互換ゴールデンテストを追加（イベント列・Undo/Redo・選択解除）
+- [x] panic 要因の主要経路を防御（word移動、highlight変換、行結合、mark参照、sender切断）
+- [x] action の巨大 match を機能別ハンドラへ分割（移動/編集/検索/クリップボード）
+- [x] editor の選択状態責務を内部型へ抽出
+- [x] ChangeEvent notifier の crate 内抽象化を導入
+- [x] calc_indent の設定オブジェクト化の下地を導入（デフォルト互換維持）
+- [x] UI連携回帰テストを追加（ui_support 側 bulk_change_events + Editor 実連携）
+- [ ] highlight_positions / selection の性能計測と必要最小限の最適化
+- [x] workspace 全体チェック（mise r check）
+
 **Steps**
 1. フェーズ1: 互換境界の固定化（最優先）
 2. text_buffer の公開利用点を棚卸しし、互換維持対象を明文化する。対象は Editor::new, Editor::operation, Editor::to_buffer_string, Editor::buffer_chars, Editor::calc_phisical_layout, EditorOperation, ChangeEvent, Caret/CaretType, BufferChar/CellPosition。*この結果が以後の全工程の前提*

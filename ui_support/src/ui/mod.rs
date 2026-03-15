@@ -211,7 +211,12 @@ mod test {
     use super::{
         BulkedChangeEvent, SortOrder, bulk_change_events, detect_sort_order, split_preedit_string,
     };
-    use text_buffer::{buffer::BufferChar, editor::ChangeEvent};
+    use text_buffer::{
+        action::EditorOperation,
+        buffer::BufferChar,
+        caret::{Caret, CaretType},
+        editor::{ChangeEvent, Editor},
+    };
 
     #[test]
     fn test_split1() {
@@ -329,6 +334,121 @@ mod test {
                 assert_eq!(buffered, &vec![(from2, to2)]);
             }
             other => panic!("expected last MultipleEvents, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn bulk_change_with_editor_selection_events_keeps_order() {
+        let (tx, rx) = channel::<ChangeEvent>();
+        let mut editor = Editor::new(tx);
+
+        editor.operation(&EditorOperation::InsertString("ABCDE".to_string()));
+        let _ = bulk_change_events(&rx);
+
+        editor.operation(&EditorOperation::BufferHead);
+        editor.operation(&EditorOperation::Forward);
+        editor.operation(&EditorOperation::Mark);
+        editor.operation(&EditorOperation::Forward);
+        editor.operation(&EditorOperation::Forward);
+
+        let events = bulk_change_events(&rx);
+        assert_eq!(events.len(), 7);
+
+        let expected = vec![
+            ChangeEvent::MoveCaret {
+                from: Caret::new_without_event([0, 5].into(), CaretType::Primary),
+                to: Caret::new_without_event([0, 0].into(), CaretType::Primary),
+            },
+            ChangeEvent::MoveCaret {
+                from: Caret::new_without_event([0, 0].into(), CaretType::Primary),
+                to: Caret::new_without_event([0, 1].into(), CaretType::Primary),
+            },
+            ChangeEvent::AddCaret(Caret::new_without_event([0, 1].into(), CaretType::Mark)),
+            ChangeEvent::MoveCaret {
+                from: Caret::new_without_event([0, 1].into(), CaretType::Primary),
+                to: Caret::new_without_event([0, 2].into(), CaretType::Primary),
+            },
+            ChangeEvent::SelectChar(BufferChar {
+                position: [0, 1].into(),
+                c: 'B',
+            }),
+            ChangeEvent::MoveCaret {
+                from: Caret::new_without_event([0, 2].into(), CaretType::Primary),
+                to: Caret::new_without_event([0, 3].into(), CaretType::Primary),
+            },
+            ChangeEvent::SelectChar(BufferChar {
+                position: [0, 2].into(),
+                c: 'C',
+            }),
+        ];
+
+        for (event, expected_event) in events.iter().zip(expected.iter()) {
+            match event {
+                BulkedChangeEvent::SingleEvent(actual) => {
+                    assert_eq!(actual, expected_event);
+                }
+                other => panic!("expected single events only, got {:?}", other),
+            }
+        }
+    }
+
+    #[test]
+    fn bulk_change_with_editor_insert_enter_groups_move_char_events() {
+        let (tx, rx) = channel::<ChangeEvent>();
+        let mut editor = Editor::new(tx);
+
+        editor.operation(&EditorOperation::InsertString("あいうえお\nかき\nくけ".to_string()));
+        editor.operation(&EditorOperation::BufferHead);
+        editor.operation(&EditorOperation::Forward);
+        editor.operation(&EditorOperation::Forward);
+        let _ = bulk_change_events(&rx);
+
+        editor.operation(&EditorOperation::InsertEnter);
+        let events = bulk_change_events(&rx);
+        assert_eq!(events.len(), 2);
+
+        match &events[0] {
+            BulkedChangeEvent::MultipleMoveCharEvents(buffered) => {
+                assert_eq!(buffered.len(), 7);
+                assert_eq!(
+                    buffered.first(),
+                    Some(&(
+                        BufferChar {
+                            position: [2, 0].into(),
+                            c: 'く'
+                        },
+                        BufferChar {
+                            position: [3, 0].into(),
+                            c: 'く'
+                        }
+                    ))
+                );
+                assert_eq!(
+                    buffered.last(),
+                    Some(&(
+                        BufferChar {
+                            position: [0, 4].into(),
+                            c: 'お'
+                        },
+                        BufferChar {
+                            position: [1, 2].into(),
+                            c: 'お'
+                        }
+                    ))
+                );
+            }
+            other => panic!("expected grouped move events, got {:?}", other),
+        }
+
+        match &events[1] {
+            BulkedChangeEvent::SingleEvent(ChangeEvent::MoveCaret { from, to }) => {
+                assert_eq!(
+                    *from,
+                    Caret::new_without_event([0, 2].into(), CaretType::Primary)
+                );
+                assert_eq!(*to, Caret::new_without_event([1, 0].into(), CaretType::Primary));
+            }
+            other => panic!("expected trailing MoveCaret event, got {:?}", other),
         }
     }
 }
