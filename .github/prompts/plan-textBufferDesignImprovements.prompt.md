@@ -11,8 +11,14 @@
 - [x] ChangeEvent notifier の crate 内抽象化を導入
 - [x] calc_indent の設定オブジェクト化の下地を導入（デフォルト互換維持）
 - [x] UI連携回帰テストを追加（ui_support 側 bulk_change_events + Editor 実連携）
-- [ ] highlight_positions / selection の性能計測と必要最小限の最適化
+- [x] highlight_positions / selection の性能計測と必要最小限の最適化
 - [x] workspace 全体チェック（mise r check）
+
+**Progress Notes**
+- 2026-03-15: `cargo test -p text_buffer perf_ -- --ignored --nocapture` を実行。
+- 計測結果: `perf_selection_delta_large_selection: 884.4894ms`
+- 計測結果: `perf_highlight_and_move_search_large_text: highlight=239.0729ms, move=2.70514s`
+- selection 差分通知の membership 判定を `Vec::contains` から `HashSet` ベースへ変更し、イベント順序は維持。
 
 **Steps**
 1. フェーズ1: 互換境界の固定化（最優先）

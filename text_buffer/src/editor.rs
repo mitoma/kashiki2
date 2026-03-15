@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
@@ -74,15 +75,17 @@ impl SelectionState {
         post_selection: &[BufferChar],
         notifier: &dyn ChangeEventNotifier,
     ) {
+        let post_set: HashSet<BufferChar> = post_selection.iter().copied().collect();
         pre_selection
             .iter()
-            .filter(|c| !post_selection.contains(c))
+            .filter(|c| !post_set.contains(c))
             .copied()
             .for_each(|c| notifier.notify(ChangeEvent::UnSelectChar(c)));
 
+        let pre_set: HashSet<BufferChar> = pre_selection.iter().copied().collect();
         post_selection
             .iter()
-            .filter(|c| !pre_selection.contains(c))
+            .filter(|c| !pre_set.contains(c))
             .copied()
             .for_each(|c| notifier.notify(ChangeEvent::SelectChar(c)));
     }
@@ -486,6 +489,7 @@ pub enum ChangeEvent {
 mod tests {
     use super::*;
     use std::sync::mpsc::Receiver;
+    use std::time::{Duration, Instant};
 
     struct TestWidthResolver;
 
@@ -637,6 +641,35 @@ mod tests {
         assert_eq!(editor.to_buffer_string(), "abc");
         assert_eq!(editor.buffer_chars()[0].len(), 3);
         assert_eq!(layout.main_caret_pos, PhisicalPosition { row: 0, col: 1 });
+    }
+
+    #[test]
+    #[ignore]
+    fn perf_selection_delta_large_selection() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender);
+
+        let mut input = String::new();
+        for _ in 0..400 {
+            input.push_str("abcdefghijklmnopqrstuvwxyz");
+            input.push('\n');
+        }
+
+        editor.operation(&EditorOperation::InsertString(input));
+        let _ = collect_events(&receiver);
+
+        editor.operation(&EditorOperation::BufferHead);
+        editor.operation(&EditorOperation::Mark);
+        let _ = collect_events(&receiver);
+
+        let start = Instant::now();
+        for _ in 0..1200 {
+            editor.operation(&EditorOperation::Forward);
+        }
+        let elapsed = start.elapsed();
+
+        println!("perf_selection_delta_large_selection: {:?}", elapsed);
+        assert!(elapsed < Duration::from_secs(20));
     }
 
     #[test]

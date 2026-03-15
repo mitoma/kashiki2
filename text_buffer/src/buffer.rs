@@ -530,7 +530,7 @@ impl BufferLine {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct CellPosition {
     // 0 origin
     pub row: usize,
@@ -619,7 +619,7 @@ impl CellPosition {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct BufferChar {
     pub position: CellPosition,
     pub c: char,
@@ -659,6 +659,7 @@ pub enum RemovedChar {
 mod tests {
 
     use std::sync::mpsc::channel;
+    use std::time::{Duration, Instant};
 
     use crate::{caret::CaretType, editor::ChangeEvent};
 
@@ -1436,5 +1437,46 @@ mod tests {
 
         assert!(rx.try_iter().collect::<Vec<_>>().is_empty());
         assert_eq!(caret.position, [0, 3].into());
+    }
+
+    #[test]
+    #[ignore]
+    fn perf_highlight_and_move_search_large_text() {
+        let (tx, _rx) = channel::<ChangeEvent>();
+        let mut sut = Buffer::new(tx.clone());
+        let mut caret = Caret::new([0, 0].into(), &tx);
+
+        let mut text = String::new();
+        for i in 0..3000 {
+            text.push_str("abcdefghijklmnopqrstuvwxyz keyword ");
+            text.push_str(&(i % 10).to_string());
+            text.push('\n');
+        }
+        sut.insert_string(&mut caret, text);
+
+        let highlight_start = Instant::now();
+        for _ in 0..20 {
+            sut.highlight("keyword");
+            sut.unhighlight("keyword");
+        }
+        let highlight_elapsed = highlight_start.elapsed();
+
+        let mut move_caret = Caret::new([0, 0].into(), &tx);
+        let move_start = Instant::now();
+        for _ in 0..400 {
+            sut.move_to_next(&mut move_caret, "keyword");
+        }
+        for _ in 0..400 {
+            sut.move_to_previous(&mut move_caret, "keyword");
+        }
+        let move_elapsed = move_start.elapsed();
+
+        println!(
+            "perf_highlight_and_move_search_large_text: highlight={:?}, move={:?}",
+            highlight_elapsed, move_elapsed
+        );
+
+        assert!(highlight_elapsed < Duration::from_secs(20));
+        assert!(move_elapsed < Duration::from_secs(20));
     }
 }

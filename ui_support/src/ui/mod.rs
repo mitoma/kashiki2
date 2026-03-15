@@ -354,7 +354,7 @@ mod test {
         let events = bulk_change_events(&rx);
         assert_eq!(events.len(), 7);
 
-        let expected = vec![
+        let expected = [
             ChangeEvent::MoveCaret {
                 from: Caret::new_without_event([0, 5].into(), CaretType::Primary),
                 to: Caret::new_without_event([0, 0].into(), CaretType::Primary),
@@ -397,7 +397,9 @@ mod test {
         let (tx, rx) = channel::<ChangeEvent>();
         let mut editor = Editor::new(tx);
 
-        editor.operation(&EditorOperation::InsertString("あいうえお\nかき\nくけ".to_string()));
+        editor.operation(&EditorOperation::InsertString(
+            "あいうえお\nかき\nくけ".to_string(),
+        ));
         editor.operation(&EditorOperation::BufferHead);
         editor.operation(&EditorOperation::Forward);
         editor.operation(&EditorOperation::Forward);
@@ -446,7 +448,10 @@ mod test {
                     *from,
                     Caret::new_without_event([0, 2].into(), CaretType::Primary)
                 );
-                assert_eq!(*to, Caret::new_without_event([1, 0].into(), CaretType::Primary));
+                assert_eq!(
+                    *to,
+                    Caret::new_without_event([1, 0].into(), CaretType::Primary)
+                );
             }
             other => panic!("expected trailing MoveCaret event, got {:?}", other),
         }
