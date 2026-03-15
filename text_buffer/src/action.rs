@@ -194,6 +194,9 @@ impl BufferApplyer {
         if Self::apply_search_action(buffer, current_caret, action, &mut reverse_actions) {
             return reverse_actions;
         }
+        if Self::apply_meta_action(action) {
+            return reverse_actions;
+        }
         reverse_actions
     }
 
@@ -384,13 +387,19 @@ impl BufferApplyer {
             EditorOperation::Highlight(keyword) => {
                 buffer.highlight(keyword);
             }
-            EditorOperation::Noop
-            | EditorOperation::Undo
-            | EditorOperation::Mark
-            | EditorOperation::UnMark => {}
             _ => return false,
         }
         true
+    }
+
+    fn apply_meta_action(action: &EditorOperation) -> bool {
+        match action {
+            EditorOperation::Noop
+            | EditorOperation::Undo
+            | EditorOperation::Mark
+            | EditorOperation::UnMark => true,
+            _ => false,
+        }
     }
 
     fn internal_cut(
