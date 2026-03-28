@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use usvg::tiny_skia_path::{PathSegment, Point};
+use usvg::tiny_skia_path::PathSegment;
 
 use crate::{
     errors::FontRasterizerError,
@@ -121,14 +121,12 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
     ));
 
     for (path, transform) in paths {
-        let mut start_to: Option<Point> = None;
         for segment in path.data().segments() {
             log::info!("{:?}", segment);
             match segment {
                 PathSegment::MoveTo(mut point) => {
                     transform.map_point(&mut point);
                     builder.move_to(point.x, point.y);
-                    start_to = Some(point);
                 }
                 PathSegment::LineTo(mut point) => {
                     transform.map_point(&mut point);
@@ -146,10 +144,7 @@ pub fn svg_to_vector_vertex(svg: &str) -> Result<VectorVertex, FontRasterizerErr
                     builder.curve_to(point1.x, point1.y, point2.x, point2.y, point.x, point.y);
                 }
                 PathSegment::Close => {
-                    if let Some(start_to) = start_to {
-                        // start_to は事前に map_point されているので、transform は不要
-                        builder.line_to(start_to.x, start_to.y);
-                    }
+                    builder.close();
                 }
             }
         }

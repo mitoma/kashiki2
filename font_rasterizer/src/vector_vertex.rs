@@ -7,6 +7,8 @@ pub(crate) struct VectorVertexBuilder {
     index: Vec<u32>,
     current_index: u32,
     path_start_index: Option<u32>,
+    subpath_index_start: usize,
+    subpath_points: Vec<[f32; 2]>,
     vertex_swap: FlipFlop,
     builder_options: VertexBuilderOptions,
 }
@@ -20,6 +22,8 @@ impl VectorVertexBuilder {
             // index 0 は原点B、1 は原点L に予約されているので、2 から開始する
             current_index: 1,
             path_start_index: None,
+            subpath_index_start: 0,
+            subpath_points: Vec::new(),
             vertex_swap: FlipFlop::Flip,
             builder_options: VertexBuilderOptions::default(),
         }
@@ -31,6 +35,8 @@ impl VectorVertexBuilder {
             index: self.index,
             current_index: self.current_index,
             path_start_index: self.path_start_index,
+            subpath_index_start: self.subpath_index_start,
+            subpath_points: self.subpath_points,
             vertex_swap: self.vertex_swap,
             builder_options,
         }
@@ -73,6 +79,9 @@ impl VectorVertexBuilder {
 
     pub fn move_to(&mut self, x: f32, y: f32) {
         let wait = self.next_wait();
+        self.subpath_index_start = self.index.len();
+        self.subpath_points.clear();
+        self.subpath_points.push([x, y]);
         self.vertex.push(InternalVertex { x, y, wait });
         self.vertex.push(InternalVertex {
             x,
@@ -91,6 +100,7 @@ impl VectorVertexBuilder {
             // 同じ座標への line_to は無視する
             return;
         }
+        self.subpath_points.push([x, y]);
 
         let wait = self.next_wait();
         self.vertex.push(InternalVertex { x, y, wait });
@@ -107,6 +117,7 @@ impl VectorVertexBuilder {
 
     pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
         let wait = self.next_wait();
+        self.subpath_points.push([x, y]);
 
         self.vertex.push(InternalVertex {
             x: x1,
@@ -155,6 +166,37 @@ impl VectorVertexBuilder {
         if let Some(start_index) = self.path_start_index {
             let start_vertex = &self.vertex[(start_index) as usize];
             self.line_to(start_vertex.x, start_vertex.y);
+
+            // close されたサブパスごとに重心原点を 2 つ（Bezier/Line）追加する
+            // 0/1 は global zero vertex だが、ここでサブパス専用原点へ置換する
+            if !self.subpath_points.is_empty() {
+                let n = self.subpath_points.len() as f32;
+                let centroid_x = self.subpath_points.iter().map(|p| p[0]).sum::<f32>() / n;
+                let centroid_y = self.subpath_points.iter().map(|p| p[1]).sum::<f32>() / n;
+
+                let bezier_origin_index = self.current_index + 1;
+                let line_origin_index = self.current_index + 2;
+                self.vertex.push(InternalVertex {
+                    x: centroid_x,
+                    y: centroid_y,
+                    wait: FlipFlop::OriginBezier,
+                });
+                self.vertex.push(InternalVertex {
+                    x: centroid_x,
+                    y: centroid_y,
+                    wait: FlipFlop::OriginLine,
+                });
+                self.current_index += 2;
+
+                for idx in &mut self.index[self.subpath_index_start..] {
+                    if *idx == 0 {
+                        *idx = bezier_origin_index;
+                    } else if *idx == 1 {
+                        *idx = line_origin_index;
+                    }
+                }
+            }
+
             self.path_start_index = None;
         }
     }
@@ -283,6 +325,8 @@ pub(crate) enum FlipFlop {
     Control,
     FlipForLine,
     FlopForLine,
+    OriginBezier,
+    OriginLine,
 }
 
 impl FlipFlop {
@@ -294,6 +338,8 @@ impl FlipFlop {
             FlipFlop::Control => FlipFlop::Control,
             FlipFlop::FlipForLine => FlipFlop::FlipForLine,
             FlipFlop::FlopForLine => FlipFlop::FlopForLine,
+            FlipFlop::OriginBezier => FlipFlop::OriginBezier,
+            FlipFlop::OriginLine => FlipFlop::OriginLine,
         }
     }
 
@@ -304,6 +350,8 @@ impl FlipFlop {
             FlipFlop::Control => FlipFlop::Control,
             FlipFlop::FlipForLine => FlipFlop::FlipForLine,
             FlipFlop::FlopForLine => FlipFlop::FlopForLine,
+            FlipFlop::OriginBezier => FlipFlop::OriginBezier,
+            FlipFlop::OriginLine => FlipFlop::OriginLine,
         }
     }
 
@@ -315,6 +363,8 @@ impl FlipFlop {
             FlipFlop::Flop => 4,
             FlipFlop::FlopForLine => 5,
             FlipFlop::Control => 6,
+            FlipFlop::OriginBezier => 0,
+            FlipFlop::OriginLine => 1,
         }
     }
 }
