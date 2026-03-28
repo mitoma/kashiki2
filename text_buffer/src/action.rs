@@ -393,13 +393,13 @@ impl BufferApplyer {
     }
 
     fn apply_meta_action(action: &EditorOperation) -> bool {
-        match action {
+        matches!(
+            action,
             EditorOperation::Noop
-            | EditorOperation::Undo
-            | EditorOperation::Mark
-            | EditorOperation::UnMark => true,
-            _ => false,
-        }
+                | EditorOperation::Undo
+                | EditorOperation::Mark
+                | EditorOperation::UnMark
+        )
     }
 
     fn internal_cut(
