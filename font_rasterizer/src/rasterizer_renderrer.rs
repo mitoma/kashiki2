@@ -75,7 +75,7 @@ impl RasterizerRenderrer {
         let overlap_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Overlap Render Pipeline Layout"),
-                bind_group_layouts: &[&overlap_bind_group.layout],
+                bind_group_layouts: &[Some(&overlap_bind_group.layout)],
                 immediate_size: 0,
             });
 
@@ -161,7 +161,7 @@ impl RasterizerRenderrer {
         let outline_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Outline Render Pipeline Layout"),
-                bind_group_layouts: &[&outline_bind_group.layout],
+                bind_group_layouts: &[Some(&outline_bind_group.layout)],
                 immediate_size: 0,
             });
 
