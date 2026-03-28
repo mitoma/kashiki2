@@ -23,7 +23,7 @@ use winit::event::WindowEvent;
 
 pub fn main() {
     env_logger::builder()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Debug)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
     pollster::block_on(run());
@@ -179,6 +179,12 @@ impl SimpleStateCallback for SingleCharCallback {
             "bezier3",
             include_str!("../../font_rasterizer/data/test_shapes_bezier3.svg"),
             (0.2, 0.2, 0.0),
+        );
+        self.register_and_add_svg(
+            context,
+            "caret_primary",
+            include_str!("../../ui_support/asset/caret_primary.svg"),
+            (0.6, 0.2, 0.0),
         );
 
         debug!("init!");
