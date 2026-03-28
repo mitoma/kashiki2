@@ -23,7 +23,7 @@ use crate::{
 };
 
 use stroke_parser::Action;
-use wgpu::{InstanceDescriptor, SubmissionIndex, SurfaceError};
+use wgpu::{CurrentSurfaceTexture, InstanceDescriptor, SubmissionIndex};
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
 
 // レンダリング対象を表す。
@@ -51,11 +51,21 @@ pub enum RenderTargetResponse {
     Image(ImageBuffer<Rgba<u8>, Vec<u8>>),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SurfaceAcquireError {
+    Timeout,
+    Occluded,
+    Outdated,
+    Lost,
+    Validation,
+}
+
 enum RenderTarget {
     Window {
         surface: wgpu::Surface<'static>,
         surface_texture: Option<wgpu::SurfaceTexture>,
         config: wgpu::SurfaceConfiguration,
+        needs_reconfigure_after_present: bool,
     },
     Image {
         surface_texture: wgpu::Texture,
@@ -82,14 +92,28 @@ impl RenderTarget {
         }
     }
 
-    fn get_screen_view(&mut self) -> Result<wgpu::TextureView, SurfaceError> {
+    fn get_screen_view(&mut self) -> Result<wgpu::TextureView, SurfaceAcquireError> {
         match self {
             RenderTarget::Window {
                 surface,
                 surface_texture,
+                needs_reconfigure_after_present,
                 ..
             } => {
-                let st = surface.get_current_texture()?;
+                let st = match surface.get_current_texture() {
+                    CurrentSurfaceTexture::Success(st) => st,
+                    CurrentSurfaceTexture::Suboptimal(st) => {
+                        *needs_reconfigure_after_present = true;
+                        st
+                    }
+                    CurrentSurfaceTexture::Timeout => return Err(SurfaceAcquireError::Timeout),
+                    CurrentSurfaceTexture::Occluded => return Err(SurfaceAcquireError::Occluded),
+                    CurrentSurfaceTexture::Outdated => return Err(SurfaceAcquireError::Outdated),
+                    CurrentSurfaceTexture::Lost => return Err(SurfaceAcquireError::Lost),
+                    CurrentSurfaceTexture::Validation => {
+                        return Err(SurfaceAcquireError::Validation);
+                    }
+                };
                 let texture_view = st
                     .texture
                     .create_view(&wgpu::TextureViewDescriptor::default());
@@ -146,9 +170,16 @@ impl RenderTarget {
     ) -> RenderTargetResponse {
         match self {
             RenderTarget::Window {
-                surface_texture, ..
+                surface,
+                surface_texture,
+                config,
+                needs_reconfigure_after_present,
             } => {
                 surface_texture.take().unwrap().present();
+                if *needs_reconfigure_after_present {
+                    surface.configure(context.device(), config);
+                    *needs_reconfigure_after_present = false;
+                }
                 RenderTargetResponse::Window
             }
             RenderTarget::Image {
@@ -250,7 +281,8 @@ impl RenderState {
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(&InstanceDescriptor::default());
+        let instance =
+            wgpu::Instance::new(InstanceDescriptor::new_without_display_handle_from_env());
 
         let surface = match &render_target_request {
             RenderTargetRequest::Window { window } => {
@@ -322,6 +354,7 @@ impl RenderState {
                     surface,
                     surface_texture: None,
                     config,
+                    needs_reconfigure_after_present: false,
                 }
             }
             RenderTargetRequest::Image { window_size } => {
@@ -580,7 +613,7 @@ impl RenderState {
 
     pub(crate) async fn async_render(
         &mut self,
-    ) -> Result<RenderTargetResponse, wgpu::SurfaceError> {
+    ) -> Result<RenderTargetResponse, SurfaceAcquireError> {
         record_start_of_phase("render 0: append glyph");
         while let Ok(s) = self.ui_string_receiver.try_recv() {
             let _ = self.glyph_vertex_buffer.append_chars(

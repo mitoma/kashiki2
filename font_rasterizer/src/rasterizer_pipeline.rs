@@ -157,7 +157,7 @@ impl RasterizerPipeline {
         let background_image_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Background Image Render Pipeline Layout"),
-                bind_group_layouts: &[&background_image_bind_group.layout],
+                bind_group_layouts: &[Some(&background_image_bind_group.layout)],
                 immediate_size: 0,
             });
 
@@ -213,7 +213,7 @@ impl RasterizerPipeline {
         let screen_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Screen Render Pipeline Layout"),
-                bind_group_layouts: &[&screen_bind_group.layout],
+                bind_group_layouts: &[Some(&screen_bind_group.layout)],
                 immediate_size: 0,
             });
 

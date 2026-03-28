@@ -29,7 +29,7 @@ use font_rasterizer::{
     time::{ClockMode, increment_fixed_clock, set_clock_mode},
     vector_instances::VectorInstances,
 };
-use render_state::{RenderState, RenderTargetRequest};
+use render_state::{RenderState, RenderTargetRequest, SurfaceAcquireError};
 use ui_context::UiContext;
 
 use crate::{
@@ -368,21 +368,15 @@ impl ApplicationHandler for App {
                         match futures::executor::block_on(async { state.async_render().await }) {
                             Ok(_) => {}
                             // Reconfigure the surface if it's lost or outdated
-                            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                            Err(SurfaceAcquireError::Lost | SurfaceAcquireError::Outdated) => {
                                 state.redraw()
                             }
-                            // The system is out of memory, we should probably quit
-                            Err(wgpu::SurfaceError::OutOfMemory) => {
-                                print_metrics_to_stdout();
-                                state.shutdown();
-                                event_loop.exit();
+                            // 取得に失敗したフレームはスキップして次フレームへ進む
+                            Err(SurfaceAcquireError::Timeout | SurfaceAcquireError::Occluded) => {
+                                log::warn!("Surface unavailable (timeout or occluded)")
                             }
-                            // We're ignoring timeouts
-                            Err(wgpu::SurfaceError::Timeout) => {
-                                log::warn!("Surface timeout")
-                            }
-                            Err(wgpu::SurfaceError::Other) => {
-                                log::warn!("Surface Other error")
+                            Err(SurfaceAcquireError::Validation) => {
+                                log::warn!("Surface validation error")
                             }
                         }
                         // 1 フレームごとに時計を更新する(時計のモードが StepByStep の場合のみ意味がある)
