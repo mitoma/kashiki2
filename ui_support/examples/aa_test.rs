@@ -67,9 +67,10 @@ pub async fn run(args: Args) {
     let mut font_collector = FontCollector::default();
     font_collector.add_system_fonts();
     let mut font_repository = FontRepository::new(font_collector);
-    font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N");
+    //font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N");
     //font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N-R");
     //font_repository.add_fallback_font_from_system("Noto Sans JP");
+    font_repository.add_fallback_font_from_system("Noto Serif JP");
     font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
     font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
