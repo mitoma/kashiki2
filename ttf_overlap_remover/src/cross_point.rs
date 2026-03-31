@@ -100,13 +100,7 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<CrossPoint> {
     };
 
     match (a, b) {
-        (PathSegment::Line(a), PathSegment::Line(b)) => {
-            if let Some(point) = cross_point_line(a, b) {
-                vec![point]
-            } else {
-                vec![]
-            }
-        }
+        (PathSegment::Line(a), PathSegment::Line(b)) => cross_point_lines(a, b),
         (PathSegment::Line(line), PathSegment::Quadratic(quad)) => closs_point_inner(line, quad),
         (PathSegment::Quadratic(quad), PathSegment::Line(line)) => closs_point_inner(quad, line),
         (PathSegment::Line(line), PathSegment::Cubic(cubic)) => closs_point_inner(line, cubic),
@@ -124,6 +118,74 @@ fn cross_point(a: &PathSegment, b: &PathSegment) -> Vec<CrossPoint> {
             closs_point_inner(cubic1, cubic2)
         }
     }
+}
+
+#[inline]
+fn cross_point_lines(a: &Line, b: &Line) -> Vec<CrossPoint> {
+    if let Some(point) = cross_point_line(a, b) {
+        return vec![point];
+    }
+
+    let a_vector = a.to - a.from;
+    let b_vector = b.to - b.from;
+    let a_len2 = a_vector.dot(a_vector);
+    let b_len2 = b_vector.dot(b_vector);
+    if a_len2 <= EPSILON || b_len2 <= EPSILON {
+        return vec![];
+    }
+
+    // 同方向の重複は輪郭の連続辺として現れることがあり、分割すると副作用が大きい。
+    // 打ち消しが起きる逆向き重複だけを分割対象にする。
+    if a_vector.dot(b_vector) >= 0.0 {
+        return vec![];
+    }
+
+    let b_from = b.from - a.from;
+    let b_to = b.to - a.from;
+    if a_vector.cross(b_from).abs() > EPSILON || a_vector.cross(b_to).abs() > EPSILON {
+        return vec![];
+    }
+
+    let b0_on_a = (b.from - a.from).dot(a_vector) / a_len2;
+    let b1_on_a = (b.to - a.from).dot(a_vector) / a_len2;
+    let overlap_start = b0_on_a.min(b1_on_a).max(0.0);
+    let overlap_end = b0_on_a.max(b1_on_a).min(1.0);
+    if overlap_end < 0.0 || overlap_start > 1.0 {
+        return vec![];
+    }
+
+    let overlap_len = overlap_end - overlap_start;
+    if overlap_len < -EPSILON {
+        return vec![];
+    }
+
+    let overlap_positions = if overlap_len.abs() <= EPSILON {
+        vec![overlap_start]
+    } else {
+        vec![overlap_start, overlap_end]
+    };
+
+    overlap_positions
+        .into_iter()
+        .map(|a_position| {
+            let point = Point::from_xy(
+                a.from.x + a_vector.x * a_position,
+                a.from.y + a_vector.y * a_position,
+            );
+            let b_position = (point - b.from).dot(b_vector) / b_len2;
+            CrossPoint {
+                point,
+                a_position,
+                b_position,
+            }
+            .normalize()
+        })
+        .fold(Vec::new(), |mut points, point| {
+            if !points.iter().any(|p| p == &point) {
+                points.push(point);
+            }
+            points
+        })
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -160,7 +222,7 @@ fn cross_point_line(a: &Line, b: &Line) -> Option<CrossPoint> {
     // 直線同士の交点を求める
     let denom =
         (b.to.y - b.from.y) * (a.to.x - a.from.x) - (b.to.x - b.from.x) * (a.to.y - a.from.y);
-    if denom == 0.0 {
+    if denom.abs() <= EPSILON {
         return None; // 平行な場合は交点なし
     }
     let ua = ((b.to.x - b.from.x) * (a.from.y - b.from.y)
@@ -371,6 +433,52 @@ mod tests {
 
         let result = cross_point(&segment1, &segment2);
         assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_cross_point_lines_overlap() {
+        let segment1 = PathSegment::Line(Line {
+            from: Point::from_xy(0.0, 0.0),
+            to: Point::from_xy(4.0, 0.0),
+        });
+        let segment2 = PathSegment::Line(Line {
+            from: Point::from_xy(3.0, 0.0),
+            to: Point::from_xy(1.0, 0.0),
+        });
+
+        let result = cross_point(&segment1, &segment2);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].point, Point::from_xy(1.0, 0.0));
+        assert_eq!(result[0].a_position, 0.25);
+        assert_eq!(result[0].b_position, 1.0);
+        assert_eq!(result[1].point, Point::from_xy(3.0, 0.0));
+        assert_eq!(result[1].a_position, 0.75);
+        assert_eq!(result[1].b_position, 0.0);
+    }
+
+    #[test]
+    fn test_split_line_on_cross_point_overlap() {
+        let segment1 = PathSegment::Line(Line {
+            from: Point::from_xy(0.0, 0.0),
+            to: Point::from_xy(4.0, 0.0),
+        });
+        let segment2 = PathSegment::Line(Line {
+            from: Point::from_xy(3.0, 0.0),
+            to: Point::from_xy(1.0, 0.0),
+        });
+
+        let (split1, split2) = split_line_on_cross_point(&segment1, &segment2).unwrap();
+
+        assert_eq!(split1.len(), 3);
+        assert_eq!(split2.len(), 1);
+        assert_eq!(split1[0].endpoints().0, Point::from_xy(0.0, 0.0));
+        assert_eq!(split1[0].endpoints().1, Point::from_xy(1.0, 0.0));
+        assert_eq!(split1[1].endpoints().0, Point::from_xy(1.0, 0.0));
+        assert_eq!(split1[1].endpoints().1, Point::from_xy(3.0, 0.0));
+        assert_eq!(split1[2].endpoints().0, Point::from_xy(3.0, 0.0));
+        assert_eq!(split1[2].endpoints().1, Point::from_xy(4.0, 0.0));
+        assert_eq!(split2[0].endpoints().0, Point::from_xy(3.0, 0.0));
+        assert_eq!(split2[0].endpoints().1, Point::from_xy(1.0, 0.0));
     }
 
     #[test]

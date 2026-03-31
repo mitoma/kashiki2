@@ -368,7 +368,34 @@ fn split_all_paths(paths: Vec<PathSegment>) -> Vec<PathSegment> {
             has_cross = false;
         }
     }
+    cancel_reversed_segments(paths)
+}
+
+fn cancel_reversed_segments(paths: Vec<PathSegment>) -> Vec<PathSegment> {
+    let mut removed = vec![false; paths.len()];
+
+    for i in 0..paths.len() {
+        if removed[i] {
+            continue;
+        }
+        let reverse = paths[i].reverse();
+        for j in (i + 1)..paths.len() {
+            if removed[j] {
+                continue;
+            }
+            if paths[j] == reverse {
+                removed[i] = true;
+                removed[j] = true;
+                break;
+            }
+        }
+    }
+
     paths
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, segment)| if removed[i] { None } else { Some(segment) })
+        .collect()
 }
 
 #[cfg(test)]
@@ -381,8 +408,8 @@ mod tests {
     use tiny_skia_path::Point;
 
     use crate::{
-        OverlapRemoveOutlineBuilder, PathSegment, get_loop_segment, has_vector_tail_loop,
-        path_to_path_segments, remove_overlap, split_all_paths,
+        Line, OverlapRemoveOutlineBuilder, PathSegment, cancel_reversed_segments, get_loop_segment,
+        has_vector_tail_loop, path_to_path_segments, remove_overlap, split_all_paths,
         test_helper::{gen_even_pixmap, path_segments_to_images, path_segments_to_images2},
     };
 
@@ -740,5 +767,21 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_cancel_reversed_segments() {
+        let a = PathSegment::Line(Line {
+            from: Point::from_xy(0.0, 0.0),
+            to: Point::from_xy(1.0, 0.0),
+        });
+        let b = a.reverse();
+        let c = PathSegment::Line(Line {
+            from: Point::from_xy(1.0, 0.0),
+            to: Point::from_xy(2.0, 0.0),
+        });
+
+        let result = cancel_reversed_segments(vec![a, c.clone(), b]);
+        assert_eq!(result, vec![c]);
     }
 }
