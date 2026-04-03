@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
@@ -5,70 +6,164 @@ use std::sync::mpsc::Sender;
 use super::action::*;
 use super::buffer::*;
 use super::caret::*;
+use crate::notifier::{ChangeEventNotifier, SharedChangeEventNotifier, shared_notifier};
+
+#[derive(Default)]
+struct SelectionState {
+    mark: Option<Caret>,
+}
+
+impl SelectionState {
+    fn mark_caret(&self) -> Option<Caret> {
+        self.mark
+    }
+
+    fn mark_caret_mut(&mut self) -> &mut Option<Caret> {
+        &mut self.mark
+    }
+
+    fn mark(&mut self, main_caret: Caret, notifier: &dyn ChangeEventNotifier) {
+        if let Some(current_mark) = self.mark {
+            notifier.notify(ChangeEvent::RemoveCaret(current_mark));
+        }
+        self.mark = Some(Caret::new_mark_with_notifier(main_caret.position, notifier));
+    }
+
+    fn unmark(&mut self, notifier: &dyn ChangeEventNotifier) {
+        if let Some(current_mark) = self.mark.take() {
+            notifier.notify(ChangeEvent::RemoveCaret(current_mark));
+        }
+    }
+
+    fn selection(&self, main_caret: Caret, buffer: &Buffer) -> Vec<BufferChar> {
+        let Some(mark) = self.mark else {
+            return Vec::new();
+        };
+        let (from, to) = if main_caret < mark {
+            (main_caret.position, mark.position)
+        } else {
+            (mark.position, main_caret.position)
+        };
+        if from.is_same_row(&to) {
+            let Some(line) = buffer.lines.get(from.row) else {
+                return Vec::new();
+            };
+            let start = from.col.min(line.chars.len());
+            let end = to.col.min(line.chars.len());
+            return line.chars[start..end].to_vec();
+        }
+
+        let mut result = Vec::new();
+        if let Some(line) = buffer.lines.get(from.row) {
+            let start = from.col.min(line.chars.len());
+            result.extend(line.chars[start..].iter().copied());
+        }
+        for row in from.row.saturating_add(1)..to.row {
+            if let Some(line) = buffer.lines.get(row) {
+                result.extend(line.chars.iter().copied());
+            }
+        }
+        if let Some(line) = buffer.lines.get(to.row) {
+            let end = to.col.min(line.chars.len());
+            result.extend(line.chars[..end].iter().copied());
+        }
+        result
+    }
+
+    fn notify_selection_delta(
+        pre_selection: &[BufferChar],
+        post_selection: &[BufferChar],
+        notifier: &dyn ChangeEventNotifier,
+    ) {
+        let post_set: HashSet<BufferChar> = post_selection.iter().copied().collect();
+        pre_selection
+            .iter()
+            .filter(|c| !post_set.contains(c))
+            .copied()
+            .for_each(|c| notifier.notify(ChangeEvent::UnSelectChar(c)));
+
+        let pre_set: HashSet<BufferChar> = pre_selection.iter().copied().collect();
+        post_selection
+            .iter()
+            .filter(|c| !pre_set.contains(c))
+            .copied()
+            .for_each(|c| notifier.notify(ChangeEvent::SelectChar(c)));
+    }
+}
+
+struct IndentSettings {
+    list_indent_patterns: &'static [&'static str],
+}
+
+impl Default for IndentSettings {
+    fn default() -> Self {
+        Self {
+            list_indent_patterns: &DEFAULT_LIST_INDENT_PATTERN,
+        }
+    }
+}
 
 pub struct Editor {
     main_caret: Caret,
-    mark: Option<Caret>,
+    selection_state: SelectionState,
     buffer: Buffer,
     undo_list: Vec<ReverseActions>,
     sender: Sender<ChangeEvent>,
+    notifier: SharedChangeEventNotifier,
 }
 
 impl Editor {
     pub fn new(sender: Sender<ChangeEvent>) -> Self {
+        let notifier = shared_notifier(sender.clone());
         Self {
-            main_caret: Caret::new([0, 0].into(), &sender),
-            mark: Option::None,
+            main_caret: Caret::new_primary_with_notifier([0, 0].into(), notifier.as_ref()),
+            selection_state: SelectionState::default(),
             buffer: Buffer::new(sender.clone()),
             undo_list: Vec::new(),
             sender,
+            notifier,
         }
     }
 
     // action を実行する前後で selection が変わった場合に、変更を sender に通知する
     #[inline]
-    fn action_width_selection_update(
+    fn action_with_selection_update(
         &mut self,
         op: &EditorOperation,
         action: impl FnOnce(&mut Self),
     ) {
         let pre_selection = self.selection();
+        let should_preclear_selection = op.is_unmark_operation();
 
         // unmark 対象の操作の場合は action 実行前に選択範囲解除のためのイベントを送信する
         // なぜならアクション実行後にイベントを送信しても
         // BufferChar の座標が変わっていて正しく選択範囲を解除できないため
-        if op.is_unmark_operation() {
-            pre_selection.iter().cloned().for_each(|c| {
-                self.sender.send(ChangeEvent::UnSelectChar(c)).unwrap();
-            });
+        if should_preclear_selection {
+            pre_selection
+                .iter()
+                .copied()
+                .for_each(|c| self.notifier.notify(ChangeEvent::UnSelectChar(c)));
         }
 
         action(self);
 
         let post_selection = self.selection();
-        if pre_selection != post_selection {
-            let leave_selections = pre_selection
-                .iter()
-                .filter(|c| !post_selection.contains(c))
-                .cloned()
-                .collect::<Vec<_>>();
-            leave_selections.iter().for_each(|c| {
-                self.sender.send(ChangeEvent::UnSelectChar(*c)).unwrap();
-            });
-
-            let enter_selections = post_selection
-                .iter()
-                .filter(|c| !pre_selection.contains(c))
-                .cloned()
-                .collect::<Vec<_>>();
-            enter_selections.iter().for_each(|c| {
-                self.sender.send(ChangeEvent::SelectChar(*c)).unwrap();
-            });
+        let diff_base = if should_preclear_selection {
+            Vec::new()
+        } else {
+            pre_selection
+        };
+        if diff_base != post_selection {
+            SelectionState::notify_selection_delta(
+                &diff_base,
+                &post_selection,
+                self.notifier.as_ref(),
+            );
         }
     }
 
     pub fn operation(&mut self, op: &EditorOperation) {
-        self.action_width_selection_update(op, |itself| {
+        self.action_with_selection_update(op, |itself| {
             match op {
                 EditorOperation::Undo => {
                     itself.undo();
@@ -87,7 +182,7 @@ impl Editor {
             let reverse_actions = BufferApplyer::apply_action(
                 &mut itself.buffer,
                 &mut itself.main_caret,
-                &mut itself.mark,
+                itself.selection_state.mark_caret_mut(),
                 op,
                 &itself.sender,
             );
@@ -104,7 +199,7 @@ impl Editor {
             BufferApplyer::apply_reserve_actions(
                 &mut self.buffer,
                 &mut self.main_caret,
-                &mut self.mark,
+                self.selection_state.mark_caret_mut(),
                 &reverse_action,
                 &self.sender,
             );
@@ -112,21 +207,12 @@ impl Editor {
     }
 
     pub fn mark(&mut self) {
-        if let Some(current_mark) = self.mark {
-            self.sender
-                .send(ChangeEvent::RemoveCaret(current_mark))
-                .unwrap();
-        }
-        self.mark = Some(Caret::new_mark(self.main_caret.position, &self.sender));
+        self.selection_state
+            .mark(self.main_caret, self.notifier.as_ref());
     }
 
     pub fn unmark(&mut self) {
-        if let Some(current_mark) = self.mark {
-            self.sender
-                .send(ChangeEvent::RemoveCaret(current_mark))
-                .unwrap();
-            self.mark = None;
-        }
+        self.selection_state.unmark(self.notifier.as_ref());
     }
 
     pub fn to_buffer_string(&self) -> String {
@@ -142,40 +228,29 @@ impl Editor {
     }
 
     fn selection(&self) -> Vec<BufferChar> {
-        let Some(mark) = self.mark else {
-            return Vec::new();
-        };
-        let (from, to) = if self.main_caret < mark {
-            (self.main_caret.position, mark.position)
-        } else {
-            (mark.position, self.main_caret.position)
-        };
-        if from.is_same_row(&to) {
-            self.buffer.lines[from.row].chars[from.col..to.col].to_vec()
-        } else {
-            let mut result = Vec::new();
-            result.extend(self.buffer.lines[from.row].chars[from.col..].iter());
-            for row in from.row + 1..to.row {
-                result.extend(self.buffer.lines[row].chars.iter());
-            }
-            result.extend(self.buffer.lines[to.row].chars[..to.col].iter());
-            result
-        }
+        self.selection_state
+            .selection(self.main_caret, &self.buffer)
     }
 
     /// 箇条書きのような行では折り返す場合のインデント数を計算する
     /// 例えば "  - ABCDEFG" という行があった場合、折り返し時には "    EFG" のようにインデントを入れるため 4 を返す
     /// 引数の line_string は行全体の文字列を表す
     #[inline]
-    fn calc_indent(line_string: &str, width_resolver: Arc<dyn CharWidthResolver>) -> usize {
-        let mut list_indent_pattern = DEFAULT_LIST_INDENT_PATTERN.to_vec();
+    fn calc_indent(
+        line_string: &str,
+        width_resolver: Arc<dyn CharWidthResolver>,
+        indent_settings: &IndentSettings,
+    ) -> usize {
+        let mut list_indent_pattern = indent_settings.list_indent_patterns.to_vec();
         // インデントパターンを長い順で評価しないと、長いパターンが使われないケースがある
         // 例えば "- " と "- [ ] " がある場合、"- [ ] " が先に評価されないと "- " がマッチしてしまう
         list_indent_pattern.sort_by(|l, r| l.len().cmp(&r.len()).reverse());
         for pattern in list_indent_pattern {
             if line_string.trim_start().starts_with(pattern) {
                 // line_string の何文字目に pattern がマッチするかを取得する
-                let space_num = line_string.find(pattern).unwrap();
+                let Some(space_num) = line_string.find(pattern) else {
+                    continue;
+                };
                 let space_size = line_string[0..space_num]
                     .chars()
                     .map(|c| width_resolver.resolve_width(c))
@@ -196,11 +271,27 @@ impl Editor {
         line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
         width_resolver: Arc<dyn CharWidthResolver>,
     ) -> PhisicalLayout {
+        self.calc_physical_layout_with_settings(
+            max_line_width,
+            line_boundary_prohibited_chars,
+            width_resolver,
+            &IndentSettings::default(),
+        )
+    }
+
+    fn calc_physical_layout_with_settings(
+        &self,
+        max_line_width: usize,
+        line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
+        width_resolver: Arc<dyn CharWidthResolver>,
+        indent_settings: &IndentSettings,
+    ) -> PhisicalLayout {
         let mut chars = Vec::new();
         let mut phisical_row = 0;
 
         let mut main_caret_pos = PhisicalPosition { row: 0, col: 0 };
-        let mut mark_pos = self.mark.map(|_| PhisicalPosition { row: 0, col: 0 });
+        let mark_caret = self.selection_state.mark_caret();
+        let mut mark_pos = mark_caret.map(|_| PhisicalPosition { row: 0, col: 0 });
 
         for line in self.buffer.lines.iter() {
             let mut phisical_col = 0;
@@ -211,8 +302,8 @@ impl Editor {
                     main_caret_pos.row = phisical_row;
                     main_caret_pos.col = phisical_col;
                 }
-                if let Some(mark) = mark_pos.as_mut()
-                    && self.mark.unwrap().position.row == line.row_num
+                if let (Some(mark), Some(mark_caret)) = (mark_pos.as_mut(), mark_caret)
+                    && mark_caret.position.row == line.row_num
                 {
                     mark.row = phisical_row;
                     mark.col = phisical_col;
@@ -220,7 +311,11 @@ impl Editor {
             }
 
             // 箇条書きっぽい行では折り返し時にインデントを入れる
-            let indent = Self::calc_indent(&line.to_line_string(), width_resolver.clone());
+            let indent = Self::calc_indent(
+                &line.to_line_string(),
+                width_resolver.clone(),
+                indent_settings,
+            );
             for buffer_char in line.chars.iter() {
                 // 物理位置を計算
                 let char_width = width_resolver.resolve_width(buffer_char.c);
@@ -263,10 +358,10 @@ impl Editor {
                     phisical_col,
                     char_width,
                 );
-                if let Some(mark) = mark_pos.as_mut() {
+                if let (Some(mark), Some(mark_caret)) = (mark_pos.as_mut(), mark_caret) {
                     Self::update_caret_position(
                         mark,
-                        &self.mark.unwrap(),
+                        &mark_caret,
                         buffer_char,
                         phisical_row,
                         phisical_col,
@@ -393,6 +488,8 @@ pub enum ChangeEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::mpsc::Receiver;
+    use std::time::{Duration, Instant};
 
     struct TestWidthResolver;
 
@@ -401,6 +498,178 @@ mod tests {
             // テスト用なので雑に判定
             if c.is_ascii() { 1 } else { 2 }
         }
+    }
+
+    fn collect_events(receiver: &Receiver<ChangeEvent>) -> Vec<ChangeEvent> {
+        receiver.try_iter().collect()
+    }
+
+    #[test]
+    fn selection_events_follow_caret_diff() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender);
+        editor.operation(&EditorOperation::InsertString("ABCDE".to_string()));
+        editor.operation(&EditorOperation::BufferHead);
+        editor.operation(&EditorOperation::Forward);
+        editor.operation(&EditorOperation::Mark);
+        let _ = collect_events(&receiver);
+
+        editor.operation(&EditorOperation::Forward);
+        assert_eq!(
+            collect_events(&receiver),
+            vec![
+                ChangeEvent::MoveCaret {
+                    from: Caret::new_without_event([0, 1].into(), CaretType::Primary),
+                    to: Caret::new_without_event([0, 2].into(), CaretType::Primary),
+                },
+                ChangeEvent::SelectChar(BufferChar {
+                    position: [0, 1].into(),
+                    c: 'B',
+                }),
+            ]
+        );
+
+        editor.operation(&EditorOperation::Forward);
+        assert_eq!(
+            collect_events(&receiver),
+            vec![
+                ChangeEvent::MoveCaret {
+                    from: Caret::new_without_event([0, 2].into(), CaretType::Primary),
+                    to: Caret::new_without_event([0, 3].into(), CaretType::Primary),
+                },
+                ChangeEvent::SelectChar(BufferChar {
+                    position: [0, 2].into(),
+                    c: 'C',
+                }),
+            ]
+        );
+
+        editor.operation(&EditorOperation::Back);
+        assert_eq!(
+            collect_events(&receiver),
+            vec![
+                ChangeEvent::MoveCaret {
+                    from: Caret::new_without_event([0, 3].into(), CaretType::Primary),
+                    to: Caret::new_without_event([0, 2].into(), CaretType::Primary),
+                },
+                ChangeEvent::UnSelectChar(BufferChar {
+                    position: [0, 2].into(),
+                    c: 'C',
+                }),
+            ]
+        );
+    }
+
+    #[test]
+    fn unmark_clears_selection_before_removing_mark() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender);
+        editor.operation(&EditorOperation::InsertString("ABCDE".to_string()));
+        editor.operation(&EditorOperation::BufferHead);
+        editor.operation(&EditorOperation::Forward);
+        editor.operation(&EditorOperation::Mark);
+        editor.operation(&EditorOperation::Forward);
+        editor.operation(&EditorOperation::Forward);
+        let _ = collect_events(&receiver);
+
+        editor.operation(&EditorOperation::UnMark);
+        assert_eq!(
+            collect_events(&receiver),
+            vec![
+                ChangeEvent::UnSelectChar(BufferChar {
+                    position: [0, 1].into(),
+                    c: 'B',
+                }),
+                ChangeEvent::UnSelectChar(BufferChar {
+                    position: [0, 2].into(),
+                    c: 'C',
+                }),
+                ChangeEvent::RemoveCaret(Caret::new_without_event([0, 1].into(), CaretType::Mark,)),
+            ]
+        );
+    }
+
+    #[test]
+    fn undo_keeps_public_event_order() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender);
+        editor.operation(&EditorOperation::InsertString("ab".to_string()));
+        let _ = collect_events(&receiver);
+
+        editor.operation(&EditorOperation::Undo);
+        assert_eq!(editor.to_buffer_string(), "");
+        assert_eq!(
+            collect_events(&receiver),
+            vec![
+                ChangeEvent::MoveCaret {
+                    from: Caret::new_without_event([0, 2].into(), CaretType::Primary),
+                    to: Caret::new_without_event([0, 1].into(), CaretType::Primary),
+                },
+                ChangeEvent::RemoveChar(BufferChar {
+                    position: [0, 1].into(),
+                    c: 'b',
+                }),
+                ChangeEvent::MoveCaret {
+                    from: Caret::new_without_event([0, 1].into(), CaretType::Primary),
+                    to: Caret::new_without_event([0, 0].into(), CaretType::Primary),
+                },
+                ChangeEvent::RemoveChar(BufferChar {
+                    position: [0, 0].into(),
+                    c: 'a',
+                }),
+            ]
+        );
+    }
+
+    #[test]
+    fn disconnected_receiver_does_not_panic() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        drop(receiver);
+
+        let mut editor = Editor::new(sender);
+        editor.operation(&EditorOperation::InsertString("abc".to_string()));
+        editor.operation(&EditorOperation::BufferHead);
+        editor.operation(&EditorOperation::Mark);
+        editor.operation(&EditorOperation::Forward);
+        editor.operation(&EditorOperation::UnMark);
+
+        let layout = editor.calc_phisical_layout(
+            10,
+            &LineBoundaryProhibitedChars::default(),
+            Arc::new(TestWidthResolver),
+        );
+        assert_eq!(editor.to_buffer_string(), "abc");
+        assert_eq!(editor.buffer_chars()[0].len(), 3);
+        assert_eq!(layout.main_caret_pos, PhisicalPosition { row: 0, col: 1 });
+    }
+
+    #[test]
+    #[ignore]
+    fn perf_selection_delta_large_selection() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender);
+
+        let mut input = String::new();
+        for _ in 0..400 {
+            input.push_str("abcdefghijklmnopqrstuvwxyz");
+            input.push('\n');
+        }
+
+        editor.operation(&EditorOperation::InsertString(input));
+        let _ = collect_events(&receiver);
+
+        editor.operation(&EditorOperation::BufferHead);
+        editor.operation(&EditorOperation::Mark);
+        let _ = collect_events(&receiver);
+
+        let start = Instant::now();
+        for _ in 0..1200 {
+            editor.operation(&EditorOperation::Forward);
+        }
+        let elapsed = start.elapsed();
+
+        println!("perf_selection_delta_large_selection: {:?}", elapsed);
+        assert!(elapsed < Duration::from_secs(20));
     }
 
     #[test]
