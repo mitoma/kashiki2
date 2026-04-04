@@ -1,6 +1,5 @@
 use font_rasterizer::glyph_vertex_buffer::Direction;
 use glam::Quat;
-use rand::rand_core::le;
 
 use crate::{easing_value::EasingPointN, layout_engine::Model};
 
@@ -14,7 +13,13 @@ pub struct StackLayout {
 
     position: EasingPointN<3>,
     rotation: EasingPointN<4>,
-    bound: EasingPointN<2>,
+
+    margin: Margin,
+}
+
+pub struct Margin {
+    horizontal: f32,
+    vertical: f32,
 }
 
 impl StackLayout {
@@ -25,7 +30,10 @@ impl StackLayout {
             focus_model_index: None,
             position: EasingPointN::new([0.0, 0.0, 0.0]),
             rotation: EasingPointN::new([0.0, 0.0, 0.0, 1.0]),
-            bound: EasingPointN::new([0.0, 0.0]),
+            margin: Margin {
+                horizontal: 0.1,
+                vertical: 0.1,
+            },
         }
     }
 
@@ -35,6 +43,15 @@ impl StackLayout {
 
     pub fn set_focus_model_index(&mut self, index: usize) {
         self.focus_model_index = Some(index);
+    }
+
+    pub fn set_margin(&mut self, horizontal: f32, vertical: f32) {
+        self.margin.horizontal = horizontal;
+        self.margin.vertical = vertical;
+    }
+
+    pub fn models_mut(&mut self) -> &mut Vec<Box<dyn Model>> {
+        &mut self.models
     }
 }
 
@@ -51,7 +68,13 @@ impl Model for StackLayout {
         self.position.last().into()
     }
 
+    // フォーカスモデルがあればそのモデルの focus_position を返す。なければ全体の position を返す
     fn focus_position(&self) -> glam::Vec3 {
+        if let Some(index) = self.focus_model_index
+            && let Some(model) = self.models.get(index)
+        {
+            return model.focus_position();
+        }
         self.position.current().into()
     }
 
@@ -60,20 +83,22 @@ impl Model for StackLayout {
     }
 
     fn rotation(&self) -> glam::Quat {
-        Quat::from_array(self.rotation.current().into())
+        Quat::from_array(self.rotation.current())
     }
 
     fn bound(&self) -> (f32, f32) {
-        let total_width = self.models.iter().map(|model| model.bound().0).sum::<f32>();
-        let total_height = self.models.iter().map(|model| model.bound().1).sum::<f32>();
         match self.direction {
             Direction::Horizontal => (
-                total_width,
-                self.models.iter().map(|m| m.bound().1).fold(0.0, f32::max),
+                // 縦積み: 幅は最大値、高さは合計
+                self.models.iter().map(|m| m.bound().0).fold(0.0, f32::max),
+                self.models.iter().map(|m| m.bound().1).sum::<f32>()
+                    + self.margin.vertical * (self.models.len() as f32 - 1.0),
             ),
             Direction::Vertical => (
-                self.models.iter().map(|m| m.bound().0).fold(0.0, f32::max),
-                total_height,
+                // 横積み: 幅は合計、高さは最大値
+                self.models.iter().map(|m| m.bound().0).sum::<f32>()
+                    + self.margin.horizontal * (self.models.len() as f32 - 1.0),
+                self.models.iter().map(|m| m.bound().1).fold(0.0, f32::max),
             ),
         }
     }
@@ -94,29 +119,22 @@ impl Model for StackLayout {
 
     fn update(&mut self, context: &crate::ui_context::UiContext) {
         let position: glam::Vec3 = self.position.current().into();
+        let parent_bound: (f32, f32) = self.bound();
         match self.direction {
             Direction::Horizontal => {
-                let mut current_y = position.y;
+                let mut current_y = position.y + parent_bound.1 / 2.0;
                 for model in self.models.iter_mut() {
                     let bound = model.bound();
-                    model.set_position(glam::vec3(
-                        position.x,
-                        current_y - bound.1 / 2.0,
-                        position.z,
-                    ));
-                    current_y -= bound.1;
+                    model.set_position(glam::vec3(position.x, current_y, position.z));
+                    current_y -= bound.1 + self.margin.vertical;
                 }
             }
             Direction::Vertical => {
-                let mut current_x = position.x;
+                let mut current_x = position.x - parent_bound.0 / 2.0;
                 for model in self.models.iter_mut() {
                     let bound = model.bound();
-                    model.set_position(glam::vec3(
-                        current_x + bound.0 / 2.0,
-                        position.y,
-                        position.z,
-                    ));
-                    current_x += bound.0;
+                    model.set_position(glam::vec3(current_x, position.y, position.z));
+                    current_x += bound.0 + self.margin.horizontal;
                 }
             }
         }
@@ -127,10 +145,10 @@ impl Model for StackLayout {
     }
 
     fn editor_operation(&mut self, op: &text_buffer::action::EditorOperation) {
-        if let Some(index) = self.focus_model_index {
-            if let Some(model) = self.models.get_mut(index) {
-                model.editor_operation(op);
-            }
+        if let Some(index) = self.focus_model_index
+            && let Some(model) = self.models.get_mut(index)
+        {
+            model.editor_operation(op);
         }
     }
 
@@ -138,10 +156,10 @@ impl Model for StackLayout {
         &mut self,
         op: &crate::layout_engine::ModelOperation,
     ) -> crate::layout_engine::ModelOperationResult {
-        if let Some(index) = self.focus_model_index {
-            if let Some(model) = self.models.get_mut(index) {
-                return model.model_operation(op);
-            }
+        if let Some(index) = self.focus_model_index
+            && let Some(model) = self.models.get_mut(index)
+        {
+            return model.model_operation(op);
         }
         crate::layout_engine::ModelOperationResult::NoCare
     }
@@ -160,7 +178,7 @@ impl Model for StackLayout {
 
     fn set_border(&mut self, border: crate::layout_engine::ModelBorder) {
         for model in self.models.iter_mut() {
-            model.set_border(border.clone());
+            model.set_border(border);
         }
     }
 
@@ -170,7 +188,7 @@ impl Model for StackLayout {
 
     fn set_easing_preset(&mut self, preset: crate::ui_context::CharEasingsPreset) {
         for model in self.models.iter_mut() {
-            model.set_easing_preset(preset.clone());
+            model.set_easing_preset(preset);
         }
     }
 }
