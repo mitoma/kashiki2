@@ -43,7 +43,7 @@ pub struct SelectBox {
 impl SelectBox {
     fn search_context(direction: Direction) -> TextContext {
         TextContext {
-            min_bound: (0.0, 0.0).into(),
+            min_bound: (1.0, 1.0).into(),
             direction,
             ..Default::default()
         }
@@ -61,7 +61,7 @@ impl SelectBox {
             },
             hyde_caret: true,
             highlight_mode: HighlightMode::None,
-            min_bound: (0.0, 0.0).into(),
+            min_bound: (1.0, 1.0).into(),
             direction,
             ..Default::default()
         }
