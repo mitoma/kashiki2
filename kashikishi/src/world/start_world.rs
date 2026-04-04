@@ -31,6 +31,12 @@ impl StartWorld {
             ThemedColor::Blue,
         );
         layout.add_model(Box::new(logo));
+        let logo = SingleSvg::new(
+            include_str!("../../../ui_support/asset/kashikishi-icon-toon-flat.svg").to_string(),
+            context,
+            ThemedColor::Red,
+        );
+        layout.add_model(Box::new(logo));
 
         let options = vec![
             SelectOption::new(
@@ -54,7 +60,7 @@ impl StartWorld {
         )
         .without_cancellable();
         layout.add_model(Box::new(start_select));
-        layout.set_focus_model_index(1);
+        layout.set_focus_model_index(2);
 
         result.world.add(Box::new(layout));
         result.world.re_layout();

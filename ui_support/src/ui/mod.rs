@@ -4,10 +4,10 @@ mod select_option;
 mod selectbox;
 mod single_line;
 mod single_svg;
+mod stack_layout;
 mod text_input;
 mod textedit;
 mod view_element_state;
-mod stack_layout;
 
 use std::{cmp::Ordering, sync::mpsc::Receiver};
 
@@ -17,9 +17,9 @@ pub use select_option::SelectOption;
 pub use selectbox::SelectBox;
 pub use single_line::SingleLine;
 pub use single_svg::SingleSvg;
+pub use stack_layout::StackLayout;
 pub use text_input::TextInput;
 pub use textedit::TextEdit;
-pub use stack_layout::StackLayout;
 
 use font_rasterizer::color_theme::{ColorTheme, ThemedColor};
 use text_buffer::{buffer::BufferChar, caret::CaretType, editor::ChangeEvent};

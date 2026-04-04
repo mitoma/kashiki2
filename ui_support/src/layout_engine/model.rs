@@ -80,6 +80,7 @@ pub enum ModelOperation {
     ToggleHighlightMode,
 }
 
+#[derive(PartialEq)]
 pub enum ModelOperationResult {
     NoCare,
     RequireReLayout,
