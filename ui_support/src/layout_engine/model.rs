@@ -25,8 +25,7 @@ pub trait Model {
     fn position(&self) -> Vec3;
     // モデルの最終的な位置を返す(アニメーション中はアニメーション後の位置)
     fn last_position(&self) -> Vec3;
-    // モデル中、カメラがフォーカスすべき位置を返す
-    // position はモデルの中心を指す
+    // position はモデルの中心位置を指すのに対し、focus_position はモデル中、カメラがフォーカスすべき位置を返す
     fn focus_position(&self) -> Vec3;
     // モデルの回転を設定する
     fn set_rotation(&mut self, rotation: Quat);
@@ -81,6 +80,7 @@ pub enum ModelOperation {
     ToggleHighlightMode,
 }
 
+#[derive(PartialEq)]
 pub enum ModelOperationResult {
     NoCare,
     RequireReLayout,
