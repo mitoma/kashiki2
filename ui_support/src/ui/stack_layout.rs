@@ -1,7 +1,10 @@
 use font_rasterizer::glyph_vertex_buffer::Direction;
 use glam::Quat;
 
-use crate::{easing_value::EasingPointN, layout_engine::Model};
+use crate::{
+    easing_value::EasingPointN,
+    layout_engine::{Model, ModelOperation, ModelOperationResult},
+};
 
 /// Model を複数まとめてレイアウトするためのコンテナ
 /// Direction に応じて子モデルを縦または横に並べる
@@ -50,8 +53,16 @@ impl StackLayout {
         self.margin.vertical = vertical;
     }
 
+    pub fn models(&self) -> &Vec<Box<dyn Model>> {
+        &self.models
+    }
+
     pub fn models_mut(&mut self) -> &mut Vec<Box<dyn Model>> {
         &mut self.models
+    }
+
+    pub fn direction(&self) -> Direction {
+        self.direction
     }
 }
 
@@ -118,23 +129,41 @@ impl Model for StackLayout {
     }
 
     fn update(&mut self, context: &crate::ui_context::UiContext) {
-        let position: glam::Vec3 = self.position.current().into();
+        let position: glam::Vec3 = self.last_position();
         let parent_bound: (f32, f32) = self.bound();
+        log::info!("--------");
+        log::info!(
+            "StackLayout update: position={:?}, bound={:?}",
+            position,
+            parent_bound
+        );
         match self.direction {
             Direction::Horizontal => {
-                let mut current_y = position.y + parent_bound.1 / 2.0;
+                let mut current_y = position.y - parent_bound.1 / 2.0;
                 for model in self.models.iter_mut() {
                     let bound = model.bound();
-                    model.set_position(glam::vec3(position.x, current_y, position.z));
+                    log::info!(
+                        "model bound: {:?}, model_position: x={}, y={}",
+                        bound,
+                        position.x,
+                        current_y
+                    );
                     current_y -= bound.1 + self.margin.vertical;
+                    model.set_position(glam::vec3(position.x, current_y, position.z));
                 }
             }
             Direction::Vertical => {
                 let mut current_x = position.x - parent_bound.0 / 2.0;
                 for model in self.models.iter_mut() {
                     let bound = model.bound();
+                    log::info!(
+                        "model bound: {:?}, model_position: x={}, y={}",
+                        bound,
+                        current_x,
+                        position.y
+                    );
+                    current_x -= bound.0 + self.margin.horizontal;
                     model.set_position(glam::vec3(current_x, position.y, position.z));
-                    current_x += bound.0 + self.margin.horizontal;
                 }
             }
         }
@@ -156,12 +185,21 @@ impl Model for StackLayout {
         &mut self,
         op: &crate::layout_engine::ModelOperation,
     ) -> crate::layout_engine::ModelOperationResult {
-        if let Some(index) = self.focus_model_index
-            && let Some(model) = self.models.get_mut(index)
-        {
-            return model.model_operation(op);
+        let mut result = ModelOperationResult::NoCare;
+        if let ModelOperation::ChangeDirection(direction) = op {
+            result = ModelOperationResult::RequireReLayout;
+            match direction {
+                Some(direction) => self.direction = *direction,
+                None => self.direction = self.direction.toggle(),
+            }
         }
-        crate::layout_engine::ModelOperationResult::NoCare
+
+        for model in self.models.iter_mut() {
+            if model.model_operation(op) != ModelOperationResult::NoCare {
+                result = ModelOperationResult::RequireReLayout;
+            }
+        }
+        result
     }
 
     fn to_string(&self) -> String {

@@ -11,6 +11,7 @@ use font_rasterizer::{
     glyph_vertex_buffer::Direction, vector_instances::VectorInstances,
 };
 
+use crate::ui::StackLayout;
 use crate::ui_context::{CharEasingsPreset, UiContext};
 
 use crate::{
@@ -20,12 +21,17 @@ use crate::{
 
 use super::{select_option::SelectOption, textedit::TextEdit};
 
+const TITLE_TEXT_INDEX: usize = 0;
+const SEARCH_TEXT_INDEX: usize = 1;
+const SELECT_ITEMS_TEXT_INDEX: usize = 2;
+
 pub struct SelectBox {
     current_selection: usize,
     options: Vec<SelectOption>,
-    title_text_edit: TextEdit,
-    search_text_edit: TextEdit,
-    select_items_text_edit: TextEdit,
+    //title_text_edit: TextEdit,
+    //search_text_edit: TextEdit,
+    //select_items_text_edit: TextEdit,
+    layout: StackLayout,
     action_queue_sender: Sender<Action>,
     char_width_calcurator: Arc<CharWidthCalculator>,
     show_action_name: bool,
@@ -94,12 +100,16 @@ impl SelectBox {
         show_action_name: bool,
         cancellable: bool,
     ) -> Self {
+        let mut layout = StackLayout::new(context.global_direction());
+
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(Self::text_context(context.global_direction()));
             text_edit.editor_operation(&EditorOperation::InsertString(message));
             text_edit
         };
+        layout.add_model(Box::new(title_text_edit));
+
         let search_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(Self::search_context(context.global_direction()));
@@ -111,18 +121,20 @@ impl SelectBox {
             }
             text_edit
         };
+        layout.add_model(Box::new(search_text_edit));
+
         let select_items_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(Self::text_context(context.global_direction()));
             text_edit
         };
+        layout.add_model(Box::new(select_items_text_edit));
+        layout.set_focus_model_index(SEARCH_TEXT_INDEX);
 
         let mut result = Self {
             current_selection: 0,
             options,
-            title_text_edit,
-            search_text_edit,
-            select_items_text_edit,
+            layout,
             action_queue_sender: context.action_sender(),
             char_width_calcurator: context.char_width_calcurator().clone(),
             show_action_name,
@@ -136,8 +148,32 @@ impl SelectBox {
         result
     }
 
+    fn title_text_edit_mut(&mut self) -> &mut dyn Model {
+        self.layout.models_mut()[TITLE_TEXT_INDEX].as_mut()
+    }
+
+    fn title_text_edit(&self) -> &dyn Model {
+        self.layout.models()[TITLE_TEXT_INDEX].as_ref()
+    }
+
+    fn search_text_edit(&self) -> &dyn Model {
+        self.layout.models()[SEARCH_TEXT_INDEX].as_ref()
+    }
+
+    fn search_text_edit_mut(&mut self) -> &mut dyn Model {
+        self.layout.models_mut()[SEARCH_TEXT_INDEX].as_mut()
+    }
+
+    fn select_items_text_edit_mut(&mut self) -> &mut dyn Model {
+        self.layout.models_mut()[SELECT_ITEMS_TEXT_INDEX].as_mut()
+    }
+
+    fn select_items_text_edit(&self) -> &dyn Model {
+        self.layout.models()[SELECT_ITEMS_TEXT_INDEX].as_ref()
+    }
+
     fn narrowd_options(&self) -> Vec<&SelectOption> {
-        let text = self.search_text_edit.to_string();
+        let text = self.search_text_edit().to_string();
         let search_keywords = text.split_whitespace().collect::<Vec<_>>();
         if search_keywords.is_empty() {
             return self.options.iter().collect::<Vec<_>>();
@@ -176,7 +212,7 @@ impl SelectBox {
         }
         let max_options_len = self.max_options_len();
         let current_text: Vec<String> = self
-            .select_items_text_edit
+            .select_items_text_edit_mut()
             .to_string()
             .lines()
             .map(|s| s.to_owned())
@@ -219,7 +255,7 @@ impl SelectBox {
         let diff = capture_diff_slices(similar::Algorithm::Patience, &current_text, &next_text);
 
         // まずはバッファの先頭に移動しておく
-        self.select_items_text_edit
+        self.select_items_text_edit_mut()
             .editor_operation(&EditorOperation::BufferHead);
         info!("------------");
         for change in diff
@@ -230,32 +266,31 @@ impl SelectBox {
             match change.tag() {
                 ChangeTag::Equal => {
                     // 同じ場合は次の行に移動する
-                    self.select_items_text_edit
+                    self.select_items_text_edit_mut()
                         .editor_operation(&EditorOperation::Next);
                 }
                 ChangeTag::Insert => {
                     // 追加の場合はそのまま挿入する
-                    self.select_items_text_edit
-                        .editor_operation(&EditorOperation::InsertString(
-                            change.value().trim().to_owned(),
-                        ));
-                    self.select_items_text_edit
+                    self.select_items_text_edit_mut().editor_operation(
+                        &EditorOperation::InsertString(change.value().trim().to_owned()),
+                    );
+                    self.select_items_text_edit_mut()
                         .editor_operation(&EditorOperation::InsertEnter);
                 }
                 ChangeTag::Delete => {
                     // 削除の場合は削除する
-                    self.select_items_text_edit
+                    self.select_items_text_edit_mut()
                         .editor_operation(&EditorOperation::Mark);
-                    self.select_items_text_edit
+                    self.select_items_text_edit_mut()
                         .editor_operation(&EditorOperation::Last);
-                    self.select_items_text_edit
+                    self.select_items_text_edit_mut()
                         .editor_operation(&EditorOperation::Cut(|_| {}));
-                    self.select_items_text_edit
+                    self.select_items_text_edit_mut()
                         .editor_operation(&EditorOperation::Delete);
                 }
             }
         }
-        self.select_items_text_edit
+        self.select_items_text_edit_mut()
             .editor_operation(&EditorOperation::BufferHead);
     }
 
@@ -276,113 +311,60 @@ impl SelectBox {
     }
 
     fn update_current_selection(&mut self) {
-        self.select_items_text_edit
+        self.select_items_text_edit_mut()
             .editor_operation(&EditorOperation::UnMark);
-        self.select_items_text_edit
+        self.select_items_text_edit_mut()
             .editor_operation(&EditorOperation::BufferHead);
         for _ in 0..(self.selection_offset()) {
-            self.select_items_text_edit
+            self.select_items_text_edit_mut()
                 .editor_operation(&EditorOperation::Next);
         }
-        self.select_items_text_edit
+        self.select_items_text_edit_mut()
             .editor_operation(&EditorOperation::Mark);
-        self.select_items_text_edit
+        self.select_items_text_edit_mut()
             .editor_operation(&EditorOperation::Last);
     }
 }
 
 impl Model for SelectBox {
     fn set_position(&mut self, position: Vec3) {
-        let (bound_width, bound_height) = self.select_items_text_edit.bound();
-
-        let (title_offset, search_offset) = match self.select_items_text_edit.direction() {
-            Direction::Horizontal => (
-                Vec3::new(0.0, -(2.0 + bound_height / 2.0), 0.0),
-                Vec3::new(0.0, -(1.0 + bound_height / 2.0), 0.0),
-            ),
-            Direction::Vertical => (
-                Vec3::new(-(2.0 + bound_width / 2.0), 0.0, 0.0),
-                Vec3::new(-(1.0 + bound_width / 2.0), 0.0, 0.0),
-            ),
-        };
-        self.title_text_edit.set_position(position - title_offset);
-        self.search_text_edit.set_position(position - search_offset);
-        self.select_items_text_edit.set_position(position);
+        self.layout.set_position(position);
     }
 
     fn position(&self) -> Vec3 {
-        self.select_items_text_edit.position()
+        self.layout.position()
     }
 
     fn last_position(&self) -> Vec3 {
-        self.select_items_text_edit.last_position()
+        self.layout.last_position()
     }
 
     fn focus_position(&self) -> Vec3 {
-        let (x, y, z) = self.title_text_edit.last_position().into();
-        let (bound_width, bound_height) = self.bound();
-        match self.select_items_text_edit.direction() {
-            Direction::Horizontal => Vec3::new(x, y - bound_height / 2.0, z),
-            Direction::Vertical => Vec3::new(x - bound_width / 2.0, y, z),
-        }
+        self.layout.focus_position()
     }
 
     fn set_rotation(&mut self, rotation: Quat) {
-        self.title_text_edit.set_rotation(rotation);
-        self.search_text_edit.set_rotation(rotation);
-        self.select_items_text_edit.set_rotation(rotation)
+        self.layout.set_rotation(rotation);
     }
 
     fn rotation(&self) -> Quat {
-        self.select_items_text_edit.rotation()
+        self.layout.rotation()
     }
 
     fn bound(&self) -> (f32, f32) {
-        let bounds = [
-            self.title_text_edit.bound(),
-            self.search_text_edit.bound(),
-            self.select_items_text_edit.bound(),
-        ];
-        match self.select_items_text_edit.direction() {
-            Direction::Horizontal => (
-                bounds
-                    .iter()
-                    .map(|(width, _)| *width)
-                    .fold(f32::NAN, f32::max),
-                bounds.iter().map(|(_, height)| height).sum::<f32>() + 2.0,
-            ),
-            Direction::Vertical => (
-                bounds.iter().map(|(width, _)| width).sum::<f32>() + 2.0,
-                bounds
-                    .iter()
-                    .map(|(_, height)| *height)
-                    .fold(f32::NAN, f32::max),
-            ),
-        }
+        self.layout.bound()
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        [
-            self.title_text_edit.glyph_instances(),
-            self.search_text_edit.glyph_instances(),
-            self.select_items_text_edit.glyph_instances(),
-        ]
-        .concat()
+        self.layout.glyph_instances()
     }
 
     fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
-        [
-            self.title_text_edit.vector_instances(),
-            self.search_text_edit.vector_instances(),
-            self.select_items_text_edit.vector_instances(),
-        ]
-        .concat()
+        self.layout.vector_instances()
     }
 
     fn update(&mut self, context: &UiContext) {
-        self.title_text_edit.update(context);
-        self.search_text_edit.update(context);
-        self.select_items_text_edit.update(context);
+        self.layout.update(context);
     }
 
     fn editor_operation(&mut self, op: &EditorOperation) {
@@ -394,7 +376,7 @@ impl Model for SelectBox {
             | EditorOperation::BackspaceWord
             | EditorOperation::Delete
             | EditorOperation::DeleteWord => {
-                self.search_text_edit.editor_operation(op);
+                self.search_text_edit_mut().editor_operation(op);
                 self.update_select_items_text_edit();
             }
             EditorOperation::Head
@@ -402,7 +384,7 @@ impl Model for SelectBox {
             | EditorOperation::Forward
             | EditorOperation::ForwardWord
             | EditorOperation::Back
-            | EditorOperation::BackWord => self.search_text_edit.editor_operation(op),
+            | EditorOperation::BackWord => self.search_text_edit_mut().editor_operation(op),
             // search_items_text_edit に対して操作を行う
             EditorOperation::Previous => {
                 if self.max_narrowd_options_len() == 0 {
@@ -457,17 +439,13 @@ impl Model for SelectBox {
         &mut self,
         op: &crate::layout_engine::ModelOperation,
     ) -> crate::layout_engine::ModelOperationResult {
-        // model operation も移譲して問題なさそう
-        // 返り値は適当に select_items_text_edit のものだけ返せばよさそう
-        self.title_text_edit.model_operation(op);
-        self.search_text_edit.model_operation(op);
-        self.select_items_text_edit.model_operation(op)
+        self.layout.model_operation(op)
     }
 
     fn to_string(&self) -> String {
         [
-            self.title_text_edit.to_string(),
-            self.search_text_edit.to_string(),
+            self.title_text_edit().to_string(),
+            self.search_text_edit().to_string(),
             // options は select_items_text_edit の to_string だけだと最初に絞り込まれていない
             // 選択肢の文字列が出てこないので全選択肢の文字列を出力する
             self.options
@@ -486,22 +464,18 @@ impl Model for SelectBox {
     }
 
     fn in_animation(&self) -> bool {
-        self.title_text_edit.in_animation()
-            || self.search_text_edit.in_animation()
-            || self.select_items_text_edit.in_animation()
+        self.layout.in_animation()
     }
 
     fn set_border(&mut self, border: ModelBorder) {
-        self.border = border;
+        self.layout.set_border(border);
     }
 
     fn border(&self) -> ModelBorder {
-        self.border
+        self.layout.border()
     }
 
     fn set_easing_preset(&mut self, preset: CharEasingsPreset) {
-        self.title_text_edit.set_easing_preset(preset);
-        self.search_text_edit.set_easing_preset(preset);
-        self.select_items_text_edit.set_easing_preset(preset);
+        self.layout.set_easing_preset(preset);
     }
 }
