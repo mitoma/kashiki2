@@ -59,11 +59,6 @@ fn find_line_line(a: &Line, b: &Line) -> Vec<CrossPoint> {
         return results;
     }
 
-    // 同方向の場合はスキップ（逆方向の重なりのみ検出）
-    if a_vec.x * b_vec.x + a_vec.y * b_vec.y >= 0.0 {
-        return results;
-    }
-
     // 共線かチェック
     let ab = b.from - a.from;
     let cross_ab = a_vec.x * ab.y - a_vec.y * ab.x;

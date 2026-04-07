@@ -832,6 +832,13 @@ mod tests {
         assert!(rate > 0.99, "🏔 一致率が低い: {}", rate);
     }
 
+    #[test]
+    fn test_cityscape_quality() {
+        let rate = pixel_compare_emoji('🏙');
+        eprintln!("🏙 一致率: {}", rate);
+        assert!(rate > 0.99, "🏙 一致率が低い: {}", rate);
+    }
+
     /// NotoEmoji のグリフで Winding vs EvenOdd の差異があるものを探す
     #[test]
     fn test_find_overlap_needed_glyphs() {
