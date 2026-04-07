@@ -86,7 +86,7 @@ impl Model for StackLayout {
         {
             return model.focus_position();
         }
-        self.position.current().into()
+        self.last_position()
     }
 
     fn set_rotation(&mut self, rotation: glam::Quat) {
@@ -130,40 +130,43 @@ impl Model for StackLayout {
 
     fn update(&mut self, context: &crate::ui_context::UiContext) {
         let position: glam::Vec3 = self.last_position();
-        let parent_bound: (f32, f32) = self.bound();
+        let layout_bound: (f32, f32) = self.bound();
         log::info!("--------");
         log::info!(
             "StackLayout update: position={:?}, bound={:?}",
             position,
-            parent_bound
+            layout_bound
         );
         match self.direction {
             Direction::Horizontal => {
-                let mut current_y = position.y - parent_bound.1 / 2.0;
+                let mut current_y = position.y + layout_bound.1 / 2.0;
                 for model in self.models.iter_mut() {
                     let bound = model.bound();
+                    current_y -= bound.1 / 2.0;
                     log::info!(
                         "model bound: {:?}, model_position: x={}, y={}",
                         bound,
                         position.x,
                         current_y
                     );
-                    current_y -= bound.1 + self.margin.vertical;
                     model.set_position(glam::vec3(position.x, current_y, position.z));
+                    current_y -= bound.1 / 2.0;
+                    current_y -= self.margin.vertical;
                 }
             }
             Direction::Vertical => {
-                let mut current_x = position.x - parent_bound.0 / 2.0;
+                let mut current_x = position.x + layout_bound.0 / 2.0;
                 for model in self.models.iter_mut() {
                     let bound = model.bound();
+                    current_x -= (bound.0 + self.margin.horizontal) / 2.0;
                     log::info!(
                         "model bound: {:?}, model_position: x={}, y={}",
                         bound,
                         current_x,
                         position.y
                     );
-                    current_x -= bound.0 + self.margin.horizontal;
                     model.set_position(glam::vec3(current_x, position.y, position.z));
+                    current_x -= (bound.0 + self.margin.horizontal) / 2.0;
                 }
             }
         }
