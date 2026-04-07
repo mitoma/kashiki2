@@ -481,30 +481,6 @@ impl PathSegment {
         self == other || self == &other.reverse()
     }
 
-    /// 浮動小数点の近似的な逆向きチェック
-    pub(crate) fn is_approximately_reversed(&self, other: &Self, epsilon: f32) -> bool {
-        let (a_from, a_to) = self.endpoints();
-        let (b_from, b_to) = other.endpoints();
-        a_from.distance(b_to) < epsilon
-            && a_to.distance(b_from) < epsilon
-            && self.curves_approximately_match_reversed(other, epsilon)
-    }
-
-    fn curves_approximately_match_reversed(&self, other: &Self, epsilon: f32) -> bool {
-        // 制御点も含めてチェック
-        match (self, other) {
-            (PathSegment::Line(_), PathSegment::Line(_)) => true,
-            (PathSegment::Quadratic(q1), PathSegment::Quadratic(q2)) => {
-                q1.control.distance(q2.control) < epsilon
-            }
-            (PathSegment::Cubic(c1), PathSegment::Cubic(c2)) => {
-                c1.control1.distance(c2.control2) < epsilon
-                    && c1.control2.distance(c2.control1) < epsilon
-            }
-            _ => false,
-        }
-    }
-
     #[allow(dead_code)]
     pub(crate) fn bounding_rect(&self) -> (f32, f32, f32, f32) {
         match self {

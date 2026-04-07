@@ -312,7 +312,7 @@ mod tests {
             to: Point::from_xy(1.0, 0.0),
         });
         let result = find_cross_points(&a, &b);
-        assert!(result.len() >= 1);
+        assert!(!result.is_empty());
     }
 
     #[test]

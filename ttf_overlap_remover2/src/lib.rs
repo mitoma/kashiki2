@@ -21,50 +21,6 @@ mod winding;
 use path_segment::PathSegment;
 use tiny_skia_path::{Path, PathBuilder, Point};
 
-/// Path を PathSegment に変換する
-#[allow(dead_code)]
-fn path_to_path_segments(path: &Path) -> Vec<PathSegment> {
-    let mut results = Vec::new();
-    let mut start_point = Point::default();
-    for segment in path.segments() {
-        match segment {
-            tiny_skia_path::PathSegment::MoveTo(point) => start_point = point,
-            tiny_skia_path::PathSegment::LineTo(point) => {
-                if start_point != point {
-                    results.push(PathSegment::Line(path_segment::Line {
-                        from: start_point,
-                        to: point,
-                    }));
-                }
-                start_point = point;
-            }
-            tiny_skia_path::PathSegment::QuadTo(control, point) => {
-                if start_point != point {
-                    results.push(PathSegment::Quadratic(path_segment::Quadratic {
-                        from: start_point,
-                        to: point,
-                        control,
-                    }));
-                }
-                start_point = point;
-            }
-            tiny_skia_path::PathSegment::CubicTo(control1, control2, point) => {
-                if start_point != point {
-                    results.push(PathSegment::Cubic(path_segment::Cubic {
-                        from: start_point,
-                        to: point,
-                        control1,
-                        control2,
-                    }));
-                }
-                start_point = point;
-            }
-            tiny_skia_path::PathSegment::Close => {}
-        }
-    }
-    results
-}
-
 /// Path をサブパス（Close で区切られた一連のセグメント）に分解する
 fn path_to_subpaths(path: &Path) -> Vec<Vec<PathSegment>> {
     let mut subpaths = Vec::new();
@@ -135,6 +91,7 @@ fn path_to_subpaths(path: &Path) -> Vec<Vec<PathSegment>> {
 
 /// セグメント列からサブパスの向き（時計回りか）を判定する
 /// Shoelace formula で符号付き面積を計算
+#[cfg(test)]
 fn is_clockwise(segments: &[PathSegment]) -> bool {
     let mut sum = 0.0f64;
     for seg in segments {
@@ -149,7 +106,10 @@ fn is_clockwise(segments: &[PathSegment]) -> bool {
     sum > 0.0
 }
 
-/// 全サブパスの和集合を求めてオーバーラップを除去する
+/// 全サブパスの和集合を求めてオーバーラップを除去する。
+///
+/// non-zero winding fill rule で設計されたパスを、
+/// even-odd fill rule でも同じ見た目になるように変換する。
 pub(crate) fn remove_path_overlap(paths: Vec<Path>) -> Vec<Path> {
     // 全パスからサブパスを収集
     let mut all_subpaths: Vec<Vec<PathSegment>> = Vec::new();
@@ -165,23 +125,29 @@ pub(crate) fn remove_path_overlap(paths: Vec<Path>) -> Vec<Path> {
     // 全セグメントを集める
     let mut all_segments: Vec<PathSegment> = all_subpaths.iter().flatten().cloned().collect();
 
-    // 交差点で全セグメントを分割する
+    // 全セグメントペア間の交差点を検出して分割する
     all_segments = split_all_segments(all_segments);
 
-    // 逆向きペアを打ち消す
-    all_segments = cancel_reversed_segments(all_segments);
+    // 各エッジの左右のワインディングナンバーを計算して境界エッジのみ残す
+    let boundary_segments = filter_boundary_segments(&all_segments, &all_subpaths);
+
+    if boundary_segments.is_empty() {
+        return paths;
+    }
 
     // セグメントからループを再構成
-    let loops = build_loops(&all_segments);
-
-    // 各ループについて、外側境界に属するかを winding number で判定
-    let result_loops = filter_loops_by_winding(&loops, &all_subpaths);
+    let loops = build_loops(&boundary_segments);
 
     // Path に変換
-    result_loops
+    let result: Vec<Path> = loops
         .iter()
         .filter_map(|loop_seg| segments_to_path(loop_seg))
-        .collect()
+        .collect();
+
+    if result.is_empty() {
+        return paths;
+    }
+    result
 }
 
 /// セグメント列を Path に変換
@@ -218,40 +184,39 @@ fn segments_to_path(segments: &[PathSegment]) -> Option<Path> {
     pb.finish()
 }
 
-/// 全セグメントペア間の交差点を見つけて分割する
-fn split_all_segments(mut segments: Vec<PathSegment>) -> Vec<PathSegment> {
-    // 交差点検出と分割を反復的に行う
+/// 全セグメントペア間で交差点検出・分割を行う
+fn split_all_segments(segments: Vec<PathSegment>) -> Vec<PathSegment> {
+    let mut result: Vec<PathSegment> = segments;
+
     let mut changed = true;
     while changed {
         changed = false;
         let mut i = 0;
-        while i < segments.len() {
+        while i < result.len() {
             let mut j = i + 1;
-            while j < segments.len() {
-                if segments[i].is_same_or_reversed(&segments[j]) {
+            while j < result.len() {
+                if result[i].is_same_or_reversed(&result[j]) {
                     j += 1;
                     continue;
                 }
 
-                let cross_points = cross_point::find_cross_points(&segments[i], &segments[j]);
+                let cross_points = cross_point::find_cross_points(&result[i], &result[j]);
                 if cross_points.is_empty() {
                     j += 1;
                     continue;
                 }
 
                 // 分割する
-                let seg_i = segments.remove(i);
-                // j のインデックスを調整
+                let seg_i = result.remove(i);
                 let j_adj = if j > i { j - 1 } else { j };
-                let seg_j = segments.remove(j_adj);
+                let seg_j = result.remove(j_adj);
 
                 let split_i = split_segment_at_points(&seg_i, &cross_points, true);
                 let split_j = split_segment_at_points(&seg_j, &cross_points, false);
 
-                // 分割結果を挿入
                 let insert_pos = i.min(j_adj);
                 for (k, s) in split_i.into_iter().chain(split_j.into_iter()).enumerate() {
-                    segments.insert(insert_pos + k, s);
+                    result.insert(insert_pos + k, s);
                 }
 
                 changed = true;
@@ -263,7 +228,7 @@ fn split_all_segments(mut segments: Vec<PathSegment>) -> Vec<PathSegment> {
             i += 1;
         }
     }
-    segments
+    result
 }
 
 /// 交差点でセグメントを分割する
@@ -272,13 +237,26 @@ fn split_segment_at_points(
     cross_points: &[cross_point::CrossPoint],
     is_a: bool,
 ) -> Vec<PathSegment> {
-    let mut positions: Vec<f32> = cross_points
+    // t値と対応する交差点座標をペアにする
+    let mut positions: Vec<(f32, Point)> = cross_points
         .iter()
-        .map(|cp| if is_a { cp.t_a } else { cp.t_b })
-        .filter(|&t| t > EPSILON && t < 1.0 - EPSILON)
+        .filter_map(|cp| {
+            let t = if is_a { cp.t_a } else { cp.t_b };
+            if t > EPSILON && t < 1.0 - EPSILON {
+                Some((t, cp.point))
+            } else {
+                None
+            }
+        })
         .collect();
-    positions.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    positions.dedup_by(|a, b| (*a - *b).abs() < EPSILON);
+    positions.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    positions.dedup_by(|a, b| {
+        let dup = (a.0 - b.0).abs() < EPSILON;
+        if dup {
+            // b を残す（dedup_by は b を残す）
+        }
+        dup
+    });
 
     if positions.is_empty() {
         return vec![segment.clone()];
@@ -288,19 +266,18 @@ fn split_segment_at_points(
     let mut remaining = segment.clone();
     let mut consumed = 0.0f32;
 
-    for &t in &positions {
+    for &(t, canonical_point) in &positions {
         let adjusted_t = (t - consumed) / (1.0 - consumed);
         if adjusted_t <= EPSILON || adjusted_t >= 1.0 - EPSILON {
             continue;
         }
         let (pre, post) = remaining.chop(adjusted_t);
 
-        // 交差点の座標を取得して端点を合わせる
-        let cross_point = segment.evaluate(t);
+        // 交差点の座標は CrossPoint.point を使う（両方のセグメントで共有）
         let mut pre = pre;
         let mut post = post;
-        pre.set_to(cross_point);
-        post.set_from(cross_point);
+        pre.set_to(canonical_point);
+        post.set_from(canonical_point);
 
         if !pre.is_degenerate() {
             result.push(pre);
@@ -315,33 +292,64 @@ fn split_segment_at_points(
 }
 
 const EPSILON: f32 = 1e-5;
-const CANCEL_EPSILON: f32 = 0.05;
+const GREEDY_EPSILON: f32 = 0.5;
 
-/// 逆向きのセグメントペアを打ち消す
-fn cancel_reversed_segments(segments: Vec<PathSegment>) -> Vec<PathSegment> {
-    let mut removed = vec![false; segments.len()];
-
-    for i in 0..segments.len() {
-        if removed[i] {
-            continue;
-        }
-        for j in (i + 1)..segments.len() {
-            if removed[j] {
-                continue;
-            }
-            if segments[i].is_approximately_reversed(&segments[j], CANCEL_EPSILON) {
-                removed[i] = true;
-                removed[j] = true;
-                break;
-            }
-        }
-    }
-
+/// 各エッジの左右のワインディングナンバーを計算し、境界エッジのみ残す。
+///
+/// 境界エッジとは: エッジの左側が外側(winding==0)で右側が内側(winding!=0)のエッジ。
+/// これにより正しい巻き方向のエッジのみ残り、一意にループが構成できる。
+fn filter_boundary_segments(
+    segments: &[PathSegment],
+    original_subpaths: &[Vec<PathSegment>],
+) -> Vec<PathSegment> {
     segments
-        .into_iter()
-        .enumerate()
-        .filter_map(|(i, s)| if removed[i] { None } else { Some(s) })
+        .iter()
+        .filter(|seg| {
+            let mid = seg.evaluate(0.5);
+            let tangent = compute_tangent(seg);
+            let len = (tangent.x * tangent.x + tangent.y * tangent.y).sqrt();
+            if len < 1e-10 {
+                return false; // 退化セグメントは除去
+            }
+            let tx = tangent.x / len;
+            let ty = tangent.y / len;
+
+            // セグメントの長さに応じたオフセット量
+            let (from, to) = seg.endpoints();
+            let seg_len = from.distance(to);
+            let offset = (seg_len * 0.01).clamp(0.1, 2.0);
+
+            // 左法線 (進行方向から見て左 = 反時計回り90度回転)
+            let left = Point::from_xy(mid.x - ty * offset, mid.y + tx * offset);
+            // 右法線
+            let right = Point::from_xy(mid.x + ty * offset, mid.y - tx * offset);
+
+            let w_left = total_winding(left, original_subpaths);
+            let w_right = total_winding(right, original_subpaths);
+
+            // 片方が外側(0)で他方が内側(非0): 境界エッジ
+            // outer boundary: w_left=0, w_right≠0
+            // hole boundary: w_left≠0, w_right=0
+            (w_left == 0) != (w_right == 0)
+        })
+        .cloned()
         .collect()
+}
+
+/// セグメントの中点付近の接線ベクトルを計算
+fn compute_tangent(seg: &PathSegment) -> Point {
+    let p0 = seg.evaluate(0.49);
+    let p1 = seg.evaluate(0.51);
+    Point::from_xy(p1.x - p0.x, p1.y - p0.y)
+}
+
+/// 全サブパスに対するワインディングナンバーの合計
+fn total_winding(point: Point, subpaths: &[Vec<PathSegment>]) -> i32 {
+    let mut total = 0i32;
+    for subpath in subpaths {
+        total += winding::winding_number(point, subpath);
+    }
+    total
 }
 
 /// セグメントからループ（閉じたパス）を構築する
@@ -479,7 +487,7 @@ fn build_loops_greedy(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
 
             // 開始点に戻れるか
             let (start_from, _) = segments[start_idx].endpoints();
-            if path.len() > 1 && to.distance(start_from) < CANCEL_EPSILON {
+            if path.len() > 1 && to.distance(start_from) < GREEDY_EPSILON {
                 // ループ完成
                 for &idx in &path {
                     used[idx] = true;
@@ -492,7 +500,7 @@ fn build_loops_greedy(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
 
             // 次のセグメントを距離ベースで探す
             let mut best_idx = None;
-            let mut best_dist = CANCEL_EPSILON;
+            let mut best_dist = GREEDY_EPSILON;
             for (i, seg) in segments.iter().enumerate() {
                 if visited[i] || used[i] {
                     continue;
@@ -518,77 +526,6 @@ fn build_loops_greedy(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
     loops
 }
 
-/// ワインディングナンバーに基づいてループをフィルタリング
-///
-/// 各ループの「辺を少し法線方向にずらした内部点」でのワインディングナンバーを計算し、
-/// non-zero fill rule に基づいてフィルタリングする。
-fn filter_loops_by_winding(
-    loops: &[Vec<PathSegment>],
-    original_subpaths: &[Vec<PathSegment>],
-) -> Vec<Vec<PathSegment>> {
-    if loops.is_empty() {
-        return vec![];
-    }
-
-    let mut result = Vec::new();
-
-    for loop_seg in loops {
-        // ループの辺に垂直な内側方向に少しずらした点を取得
-        let test_point = loop_interior_sample_point(loop_seg);
-
-        let mut total_winding = 0i32;
-        for subpath in original_subpaths {
-            total_winding += winding::winding_number(test_point, subpath);
-        }
-
-        // non-zero rule: winding != 0 なら塗りつぶし領域に属するループ
-        if total_winding != 0 {
-            result.push(loop_seg.clone());
-        }
-    }
-
-    result
-}
-
-/// ループの内部にあるサンプル点を推定する
-/// セグメントの中点から法線方向に微小量ずらした点を返す
-fn loop_interior_sample_point(segments: &[PathSegment]) -> Point {
-    if segments.is_empty() {
-        return Point::zero();
-    }
-
-    // ループの面積の符号から左右を判定
-    let cw = is_clockwise(segments);
-
-    // 最初のセグメントの中点での法線を使う
-    let seg = &segments[0];
-    let mid = seg.evaluate(0.5);
-    let tangent = {
-        let p0 = seg.evaluate(0.49);
-        let p1 = seg.evaluate(0.51);
-        let dx = p1.x - p0.x;
-        let dy = p1.y - p0.y;
-        let len = (dx * dx + dy * dy).sqrt();
-        if len < 1e-10 {
-            Point::from_xy(1.0, 0.0)
-        } else {
-            Point::from_xy(dx / len, dy / len)
-        }
-    };
-
-    // 法線方向（時計回りかどうかで向きを決定）
-    let offset = 0.1; // 微小オフセット
-    let normal = if cw {
-        // CW ループ（フォント座標系 Y上向き）の場合、左側が内側
-        Point::from_xy(-tangent.y, tangent.x)
-    } else {
-        // CCW ループの場合、右側が内側
-        Point::from_xy(tangent.y, -tangent.x)
-    };
-
-    Point::from_xy(mid.x + normal.x * offset, mid.y + normal.y * offset)
-}
-
 /// 座標のハッシュキー（浮動小数点の近傍をまとめる）
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 struct PointKey {
@@ -609,28 +546,47 @@ impl PointKey {
 #[cfg(test)]
 mod tests {
     use rustybuzz::{Face, ttf_parser::OutlineBuilder};
-    use tiny_skia_path::Point;
+    use tiny_skia_path::{Path, PathBuilder, Point};
 
     use crate::{
         OverlapRemoveOutlineBuilder, is_clockwise,
         path_segment::{Line, PathSegment},
     };
 
+    /// 複数の Path を 1 つの Path にまとめる
+    fn combine_paths(paths: &[Path]) -> Option<Path> {
+        let mut pb = PathBuilder::new();
+        for path in paths {
+            for seg in path.segments() {
+                match seg {
+                    tiny_skia_path::PathSegment::MoveTo(p) => pb.move_to(p.x, p.y),
+                    tiny_skia_path::PathSegment::LineTo(p) => pb.line_to(p.x, p.y),
+                    tiny_skia_path::PathSegment::QuadTo(c, p) => pb.quad_to(c.x, c.y, p.x, p.y),
+                    tiny_skia_path::PathSegment::CubicTo(c1, c2, p) => {
+                        pb.cubic_to(c1.x, c1.y, c2.x, c2.y, p.x, p.y)
+                    }
+                    tiny_skia_path::PathSegment::Close => pb.close(),
+                }
+            }
+        }
+        pb.finish()
+    }
+
     #[test]
     fn test_cross_shape() {
-        // 十字型の2つの長方形の重なりをテスト
+        // 2つの菱形が部分的に重なるテスト（共線セグメントなし）
         let mut builder = OverlapRemoveOutlineBuilder::default();
-        // 縦の長方形
-        builder.move_to(1.0, 0.0);
-        builder.line_to(2.0, 0.0);
-        builder.line_to(2.0, 3.0);
-        builder.line_to(1.0, 3.0);
+        // 菱形1: 中心(5,5)
+        builder.move_to(5.0, 0.0);
+        builder.line_to(10.0, 5.0);
+        builder.line_to(5.0, 10.0);
+        builder.line_to(0.0, 5.0);
         builder.close();
-        // 横の長方形
-        builder.move_to(0.0, 1.0);
-        builder.line_to(3.0, 1.0);
-        builder.line_to(3.0, 2.0);
-        builder.line_to(0.0, 2.0);
+        // 菱形2: 中心(8,5)、右にずらして重なる
+        builder.move_to(8.0, 0.0);
+        builder.line_to(13.0, 5.0);
+        builder.line_to(8.0, 10.0);
+        builder.line_to(3.0, 5.0);
         builder.close();
 
         let paths = builder.paths();
@@ -638,6 +594,67 @@ mod tests {
 
         let removed = builder.removed_paths();
         assert!(!removed.is_empty());
+
+        // 重要: 除去後の paths を EvenOdd で描画した結果が、
+        // 元の paths を Winding で描画した結果と一致すること
+        use tiny_skia::{Color, Paint, Pixmap, Transform};
+        let canvas_size = 100u32;
+        let scale = canvas_size as f32 / 14.0;
+        let transform =
+            Transform::from_scale(scale, -scale).post_translate(10.0, canvas_size as f32 - 10.0);
+
+        let render = |paths: &[tiny_skia_path::Path], fill_rule: tiny_skia::FillRule| -> Pixmap {
+            let mut pixmap = Pixmap::new(canvas_size, canvas_size).unwrap();
+            let mut paint = Paint {
+                anti_alias: false,
+                ..Paint::default()
+            };
+            pixmap.fill(Color::WHITE);
+            // 全パスを1つにまとめて描画（アプリのシェーダと同じ動作）
+            let combined = combine_paths(paths);
+            if let Some(ref path) = combined {
+                paint.set_color_rgba8(0, 0, 0, 255);
+                pixmap.fill_path(path, &paint, fill_rule, transform, None);
+            }
+            pixmap
+        };
+
+        let original_winding = render(&paths, tiny_skia::FillRule::Winding);
+        let removed_evenodd = render(&removed, tiny_skia::FillRule::EvenOdd);
+
+        let diff_count = original_winding
+            .pixels()
+            .iter()
+            .zip(removed_evenodd.pixels())
+            .filter(|(w, e)| w != e)
+            .count();
+
+        // 元パスの Winding vs EvenOdd に差があることを確認
+        // （差がなければオーバーラップ除去のテストとして意味がない）
+        let original_evenodd = render(&paths, tiny_skia::FillRule::EvenOdd);
+        let original_diff = original_winding
+            .pixels()
+            .iter()
+            .zip(original_evenodd.pixels())
+            .filter(|(w, e)| w != e)
+            .count();
+        eprintln!(
+            "十字型: 元パスの Winding vs EvenOdd 差分: {} pixels",
+            original_diff
+        );
+        eprintln!(
+            "十字型: 除去後(EvenOdd) vs 元(Winding) 差分: {} pixels",
+            diff_count
+        );
+        assert!(
+            original_diff > 0,
+            "テストケースにオーバーラップが存在しない"
+        );
+        assert!(
+            diff_count == 0,
+            "オーバーラップ除去後、EvenOdd で描画した結果が元の Winding と一致しない: {} pixels 差分",
+            diff_count,
+        );
     }
 
     #[test]
@@ -706,5 +723,190 @@ mod tests {
         face.outline_glyph(glyph_id, &mut builder).unwrap();
         let removed = builder.removed_paths();
         assert!(!removed.is_empty());
+    }
+
+    /// ピクセル比較による品質テスト
+    /// 元のパスを Winding で描画した結果と、overlap 除去後を EvenOdd で描画した結果を比較する。
+    /// オーバーラップ除去の目的は、Winding 前提の元パスを EvenOdd でも同じ見た目にすること。
+    ///
+    /// 注: アプリのシェーダは全サブパスをまとめて Even-Odd 判定するため、
+    /// テストでも全サブパスを1つの Path にまとめて描画する。
+    fn pixel_compare_emoji(c: char) -> f32 {
+        use tiny_skia::{Color, Paint, Pixmap, Transform};
+
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face = Face::from_slice(font_file, 0).unwrap();
+        let glyph_id = face.glyph_index(c).unwrap();
+        let mut builder = OverlapRemoveOutlineBuilder::default();
+        face.outline_glyph(glyph_id, &mut builder).unwrap();
+
+        let original_paths = builder.paths();
+        let removed_paths = builder.removed_paths();
+
+        let canvas_size = 500u32;
+        let scale = canvas_size as f32 / 1100.0;
+        let transform =
+            Transform::from_scale(scale, -scale).post_translate(50.0, canvas_size as f32 - 50.0);
+
+        let render = |paths: &[tiny_skia_path::Path], fill_rule: tiny_skia::FillRule| -> Pixmap {
+            let mut pixmap = Pixmap::new(canvas_size, canvas_size).unwrap();
+            let mut paint = Paint {
+                anti_alias: false,
+                ..Paint::default()
+            };
+            pixmap.fill(Color::WHITE);
+            // 全パスを1つにまとめて描画（アプリのシェーダと同じ動作）
+            let combined = combine_paths(paths);
+            if let Some(ref path) = combined {
+                paint.set_color_rgba8(0, 0, 0, 255);
+                pixmap.fill_path(path, &paint, fill_rule, transform, None);
+            }
+            pixmap
+        };
+
+        // 期待値: 元パスを Winding で描画 → 正しい見た目
+        let original = render(&original_paths, tiny_skia::FillRule::Winding);
+        // テスト対象: 除去後パスを EvenOdd で描画
+        let removed = render(&removed_paths, tiny_skia::FillRule::EvenOdd);
+
+        let (total, equal) = original.pixels().iter().zip(removed.pixels()).fold(
+            (0u64, 0u64),
+            |(total, equal), (o, r)| {
+                if o == r {
+                    (total + 1, equal + 1)
+                } else {
+                    (total + 1, equal)
+                }
+            },
+        );
+
+        equal as f32 / total as f32
+    }
+
+    #[test]
+    fn test_turtle_quality() {
+        let rate = pixel_compare_emoji('🐢');
+        eprintln!("🐢 一致率: {}", rate);
+        assert!(rate > 0.99, "🐢 一致率が低い: {}", rate);
+    }
+
+    #[test]
+    fn test_dog_quality() {
+        let rate = pixel_compare_emoji('🐕');
+        eprintln!("🐕 一致率: {}", rate);
+        assert!(rate > 0.99, "🐕 一致率が低い: {}", rate);
+    }
+
+    #[test]
+    fn test_kadomatsu_quality() {
+        let rate = pixel_compare_emoji('🎍');
+        eprintln!("🎍 一致率: {}", rate);
+        assert!(rate > 0.99, "🎍 一致率が低い: {}", rate);
+    }
+
+    #[test]
+    fn test_pig_quality() {
+        let rate = pixel_compare_emoji('🐖');
+        eprintln!("🐖 一致率: {}", rate);
+        assert!(rate > 0.99, "🐖 一致率が低い: {}", rate);
+    }
+
+    #[test]
+    fn test_wave_quality() {
+        let rate = pixel_compare_emoji('🌊');
+        eprintln!("🌊 一致率: {}", rate);
+        assert!(rate > 0.99, "🌊 一致率が低い: {}", rate);
+    }
+
+    #[test]
+    fn test_elephant_quality() {
+        let rate = pixel_compare_emoji('🐘');
+        eprintln!("🐘 一致率: {}", rate);
+        assert!(rate > 0.99, "🐘 一致率が低い: {}", rate);
+    }
+
+    #[test]
+    fn test_mountain_quality() {
+        let rate = pixel_compare_emoji('🏔');
+        eprintln!("🏔 一致率: {}", rate);
+        assert!(rate > 0.99, "🏔 一致率が低い: {}", rate);
+    }
+
+    /// NotoEmoji のグリフで Winding vs EvenOdd の差異があるものを探す
+    #[test]
+    fn test_find_overlap_needed_glyphs() {
+        use tiny_skia::{Color, Paint, Pixmap, Transform};
+
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face = Face::from_slice(font_file, 0).unwrap();
+
+        let canvas_size = 200u32;
+        let scale = canvas_size as f32 / 1100.0;
+        let transform =
+            Transform::from_scale(scale, -scale).post_translate(20.0, canvas_size as f32 - 20.0);
+
+        // テスト用絵文字のリスト
+        let test_chars = [
+            '🐢', '🐕', '🎍', '🐖', '🌊', '🐄', '⛩', '🍖', '🗻', '🎋', '🌅', '🏔', '🐘', '🐎', '🐑',
+            '🦁', '🐻', '🐔', '🐙', '🦀', '🦊', '🐿', '🦢',
+        ];
+
+        let mut needs_removal = Vec::new();
+
+        for c in test_chars {
+            let Some(glyph_id) = face.glyph_index(c) else {
+                continue;
+            };
+            let mut builder = OverlapRemoveOutlineBuilder::default();
+            if face.outline_glyph(glyph_id, &mut builder).is_none() {
+                continue;
+            }
+            let paths = builder.paths();
+
+            let render = |fill_rule: tiny_skia::FillRule| -> Pixmap {
+                let mut pixmap = Pixmap::new(canvas_size, canvas_size).unwrap();
+                let mut paint = Paint {
+                    anti_alias: false,
+                    ..Paint::default()
+                };
+                pixmap.fill(Color::WHITE);
+                let combined = combine_paths(&paths);
+                if let Some(ref path) = combined {
+                    paint.set_color_rgba8(0, 0, 0, 255);
+                    pixmap.fill_path(path, &paint, fill_rule, transform, None);
+                }
+                pixmap
+            };
+
+            let winding = render(tiny_skia::FillRule::Winding);
+            let evenodd = render(tiny_skia::FillRule::EvenOdd);
+
+            let diff_count = winding
+                .pixels()
+                .iter()
+                .zip(evenodd.pixels())
+                .filter(|(w, e)| w != e)
+                .count();
+
+            if diff_count > 0 {
+                let total = (canvas_size * canvas_size) as usize;
+                needs_removal.push((c, diff_count, total));
+                eprintln!(
+                    "{} (U+{:04X}): Winding vs EvenOdd differs in {} / {} pixels ({:.1}%)",
+                    c,
+                    c as u32,
+                    diff_count,
+                    total,
+                    diff_count as f64 / total as f64 * 100.0,
+                );
+            }
+        }
+
+        eprintln!(
+            "\nオーバーラップ除去が必要なグリフ: {} / {}",
+            needs_removal.len(),
+            test_chars.len()
+        );
+        // このテスト自体は失敗しない（情報収集目的）
     }
 }

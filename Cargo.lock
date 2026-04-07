@@ -1086,7 +1086,7 @@ dependencies = [
  "rustybuzz",
  "text_buffer",
  "thiserror 2.0.17",
- "ttf_overlap_remover",
+ "ttf_overlap_remover2",
  "unicode-width",
  "usvg",
  "wasm-bindgen",

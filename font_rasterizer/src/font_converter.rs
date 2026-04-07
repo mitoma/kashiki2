@@ -6,7 +6,7 @@ use rustybuzz::{
     Direction, Face, UnicodeBuffer, shape,
     ttf_parser::{GlyphId, Tag},
 };
-use ttf_overlap_remover::OverlapRemoveOutlineBuilder;
+use ttf_overlap_remover2::OverlapRemoveOutlineBuilder;
 
 use crate::{
     char_width_calcurator::CharWidth,
