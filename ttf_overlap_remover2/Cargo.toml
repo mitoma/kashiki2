@@ -1,0 +1,13 @@
+[package]
+name = "ttf_overlap_remover2"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+log = { workspace = true }
+rustybuzz = { workspace = true }
+tiny-skia-path = { workspace = true }
+
+[dev-dependencies]
+tiny-skia = { workspace = true }
+env_logger = { workspace = true }

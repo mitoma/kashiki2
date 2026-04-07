@@ -3347,6 +3347,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ttf_overlap_remover2"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "log",
+ "rustybuzz",
+ "tiny-skia 0.12.0",
+ "tiny-skia-path 0.12.0",
+]
+
+[[package]]
 name = "ui_support"
 version = "0.1.0"
 dependencies = [
