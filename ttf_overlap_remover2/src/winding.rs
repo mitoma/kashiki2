@@ -10,14 +10,21 @@ use tiny_skia_path::Point;
 use crate::path_segment::PathSegment;
 
 /// サブパスに対するワインディングナンバーを計算する
-/// 各セグメントをフラット化して直線近似でカウントする
+/// 直線セグメントは直接計算、曲線セグメントはフラット化して近似する
 pub(crate) fn winding_number(point: Point, subpath: &[PathSegment]) -> i32 {
     let mut winding = 0i32;
 
     for segment in subpath {
-        let points = segment.flatten(0.5);
-        for pair in points.windows(2) {
-            winding += crossing_number_line(point, pair[0], pair[1]);
+        match segment {
+            PathSegment::Line(line) => {
+                winding += crossing_number_line(point, line.from, line.to);
+            }
+            _ => {
+                let points = segment.flatten(0.5);
+                for pair in points.windows(2) {
+                    winding += crossing_number_line(point, pair[0], pair[1]);
+                }
+            }
         }
     }
 

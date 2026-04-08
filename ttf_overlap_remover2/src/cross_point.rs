@@ -77,7 +77,7 @@ fn find_line_line(a: &Line, b: &Line) -> Vec<CrossPoint> {
         return results;
     }
 
-    // 重なり端点を交差点として返す
+    // 重なり端点を交差点として返す（a のパラメトリック空間）
     for t_a in [overlap_start, overlap_end] {
         if t_a > EPSILON && t_a < 1.0 - EPSILON {
             let point = a.evaluate(t_a);
@@ -88,6 +88,33 @@ fn find_line_line(a: &Line, b: &Line) -> Vec<CrossPoint> {
                     t_a,
                     t_b: t_b.clamp(0.0, 1.0),
                 });
+            }
+        }
+    }
+
+    // b のパラメトリック空間でも重なり端点をチェック
+    // （a が b に完全に含まれるケースで、a の端点が b の内部にある場合）
+    let a0_on_b = ((a.from - b.from).x * b_vec.x + (a.from - b.from).y * b_vec.y) / b_len2;
+    let a1_on_b = ((a.to - b.from).x * b_vec.x + (a.to - b.from).y * b_vec.y) / b_len2;
+    let overlap_start_b = a0_on_b.min(a1_on_b).max(0.0);
+    let overlap_end_b = a0_on_b.max(a1_on_b).min(1.0);
+
+    for t_b in [overlap_start_b, overlap_end_b] {
+        if t_b > EPSILON && t_b < 1.0 - EPSILON {
+            let point = b.evaluate(t_b);
+            let t_a = ((point - a.from).x * a_vec.x + (point - a.from).y * a_vec.y) / a_len2;
+            if t_a > -EPSILON && t_a < 1.0 + EPSILON {
+                // 重複チェック
+                if !results
+                    .iter()
+                    .any(|r| r.point.distance(point) < EPSILON * 10.0)
+                {
+                    results.push(CrossPoint {
+                        point,
+                        t_a: t_a.clamp(0.0, 1.0),
+                        t_b,
+                    });
+                }
             }
         }
     }

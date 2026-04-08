@@ -135,11 +135,46 @@ pub(crate) fn remove_path_overlap(paths: Vec<Path>) -> Vec<Path> {
         return paths;
     }
 
+    // 重複セグメント（同一の from→to）を除去
+    let boundary_segments = dedup_segments(boundary_segments);
+
     // セグメントからループを再構成
     let loops = build_loops(&boundary_segments);
 
+    // 未使用セグメントをチェーンとして追加（不完全なグラフへの対策）
+    let used_count: usize = loops.iter().map(|l| l.len()).sum();
+    let all_loops = if used_count < boundary_segments.len() {
+        let mut all = loops;
+        let used_segs: std::collections::HashSet<usize> = {
+            let mut set = std::collections::HashSet::new();
+            for l in &all {
+                for seg in l {
+                    for (i, s) in boundary_segments.iter().enumerate() {
+                        if s == seg && !set.contains(&i) {
+                            set.insert(i);
+                            break;
+                        }
+                    }
+                }
+            }
+            set
+        };
+        let unused: Vec<_> = boundary_segments
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !used_segs.contains(i))
+            .map(|(_, s)| s.clone())
+            .collect();
+        // 未使用セグメントをチェーンに組み立て
+        let chains = build_chains(&unused);
+        all.extend(chains);
+        all
+    } else {
+        loops
+    };
+
     // Path に変換
-    let result: Vec<Path> = loops
+    let result: Vec<Path> = all_loops
         .iter()
         .filter_map(|loop_seg| segments_to_path(loop_seg))
         .collect();
@@ -184,17 +219,53 @@ fn segments_to_path(segments: &[PathSegment]) -> Option<Path> {
     pb.finish()
 }
 
+/// 2つのAABBが重なるか判定
+#[inline]
+fn aabb_overlap(a: (f32, f32, f32, f32), b: (f32, f32, f32, f32)) -> bool {
+    a.0 <= b.2 && a.2 >= b.0 && a.1 <= b.3 && a.3 >= b.1
+}
+
+/// 重複するセグメント（同方向・同座標の from→to）を除去する。
+/// 共線分割で生じた同一セグメントの重複を1つに統合する。
+fn dedup_segments(segments: Vec<PathSegment>) -> Vec<PathSegment> {
+    let mut result = Vec::with_capacity(segments.len());
+    let mut removed = vec![false; segments.len()];
+
+    for i in 0..segments.len() {
+        if removed[i] {
+            continue;
+        }
+        for j in (i + 1)..segments.len() {
+            if removed[j] {
+                continue;
+            }
+            if segments[i] == segments[j] {
+                removed[j] = true;
+            }
+        }
+        result.push(segments[i].clone());
+    }
+    result
+}
+
 /// 全セグメントペア間で交差点検出・分割を行う
 fn split_all_segments(segments: Vec<PathSegment>) -> Vec<PathSegment> {
     let mut result: Vec<PathSegment> = segments;
+    let mut bboxes: Vec<(f32, f32, f32, f32)> = result.iter().map(|s| s.bounding_rect()).collect();
 
     let mut changed = true;
     while changed {
         changed = false;
         let mut i = 0;
-        while i < result.len() {
+        'outer: while i < result.len() {
             let mut j = i + 1;
             while j < result.len() {
+                // AABB 早期棄却
+                if !aabb_overlap(bboxes[i], bboxes[j]) {
+                    j += 1;
+                    continue;
+                }
+
                 if result[i].is_same_or_reversed(&result[j]) {
                     j += 1;
                     continue;
@@ -208,27 +279,154 @@ fn split_all_segments(segments: Vec<PathSegment>) -> Vec<PathSegment> {
 
                 // 分割する
                 let seg_i = result.remove(i);
+                bboxes.remove(i);
                 let j_adj = if j > i { j - 1 } else { j };
                 let seg_j = result.remove(j_adj);
+                bboxes.remove(j_adj);
 
                 let split_i = split_segment_at_points(&seg_i, &cross_points, true);
                 let split_j = split_segment_at_points(&seg_j, &cross_points, false);
 
                 let insert_pos = i.min(j_adj);
                 for (k, s) in split_i.into_iter().chain(split_j.into_iter()).enumerate() {
+                    let bb = s.bounding_rect();
                     result.insert(insert_pos + k, s);
+                    bboxes.insert(insert_pos + k, bb);
                 }
 
                 changed = true;
-                break;
-            }
-            if changed {
-                break;
+                continue 'outer;
             }
             i += 1;
         }
     }
-    result
+
+    // 追加パス: 全端点を収集し、各セグメントが他の端点を通過する場合に分割する
+    split_at_passing_endpoints(result)
+}
+
+/// セグメントが他のセグメントの端点を通過する場合に分割する
+fn split_at_passing_endpoints(mut segments: Vec<PathSegment>) -> Vec<PathSegment> {
+    loop {
+        // 全端点を収集（PointKeyで重複排除）
+        let mut seen = std::collections::HashSet::new();
+        let mut all_endpoints: Vec<Point> = Vec::new();
+        for s in &segments {
+            let (from, to) = s.endpoints();
+            let fk = PointKey::new(from);
+            if seen.insert(fk) {
+                all_endpoints.push(from);
+            }
+            let tk = PointKey::new(to);
+            if seen.insert(tk) {
+                all_endpoints.push(to);
+            }
+        }
+
+        // 各セグメントを一括処理
+        let mut result = Vec::with_capacity(segments.len());
+        let mut any_split = false;
+        for seg in &segments {
+            let (seg_from, seg_to) = seg.endpoints();
+            let bbox = seg.bounding_rect();
+
+            let mut split_points = Vec::new();
+            for &ep in &all_endpoints {
+                if ep.distance(seg_from) < EPSILON || ep.distance(seg_to) < EPSILON {
+                    continue;
+                }
+                if ep.x < bbox.0 - EPSILON
+                    || ep.x > bbox.2 + EPSILON
+                    || ep.y < bbox.1 - EPSILON
+                    || ep.y > bbox.3 + EPSILON
+                {
+                    continue;
+                }
+                if let Some(t) = point_on_segment(seg, ep)
+                    && t > EPSILON
+                    && t < 1.0 - EPSILON
+                {
+                    split_points.push(cross_point::CrossPoint {
+                        point: ep,
+                        t_a: t,
+                        t_b: 0.0,
+                    });
+                }
+            }
+
+            if split_points.is_empty() {
+                result.push(seg.clone());
+            } else {
+                any_split = true;
+                let pieces = split_segment_at_points(seg, &split_points, true);
+                result.extend(pieces);
+            }
+        }
+
+        if !any_split {
+            return result;
+        }
+        segments = result;
+    }
+}
+
+/// 点がセグメント上にあるかチェックし、あればパラメータ t を返す
+fn point_on_segment(seg: &PathSegment, point: Point) -> Option<f32> {
+    match seg {
+        PathSegment::Line(l) => {
+            let d = l.to - l.from;
+            let len2 = d.x * d.x + d.y * d.y;
+            if len2 < EPSILON * EPSILON {
+                return None;
+            }
+            let t = ((point - l.from).x * d.x + (point - l.from).y * d.y) / len2;
+            if !(-EPSILON..=1.0 + EPSILON).contains(&t) {
+                return None;
+            }
+            // 線分からの距離チェック
+            let projected = Point::from_xy(l.from.x + t * d.x, l.from.y + t * d.y);
+            if projected.distance(point) < EPSILON * 10.0 {
+                Some(t.clamp(0.0, 1.0))
+            } else {
+                None
+            }
+        }
+        _ => {
+            // 曲線の場合はバイナリサーチで近接点を探す
+            let mut best_t = 0.0f32;
+            let mut best_dist = f32::MAX;
+            let steps = 64;
+            for i in 0..=steps {
+                let t = i as f32 / steps as f32;
+                let p = seg.evaluate(t);
+                let d = p.distance(point);
+                if d < best_dist {
+                    best_dist = d;
+                    best_t = t;
+                }
+            }
+            // 精密化
+            let mut lo = (best_t - 1.0 / steps as f32).max(0.0);
+            let mut hi = (best_t + 1.0 / steps as f32).min(1.0);
+            for _ in 0..20 {
+                let mid = (lo + hi) * 0.5;
+                let p_lo = seg.evaluate((lo + mid) * 0.5);
+                let p_hi = seg.evaluate((mid + hi) * 0.5);
+                if p_lo.distance(point) < p_hi.distance(point) {
+                    hi = mid;
+                } else {
+                    lo = mid;
+                }
+            }
+            let t = (lo + hi) * 0.5;
+            let p = seg.evaluate(t);
+            if p.distance(point) < EPSILON * 10.0 {
+                Some(t)
+            } else {
+                None
+            }
+        }
+    }
 }
 
 /// 交差点でセグメントを分割する
@@ -352,6 +550,64 @@ fn total_winding(point: Point, subpaths: &[Vec<PathSegment>]) -> i32 {
     total
 }
 
+/// 未使用セグメントをチェーンに組み立てる（広い許容度でループ閉じを試みる）
+fn build_chains(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
+    if segments.is_empty() {
+        return vec![];
+    }
+
+    // 曲線交差精度のギャップを許容するため広めの閾値
+    const CHAIN_EPSILON: f32 = 30.0;
+
+    let mut used = vec![false; segments.len()];
+    let mut chains = Vec::new();
+
+    for start_idx in 0..segments.len() {
+        if used[start_idx] {
+            continue;
+        }
+        used[start_idx] = true;
+        let mut chain = vec![segments[start_idx].clone()];
+
+        // 前方にチェーンを伸ばす
+        loop {
+            let last = chain.last().unwrap();
+            let (_, to) = last.endpoints();
+
+            // 開始点に戻れるかチェック（ループ閉じ）
+            let (start_from, _) = chain[0].endpoints();
+            if chain.len() > 1 && to.distance(start_from) < CHAIN_EPSILON {
+                break;
+            }
+
+            let mut best_idx = None;
+            let mut best_dist = CHAIN_EPSILON;
+            for (j, seg) in segments.iter().enumerate() {
+                if used[j] {
+                    continue;
+                }
+                let (from, _) = seg.endpoints();
+                let dist = to.distance(from);
+                if dist < best_dist {
+                    best_dist = dist;
+                    best_idx = Some(j);
+                }
+            }
+            match best_idx {
+                Some(idx) => {
+                    used[idx] = true;
+                    chain.push(segments[idx].clone());
+                }
+                None => break,
+            }
+        }
+
+        chains.push(chain);
+    }
+
+    chains
+}
+
 /// セグメントからループ（閉じたパス）を構築する
 fn build_loops(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
     use std::collections::HashMap;
@@ -372,6 +628,30 @@ fn build_loops(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
         from_map.entry(key).or_default().push(i);
     }
 
+    // 近傍キーを検索するヘルパー
+    let find_candidates = |to: Point, from_map: &HashMap<PointKey, Vec<usize>>| -> Vec<usize> {
+        let key = PointKey::new(to);
+        let mut candidates = Vec::new();
+        // 周辺の9マスを検索（量子化境界をまたぐケースに対応）
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                let neighbor = PointKey {
+                    x: key.x + dx,
+                    y: key.y + dy,
+                };
+                if let Some(indices) = from_map.get(&neighbor) {
+                    for &idx in indices {
+                        let (from, _) = segments[idx].endpoints();
+                        if to.distance(from) < GREEDY_EPSILON {
+                            candidates.push(idx);
+                        }
+                    }
+                }
+            }
+        }
+        candidates
+    };
+
     for start_idx in 0..segments.len() {
         if used[start_idx] {
             continue;
@@ -383,26 +663,22 @@ fn build_loops(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
 
         loop {
             if used[current_idx] {
-                // 既に使用済みならループ構築失敗
                 break;
             }
             used[current_idx] = true;
             path.push(current_idx);
 
             let (_, to) = segments[current_idx].endpoints();
-            let to_key = PointKey::new(to);
 
             // 開始点に戻ったらループ完成
             let (start_from, _) = segments[start_idx].endpoints();
-            if path.len() > 1 && to.distance(start_from) < EPSILON {
+            if path.len() > 1 && to.distance(start_from) < GREEDY_EPSILON {
                 success = true;
                 break;
             }
 
             // 次のセグメントを探す
-            let Some(candidates) = from_map.get(&to_key) else {
-                break;
-            };
+            let candidates = find_candidates(to, &from_map);
 
             // 次のセグメント: 現在のセグメントの進行方向から最も時計回りに近いものを選ぶ
             let current_seg = &segments[current_idx];
@@ -412,7 +688,7 @@ fn build_loops(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
             let base_vec = current_seg.to_vector();
             let base_angle = (-(base_vec.y as f64)).atan2(-(base_vec.x as f64));
 
-            for &cand_idx in candidates {
+            for cand_idx in candidates {
                 if used[cand_idx] {
                     continue;
                 }
@@ -422,7 +698,6 @@ fn build_loops(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
                 let cand_vec = segments[cand_idx].from_vector();
                 let cand_angle = (cand_vec.y as f64).atan2(cand_vec.x as f64);
 
-                // base_angle (反転した進入ベクトル) からの時計回り角度差
                 let mut diff = cand_angle - base_angle;
                 if diff <= 0.0 {
                     diff += 2.0 * std::f64::consts::PI;
@@ -444,81 +719,8 @@ fn build_loops(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
                 path.iter().map(|&i| segments[i].clone()).collect();
             loops.push(loop_segments);
         } else {
-            // ループ構築に失敗した場合、使用フラグを戻す
             for &idx in &path {
                 used[idx] = false;
-            }
-        }
-    }
-
-    // 使用されなかったセグメントについて、よりゆるい条件で再試行
-    let unused_segments: Vec<PathSegment> = segments
-        .iter()
-        .enumerate()
-        .filter(|&(i, _)| !used[i])
-        .map(|(_, s)| s.clone())
-        .collect();
-
-    if !unused_segments.is_empty() {
-        let extra_loops = build_loops_greedy(&unused_segments);
-        loops.extend(extra_loops);
-    }
-
-    loops
-}
-
-/// よりゆるい条件でループを構築する（距離ベースの近傍マッチング）
-fn build_loops_greedy(segments: &[PathSegment]) -> Vec<Vec<PathSegment>> {
-    let mut used = vec![false; segments.len()];
-    let mut loops = Vec::new();
-
-    for start_idx in 0..segments.len() {
-        if used[start_idx] {
-            continue;
-        }
-
-        let mut path = vec![start_idx];
-        let mut visited = vec![false; segments.len()];
-        visited[start_idx] = true;
-
-        loop {
-            let current_idx = *path.last().unwrap();
-            let (_, to) = segments[current_idx].endpoints();
-
-            // 開始点に戻れるか
-            let (start_from, _) = segments[start_idx].endpoints();
-            if path.len() > 1 && to.distance(start_from) < GREEDY_EPSILON {
-                // ループ完成
-                for &idx in &path {
-                    used[idx] = true;
-                }
-                let loop_segments: Vec<PathSegment> =
-                    path.iter().map(|&i| segments[i].clone()).collect();
-                loops.push(loop_segments);
-                break;
-            }
-
-            // 次のセグメントを距離ベースで探す
-            let mut best_idx = None;
-            let mut best_dist = GREEDY_EPSILON;
-            for (i, seg) in segments.iter().enumerate() {
-                if visited[i] || used[i] {
-                    continue;
-                }
-                let (from, _) = seg.endpoints();
-                let dist = to.distance(from);
-                if dist < best_dist {
-                    best_dist = dist;
-                    best_idx = Some(i);
-                }
-            }
-
-            match best_idx {
-                Some(idx) => {
-                    visited[idx] = true;
-                    path.push(idx);
-                }
-                None => break,
             }
         }
     }
@@ -915,5 +1117,131 @@ mod tests {
             test_chars.len()
         );
         // このテスト自体は失敗しない（情報収集目的）
+    }
+
+    /// NotoEmoji の全グリフに対してオーバーラップ除去の品質を検証する。
+    /// 元の ttf_overlap_remover の test_compare_glyphs を移植したもの。
+    #[test]
+    #[ignore = "reason: slow"]
+    fn test_compare_glyphs() {
+        use std::time::Instant;
+        use tiny_skia::{Color, Paint, Pixmap, Transform};
+
+        let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+        let face = Face::from_slice(font_file, 0).unwrap();
+
+        let canvas_size = 500u32;
+        let scale = canvas_size as f32 / 1100.0;
+        let transform =
+            Transform::from_scale(scale, -scale).post_translate(50.0, canvas_size as f32 - 50.0);
+
+        let mut glyph_count = 0u32;
+        let mut failed_chars = Vec::new();
+        let mut timeout_chars = Vec::new();
+        let target_chars = '\u{10000}'..='\u{1FFFF}';
+        let test_start = Instant::now();
+        let total_timeout = std::time::Duration::from_secs(30);
+        let per_glyph_timeout = std::time::Duration::from_secs(2);
+
+        for target_char in target_chars {
+            if test_start.elapsed() > total_timeout {
+                eprintln!("全体タイムアウト (30秒) に達したため中断");
+                break;
+            }
+
+            let Some(glyph_id) = face.glyph_index(target_char) else {
+                continue;
+            };
+            let mut builder = OverlapRemoveOutlineBuilder::default();
+            if face.outline_glyph(glyph_id, &mut builder).is_none() {
+                continue;
+            }
+            glyph_count += 1;
+
+            let glyph_start = Instant::now();
+            let original_paths = builder.paths();
+            let removed_paths = builder.removed_paths();
+
+            if glyph_start.elapsed() > per_glyph_timeout {
+                eprintln!(
+                    "{} (U+{:04X}): タイムアウト ({:.1}秒)",
+                    target_char,
+                    target_char as u32,
+                    glyph_start.elapsed().as_secs_f64(),
+                );
+                timeout_chars.push(target_char);
+                continue;
+            }
+
+            let render =
+                |paths: &[tiny_skia_path::Path], fill_rule: tiny_skia::FillRule| -> Pixmap {
+                    let mut pixmap = Pixmap::new(canvas_size, canvas_size).unwrap();
+                    let mut paint = Paint {
+                        anti_alias: false,
+                        ..Paint::default()
+                    };
+                    pixmap.fill(Color::WHITE);
+                    let combined = combine_paths(paths);
+                    if let Some(ref path) = combined {
+                        paint.set_color_rgba8(0, 0, 0, 255);
+                        pixmap.fill_path(path, &paint, fill_rule, transform, None);
+                    }
+                    pixmap
+                };
+
+            let original = render(&original_paths, tiny_skia::FillRule::Winding);
+            let removed = render(&removed_paths, tiny_skia::FillRule::EvenOdd);
+
+            let (total, equal) = original.pixels().iter().zip(removed.pixels()).fold(
+                (0u64, 0u64),
+                |(total, equal), (o, r)| {
+                    if o == r {
+                        (total + 1, equal + 1)
+                    } else {
+                        (total + 1, equal)
+                    }
+                },
+            );
+
+            let equal_rate = equal as f32 / total as f32;
+
+            if equal_rate < 0.99 {
+                eprintln!(
+                    "{} (U+{:04X}): 一致率 {:.4} ({}/{}) [{:.1}秒]",
+                    target_char,
+                    target_char as u32,
+                    equal_rate,
+                    equal,
+                    total,
+                    glyph_start.elapsed().as_secs_f64(),
+                );
+                failed_chars.push((target_char, equal_rate));
+            }
+        }
+
+        let elapsed = test_start.elapsed();
+        eprintln!("\n--- 結果 ({:.1}秒) ---", elapsed.as_secs_f64());
+        eprintln!("総グリフ数: {}", glyph_count);
+        eprintln!("一致率 < 99% のグリフ数: {}", failed_chars.len());
+        eprintln!("タイムアウトしたグリフ数: {}", timeout_chars.len());
+        if !failed_chars.is_empty() {
+            eprintln!("失敗グリフ一覧:");
+            for (c, rate) in &failed_chars {
+                eprintln!("  {} (U+{:04X}): {:.4}", c, *c as u32, rate);
+            }
+        }
+        if !timeout_chars.is_empty() {
+            eprintln!("タイムアウトグリフ一覧:");
+            for c in &timeout_chars {
+                eprintln!("  {} (U+{:04X})", c, *c as u32);
+            }
+        }
+
+        assert!(
+            failed_chars.is_empty() && timeout_chars.is_empty(),
+            "一致率99%未満: {}個, タイムアウト: {}個",
+            failed_chars.len(),
+            timeout_chars.len(),
+        );
     }
 }
