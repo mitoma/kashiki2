@@ -13,7 +13,6 @@
 pub use outline_builder::OverlapRemoveOutlineBuilder;
 
 mod cross_point;
-mod flatpath;
 mod outline_builder;
 mod path_segment;
 mod winding;

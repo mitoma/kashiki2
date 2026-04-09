@@ -15,7 +15,6 @@ pub(crate) trait SegmentTrait: Sized + Clone {
     /// 終点側の接線ベクトル
     fn to_vector(&self) -> Point;
     fn is_degenerate(&self) -> bool;
-    #[allow(dead_code)]
     fn bounding_rect(&self) -> (f32, f32, f32, f32);
 }
 
@@ -481,7 +480,6 @@ impl PathSegment {
         self == other || self == &other.reverse()
     }
 
-    #[allow(dead_code)]
     pub(crate) fn bounding_rect(&self) -> (f32, f32, f32, f32) {
         match self {
             PathSegment::Line(l) => l.bounding_rect(),
