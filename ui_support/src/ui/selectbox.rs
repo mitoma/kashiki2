@@ -129,7 +129,7 @@ impl SelectBox {
             text_edit
         };
         layout.add_model(Box::new(select_items_text_edit));
-        layout.set_focus_model_index(SEARCH_TEXT_INDEX);
+        layout.set_focus_model_index(SEARCH_TEXT_INDEX, false);
 
         let mut result = Self {
             current_selection: 0,

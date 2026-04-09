@@ -13,6 +13,7 @@ pub struct StackLayout {
 
     models: Vec<Box<dyn Model>>,
     focus_model_index: Option<usize>,
+    focus_to_model: bool,
 
     position: EasingPointN<3>,
     rotation: EasingPointN<4>,
@@ -31,6 +32,7 @@ impl StackLayout {
             direction,
             models: Vec::new(),
             focus_model_index: None,
+            focus_to_model: false,
             position: EasingPointN::new([0.0, 0.0, 0.0]),
             rotation: EasingPointN::new([0.0, 0.0, 0.0, 1.0]),
             margin: Margin {
@@ -44,8 +46,9 @@ impl StackLayout {
         self.models.push(model);
     }
 
-    pub fn set_focus_model_index(&mut self, index: usize) {
+    pub fn set_focus_model_index(&mut self, index: usize, focus_to_model: bool) {
         self.focus_model_index = Some(index);
+        self.focus_to_model = focus_to_model;
     }
 
     pub fn set_margin(&mut self, horizontal: f32, vertical: f32) {
@@ -81,7 +84,8 @@ impl Model for StackLayout {
 
     // フォーカスモデルがあればそのモデルの focus_position を返す。なければ全体の position を返す
     fn focus_position(&self) -> glam::Vec3 {
-        if let Some(index) = self.focus_model_index
+        if self.focus_to_model
+            && let Some(index) = self.focus_model_index
             && let Some(model) = self.models.get(index)
         {
             return model.focus_position();
@@ -131,24 +135,24 @@ impl Model for StackLayout {
     fn update(&mut self, context: &crate::ui_context::UiContext) {
         let position: glam::Vec3 = self.last_position();
         let layout_bound: (f32, f32) = self.bound();
-        log::info!("--------");
-        log::info!(
-            "StackLayout update: position={:?}, bound={:?}",
-            position,
-            layout_bound
-        );
+        //log::info!("--------");
+        //log::info!(
+        //    "StackLayout update: position={:?}, bound={:?}",
+        //    position,
+        //    layout_bound
+        //);
         match self.direction {
             Direction::Horizontal => {
                 let mut current_y = position.y + layout_bound.1 / 2.0;
                 for model in self.models.iter_mut() {
                     let bound = model.bound();
                     current_y -= bound.1 / 2.0;
-                    log::info!(
-                        "model bound: {:?}, model_position: x={}, y={}",
-                        bound,
-                        position.x,
-                        current_y
-                    );
+                    //log::info!(
+                    //    "model bound: {:?}, model_position: x={}, y={}",
+                    //    bound,
+                    //    position.x,
+                    //    current_y
+                    //);
                     model.set_position(glam::vec3(position.x, current_y, position.z));
                     current_y -= bound.1 / 2.0;
                     current_y -= self.margin.vertical;
@@ -159,12 +163,12 @@ impl Model for StackLayout {
                 for model in self.models.iter_mut() {
                     let bound = model.bound();
                     current_x -= (bound.0 + self.margin.horizontal) / 2.0;
-                    log::info!(
-                        "model bound: {:?}, model_position: x={}, y={}",
-                        bound,
-                        current_x,
-                        position.y
-                    );
+                    //log::info!(
+                    //    "model bound: {:?}, model_position: x={}, y={}",
+                    //    bound,
+                    //    current_x,
+                    //    position.y
+                    //);
                     model.set_position(glam::vec3(current_x, position.y, position.z));
                     current_x -= (bound.0 + self.margin.horizontal) / 2.0;
                 }
@@ -190,6 +194,8 @@ impl Model for StackLayout {
     ) -> crate::layout_engine::ModelOperationResult {
         let mut result = ModelOperationResult::NoCare;
         if let ModelOperation::ChangeDirection(direction) = op {
+            log::info!("StackLayout ChangeDirection: {:?}", direction);
+
             result = ModelOperationResult::RequireReLayout;
             match direction {
                 Some(direction) => self.direction = *direction,

@@ -60,7 +60,7 @@ impl StartWorld {
         )
         .without_cancellable();
         layout.add_model(Box::new(start_select));
-        layout.set_focus_model_index(2);
+        layout.set_focus_model_index(2, false);
 
         result.world.add(Box::new(layout));
         result.world.re_layout();
