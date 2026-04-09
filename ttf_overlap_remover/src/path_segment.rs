@@ -1,28 +1,21 @@
-use std::cmp::Ordering;
+use tiny_skia_path::{NormalizedF32Exclusive, Point, path_geometry};
 
-use tiny_skia_path::{NormalizedF32Exclusive, Point, Rect, path_geometry};
-
-use crate::cmp_clockwise;
-
-// PathSegment に備わっていてほしい共通操作を集めた trait
-pub(crate) trait SegmentTrait
-where
-    Self: Sized + PartialEq + Clone,
-{
-    #[cfg(test)]
-    fn move_to(&self, point: Point) -> Self;
+/// セグメントに共通の操作を定義する trait
+pub(crate) trait SegmentTrait: Sized + Clone {
+    fn endpoints(&self) -> (Point, Point);
     fn set_from(&mut self, point: Point);
     fn set_to(&mut self, point: Point);
-    fn endpoints(&self) -> (Point, Point);
-    fn rect(&self) -> Rect;
-    fn chop_harf(&self) -> (Self, Self);
-    fn chop(&self, position: f32) -> (Self, Self);
+    fn chop(&self, t: f32) -> (Self, Self);
     fn reverse(&self) -> Self;
-    fn is_same_or_reversed(&self, other: &Self) -> bool;
+    fn evaluate(&self, t: f32) -> Point;
+    fn flatten(&self, tolerance: f32) -> Vec<Point>;
+    /// 始点側の接線ベクトル
     #[allow(clippy::wrong_self_convention)]
     fn from_vector(&self) -> Point;
+    /// 終点側の接線ベクトル
     fn to_vector(&self) -> Point;
-    fn polygon(&self) -> Vec<Point>;
+    fn is_degenerate(&self) -> bool;
+    fn bounding_rect(&self) -> (f32, f32, f32, f32);
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -32,12 +25,8 @@ pub(crate) struct Line {
 }
 
 impl SegmentTrait for Line {
-    #[cfg(test)]
-    fn move_to(&self, point: Point) -> Self {
-        Line {
-            from: self.from + point,
-            to: self.to + point,
-        }
+    fn endpoints(&self) -> (Point, Point) {
+        (self.from, self.to)
     }
 
     fn set_from(&mut self, point: Point) {
@@ -48,33 +37,18 @@ impl SegmentTrait for Line {
         self.to = point;
     }
 
-    fn endpoints(&self) -> (Point, Point) {
-        (self.from, self.to)
-    }
-
-    fn rect(&self) -> Rect {
-        let min_x = self.from.x.min(self.to.x);
-        let min_y = self.from.y.min(self.to.y);
-        let max_x = self.from.x.max(self.to.x);
-        let max_y = self.from.y.max(self.to.y);
-        Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
-    }
-
-    fn chop_harf(&self) -> (Line, Line) {
-        self.chop(0.5)
-    }
-
-    fn chop(&self, position: f32) -> (Line, Line) {
-        let new_x = self.from.x + position * (self.to.x - self.from.x);
-        let new_y = self.from.y + position * (self.to.y - self.from.y);
-        let mid_point = Point::from_xy(new_x, new_y);
+    fn chop(&self, t: f32) -> (Line, Line) {
+        let mid = Point::from_xy(
+            self.from.x + t * (self.to.x - self.from.x),
+            self.from.y + t * (self.to.y - self.from.y),
+        );
         (
             Line {
                 from: self.from,
-                to: mid_point,
+                to: mid,
             },
             Line {
-                from: mid_point,
+                from: mid,
                 to: self.to,
             },
         )
@@ -87,8 +61,15 @@ impl SegmentTrait for Line {
         }
     }
 
-    fn is_same_or_reversed(&self, other: &Self) -> bool {
-        self == other || self == &other.reverse()
+    fn evaluate(&self, t: f32) -> Point {
+        Point::from_xy(
+            self.from.x + t * (self.to.x - self.from.x),
+            self.from.y + t * (self.to.y - self.from.y),
+        )
+    }
+
+    fn flatten(&self, _tolerance: f32) -> Vec<Point> {
+        vec![self.from, self.to]
     }
 
     fn from_vector(&self) -> Point {
@@ -99,13 +80,22 @@ impl SegmentTrait for Line {
         self.to - self.from
     }
 
-    fn polygon(&self) -> Vec<Point> {
-        vec![self.from, self.to]
+    fn is_degenerate(&self) -> bool {
+        let d = self.to - self.from;
+        d.x.abs() < 1e-6 && d.y.abs() < 1e-6
+    }
+
+    fn bounding_rect(&self) -> (f32, f32, f32, f32) {
+        (
+            self.from.x.min(self.to.x),
+            self.from.y.min(self.to.y),
+            self.from.x.max(self.to.x),
+            self.from.y.max(self.to.y),
+        )
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-
 pub(crate) struct Quadratic {
     pub(crate) from: Point,
     pub(crate) to: Point,
@@ -113,13 +103,8 @@ pub(crate) struct Quadratic {
 }
 
 impl SegmentTrait for Quadratic {
-    #[cfg(test)]
-    fn move_to(&self, point: Point) -> Self {
-        Quadratic {
-            from: self.from + point,
-            to: self.to + point,
-            control: self.control + point,
-        }
+    fn endpoints(&self) -> (Point, Point) {
+        (self.from, self.to)
     }
 
     fn set_from(&mut self, point: Point) {
@@ -130,37 +115,21 @@ impl SegmentTrait for Quadratic {
         self.to = point;
     }
 
-    fn endpoints(&self) -> (Point, Point) {
-        (self.from, self.to)
-    }
-
-    fn rect(&self) -> Rect {
-        let min_x = self.from.x.min(self.to.x).min(self.control.x);
-        let min_y = self.from.y.min(self.to.y).min(self.control.y);
-        let max_x = self.from.x.max(self.to.x).max(self.control.x);
-        let max_y = self.from.y.max(self.to.y).max(self.control.y);
-        Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
-    }
-
-    fn chop_harf(&self) -> (Quadratic, Quadratic) {
-        self.chop(0.5)
-    }
-
-    fn chop(&self, position: f32) -> (Quadratic, Quadratic) {
+    fn chop(&self, t: f32) -> (Quadratic, Quadratic) {
         let mut result = [Point::default(); 5];
-        let center = NormalizedF32Exclusive::new_bounded(position);
+        let center = NormalizedF32Exclusive::new_bounded(t);
         let arg = [self.from, self.control, self.to];
         path_geometry::chop_quad_at(&arg, center, &mut result);
         (
             Quadratic {
                 from: result[0],
-                to: result[2],
                 control: result[1],
+                to: result[2],
             },
             Quadratic {
                 from: result[2],
-                to: result[4],
                 control: result[3],
+                to: result[4],
             },
         )
     }
@@ -173,20 +142,49 @@ impl SegmentTrait for Quadratic {
         }
     }
 
-    fn is_same_or_reversed(&self, other: &Self) -> bool {
-        self == other || self == &other.reverse()
+    fn evaluate(&self, t: f32) -> Point {
+        let mt = 1.0 - t;
+        let x = mt * mt * self.from.x + 2.0 * mt * t * self.control.x + t * t * self.to.x;
+        let y = mt * mt * self.from.y + 2.0 * mt * t * self.control.y + t * t * self.to.y;
+        Point::from_xy(x, y)
+    }
+
+    fn flatten(&self, tolerance: f32) -> Vec<Point> {
+        let mut points = vec![self.from];
+        flatten_quadratic(self.from, self.control, self.to, tolerance, &mut points);
+        points
     }
 
     fn from_vector(&self) -> Point {
-        self.control - self.from
+        let v = self.control - self.from;
+        if v.x.abs() < 1e-10 && v.y.abs() < 1e-10 {
+            self.to - self.from
+        } else {
+            v
+        }
     }
 
     fn to_vector(&self) -> Point {
-        self.to - self.control
+        let v = self.to - self.control;
+        if v.x.abs() < 1e-10 && v.y.abs() < 1e-10 {
+            self.to - self.from
+        } else {
+            v
+        }
     }
 
-    fn polygon(&self) -> Vec<Point> {
-        vec![self.from, self.control, self.to]
+    fn is_degenerate(&self) -> bool {
+        let d = self.to - self.from;
+        d.x.abs() < 1e-6 && d.y.abs() < 1e-6
+    }
+
+    fn bounding_rect(&self) -> (f32, f32, f32, f32) {
+        (
+            self.from.x.min(self.to.x).min(self.control.x),
+            self.from.y.min(self.to.y).min(self.control.y),
+            self.from.x.max(self.to.x).max(self.control.x),
+            self.from.y.max(self.to.y).max(self.control.y),
+        )
     }
 }
 
@@ -199,14 +197,8 @@ pub(crate) struct Cubic {
 }
 
 impl SegmentTrait for Cubic {
-    #[cfg(test)]
-    fn move_to(&self, point: Point) -> Self {
-        Cubic {
-            from: self.from + point,
-            to: self.to + point,
-            control1: self.control1 + point,
-            control2: self.control2 + point,
-        }
+    fn endpoints(&self) -> (Point, Point) {
+        (self.from, self.to)
     }
 
     fn set_from(&mut self, point: Point) {
@@ -217,59 +209,23 @@ impl SegmentTrait for Cubic {
         self.to = point;
     }
 
-    fn endpoints(&self) -> (Point, Point) {
-        (self.from, self.to)
-    }
-
-    fn rect(&self) -> Rect {
-        let min_x = self
-            .from
-            .x
-            .min(self.to.x)
-            .min(self.control1.x)
-            .min(self.control2.x);
-        let min_y = self
-            .from
-            .y
-            .min(self.to.y)
-            .min(self.control1.y)
-            .min(self.control2.y);
-        let max_x = self
-            .from
-            .x
-            .max(self.to.x)
-            .max(self.control1.x)
-            .max(self.control2.x);
-        let max_y = self
-            .from
-            .y
-            .max(self.to.y)
-            .max(self.control1.y)
-            .max(self.control2.y);
-        Rect::from_xywh(min_x, min_y, max_x - min_x, max_y - min_y).unwrap()
-    }
-
-    fn chop_harf(&self) -> (Cubic, Cubic) {
-        self.chop(0.5)
-    }
-
-    fn chop(&self, position: f32) -> (Cubic, Cubic) {
+    fn chop(&self, t: f32) -> (Cubic, Cubic) {
         let mut result = [Point::default(); 7];
-        let center = NormalizedF32Exclusive::new_bounded(position);
+        let center = NormalizedF32Exclusive::new_bounded(t);
         let arg = [self.from, self.control1, self.control2, self.to];
         path_geometry::chop_cubic_at2(&arg, center, &mut result);
         (
             Cubic {
                 from: result[0],
-                to: result[3],
                 control1: result[1],
                 control2: result[2],
+                to: result[3],
             },
             Cubic {
                 from: result[3],
-                to: result[6],
                 control1: result[4],
                 control2: result[5],
+                to: result[6],
             },
         )
     }
@@ -283,34 +239,145 @@ impl SegmentTrait for Cubic {
         }
     }
 
-    fn is_same_or_reversed(&self, other: &Self) -> bool {
-        self == other || self == &other.reverse()
+    fn evaluate(&self, t: f32) -> Point {
+        let mt = 1.0 - t;
+        let mt2 = mt * mt;
+        let t2 = t * t;
+        let x = mt2 * mt * self.from.x
+            + 3.0 * mt2 * t * self.control1.x
+            + 3.0 * mt * t2 * self.control2.x
+            + t2 * t * self.to.x;
+        let y = mt2 * mt * self.from.y
+            + 3.0 * mt2 * t * self.control1.y
+            + 3.0 * mt * t2 * self.control2.y
+            + t2 * t * self.to.y;
+        Point::from_xy(x, y)
+    }
+
+    fn flatten(&self, tolerance: f32) -> Vec<Point> {
+        let mut points = vec![self.from];
+        flatten_cubic(
+            self.from,
+            self.control1,
+            self.control2,
+            self.to,
+            tolerance,
+            &mut points,
+        );
+        points
     }
 
     fn from_vector(&self) -> Point {
-        self.control1 - self.from
+        let v = self.control1 - self.from;
+        if v.x.abs() < 1e-10 && v.y.abs() < 1e-10 {
+            let v2 = self.control2 - self.from;
+            if v2.x.abs() < 1e-10 && v2.y.abs() < 1e-10 {
+                self.to - self.from
+            } else {
+                v2
+            }
+        } else {
+            v
+        }
     }
 
     fn to_vector(&self) -> Point {
-        self.to - self.control2
+        let v = self.to - self.control2;
+        if v.x.abs() < 1e-10 && v.y.abs() < 1e-10 {
+            let v2 = self.to - self.control1;
+            if v2.x.abs() < 1e-10 && v2.y.abs() < 1e-10 {
+                self.to - self.from
+            } else {
+                v2
+            }
+        } else {
+            v
+        }
     }
 
-    fn polygon(&self) -> Vec<Point> {
-        let mut points = [self.from, self.control1, self.control2, self.to];
-        let center = points.iter().fold(Point::zero(), |sum, p| Point {
-            x: sum.x + p.x,
-            y: sum.y + p.y,
-        });
-        let center = Point {
-            x: center.x / 4.0,
-            y: center.y / 4.0,
-        };
+    fn is_degenerate(&self) -> bool {
+        let d = self.to - self.from;
+        d.x.abs() < 1e-6 && d.y.abs() < 1e-6
+    }
 
-        points.sort_by(|l, r| cmp_clockwise(&center, l, r));
-        [points[0], points[1], points[2], points[3]].to_vec()
+    fn bounding_rect(&self) -> (f32, f32, f32, f32) {
+        (
+            self.from
+                .x
+                .min(self.to.x)
+                .min(self.control1.x)
+                .min(self.control2.x),
+            self.from
+                .y
+                .min(self.to.y)
+                .min(self.control1.y)
+                .min(self.control2.y),
+            self.from
+                .x
+                .max(self.to.x)
+                .max(self.control1.x)
+                .max(self.control2.x),
+            self.from
+                .y
+                .max(self.to.y)
+                .max(self.control1.y)
+                .max(self.control2.y),
+        )
     }
 }
 
+/// 2次ベジェ曲線をフラット化
+fn flatten_quadratic(p0: Point, p1: Point, p2: Point, tolerance: f32, points: &mut Vec<Point>) {
+    // De Casteljau の誤差推定
+    let dx = p0.x - 2.0 * p1.x + p2.x;
+    let dy = p0.y - 2.0 * p1.y + p2.y;
+    let err = dx * dx + dy * dy;
+    if err <= tolerance * tolerance {
+        points.push(p2);
+        return;
+    }
+    // 中点分割
+    let p01 = mid(p0, p1);
+    let p12 = mid(p1, p2);
+    let p012 = mid(p01, p12);
+    flatten_quadratic(p0, p01, p012, tolerance, points);
+    flatten_quadratic(p012, p12, p2, tolerance, points);
+}
+
+/// 3次ベジェ曲線をフラット化
+fn flatten_cubic(
+    p0: Point,
+    p1: Point,
+    p2: Point,
+    p3: Point,
+    tolerance: f32,
+    points: &mut Vec<Point>,
+) {
+    // 制御点からの最大偏差を計算
+    let d1x = 3.0 * p1.x - 2.0 * p0.x - p3.x;
+    let d1y = 3.0 * p1.y - 2.0 * p0.y - p3.y;
+    let d2x = 3.0 * p2.x - p0.x - 2.0 * p3.x;
+    let d2y = 3.0 * p2.y - p0.y - 2.0 * p3.y;
+    let err = (d1x * d1x + d1y * d1y).max(d2x * d2x + d2y * d2y);
+    if err <= tolerance * tolerance {
+        points.push(p3);
+        return;
+    }
+    let p01 = mid(p0, p1);
+    let p12 = mid(p1, p2);
+    let p23 = mid(p2, p3);
+    let p012 = mid(p01, p12);
+    let p123 = mid(p12, p23);
+    let p0123 = mid(p012, p123);
+    flatten_cubic(p0, p01, p012, p0123, tolerance, points);
+    flatten_cubic(p0123, p123, p23, p3, tolerance, points);
+}
+
+fn mid(a: Point, b: Point) -> Point {
+    Point::from_xy((a.x + b.x) * 0.5, (a.y + b.y) * 0.5)
+}
+
+/// パスセグメントの列挙型
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum PathSegment {
     Line(Line),
@@ -319,188 +386,105 @@ pub(crate) enum PathSegment {
 }
 
 impl PathSegment {
-    #[cfg(test)]
-    pub(crate) fn move_to(&self, point: Point) -> Self {
+    pub(crate) fn endpoints(&self) -> (Point, Point) {
         match self {
-            PathSegment::Line(line) => PathSegment::Line(line.move_to(point)),
-            PathSegment::Quadratic(quad) => PathSegment::Quadratic(quad.move_to(point)),
-            PathSegment::Cubic(cubic) => PathSegment::Cubic(cubic.move_to(point)),
+            PathSegment::Line(l) => l.endpoints(),
+            PathSegment::Quadratic(q) => q.endpoints(),
+            PathSegment::Cubic(c) => c.endpoints(),
         }
     }
 
     pub(crate) fn set_from(&mut self, point: Point) {
         match self {
-            PathSegment::Line(line) => line.set_from(point),
-            PathSegment::Quadratic(quad) => quad.set_from(point),
-            PathSegment::Cubic(cubic) => cubic.set_from(point),
+            PathSegment::Line(l) => l.set_from(point),
+            PathSegment::Quadratic(q) => q.set_from(point),
+            PathSegment::Cubic(c) => c.set_from(point),
         }
     }
 
     pub(crate) fn set_to(&mut self, point: Point) {
         match self {
-            PathSegment::Line(line) => line.set_to(point),
-            PathSegment::Quadratic(quad) => quad.set_to(point),
-            PathSegment::Cubic(cubic) => cubic.set_to(point),
+            PathSegment::Line(l) => l.set_to(point),
+            PathSegment::Quadratic(q) => q.set_to(point),
+            PathSegment::Cubic(c) => c.set_to(point),
         }
     }
 
-    pub(crate) fn endpoints(&self) -> (Point, Point) {
+    pub(crate) fn chop(&self, t: f32) -> (PathSegment, PathSegment) {
         match self {
-            PathSegment::Line(line) => line.endpoints(),
-            PathSegment::Quadratic(quad) => quad.endpoints(),
-            PathSegment::Cubic(cubic) => cubic.endpoints(),
-        }
-    }
-
-    /// position で指定された位置でセグメントを分割する
-    /// position は 0.0 から 1.0 の範囲で指定する
-    pub(crate) fn chop(&self, position: f32) -> (PathSegment, PathSegment) {
-        match self {
-            PathSegment::Line(line) => {
-                let (line1, line2) = line.chop(position);
-                (PathSegment::Line(line1), PathSegment::Line(line2))
+            PathSegment::Line(l) => {
+                let (a, b) = l.chop(t);
+                (PathSegment::Line(a), PathSegment::Line(b))
             }
-            PathSegment::Quadratic(quad) => {
-                let (quad1, quad2) = quad.chop(position);
-                (PathSegment::Quadratic(quad1), PathSegment::Quadratic(quad2))
+            PathSegment::Quadratic(q) => {
+                let (a, b) = q.chop(t);
+                (PathSegment::Quadratic(a), PathSegment::Quadratic(b))
             }
-            PathSegment::Cubic(cubic) => {
-                let (cubic1, cubic2) = cubic.chop(position);
-                (PathSegment::Cubic(cubic1), PathSegment::Cubic(cubic2))
+            PathSegment::Cubic(c) => {
+                let (a, b) = c.chop(t);
+                (PathSegment::Cubic(a), PathSegment::Cubic(b))
             }
         }
     }
 
     pub(crate) fn reverse(&self) -> Self {
         match self {
-            PathSegment::Line(line) => PathSegment::Line(line.reverse()),
-            PathSegment::Quadratic(quad) => PathSegment::Quadratic(quad.reverse()),
-            PathSegment::Cubic(cubic) => PathSegment::Cubic(cubic.reverse()),
+            PathSegment::Line(l) => PathSegment::Line(l.reverse()),
+            PathSegment::Quadratic(q) => PathSegment::Quadratic(q.reverse()),
+            PathSegment::Cubic(c) => PathSegment::Cubic(c.reverse()),
         }
     }
 
-    pub(crate) fn is_same_or_reversed(&self, other: &Self) -> bool {
+    pub(crate) fn evaluate(&self, t: f32) -> Point {
         match self {
-            PathSegment::Line(line) => line.is_same_or_reversed(match other {
-                PathSegment::Line(line) => line,
-                _ => return false,
-            }),
-            PathSegment::Quadratic(quad) => quad.is_same_or_reversed(match other {
-                PathSegment::Quadratic(quad) => quad,
-                _ => return false,
-            }),
-            PathSegment::Cubic(cubic) => cubic.is_same_or_reversed(match other {
-                PathSegment::Cubic(cubic) => cubic,
-                _ => return false,
-            }),
+            PathSegment::Line(l) => l.evaluate(t),
+            PathSegment::Quadratic(q) => q.evaluate(t),
+            PathSegment::Cubic(c) => c.evaluate(t),
         }
     }
 
-    #[allow(clippy::wrong_self_convention, dead_code)]
+    pub(crate) fn flatten(&self, tolerance: f32) -> Vec<Point> {
+        match self {
+            PathSegment::Line(l) => l.flatten(tolerance),
+            PathSegment::Quadratic(q) => q.flatten(tolerance),
+            PathSegment::Cubic(c) => c.flatten(tolerance),
+        }
+    }
+
+    #[allow(clippy::wrong_self_convention)]
     pub(crate) fn from_vector(&self) -> Point {
         match self {
-            PathSegment::Line(line) => line.from_vector(),
-            PathSegment::Quadratic(quad) => quad.from_vector(),
-            PathSegment::Cubic(cubic) => cubic.from_vector(),
+            PathSegment::Line(l) => l.from_vector(),
+            PathSegment::Quadratic(q) => q.from_vector(),
+            PathSegment::Cubic(c) => c.from_vector(),
         }
     }
 
     pub(crate) fn to_vector(&self) -> Point {
         match self {
-            PathSegment::Line(line) => line.to_vector(),
-            PathSegment::Quadratic(quad) => quad.to_vector(),
-            PathSegment::Cubic(cubic) => cubic.to_vector(),
+            PathSegment::Line(l) => l.to_vector(),
+            PathSegment::Quadratic(q) => q.to_vector(),
+            PathSegment::Cubic(c) => c.to_vector(),
         }
     }
 
-    #[inline]
-    #[allow(clippy::wrong_self_convention)]
-    fn from_vector_candidates(&self) -> [Point; 3] {
+    pub(crate) fn is_degenerate(&self) -> bool {
         match self {
-            PathSegment::Line(line) => [line.from_vector(), line.from_vector(), line.from_vector()],
-            PathSegment::Quadratic(quad) => {
-                [quad.from_vector(), quad.to_vector(), quad.to_vector()]
-            }
-            PathSegment::Cubic(cubic) => [
-                cubic.from_vector(),
-                cubic.control2 - cubic.control1,
-                cubic.to_vector(),
-            ],
+            PathSegment::Line(l) => l.is_degenerate(),
+            PathSegment::Quadratic(q) => q.is_degenerate(),
+            PathSegment::Cubic(c) => c.is_degenerate(),
         }
     }
 
-    #[inline]
-    fn cmp_clockwise_vector(base: &PathSegment, l: &PathSegment, r: &PathSegment) -> Ordering {
-        let base_vector = -base.to_vector();
-        let l_vectors = l.from_vector_candidates();
-        let r_vectors = r.from_vector_candidates();
-        (0..3)
-            .map(|i| cmp_clockwise(&base_vector, &l_vectors[i], &r_vectors[i]))
-            .find(|o| *o != Ordering::Equal)
-            .unwrap_or(Ordering::Equal)
+    pub(crate) fn is_same_or_reversed(&self, other: &Self) -> bool {
+        self == other || self == &other.reverse()
     }
 
-    #[inline]
-    pub(crate) fn select_clockwise_vector(&self, segments: &[PathSegment]) -> PathSegment {
-        segments
-            .iter()
-            .max_by(|l, r| Self::cmp_clockwise_vector(self, l, r))
-            .unwrap()
-            .clone()
-    }
-
-    #[inline]
-    pub(crate) fn select_counter_clockwise_vector(&self, segments: &[PathSegment]) -> PathSegment {
-        segments
-            .iter()
-            .min_by(|l, r| Self::cmp_clockwise_vector(self, l, r))
-            .unwrap()
-            .clone()
-    }
-
-    #[inline]
-    pub(crate) fn polygon(&self) -> Vec<Point> {
+    pub(crate) fn bounding_rect(&self) -> (f32, f32, f32, f32) {
         match self {
-            PathSegment::Line(line) => line.polygon(),
-            PathSegment::Quadratic(quad) => quad.polygon(),
-            PathSegment::Cubic(cubic) => cubic.polygon(),
+            PathSegment::Line(l) => l.bounding_rect(),
+            PathSegment::Quadratic(q) => q.bounding_rect(),
+            PathSegment::Cubic(c) => c.bounding_rect(),
         }
-    }
-
-    #[inline]
-    pub(crate) fn same_from_to(&self) -> bool {
-        let (from, to) = self.endpoints();
-        from == to
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use tiny_skia_path::Point;
-
-    use crate::{Line, PathSegment, Quadratic};
-
-    #[test]
-    fn test_select_clockwise_vector() {
-        let p0 = Point::from_xy(0.0, 100.0);
-        let p1 = Point::from_xy(100.0, 100.0);
-        let p2 = Point::from_xy(200.0, 100.0);
-        let p3 = Point::from_xy(200.0, 200.0);
-
-        let segment1 = PathSegment::Line(Line { from: p0, to: p1 });
-        let segment2 = PathSegment::Line(Line { from: p1, to: p2 });
-        let segment3 = PathSegment::Quadratic(Quadratic {
-            from: p1,
-            to: p3,
-            control: p2,
-        });
-        assert_eq!(
-            segment1.select_clockwise_vector(&[segment2.clone(), segment3.clone()]),
-            segment2.clone()
-        );
-        assert_eq!(
-            segment1.select_clockwise_vector(&[segment3.clone(), segment2.clone()]),
-            segment2.clone()
-        );
     }
 }

@@ -11,4 +11,3 @@ tiny-skia-path = { workspace = true }
 [dev-dependencies]
 tiny-skia = { workspace = true }
 env_logger = { workspace = true }
-rand = { workspace = true }
