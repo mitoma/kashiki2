@@ -1086,7 +1086,7 @@ dependencies = [
  "rustybuzz",
  "text_buffer",
  "thiserror 2.0.17",
- "ttf_overlap_remover2",
+ "ttf_overlap_remover",
  "unicode-width",
  "usvg",
  "wasm-bindgen",
@@ -3336,18 +3336,6 @@ dependencies = [
 
 [[package]]
 name = "ttf_overlap_remover"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "log",
- "rand 0.10.0",
- "rustybuzz",
- "tiny-skia 0.12.0",
- "tiny-skia-path 0.12.0",
-]
-
-[[package]]
-name = "ttf_overlap_remover2"
 version = "0.1.0"
 dependencies = [
  "env_logger",

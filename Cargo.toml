@@ -10,7 +10,6 @@ members = [
     "sample_codes/*",
     "kashikishi",
     "ttf_overlap_remover",
-    "ttf_overlap_remover2",
     "highlighter",
 ]
 resolver = "2"
