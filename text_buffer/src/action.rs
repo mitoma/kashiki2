@@ -170,62 +170,102 @@ impl BufferApplyer {
         sender: &Sender<ChangeEvent>,
     ) -> ReverseActions {
         let mut reverse_actions = ReverseActions::default();
+        if Self::apply_move_action(buffer, current_caret, action, sender, &mut reverse_actions) {
+            return reverse_actions;
+        }
+        if Self::apply_edit_action(
+            buffer,
+            current_caret,
+            mark_caret,
+            action,
+            &mut reverse_actions,
+        ) {
+            return reverse_actions;
+        }
+        if Self::apply_clipboard_action(
+            buffer,
+            current_caret,
+            mark_caret,
+            action,
+            &mut reverse_actions,
+        ) {
+            return reverse_actions;
+        }
+        if Self::apply_search_action(buffer, current_caret, action, &mut reverse_actions) {
+            return reverse_actions;
+        }
+        if Self::apply_meta_action(action) {
+            return reverse_actions;
+        }
+        reverse_actions
+    }
+
+    fn apply_move_action(
+        buffer: &mut Buffer,
+        current_caret: &mut Caret,
+        action: &EditorOperation,
+        sender: &Sender<ChangeEvent>,
+        reverse_actions: &mut ReverseActions,
+    ) -> bool {
+        let mut push_current = || reverse_actions.push(ReverseAction::MoveTo(*current_caret));
         match action {
-            // move caret
             EditorOperation::MoveTo(next_caret) => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 current_caret.to(next_caret, sender);
             }
             EditorOperation::Head => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.head(current_caret);
             }
             EditorOperation::Last => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.last(current_caret);
             }
             EditorOperation::Back => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.back(current_caret);
             }
             EditorOperation::BackWord => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.back_word(current_caret);
             }
             EditorOperation::Forward => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.forward(current_caret);
             }
             EditorOperation::ForwardWord => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.forward_word(current_caret);
             }
             EditorOperation::Previous => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.previous(current_caret);
             }
             EditorOperation::Next => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.next(current_caret);
             }
             EditorOperation::BufferHead => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.buffer_head(current_caret);
             }
             EditorOperation::BufferLast => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                push_current();
                 buffer.buffer_last(current_caret);
             }
-            EditorOperation::MoveToNext(keyword) => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
-                buffer.move_to_next(current_caret, keyword);
-            }
-            EditorOperation::MoveToPrevious(keyword) => {
-                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
-                buffer.move_to_previous(current_caret, keyword);
-            }
+            _ => return false,
+        }
+        true
+    }
 
-            // modify buffer
+    fn apply_edit_action(
+        buffer: &mut Buffer,
+        current_caret: &mut Caret,
+        mark_caret: &mut Option<Caret>,
+        action: &EditorOperation,
+        reverse_actions: &mut ReverseActions,
+    ) -> bool {
+        match action {
             EditorOperation::InsertEnter => {
                 buffer.insert_enter(current_caret);
                 reverse_actions.push(ReverseAction::Backspace);
@@ -235,20 +275,18 @@ impl BufferApplyer {
                 reverse_actions.push(ReverseAction::Backspace);
             }
             EditorOperation::InsertString(str_value) => {
-                // normalize
                 let str_value = str_value.clone().replace("\r\n", "\n").replace('\r', "\n");
                 buffer.insert_string(current_caret, str_value.clone());
                 str_value.chars().for_each(|_| {
                     reverse_actions.push(ReverseAction::Backspace);
                 });
             }
-            EditorOperation::Backspace => 'backspace: {
+            EditorOperation::Backspace => {
                 if let Some(mark_caret) = mark_caret {
-                    Self::internal_cut(&mut reverse_actions, buffer, current_caret, mark_caret);
-                    break 'backspace;
+                    Self::internal_cut(reverse_actions, buffer, current_caret, mark_caret);
+                    return true;
                 }
-                let removed_char = buffer.backspace(current_caret);
-                match removed_char {
+                match buffer.backspace(current_caret) {
                     RemovedChar::Char(c) => {
                         reverse_actions.actions.push(ReverseAction::InsertChar(c))
                     }
@@ -256,13 +294,12 @@ impl BufferApplyer {
                     RemovedChar::None => {}
                 }
             }
-            EditorOperation::Delete => 'delete: {
+            EditorOperation::Delete => {
                 if let Some(mark_caret) = mark_caret {
-                    Self::internal_cut(&mut reverse_actions, buffer, current_caret, mark_caret);
-                    break 'delete;
+                    Self::internal_cut(reverse_actions, buffer, current_caret, mark_caret);
+                    return true;
                 }
-                let removed_char = buffer.delete(current_caret);
-                match removed_char {
+                match buffer.delete(current_caret) {
                     RemovedChar::Char(c) => {
                         reverse_actions.actions.push(ReverseAction::InsertChar(c));
                         reverse_actions.actions.push(ReverseAction::Back);
@@ -283,10 +320,7 @@ impl BufferApplyer {
                         .actions
                         .push(ReverseAction::InsertString(text));
                     reverse_actions.push(ReverseAction::MoveTo(pre_caret));
-                    loop {
-                        if pre_caret.position == current_caret.position {
-                            break;
-                        }
+                    while pre_caret.position != current_caret.position {
                         let _removed_char = buffer.backspace(current_caret);
                     }
                 }
@@ -300,36 +334,72 @@ impl BufferApplyer {
                         .actions
                         .push(ReverseAction::InsertString(text));
                     reverse_actions.push(ReverseAction::MoveTo(pre_caret));
-                    loop {
-                        if pre_caret.position == current_caret.position {
-                            break;
-                        }
+                    while pre_caret.position != current_caret.position {
                         let _removed_char = buffer.backspace(&mut pre_caret);
                     }
                 }
             }
+            _ => return false,
+        }
+        true
+    }
+
+    fn apply_clipboard_action(
+        buffer: &mut Buffer,
+        current_caret: &mut Caret,
+        mark_caret: &mut Option<Caret>,
+        action: &EditorOperation,
+        reverse_actions: &mut ReverseActions,
+    ) -> bool {
+        match action {
             EditorOperation::Copy(func) => {
                 if let Some(mark_caret) = mark_caret {
-                    let text = buffer.copy_string(mark_caret, current_caret);
-                    func(text);
+                    func(buffer.copy_string(mark_caret, current_caret));
                 }
             }
             EditorOperation::Cut(func) => {
                 if let Some(mark_caret) = mark_caret {
                     let text =
-                        Self::internal_cut(&mut reverse_actions, buffer, current_caret, mark_caret);
+                        Self::internal_cut(reverse_actions, buffer, current_caret, mark_caret);
                     func(text);
                 }
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    fn apply_search_action(
+        buffer: &mut Buffer,
+        current_caret: &mut Caret,
+        action: &EditorOperation,
+        reverse_actions: &mut ReverseActions,
+    ) -> bool {
+        match action {
+            EditorOperation::MoveToNext(keyword) => {
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                buffer.move_to_next(current_caret, keyword);
+            }
+            EditorOperation::MoveToPrevious(keyword) => {
+                reverse_actions.push(ReverseAction::MoveTo(*current_caret));
+                buffer.move_to_previous(current_caret, keyword);
             }
             EditorOperation::Highlight(keyword) => {
                 buffer.highlight(keyword);
             }
-            EditorOperation::Noop => {}
-            EditorOperation::Undo => {}
-            EditorOperation::Mark => {}
-            EditorOperation::UnMark => {}
-        };
-        reverse_actions
+            _ => return false,
+        }
+        true
+    }
+
+    fn apply_meta_action(action: &EditorOperation) -> bool {
+        matches!(
+            action,
+            EditorOperation::Noop
+                | EditorOperation::Undo
+                | EditorOperation::Mark
+                | EditorOperation::UnMark
+        )
     }
 
     fn internal_cut(
