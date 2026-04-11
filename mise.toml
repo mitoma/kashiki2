@@ -39,6 +39,10 @@ description = "Run the development server"
 run = "mdbook serve site --open"
 depends = ["opt-sites"]
 
+[tasks.debug-kashikishi]
+description = "Run the kashikishi"
+run = "cargo run --bin kashikishi"
+env = { RUST_LOG = "info" }
 
 [tasks.kashikishi]
 description = "Run the kashikishi"

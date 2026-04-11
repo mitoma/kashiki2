@@ -10,6 +10,7 @@ pollster = { workspace = true }
 wgpu = { workspace = true }
 winit = { workspace = true }
 image = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 web-time = { workspace = true }
 glam = { workspace = true }
 rand = { workspace = true }
@@ -42,3 +43,4 @@ highlighter = { path = "../highlighter" }
 apng = { workspace = true }
 rayon = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }

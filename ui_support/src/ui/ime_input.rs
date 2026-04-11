@@ -41,7 +41,7 @@ impl ImeInput {
         let mut text_edit = TextEdit::default();
         text_edit.set_config(config);
         text_edit.set_world_scale(IME_DEFAULT_SCALE);
-        text_edit.set_position((0.0, -8.5, 0.0).into());
+        text_edit.set_position((0.0, -8.0, 0.0).into());
 
         Self { text_edit }
     }

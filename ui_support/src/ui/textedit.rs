@@ -29,7 +29,10 @@ use crate::{
 
 use crate::{
     easing_value::EasingPointN,
-    layout_engine::{Model, ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult},
+    layout_engine::{
+        DebugModelDetails, DebugModelNode, DebugTextEditSnapshot, Model, ModelAttributes,
+        ModelBorder, ModelOperation, ModelOperationResult,
+    },
     ui::{CharAttribute, Decoration},
     ui_context::{HighlightMode, TextContext},
 };
@@ -370,11 +373,61 @@ impl Model for TextEdit {
     fn set_easing_preset(&mut self, preset: CharEasingsPreset) {
         self.config.set_char_easings_preset(preset);
     }
+
+    fn debug_node(&self, camera: &crate::camera::Camera) -> DebugModelNode {
+        let position = self.position().to_array();
+        let last_position = self.last_position().to_array();
+        let focus_position = self.focus_position().to_array();
+        let rotation = self.rotation().to_array();
+        let bound: [f32; 2] = self.bound().into();
+        let current_bound = self.bound.current();
+        let text = self.to_string();
+        let line_count = text.lines().count().max(1);
+        let char_count = text.chars().count();
+        DebugModelNode::new(
+            "TextEdit",
+            self.border(),
+            position,
+            last_position,
+            focus_position,
+            rotation,
+            bound,
+            current_bound,
+            self.in_animation(),
+            vec![],
+            DebugModelDetails::TextEdit(DebugTextEditSnapshot {
+                direction: match self.config.direction {
+                    Direction::Horizontal => "horizontal",
+                    Direction::Vertical => "vertical",
+                },
+                row_interval: self.config.row_interval,
+                col_interval: self.config.col_interval,
+                row_scale: self.config.row_scale,
+                col_scale: self.config.col_scale,
+                max_col: self.config.max_col,
+                min_bound: self.config.min_bound.to_array(),
+                instance_scale: self.config.instance_scale(),
+                text,
+                line_count,
+                char_count,
+                highlight_mode: self.highlight_mode_name(),
+            }),
+            camera,
+        )
+    }
 }
 
 impl TextEdit {
     pub(crate) fn text_edit_operation(&mut self, op: TextEditOperation) {
         self.text_edit_operation_sender.send(op).unwrap();
+    }
+
+    fn highlight_mode_name(&self) -> &'static str {
+        match self.config.highlight_mode {
+            HighlightMode::None => "none",
+            HighlightMode::Markdown => "markdown",
+            HighlightMode::Language(_) => "language",
+        }
     }
 
     // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。
@@ -536,9 +589,16 @@ impl TextEdit {
             [0.0, 0.0],      /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
             [max_col, max_row],
         );
+        // get_adjusted_position は「最後のセルの基準位置」までしか返さないため、
+        // 1セル分の実サイズを加算して外接矩形としての bound を作る。
+        // これにより 1 行テキストで高さ 0 になる問題や右端の欠落を防ぐ。
+        let (cell_width, cell_height) = match self.config.direction {
+            Direction::Horizontal => (self.config.col_interval, self.config.row_scale),
+            Direction::Vertical => (self.config.row_scale, self.config.col_interval),
+        };
         let (max_x, max_y) = (
-            max_x.abs().max(self.config.min_bound.x),
-            max_y.abs().max(self.config.min_bound.y),
+            (max_x.abs() + cell_width).max(self.config.min_bound.x),
+            (max_y.abs() + cell_height).max(self.config.min_bound.y),
         );
         let bound = (max_x.abs(), max_y.abs()).into();
         self.bound.update(bound);
@@ -558,6 +618,7 @@ impl TextEdit {
             let width = char_width_calcurator.get_width(c.c);
             let position =
                 Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+            let position = Self::apply_render_anchor_offset(&self.config, position);
             self.char_states.update_state(
                 c,
                 &ViewElementStateUpdateRequest {
@@ -578,6 +639,7 @@ impl TextEdit {
                 bound,
                 [layout.main_caret_pos.col, layout.main_caret_pos.row],
             );
+            let position = Self::apply_render_anchor_offset(&self.config, position);
             self.caret_states.update_state_position_and_scale(
                 CaretType::Primary,
                 position,
@@ -592,6 +654,7 @@ impl TextEdit {
                 bound,
                 [mark_pos.col, mark_pos.row],
             );
+            let position = Self::apply_render_anchor_offset(&self.config, position);
             self.caret_states.update_state_position_and_scale(
                 CaretType::Mark,
                 position,
@@ -616,6 +679,14 @@ impl TextEdit {
         match config.direction {
             Direction::Horizontal => [x, -y, 0.0],
             Direction::Vertical => [bound_x - y, -x, 0.0],
+        }
+    }
+
+    #[inline]
+    fn apply_render_anchor_offset(config: &TextContext, [x, y, z]: [f32; 3]) -> [f32; 3] {
+        match config.direction {
+            Direction::Horizontal => [x + config.col_interval * 0.5, y - config.row_scale * 0.5, z],
+            Direction::Vertical => [x - config.row_scale * 0.5, y, z],
         }
     }
 

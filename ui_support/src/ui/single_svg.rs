@@ -4,7 +4,11 @@ use font_rasterizer::{
 };
 use glam::{Quat, Vec3};
 
-use crate::{easing_value::EasingPointN, layout_engine::Model, ui_context::UiContext};
+use crate::{
+    easing_value::EasingPointN,
+    layout_engine::{DebugModelDetails, DebugModelNode, DebugSingleSvgSnapshot, Model},
+    ui_context::UiContext,
+};
 
 pub struct SingleSvg {
     svg_instance: VectorInstances<String>,
@@ -37,6 +41,11 @@ impl SingleSvg {
             instance_scale: [1.0, 1.0],
             bound: EasingPointN::new([0.0, 0.0]),
         }
+    }
+
+    pub fn with_instance_scale(mut self, scale: [f32; 2]) -> Self {
+        self.instance_scale = scale;
+        self
     }
 }
 
@@ -124,4 +133,28 @@ impl Model for SingleSvg {
     }
 
     fn set_easing_preset(&mut self, _preset: crate::ui_context::CharEasingsPreset) {}
+
+    fn debug_node(&self, camera: &crate::camera::Camera) -> DebugModelNode {
+        let position = self.position().to_array();
+        let last_position = self.last_position().to_array();
+        let focus_position = self.focus_position().to_array();
+        let rotation = self.rotation().to_array();
+        let bound: [f32; 2] = self.bound().into();
+        DebugModelNode::new(
+            "SingleSvg",
+            self.border(),
+            position,
+            last_position,
+            focus_position,
+            rotation,
+            bound,
+            self.bound.current(),
+            self.in_animation(),
+            vec![],
+            DebugModelDetails::SingleSvg(DebugSingleSvgSnapshot {
+                instance_scale: self.instance_scale,
+            }),
+            camera,
+        )
+    }
 }
