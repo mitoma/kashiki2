@@ -5,6 +5,7 @@ use std::{
 
 use glam::{Quat, Vec3};
 use log::info;
+use serde::Serialize;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
@@ -16,9 +17,37 @@ use crate::ui_context::UiContext;
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
-    layout_engine::{Model, ModelOperation, ModelOperationResult, World, world::RemovedModelType},
+    layout_engine::{
+        DebugModelNode, Model, ModelOperation, ModelOperationResult, World, world::RemovedModelType,
+    },
     to_ndc_position,
 };
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DebugWorldSnapshot {
+    pub layout: &'static str,
+    pub focus: usize,
+    pub direction: &'static str,
+    pub camera_target: [f32; 3],
+    pub camera_eye: [f32; 3],
+    pub models: Vec<DebugModelNode>,
+    pub modal_models: Vec<DebugModelNode>,
+    pub removed_models: Vec<DebugModelNode>,
+}
+
+fn direction_name(direction: Direction) -> &'static str {
+    match direction {
+        Direction::Horizontal => "horizontal",
+        Direction::Vertical => "vertical",
+    }
+}
+
+fn world_layout_name(layout: &WorldLayout) -> &'static str {
+    match layout {
+        WorldLayout::Liner => "liner",
+        WorldLayout::Circle => "circle",
+    }
+}
 
 pub struct DefaultWorld {
     camera: Camera,
@@ -374,6 +403,32 @@ impl World for DefaultWorld {
         self.modal_models.iter_mut().for_each(|m| {
             m.set_easing_preset(preset);
         });
+    }
+
+    fn debug_snapshot(&self) -> DebugWorldSnapshot {
+        let (camera_target, camera_eye) = self.camera.target_and_eye();
+        DebugWorldSnapshot {
+            layout: world_layout_name(&self.layout),
+            focus: self.focus,
+            direction: direction_name(self.direction),
+            camera_target,
+            camera_eye,
+            models: self
+                .models
+                .iter()
+                .map(|model| model.debug_node(&self.camera))
+                .collect(),
+            modal_models: self
+                .modal_models
+                .iter()
+                .map(|model| model.debug_node(&self.camera))
+                .collect(),
+            removed_models: self
+                .removed_models
+                .iter()
+                .map(|model| model.debug_node(&self.camera))
+                .collect(),
+        }
     }
 }
 

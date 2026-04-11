@@ -15,7 +15,9 @@ use crate::ui::StackLayout;
 use crate::ui_context::{CharEasingsPreset, UiContext};
 
 use crate::{
-    layout_engine::{Model, ModelBorder},
+    layout_engine::{
+        DebugModelDetails, DebugModelNode, DebugSelectBoxSnapshot, Model, ModelBorder,
+    },
     ui_context::{CharEasings, GpuEasingConfig, HighlightMode, TextContext},
 };
 
@@ -477,5 +479,34 @@ impl Model for SelectBox {
 
     fn set_easing_preset(&mut self, preset: CharEasingsPreset) {
         self.layout.set_easing_preset(preset);
+    }
+
+    fn debug_node(&self, camera: &crate::camera::Camera) -> DebugModelNode {
+        let position = self.position().to_array();
+        let last_position = self.last_position().to_array();
+        let focus_position = self.focus_position().to_array();
+        let rotation = self.rotation().to_array();
+        let bound: [f32; 2] = self.bound().into();
+        DebugModelNode::new(
+            "SelectBox",
+            self.border(),
+            position,
+            last_position,
+            focus_position,
+            rotation,
+            bound,
+            bound,
+            self.in_animation(),
+            vec![self.layout.debug_node(camera)],
+            DebugModelDetails::SelectBox(DebugSelectBoxSnapshot {
+                current_selection: self.current_selection,
+                option_count: self.options.len(),
+                narrowed_option_count: self.narrowd_options().len(),
+                show_action_name: self.show_action_name,
+                cancellable: self.cancellable,
+                max_line: self.max_line,
+            }),
+            camera,
+        )
     }
 }

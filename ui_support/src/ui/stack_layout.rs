@@ -3,7 +3,10 @@ use glam::Quat;
 
 use crate::{
     easing_value::EasingPointN,
-    layout_engine::{Model, ModelOperation, ModelOperationResult},
+    layout_engine::{
+        DebugModelDetails, DebugModelNode, DebugStackLayoutSnapshot, Model, ModelOperation,
+        ModelOperationResult,
+    },
 };
 
 /// Model を複数まとめてレイアウトするためのコンテナ
@@ -66,6 +69,10 @@ impl StackLayout {
 
     pub fn direction(&self) -> Direction {
         self.direction
+    }
+
+    pub fn margin(&self) -> (f32, f32) {
+        (self.margin.horizontal, self.margin.vertical)
     }
 }
 
@@ -237,5 +244,40 @@ impl Model for StackLayout {
         for model in self.models.iter_mut() {
             model.set_easing_preset(preset);
         }
+    }
+
+    fn debug_node(&self, camera: &crate::camera::Camera) -> DebugModelNode {
+        let children = self
+            .models
+            .iter()
+            .map(|model| model.debug_node(camera))
+            .collect();
+        let position = self.position().to_array();
+        let last_position = self.last_position().to_array();
+        let focus_position = self.focus_position().to_array();
+        let rotation = self.rotation().to_array();
+        let bound: [f32; 2] = self.bound().into();
+        DebugModelNode::new(
+            "StackLayout",
+            self.border(),
+            position,
+            last_position,
+            focus_position,
+            rotation,
+            bound,
+            bound,
+            self.in_animation(),
+            children,
+            DebugModelDetails::StackLayout(DebugStackLayoutSnapshot {
+                direction: match self.direction {
+                    Direction::Horizontal => "horizontal",
+                    Direction::Vertical => "vertical",
+                },
+                margin: [self.margin.horizontal, self.margin.vertical],
+                focus_model_index: self.focus_model_index,
+                focus_to_model: self.focus_to_model,
+            }),
+            camera,
+        )
     }
 }

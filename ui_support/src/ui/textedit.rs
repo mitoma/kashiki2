@@ -29,7 +29,10 @@ use crate::{
 
 use crate::{
     easing_value::EasingPointN,
-    layout_engine::{Model, ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult},
+    layout_engine::{
+        DebugModelDetails, DebugModelNode, DebugTextEditSnapshot, Model, ModelAttributes,
+        ModelBorder, ModelOperation, ModelOperationResult,
+    },
     ui::{CharAttribute, Decoration},
     ui_context::{HighlightMode, TextContext},
 };
@@ -370,11 +373,61 @@ impl Model for TextEdit {
     fn set_easing_preset(&mut self, preset: CharEasingsPreset) {
         self.config.set_char_easings_preset(preset);
     }
+
+    fn debug_node(&self, camera: &crate::camera::Camera) -> DebugModelNode {
+        let position = self.position().to_array();
+        let last_position = self.last_position().to_array();
+        let focus_position = self.focus_position().to_array();
+        let rotation = self.rotation().to_array();
+        let bound: [f32; 2] = self.bound().into();
+        let current_bound = self.bound.current();
+        let text = self.to_string();
+        let line_count = text.lines().count().max(1);
+        let char_count = text.chars().count();
+        DebugModelNode::new(
+            "TextEdit",
+            self.border(),
+            position,
+            last_position,
+            focus_position,
+            rotation,
+            bound,
+            current_bound,
+            self.in_animation(),
+            vec![],
+            DebugModelDetails::TextEdit(DebugTextEditSnapshot {
+                direction: match self.config.direction {
+                    Direction::Horizontal => "horizontal",
+                    Direction::Vertical => "vertical",
+                },
+                row_interval: self.config.row_interval,
+                col_interval: self.config.col_interval,
+                row_scale: self.config.row_scale,
+                col_scale: self.config.col_scale,
+                max_col: self.config.max_col,
+                min_bound: self.config.min_bound.to_array(),
+                instance_scale: self.config.instance_scale(),
+                text,
+                line_count,
+                char_count,
+                highlight_mode: self.highlight_mode_name(),
+            }),
+            camera,
+        )
+    }
 }
 
 impl TextEdit {
     pub(crate) fn text_edit_operation(&mut self, op: TextEditOperation) {
         self.text_edit_operation_sender.send(op).unwrap();
+    }
+
+    fn highlight_mode_name(&self) -> &'static str {
+        match self.config.highlight_mode {
+            HighlightMode::None => "none",
+            HighlightMode::Markdown => "markdown",
+            HighlightMode::Language(_) => "language",
+        }
     }
 
     // editor から受け取ったイベントを TextEdit の caret, buffer_chars, instances に同期する。

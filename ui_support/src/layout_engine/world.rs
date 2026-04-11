@@ -6,7 +6,10 @@ use font_rasterizer::{
     context::WindowSize, glyph_instances::GlyphInstances, vector_instances::VectorInstances,
 };
 
-use crate::ui_context::{CharEasingsPreset, UiContext};
+use crate::{
+    layout_engine::default_world::DebugWorldSnapshot,
+    ui_context::{CharEasingsPreset, UiContext},
+};
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraOperation},
@@ -70,6 +73,7 @@ pub trait World {
     fn current_string(&self) -> String;
     fn strings(&self) -> Vec<String>;
     fn chars(&self) -> HashSet<char>;
+    fn debug_snapshot(&self) -> DebugWorldSnapshot;
 
     // 今フォーカスが当たっているモデルのモードを返す
     //fn current_model_mode(&self) -> Option<ModelMode>;

@@ -12,7 +12,9 @@ use font_rasterizer::{
 use crate::ui_context::{CharEasingsPreset, UiContext};
 
 use crate::{
-    layout_engine::{Model, ModelBorder},
+    layout_engine::{
+        DebugModelDetails, DebugModelNode, DebugTextInputSnapshot, Model, ModelBorder,
+    },
     ui_context::{CharEasings, HighlightMode, TextContext},
 };
 
@@ -217,5 +219,32 @@ impl Model for TextInput {
     fn set_easing_preset(&mut self, preset: CharEasingsPreset) {
         self.title_text_edit.set_easing_preset(preset);
         self.input_text_edit.set_easing_preset(preset);
+    }
+
+    fn debug_node(&self, camera: &crate::camera::Camera) -> DebugModelNode {
+        let position = self.position().to_array();
+        let last_position = self.last_position().to_array();
+        let focus_position = self.focus_position().to_array();
+        let rotation = self.rotation().to_array();
+        let bound: [f32; 2] = self.bound().into();
+        DebugModelNode::new(
+            "TextInput",
+            self.border(),
+            position,
+            last_position,
+            focus_position,
+            rotation,
+            bound,
+            bound,
+            self.in_animation(),
+            vec![
+                self.title_text_edit.debug_node(camera),
+                self.input_text_edit.debug_node(camera),
+            ],
+            DebugModelDetails::TextInput(DebugTextInputSnapshot {
+                default_input: self.default_input.clone(),
+            }),
+            camera,
+        )
     }
 }
