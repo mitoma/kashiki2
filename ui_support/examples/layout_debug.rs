@@ -15,13 +15,14 @@ use font_rasterizer::{
 };
 use image::{ImageBuffer, Rgba};
 use serde_json::to_writer_pretty;
+use stroke_parser::Action;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport, generate_image_iter,
     layout_engine::{
         DebugModelNode, DebugWorldSnapshot, DefaultWorld, Model, ModelBorder, ModelOperation, World,
     },
     register_default_border, register_default_caret,
-    ui::{SingleSvg, StackLayout, TextEdit},
+    ui::{SelectBox, SelectOption, SingleSvg, StackLayout, TextEdit},
     ui_context::{CharEasingsPreset, UiContext},
 };
 use winit::event::WindowEvent;
@@ -50,6 +51,7 @@ enum CaseArg {
     TexteditHorizontal,
     TexteditVertical,
     WorldMixed,
+    SvgAndSelectBox,
 }
 
 impl CaseArg {
@@ -62,6 +64,7 @@ impl CaseArg {
                 "textedit_horizontal",
                 "textedit_vertical",
                 "world_mixed",
+                "svg_and_select_box",
             ],
             Self::StackHorizontal => vec!["stack_horizontal"],
             Self::StackVertical => vec!["stack_vertical"],
@@ -69,6 +72,7 @@ impl CaseArg {
             Self::TexteditHorizontal => vec!["textedit_horizontal"],
             Self::TexteditVertical => vec!["textedit_vertical"],
             Self::WorldMixed => vec!["world_mixed"],
+            Self::SvgAndSelectBox => vec!["svg_and_select_box"],
         }
     }
 }
@@ -171,6 +175,7 @@ impl SimpleStateCallback for LayoutDebugCallback {
         register_default_caret(context);
         register_default_border(context);
         build_case(&self.case_name)(context, &mut self.world);
+        register_world_chars(context, &self.world);
         self.world
             .change_char_easings_preset(CharEasingsPreset::ZeroMotion);
         self.world.re_layout();
@@ -210,6 +215,10 @@ impl SimpleStateCallback for LayoutDebugCallback {
     fn shutdown(&mut self) {}
 }
 
+fn register_world_chars(context: &UiContext, world: &DefaultWorld)  {
+    context.register_string(world.current_string());
+}
+
 fn build_case(name: &str) -> BuildCaseFn {
     match name {
         "stack_horizontal" => build_stack_horizontal_case,
@@ -218,6 +227,7 @@ fn build_case(name: &str) -> BuildCaseFn {
         "textedit_horizontal" => build_textedit_horizontal_case,
         "textedit_vertical" => build_textedit_vertical_case,
         "world_mixed" => build_world_mixed_case,
+        "svg_and_select_box" => build_svg_and_select_box_case,
         _ => panic!("unknown case: {name}"),
     }
 }
@@ -342,6 +352,44 @@ fn build_world_mixed_case(context: &UiContext, world: &mut DefaultWorld) {
         ThemedColor::Cyan,
     );
     world.add(Box::new(svg));
+}
+
+fn build_svg_and_select_box_case(context: &UiContext, world: &mut DefaultWorld) {
+    let mut layout = StackLayout::new(context.global_direction());
+
+    let logo = SingleSvg::new(
+        include_str!("../../ui_support/asset/kashikishi-icon-toon-flat.svg").to_string(),
+        context,
+        ThemedColor::Blue,
+    );
+    layout.add_model(Box::new(logo));
+    let logo = SingleSvg::new(
+        include_str!("../../ui_support/asset/kashikishi-icon-toon-flat.svg").to_string(),
+        context,
+        ThemedColor::Red,
+    );
+    layout.add_model(Box::new(logo));
+
+    let options = vec![
+        SelectOption::new(
+            "メモ帳を開く".to_string(),
+            Action::new_command("mode", "category"),
+        ),
+        SelectOption::new(
+            "ヘルプ(使い方の概説)を開く".to_string(),
+            Action::new_command("mode", "help"),
+        ),
+        SelectOption::new(
+            "炊紙を終了する".to_string(),
+            Action::new_command("system", "exit"),
+        ),
+    ];
+    let start_select =
+        SelectBox::new_without_action_name(context, "炊紙 kashikishi".to_string(), options, None)
+            .without_cancellable();
+    layout.add_model(Box::new(start_select));
+    layout.set_focus_model_index(2, false);
+    world.add(Box::new(layout));
 }
 
 fn make_text_edit(text: &str, direction: Direction, max_col: Option<usize>) -> TextEdit {
