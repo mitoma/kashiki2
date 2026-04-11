@@ -54,7 +54,9 @@ struct PreeditState {
 
 impl PreeditState {
     fn preedit_string(&self) -> String {
-        if let Some((start_bytes, end_bytes)) = self.selection {
+        if let Some((start_bytes, end_bytes)) = self.selection
+            && start_bytes != end_bytes
+        {
             let (start, middle, end) =
                 split_preedit_string(self.value.to_string(), start_bytes, end_bytes);
             format!("{}[{}]{}", start, middle, end)
@@ -828,47 +830,26 @@ impl TextEdit {
             return;
         };
 
-        // 表示文字列を構築（[center] を挿入）
-        let (first, center, last) = match preedit.selection {
-            Some((start, end)) if start != end => {
-                // split_preedit_string はバイト位置で分割
-                let (f, c, l) = crate::ui::split_preedit_string(preedit.value.clone(), start, end);
-                (f, c, l)
-            }
-            _ => (String::new(), preedit.value.clone(), String::new()),
-        };
-
-        let mut chars: Vec<(char, ThemedColor)> = Vec::new();
-        // first
-        chars.extend(first.chars().map(|c| (c, ThemedColor::Text)));
-        // left bracket
-        if !center.is_empty() {
-            chars.push(('[', ThemedColor::TextComment));
-        }
-        // center
-        chars.extend(center.chars().map(|c| (c, ThemedColor::Text)));
-        // right bracket
-        if !center.is_empty() {
-            chars.push((']', ThemedColor::TextComment));
-        }
-        // last
-        chars.extend(last.chars().map(|c| (c, ThemedColor::Text)));
-
-        if chars.is_empty() {
+        let preedit_string = preedit.preedit_string();
+        if preedit_string.is_empty() {
             return;
         }
-
-        // caret の論理位置を基準に配置
-        let row = layout.main_caret_pos.row;
-        let mut col = layout.main_caret_pos.col;
+        let has_selection = matches!(preedit.selection, Some((start, end)) if start != end);
 
         // モデル属性（ワールド座標変換に必要）
         let model_attributes = self.model_attributes();
 
-        for (c, themed_color) in chars.into_iter() {
+        for ((_, pos), c) in layout.preedit_chars.iter().zip(preedit_string.chars()) {
+            let themed_color = if has_selection && (c == '[' || c == ']') {
+                ThemedColor::TextComment
+            } else {
+                ThemedColor::Text
+            };
             // 位置（モデル座標）を算出
             let width = char_width_calcurator.get_width(c);
-            let position = Self::get_adjusted_position(&self.config, width, bound, [col, row]);
+            let position =
+                Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+            let position = Self::apply_render_anchor_offset(&self.config, position);
 
             // インスタンス属性を構築（既定値を基に必要フィールドを初期化）
             let mut instance = InstanceAttributes {
@@ -918,13 +899,13 @@ impl TextEdit {
             // 追加
             self.preedit_instances.add_char_at_position(
                 c,
-                CellPosition { row, col },
+                CellPosition {
+                    row: pos.row,
+                    col: pos.col,
+                },
                 instance,
                 device,
             );
-
-            // col を前進（1=半角、2=全角）
-            col += char_width_calcurator.resolve_width(c);
         }
     }
 
