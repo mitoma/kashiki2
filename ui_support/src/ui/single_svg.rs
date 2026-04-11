@@ -42,6 +42,11 @@ impl SingleSvg {
             bound: EasingPointN::new([0.0, 0.0]),
         }
     }
+
+    pub fn with_instance_scale(mut self, scale: [f32; 2]) -> Self {
+        self.instance_scale = scale;
+        self
+    }
 }
 
 impl Model for SingleSvg {

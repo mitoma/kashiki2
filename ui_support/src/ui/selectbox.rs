@@ -38,7 +38,6 @@ pub struct SelectBox {
     char_width_calcurator: Arc<CharWidthCalculator>,
     show_action_name: bool,
     cancellable: bool,
-    border: ModelBorder,
     max_line: usize,
 }
 
@@ -141,17 +140,12 @@ impl SelectBox {
             char_width_calcurator: context.char_width_calcurator().clone(),
             show_action_name,
             cancellable,
-            border: ModelBorder::default(),
             max_line: 10,
         };
         result.update_select_items_text_edit();
         result.update_current_selection();
         result.update(context);
         result
-    }
-
-    fn title_text_edit_mut(&mut self) -> &mut dyn Model {
-        self.layout.models_mut()[TITLE_TEXT_INDEX].as_mut()
     }
 
     fn title_text_edit(&self) -> &dyn Model {
@@ -168,10 +162,6 @@ impl SelectBox {
 
     fn select_items_text_edit_mut(&mut self) -> &mut dyn Model {
         self.layout.models_mut()[SELECT_ITEMS_TEXT_INDEX].as_mut()
-    }
-
-    fn select_items_text_edit(&self) -> &dyn Model {
-        self.layout.models()[SELECT_ITEMS_TEXT_INDEX].as_ref()
     }
 
     fn narrowd_options(&self) -> Vec<&SelectOption> {
