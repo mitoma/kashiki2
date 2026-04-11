@@ -111,13 +111,13 @@ impl Model for StackLayout {
     fn bound(&self) -> (f32, f32) {
         match self.direction {
             Direction::Horizontal => (
-                // 縦積み: 幅は最大値、高さは合計
+                // 横書き: テキスト行が下に伸びる → 複数行を縦に積む
                 self.models.iter().map(|m| m.bound().0).fold(0.0, f32::max),
                 self.models.iter().map(|m| m.bound().1).sum::<f32>()
                     + self.margin.vertical * (self.models.len() as f32 - 1.0),
             ),
             Direction::Vertical => (
-                // 横積み: 幅は合計、高さは最大値
+                // 縦書き: テキスト列が右に伸びる → 複数列を横に並べる
                 self.models.iter().map(|m| m.bound().0).sum::<f32>()
                     + self.margin.horizontal * (self.models.len() as f32 - 1.0),
                 self.models.iter().map(|m| m.bound().1).fold(0.0, f32::max),
