@@ -589,9 +589,16 @@ impl TextEdit {
             [0.0, 0.0],      /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
             [max_col, max_row],
         );
+        // get_adjusted_position は「最後のセルの基準位置」までしか返さないため、
+        // 1セル分の実サイズを加算して外接矩形としての bound を作る。
+        // これにより 1 行テキストで高さ 0 になる問題や右端の欠落を防ぐ。
+        let (cell_width, cell_height) = match self.config.direction {
+            Direction::Horizontal => (self.config.col_interval, self.config.row_scale),
+            Direction::Vertical => (self.config.row_scale, self.config.col_interval),
+        };
         let (max_x, max_y) = (
-            max_x.abs().max(self.config.min_bound.x),
-            max_y.abs().max(self.config.min_bound.y),
+            (max_x.abs() + cell_width).max(self.config.min_bound.x),
+            (max_y.abs() + cell_height).max(self.config.min_bound.y),
         );
         let bound = (max_x.abs(), max_y.abs()).into();
         self.bound.update(bound);
@@ -611,6 +618,7 @@ impl TextEdit {
             let width = char_width_calcurator.get_width(c.c);
             let position =
                 Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+            let position = Self::apply_render_anchor_offset(&self.config, position);
             self.char_states.update_state(
                 c,
                 &ViewElementStateUpdateRequest {
@@ -631,6 +639,7 @@ impl TextEdit {
                 bound,
                 [layout.main_caret_pos.col, layout.main_caret_pos.row],
             );
+            let position = Self::apply_render_anchor_offset(&self.config, position);
             self.caret_states.update_state_position_and_scale(
                 CaretType::Primary,
                 position,
@@ -645,6 +654,7 @@ impl TextEdit {
                 bound,
                 [mark_pos.col, mark_pos.row],
             );
+            let position = Self::apply_render_anchor_offset(&self.config, position);
             self.caret_states.update_state_position_and_scale(
                 CaretType::Mark,
                 position,
@@ -669,6 +679,14 @@ impl TextEdit {
         match config.direction {
             Direction::Horizontal => [x, -y, 0.0],
             Direction::Vertical => [bound_x - y, -x, 0.0],
+        }
+    }
+
+    #[inline]
+    fn apply_render_anchor_offset(config: &TextContext, [x, y, z]: [f32; 3]) -> [f32; 3] {
+        match config.direction {
+            Direction::Horizontal => [x + config.col_interval * 0.5, y - config.row_scale * 0.5, z],
+            Direction::Vertical => [x - config.row_scale * 0.5, y, z],
         }
     }
 
