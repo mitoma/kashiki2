@@ -397,7 +397,7 @@ fn build_svg_and_select_box_case(context: &UiContext, world: &mut DefaultWorld) 
 }
 
 fn build_inline_textedit_case(context: &UiContext, world: &mut DefaultWorld) {
-    let mut textedit = make_text_edit(
+    let textedit = make_text_edit(
         "inline textedit\nwith multiple lines",
         Direction::Horizontal,
         Some(30),
