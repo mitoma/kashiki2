@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeSet,
     ops::Range,
     sync::{
         Arc,
@@ -9,7 +10,7 @@ use std::{
 use glam::{Quat, Vec3};
 use text_buffer::{
     action::EditorOperation,
-    buffer::CellPosition,
+    buffer::{BufferChar, CellPosition},
     caret::{Caret, CaretType},
     editor::{ChangeEvent, CharWidthResolver, Editor, PhisicalLayout},
 };
@@ -81,6 +82,7 @@ pub struct TextEdit {
 
     // IME プレエディットの描画用インスタンス
     preedit_instances: crate::text_instances::TextInstances,
+    preedit_rendered_chars: Vec<BufferChar>,
     preedit: Option<PreeditState>,
 
     // バッファが更新されたかどうか。カーソルの移動も含む
@@ -122,6 +124,7 @@ impl Default for TextEdit {
             border_states: None,
 
             preedit_instances: Default::default(),
+            preedit_rendered_chars: vec![],
             preedit: None,
 
             buffer_updated: true,
@@ -822,16 +825,25 @@ impl TextEdit {
         bound: [f32; 2],
         color_theme: &ColorTheme,
     ) {
-        // クリアして作り直す
-        self.preedit_instances = Default::default();
+        // 方向は毎回同期する（差分更新時も既存インスタンスへ反映するため）
         self.preedit_instances.set_direction(&self.config.direction);
 
         let Some(preedit) = self.preedit.as_ref() else {
+            for c in self.preedit_rendered_chars.iter().copied() {
+                let key: crate::text_instances::TextInstancesKey = c.into();
+                let _ = self.preedit_instances.remove(&key);
+            }
+            self.preedit_rendered_chars.clear();
             return;
         };
 
         let preedit_string = preedit.preedit_string();
         if preedit_string.is_empty() {
+            for c in self.preedit_rendered_chars.iter().copied() {
+                let key: crate::text_instances::TextInstancesKey = c.into();
+                let _ = self.preedit_instances.remove(&key);
+            }
+            self.preedit_rendered_chars.clear();
             return;
         }
         let has_selection = matches!(preedit.selection, Some((start, end)) if start != end);
@@ -839,16 +851,42 @@ impl TextEdit {
         // モデル属性（ワールド座標変換に必要）
         let model_attributes = self.model_attributes();
 
-        for ((_, pos), c) in layout.preedit_chars.iter().zip(preedit_string.chars()) {
-            let themed_color = if has_selection && (c == '[' || c == ']') {
+        let next_chars: Vec<BufferChar> = layout
+            .preedit_chars
+            .iter()
+            .zip(preedit_string.chars())
+            .map(|((_, pos), c)| BufferChar {
+                position: CellPosition {
+                    row: pos.row,
+                    col: pos.col,
+                },
+                c,
+            })
+            .collect();
+
+        let prev_set: BTreeSet<BufferChar> = self.preedit_rendered_chars.iter().copied().collect();
+        let next_set: BTreeSet<BufferChar> = next_chars.iter().copied().collect();
+
+        // 現在は不要になった文字を削除
+        for c in prev_set.difference(&next_set) {
+            let key: crate::text_instances::TextInstancesKey = (*c).into();
+            let _ = self.preedit_instances.remove(&key);
+        }
+
+        for c in next_chars.iter().copied() {
+            let themed_color = if has_selection && (c.c == '[' || c.c == ']') {
                 ThemedColor::TextComment
             } else {
                 ThemedColor::Text
             };
             // 位置（モデル座標）を算出
-            let width = char_width_calcurator.get_width(c);
-            let position =
-                Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+            let width = char_width_calcurator.get_width(c.c);
+            let position = Self::get_adjusted_position(
+                &self.config,
+                width,
+                bound,
+                [c.position.col, c.position.row],
+            );
             let position = Self::apply_render_anchor_offset(&self.config, position);
 
             // インスタンス属性を構築（既定値を基に必要フィールドを初期化）
@@ -896,17 +934,16 @@ impl TextEdit {
                 None => model_attributes.rotation,
             };
 
-            // 追加
-            self.preedit_instances.add_char_at_position(
-                c,
-                CellPosition {
-                    row: pos.row,
-                    col: pos.col,
-                },
-                instance,
-                device,
-            );
+            let key: crate::text_instances::TextInstancesKey = c.into();
+            if let Some(existing) = self.preedit_instances.get_mut(&key) {
+                *existing = instance;
+            } else {
+                self.preedit_instances
+                    .add_char_at_position(c.c, c.position, instance, device);
+            }
         }
+
+        self.preedit_rendered_chars = next_chars;
     }
 
     pub(crate) fn direction(&self) -> Direction {
