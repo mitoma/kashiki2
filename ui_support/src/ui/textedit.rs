@@ -239,7 +239,12 @@ impl Model for TextEdit {
 
         self.sync_editor_events(device, color_theme);
 
-        if self.buffer_updated || self.config_updated {
+        let rebuild_preedit_for_animation = self.preedit.is_some()
+            && (self.position.in_animation()
+                || self.bound.in_animation()
+                || self.rotation.in_animation());
+
+        if self.buffer_updated || self.config_updated || rebuild_preedit_for_animation {
             let layout = self.calc_phisical_layout(context.char_width_calcurator().clone());
             let bound = self.calc_bound(&layout);
             self.calc_position(context.char_width_calcurator(), &layout, bound);
@@ -283,6 +288,7 @@ impl Model for TextEdit {
                 self.char_states
                     .instances
                     .set_direction(&self.config.direction);
+                self.preedit_instances.set_direction(&self.config.direction);
                 self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
