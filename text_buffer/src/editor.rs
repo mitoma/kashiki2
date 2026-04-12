@@ -426,7 +426,7 @@ impl Editor {
         let mut prev_row = *phisical_row;
         let mut logical_line = line_row_num;
         let mut logical_col = caret_col;
-        
+
         for (i, c) in preedit.chars().enumerate() {
             let char_width = width_resolver.resolve_width(c);
             // 改行直後かどうかを正しく判定：
@@ -449,13 +449,13 @@ impl Editor {
                 row: *phisical_row,
                 col: *phisical_col,
             };
-            
+
             // 改行が発生した場合、論理行番号と列位置を更新
             if *phisical_row > prev_row {
                 logical_line += 1;
                 logical_col = indent;
             }
-            
+
             let logical_pos = [logical_line, logical_col].into();
             preedit_chars.push((
                 BufferChar {
@@ -464,10 +464,10 @@ impl Editor {
                 },
                 phisical_position,
             ));
-            
+
             *phisical_col += char_width;
-            logical_col += 1;  // 論理行上での列を進める
-            
+            logical_col += 1; // 論理行上での列を進める
+
             // 次のループのために、今のフレームの行番号を保存
             prev_row = *phisical_row;
         }
@@ -826,27 +826,27 @@ mod tests {
             // 折り返しが起きるテストケース：preedit が max_width を超える
             TestCase {
                 input: vec![EditorOperation::InsertString("inline".to_string())],
-                preedit_string: "ダダダダダダ".to_string(),  // 12文字 = 24 の幅
+                preedit_string: "ダダダダダダ".to_string(), // 12文字 = 24 の幅
                 output: "inline".to_string(),
                 prohibited_chars: LineBoundaryProhibitedChars::default(),
-                max_width: 10,  // 折り返しが起きる
+                max_width: 10, // 折り返しが起きる
             },
             // 折り返し後に行頭禁則文字が来るケース
             TestCase {
                 input: vec![EditorOperation::InsertString("text".to_string())],
-                preedit_string: "ダダ。ダ".to_string(),  // 「。」が行頭禁則文字
+                preedit_string: "ダダ。ダ".to_string(), // 「。」が行頭禁則文字
                 output: "text".to_string(),
                 prohibited_chars: LineBoundaryProhibitedChars::default(),
-                max_width: 8,  // "text" = 4 + "ダ" = 2 で 6、次の "ダ" で 8、次の "。" で 10 > 8 なので行頭禁則関連
+                max_width: 8, // "text" = 4 + "ダ" = 2 で 6、次の "ダ" で 8、次の "。" で 10 > 8 なので行頭禁則関連
             },
             // 改行直後に行頭禁則文字が来るケース（真の問題）
             TestCase {
                 input: vec![EditorOperation::InsertString("x".to_string())],
-                preedit_string: "ダダ。。".to_string(),  // 改行後の「。」で is_line_head ミス問題を再現
+                preedit_string: "ダダ。。".to_string(), // 改行後の「。」で is_line_head ミス問題を再現
                 output: "x".to_string(),
                 prohibited_chars: LineBoundaryProhibitedChars::default(),
-                max_width: 6,  // "x" = 1 + "ダ" = 2 で 3、"ダ" で 5、"。" で 7 > 6 → 改行すべき
-                           // 改行後 col=0 の新行で「。」が来る
+                max_width: 6, // "x" = 1 + "ダ" = 2 で 3、"ダ" で 5、"。" で 7 > 6 → 改行すべき
+                              // 改行後 col=0 の新行で「。」が来る
             },
         ];
         for case in cases.iter() {
@@ -861,10 +861,16 @@ mod tests {
                 Arc::new(TestWidthResolver),
                 Some(case.preedit_string.clone()),
             );
-            println!("\n=== Test case: max_width={}, preedit={} ===", case.max_width, case.preedit_string);
+            println!(
+                "\n=== Test case: max_width={}, preedit={} ===",
+                case.max_width, case.preedit_string
+            );
             println!("preedit_chars layout:");
             for (i, (bc, pos)) in layout.preedit_chars.iter().enumerate() {
-                println!("  [{}] '{}' -> physical row={}, col={}", i, bc.c, pos.row, pos.col);
+                println!(
+                    "  [{}] '{}' -> physical row={}, col={}",
+                    i, bc.c, pos.row, pos.col
+                );
             }
             println!("layout: {:#?}", layout);
             assert_eq!(layout.to_string(), case.output);
