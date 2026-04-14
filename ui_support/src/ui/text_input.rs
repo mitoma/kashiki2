@@ -9,6 +9,7 @@ use font_rasterizer::{
     vector_instances::VectorInstances,
 };
 
+use crate::ui::StackLayout;
 use crate::ui_context::{CharEasingsPreset, UiContext};
 
 use crate::{
@@ -20,10 +21,12 @@ use crate::{
 
 use super::textedit::TextEdit;
 
+const TITLE_TEXT_INDEX: usize = 0;
+const INPUT_TEXT_INDEX: usize = 1;
+
 pub struct TextInput {
     action: Action,
-    title_text_edit: TextEdit,
-    input_text_edit: TextEdit,
+    layout: StackLayout,
     action_queue_sender: Sender<Action>,
     default_input: Option<String>,
     border: ModelBorder,
@@ -37,6 +40,7 @@ impl TextInput {
             hyde_caret: true,
             highlight_mode: HighlightMode::None,
             direction,
+            min_bound: (1.0, 1.0).into(),
             ..Default::default()
         }
     }
@@ -47,6 +51,8 @@ impl TextInput {
         default_input: Option<String>,
         action: Action,
     ) -> Self {
+        let mut layout = StackLayout::new(context.global_direction());
+
         let title_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(Self::text_context(context.global_direction()));
@@ -54,10 +60,12 @@ impl TextInput {
 
             text_edit
         };
+        layout.add_model(Box::new(title_text_edit));
         let input_text_edit = {
             let mut text_edit = TextEdit::default();
             text_edit.set_config(TextContext {
                 direction: context.global_direction(),
+                min_bound: (1.0, 1.0).into(),
                 ..Default::default()
             });
             if let Some(input) = default_input.as_ref() {
@@ -65,77 +73,70 @@ impl TextInput {
             }
             text_edit
         };
+        layout.add_model(Box::new(input_text_edit));
+        layout.set_focus_model_index(INPUT_TEXT_INDEX, false);
 
         Self {
             action,
-            title_text_edit,
-            input_text_edit,
+            layout,
             action_queue_sender: context.action_sender(),
             default_input,
             border: ModelBorder::default(),
         }
     }
+
+    fn title_text_edit(&self) -> &dyn Model {
+        self.layout.models()[TITLE_TEXT_INDEX].as_ref()
+    }
+
+    fn input_text_edit(&self) -> &dyn Model {
+        self.layout.models()[INPUT_TEXT_INDEX].as_ref()
+    }
+
+    fn input_text_edit_mut(&mut self) -> &mut dyn Model {
+        self.layout.models_mut()[INPUT_TEXT_INDEX].as_mut()
+    }
 }
 
 impl Model for TextInput {
     fn set_position(&mut self, position: Vec3) {
-        let title_offset = match self.input_text_edit.direction() {
-            Direction::Horizontal => Vec3::new(0.0, -1.0, 0.0),
-            Direction::Vertical => Vec3::new(-1.0, 0.0, 0.0),
-        };
-        self.title_text_edit.set_position(position - title_offset);
-        self.input_text_edit.set_position(position);
+        self.layout.set_position(position);
     }
 
     fn position(&self) -> Vec3 {
-        self.input_text_edit.position()
+        self.layout.position()
     }
 
     fn last_position(&self) -> Vec3 {
-        self.input_text_edit.last_position()
+        self.layout.last_position()
     }
 
     fn focus_position(&self) -> Vec3 {
-        self.input_text_edit.focus_position()
+        self.layout.focus_position()
     }
 
     fn set_rotation(&mut self, rotation: Quat) {
-        self.title_text_edit.set_rotation(rotation);
-        self.input_text_edit.set_rotation(rotation);
+        self.layout.set_rotation(rotation);
     }
 
     fn rotation(&self) -> Quat {
-        self.input_text_edit.rotation()
+        self.layout.rotation()
     }
 
     fn bound(&self) -> (f32, f32) {
-        let (title_width, title_height) = self.title_text_edit.bound();
-        let (input_width, input_height) = self.input_text_edit.bound();
-        match self.input_text_edit.direction() {
-            Direction::Horizontal => (title_width.max(input_width), title_height + input_height),
-            Direction::Vertical => (title_width + input_width, title_height.max(input_height)),
-        }
+        self.layout.bound()
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        [
-            self.title_text_edit.glyph_instances(),
-            self.input_text_edit.glyph_instances(),
-        ]
-        .concat()
+        self.layout.glyph_instances()
     }
 
     fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
-        [
-            self.title_text_edit.vector_instances(),
-            self.input_text_edit.vector_instances(),
-        ]
-        .concat()
+        self.layout.vector_instances()
     }
 
     fn update(&mut self, context: &UiContext) {
-        self.title_text_edit.update(context);
-        self.input_text_edit.update(context);
+        self.layout.update(context);
     }
 
     fn editor_operation(&mut self, op: &EditorOperation) {
@@ -151,12 +152,12 @@ impl Model for TextInput {
             | EditorOperation::Forward
             | EditorOperation::ForwardWord
             | EditorOperation::Back
-            | EditorOperation::BackWord => self.input_text_edit.editor_operation(op),
+            | EditorOperation::BackWord => self.input_text_edit_mut().editor_operation(op),
             EditorOperation::InsertEnter => {
                 self.action_queue_sender
                     .send(Action::new_command("world", "remove-current"))
                     .unwrap();
-                let arg = self.input_text_edit.to_string();
+                let arg = self.input_text_edit().to_string();
 
                 let action = match &self.action {
                     Action::Command(namespace, name, _arg) => Action::Command(
@@ -190,26 +191,24 @@ impl Model for TextInput {
         &mut self,
         op: &crate::layout_engine::ModelOperation,
     ) -> crate::layout_engine::ModelOperationResult {
-        // model operation も移譲して問題なさそう
-        // 返り値は適当に input_text_edit のものだけ返せばよさそう
-        self.title_text_edit.model_operation(op);
-        self.input_text_edit.model_operation(op)
+        self.layout.model_operation(op)
     }
 
     fn to_string(&self) -> String {
         [
-            self.title_text_edit.to_string(),
-            self.input_text_edit.to_string(),
+            self.title_text_edit().to_string(),
+            self.input_text_edit().to_string(),
         ]
         .concat()
     }
 
     fn in_animation(&self) -> bool {
-        self.title_text_edit.in_animation() || self.input_text_edit.in_animation()
+        self.layout.in_animation()
     }
 
     fn set_border(&mut self, border: ModelBorder) {
         self.border = border;
+        self.layout.set_border(border);
     }
 
     fn border(&self) -> ModelBorder {
@@ -217,8 +216,7 @@ impl Model for TextInput {
     }
 
     fn set_easing_preset(&mut self, preset: CharEasingsPreset) {
-        self.title_text_edit.set_easing_preset(preset);
-        self.input_text_edit.set_easing_preset(preset);
+        self.layout.set_easing_preset(preset);
     }
 
     fn debug_node(&self, camera: &crate::camera::Camera) -> DebugModelNode {
@@ -237,10 +235,7 @@ impl Model for TextInput {
             bound,
             bound,
             self.in_animation(),
-            vec![
-                self.title_text_edit.debug_node(camera),
-                self.input_text_edit.debug_node(camera),
-            ],
+            vec![self.layout.debug_node(camera)],
             DebugModelDetails::TextInput(DebugTextInputSnapshot {
                 default_input: self.default_input.clone(),
             }),
