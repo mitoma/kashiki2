@@ -68,6 +68,10 @@ pub struct Args {
     #[arg(short, long, default_value = "false")]
     pub use_embedded_font: bool,
 
+    /// ime on the fly mode
+    #[arg(short, long, default_value = "false")]
+    pub ime_on_the_fly: bool,
+
     /// font
     #[arg(short, long, default_values = ["UD デジタル 教科書体 N", "UD デジタル 教科書体 N-R"])]
     pub font_names: Vec<String>,
@@ -131,7 +135,10 @@ pub async fn run(args: Args) {
 
     set_clock_mode(font_rasterizer::time::ClockMode::StepByStep);
     let window_size = WindowSize::new(800, 600);
-    let callback = KashikishiCallback::new(window_size);
+    let config = KashikishiConfig {
+        ime_on_the_fly: args.ime_on_the_fly,
+    };
+    let callback = KashikishiCallback::new(window_size, config);
     let support = SimpleStateSupport {
         window_icon: icon,
         window_title: "Kashikishi".to_string(),
@@ -155,10 +162,11 @@ struct KashikishiCallback {
     action_processor_store: ActionProcessorStore,
     rokid_max_action: Rc<Mutex<RokidMaxAction>>,
     action_recorder: Rc<Mutex<ActionRecorder>>,
+    config: KashikishiConfig,
 }
 
 impl KashikishiCallback {
-    fn new(window_size: WindowSize) -> Self {
+    fn new(window_size: WindowSize, config: KashikishiConfig) -> Self {
         let mut store: ActionStore = Default::default();
         let key_setting = include_str!("../asset/key-settings.txt");
         info!("{}", key_setting);
@@ -190,6 +198,7 @@ impl KashikishiCallback {
             action_processor_store,
             rokid_max_action,
             action_recorder,
+            config,
         }
     }
 
@@ -318,12 +327,17 @@ impl SimpleStateCallback for KashikishiCallback {
             }
             Action::ImeInput(value) => {
                 context.register_string(value.clone());
-                self.ime
-                    .apply_ime_event(&Action::ImeInput(value.clone()), context);
-                // インラインプレエディットをクリア
-                self.world
-                    .get_mut()
-                    .model_operation(&ui_support::layout_engine::ModelOperation::SetPreedit(None));
+
+                if self.config.ime_on_the_fly {
+                    // インラインプレエディットをクリア
+                    self.world.get_mut().model_operation(
+                        &ui_support::layout_engine::ModelOperation::SetPreedit(None),
+                    );
+                } else {
+                    self.ime
+                        .apply_ime_event(&Action::ImeInput(value.clone()), context);
+                }
+
                 self.world
                     .get_mut()
                     .editor_operation(&EditorOperation::InsertString(value));
@@ -331,12 +345,19 @@ impl SimpleStateCallback for KashikishiCallback {
             }
             Action::ImePreedit(value, position) => {
                 context.register_string(value.clone());
-                self.ime
-                    .apply_ime_event(&Action::ImePreedit(value.clone(), position), context);
-                // フォーカス中の TextEdit にプレエディットを反映
-                self.world.get_mut().model_operation(
-                    &ui_support::layout_engine::ModelOperation::SetPreedit(Some((value, position))),
-                );
+
+                if self.config.ime_on_the_fly {
+                    // フォーカス中の TextEdit にプレエディットを反映
+                    self.world.get_mut().model_operation(
+                        &ui_support::layout_engine::ModelOperation::SetPreedit(Some((
+                            value, position,
+                        ))),
+                    );
+                } else {
+                    self.ime
+                        .apply_ime_event(&Action::ImePreedit(value.clone(), position), context);
+                }
+
                 InputResult::InputConsumed
             }
             Action::ImeEnable => InputResult::Noop,
@@ -369,4 +390,8 @@ impl SimpleStateCallback for KashikishiCallback {
     fn shutdown(&mut self) {
         self.world.graceful_exit();
     }
+}
+
+struct KashikishiConfig {
+    ime_on_the_fly: bool,
 }
