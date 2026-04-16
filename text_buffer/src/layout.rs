@@ -77,7 +77,7 @@ pub(super) struct PhysicalLayoutCalculator<'a> {
 
 impl<'a> PhysicalLayoutCalculator<'a> {
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn new(
+    pub fn new(
         buffer: &'a Buffer,
         main_caret: &'a Caret,
         mark: Option<Caret>,
@@ -97,7 +97,13 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
-    pub(super) fn calc(&self) -> PhysicalLayout {
+    /// バッファ内のすべての行に対して物理レイアウトを計算する。
+    ///
+    /// 論理行 (buffer) を物理行 (display) にマッピングし、以下を処理する：
+    /// - 折り返しと禁則文字ルール
+    /// - caret と mark の物理位置
+    /// - preedit 文字列の挿入位置
+    pub fn calc(&self) -> PhysicalLayout {
         let mut state = LayoutState::new(self.mark);
         let preedit_opt = self.preedit_string.as_deref();
 
@@ -139,6 +145,9 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         state.into_layout()
     }
 
+    /// 空行 (文字なし) でのレイアウト処理。
+    ///
+    /// isEmpty な行でも caret/mark 位置を記録し、必要に応じて preedit を挿入する。
     fn handle_empty_line(
         &self,
         state: &mut LayoutState,
@@ -174,6 +183,9 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
+    /// caret が buffer_char の位置にある場合、その直前に preedit を挿入する。
+    ///
+    /// 入力中テキスト (preedit) は caret 位置から始まるため、文字走査時に挿入タイミングを決定する。
     fn try_insert_preedit_before_char(
         &self,
         state: &mut LayoutState,
@@ -203,6 +215,10 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
+    /// buffer_char を物理位置に配置し、caret/mark 位置と折り返し規則を適用する。
+    ///
+    /// 禁則文字を考慮した改行判定、主caret と mark の位置追跡を行った上で、
+    /// 文字を物理レイアウト出力に追加する。
     fn push_buffer_char(&self, state: &mut LayoutState, buffer_char: &BufferChar, indent: usize) {
         let char_width = self.width_resolver.resolve_width(buffer_char.c);
         let is_line_head = buffer_char.position.col == 0;
@@ -245,6 +261,9 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         state.phisical_col += char_width;
     }
 
+    /// caret が論理行末 (行の文字数以上の位置) にある場合、行末に preedit を挿入する。
+    ///
+    /// 行の全文字走査後、caret が行末にある場合のみこの処理が実行される。
     fn try_insert_preedit_at_line_end(
         &self,
         state: &mut LayoutState,
@@ -271,6 +290,10 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
+    /// 行の先頭パターン ("- ", "* [ ] " など) に基づいて、折り返し時のインデント幅を計算する。
+    ///
+    /// 箇条書き行では折り返し後に同じインデントレベルの位置から再開する。
+    /// パターンは長い順で評価し、より具体的なマッチを優先する。
     fn calc_indent(&self, line_string: &str) -> usize {
         let mut list_indent_pattern = DEFAULT_LIST_INDENT_PATTERN.to_vec();
         list_indent_pattern.sort_by(|l, r| l.len().cmp(&r.len()).reverse());
@@ -291,6 +314,10 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         0
     }
 
+    /// 論理位置の caret が buffer_char と一致または直後の場合、その物理位置を記録する。
+    ///
+    /// caret.col == buffer_char.col: caret は文字の直前
+    /// caret.col == buffer_char.col + 1: caret は文字の直後
     fn update_caret_position(
         &self,
         caret_pos: &mut PhysicalPosition,
@@ -313,6 +340,11 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
+    /// 禁則文字ルール (行頭禁則、行末禁則) を考慮して改行判定を行う。
+    ///
+    /// max_line_width を超える場合、以下の条件で改行を決定する：
+    /// - 行末禁則文字が max_line_width 直前なら、その前で改行
+    /// - 行頭禁則文字なら超過を許容
     fn apply_line_break_rules(
         &self,
         c: char,
@@ -326,22 +358,37 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             return;
         }
 
-        if *phisical_col + char_width >= self.max_line_width
-            && self.line_boundary_prohibited_chars.end.contains(&c)
+        let is_line_end_prohibited = self.line_boundary_prohibited_chars.end.contains(&c);
+        let new_col = *phisical_col + char_width;
+
+        // 幅内に完全に収まり、かつ行末禁則でない場合はスキップ
+        if new_col < self.max_line_width
+            || (new_col <= self.max_line_width && !is_line_end_prohibited)
         {
+            return;
+        }
+
+        // 行末禁則文字が max_line_width ちょうどに来る場合は改行
+        if is_line_end_prohibited && new_col == self.max_line_width {
             *phisical_row += 1;
             *phisical_col = indent;
-        } else if *phisical_col + char_width > self.max_line_width {
-            if self.line_boundary_prohibited_chars.start.contains(&c)
-                && self.max_line_width >= *phisical_col
-            {
-            } else {
-                *phisical_row += 1;
-                *phisical_col = indent;
-            }
+            return;
+        }
+
+        // 幅を超える場合の判定
+        let should_break = !self.line_boundary_prohibited_chars.start.contains(&c)
+            || self.max_line_width < *phisical_col;
+
+        if should_break {
+            *phisical_row += 1;
+            *phisical_col = indent;
         }
     }
 
+    /// preedit 文字列を物理レイアウトに挿入し、折り返しと論理位置を管理する。
+    ///
+    /// preedit は複数行にまたがることがあり、その場合も論理行と物理行を正しく対応付ける。
+    /// インデントも折り返し後に継承される。
     fn insert_preedit_chars(
         &self,
         preedit: &str,
