@@ -12,7 +12,8 @@ use text_buffer::{
     action::EditorOperation,
     buffer::{BufferChar, CellPosition},
     caret::{Caret, CaretType},
-    editor::{ChangeEvent, CharWidthResolver, Editor, PhisicalLayout},
+    editor::{ChangeEvent, Editor},
+    layout::{CharWidthResolver, PhysicalLayout},
 };
 
 use font_rasterizer::{
@@ -631,7 +632,7 @@ impl TextEdit {
     fn calc_phisical_layout(
         &mut self,
         char_width_calcurator: Arc<dyn CharWidthResolver>,
-    ) -> PhisicalLayout {
+    ) -> PhysicalLayout {
         self.editor.calc_phisical_layout(
             self.max_display_width(),
             &self.config.line_prohibited_chars,
@@ -642,7 +643,7 @@ impl TextEdit {
 
     // レイアウト情報から bound の計算を行い更新する
     #[inline]
-    fn calc_bound(&mut self, layout: &PhisicalLayout) -> [f32; 2] {
+    fn calc_bound(&mut self, layout: &PhysicalLayout) -> [f32; 2] {
         // update bound
         let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
             (result.0.max(pos.col), result.1.max(pos.row))
@@ -674,7 +675,7 @@ impl TextEdit {
     fn calc_position(
         &mut self,
         char_width_calcurator: &CharWidthCalculator,
-        layout: &PhisicalLayout,
+        layout: &PhysicalLayout,
         bound: [f32; 2],
     ) {
         // update char position
@@ -827,7 +828,7 @@ impl TextEdit {
         &mut self,
         device: &wgpu::Device,
         char_width_calcurator: &CharWidthCalculator,
-        layout: &PhisicalLayout,
+        layout: &PhysicalLayout,
         bound: [f32; 2],
         color_theme: &ColorTheme,
     ) {

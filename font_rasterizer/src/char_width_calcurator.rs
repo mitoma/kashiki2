@@ -4,7 +4,7 @@ use cached::proc_macro::cached;
 use font_collector::FontData;
 use log::debug;
 use rustybuzz::Face;
-use text_buffer::editor::CharWidthResolver;
+use text_buffer::layout::CharWidthResolver;
 use unicode_width::UnicodeWidthChar;
 
 pub struct CharWidthCalculator {

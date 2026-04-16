@@ -6,14 +6,14 @@ use crate::caret::Caret;
 
 // 画面表示の都合の折り返しや禁則文字を考慮した文字列のレイアウトを表す構造体
 #[derive(Debug)]
-pub struct PhisicalLayout {
-    pub chars: Vec<(BufferChar, PhisicalPosition)>,
-    pub preedit_chars: Vec<(BufferChar, PhisicalPosition)>,
-    pub main_caret_pos: PhisicalPosition,
-    pub mark_pos: Option<PhisicalPosition>,
+pub struct PhysicalLayout {
+    pub chars: Vec<(BufferChar, PhysicalPosition)>,
+    pub preedit_chars: Vec<(BufferChar, PhysicalPosition)>,
+    pub main_caret_pos: PhysicalPosition,
+    pub mark_pos: Option<PhysicalPosition>,
 }
 
-impl Display for PhisicalLayout {
+impl Display for PhysicalLayout {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut current_row = 0;
         let mut result = String::new();
@@ -30,7 +30,7 @@ impl Display for PhisicalLayout {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub struct PhisicalPosition {
+pub struct PhysicalPosition {
     pub row: usize,
     pub col: usize,
 }
@@ -65,7 +65,7 @@ pub trait CharWidthResolver {
     fn resolve_width(&self, char: char) -> usize;
 }
 
-pub(super) struct PhisicalLayoutCalcurator<'a> {
+pub(super) struct PhysicalLayoutCalculator<'a> {
     buffer: &'a Buffer,
     main_caret: &'a Caret,
     mark: Option<Caret>,
@@ -75,7 +75,7 @@ pub(super) struct PhisicalLayoutCalcurator<'a> {
     preedit_string: Option<String>,
 }
 
-impl<'a> PhisicalLayoutCalcurator<'a> {
+impl<'a> PhysicalLayoutCalculator<'a> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         buffer: &'a Buffer,
@@ -97,7 +97,7 @@ impl<'a> PhisicalLayoutCalcurator<'a> {
         }
     }
 
-    pub(super) fn calc(&self) -> PhisicalLayout {
+    pub(super) fn calc(&self) -> PhysicalLayout {
         let mut state = LayoutState::new(self.mark);
         let preedit_opt = self.preedit_string.as_deref();
 
@@ -215,7 +215,7 @@ impl<'a> PhisicalLayoutCalcurator<'a> {
             indent,
         );
 
-        let phisical_position = PhisicalPosition {
+        let phisical_position = PhysicalPosition {
             row: state.phisical_row,
             col: state.phisical_col,
         };
@@ -293,7 +293,7 @@ impl<'a> PhisicalLayoutCalcurator<'a> {
 
     fn update_caret_position(
         &self,
-        caret_pos: &mut PhisicalPosition,
+        caret_pos: &mut PhysicalPosition,
         caret: &Caret,
         buffer_char: &BufferChar,
         phisical_row: usize,
@@ -367,7 +367,7 @@ impl<'a> PhisicalLayoutCalcurator<'a> {
                 indent,
             );
 
-            let phisical_position = PhisicalPosition {
+            let phisical_position = PhysicalPosition {
                 row: state.phisical_row,
                 col: state.phisical_col,
             };
@@ -394,12 +394,12 @@ impl<'a> PhisicalLayoutCalcurator<'a> {
 }
 
 struct LayoutState {
-    chars: Vec<(BufferChar, PhisicalPosition)>,
-    preedit_chars: Vec<(BufferChar, PhisicalPosition)>,
+    chars: Vec<(BufferChar, PhysicalPosition)>,
+    preedit_chars: Vec<(BufferChar, PhysicalPosition)>,
     phisical_row: usize,
     phisical_col: usize,
-    main_caret_pos: PhisicalPosition,
-    mark_pos: Option<PhisicalPosition>,
+    main_caret_pos: PhysicalPosition,
+    mark_pos: Option<PhysicalPosition>,
     preedit_injected: bool,
 }
 
@@ -410,14 +410,14 @@ impl LayoutState {
             preedit_chars: Vec::new(),
             phisical_row: 0,
             phisical_col: 0,
-            main_caret_pos: PhisicalPosition { row: 0, col: 0 },
-            mark_pos: mark.map(|_| PhisicalPosition { row: 0, col: 0 }),
+            main_caret_pos: PhysicalPosition { row: 0, col: 0 },
+            mark_pos: mark.map(|_| PhysicalPosition { row: 0, col: 0 }),
             preedit_injected: false,
         }
     }
 
-    fn into_layout(self) -> PhisicalLayout {
-        PhisicalLayout {
+    fn into_layout(self) -> PhysicalLayout {
+        PhysicalLayout {
             chars: self.chars,
             preedit_chars: self.preedit_chars,
             main_caret_pos: self.main_caret_pos,

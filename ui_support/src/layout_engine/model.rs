@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use glam::{Mat4, Quat, Vec2, Vec3};
 use serde::Serialize;
-use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
+use text_buffer::{action::EditorOperation, layout::CharWidthResolver};
 
 use font_rasterizer::{
     glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,

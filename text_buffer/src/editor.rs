@@ -4,11 +4,7 @@ use std::sync::mpsc::Sender;
 use super::action::*;
 use super::buffer::*;
 use super::caret::*;
-use super::phisical_layout_calcurator::PhisicalLayoutCalcurator;
-
-pub use super::phisical_layout_calcurator::{
-    CharWidthResolver, LineBoundaryProhibitedChars, PhisicalLayout, PhisicalPosition,
-};
+use super::layout::*;
 
 pub struct Editor {
     main_caret: Caret,
@@ -173,8 +169,8 @@ impl Editor {
         line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
         width_resolver: Arc<dyn CharWidthResolver>,
         preedit_string: Option<String>,
-    ) -> PhisicalLayout {
-        PhisicalLayoutCalcurator::new(
+    ) -> PhysicalLayout {
+        PhysicalLayoutCalculator::new(
             &self.buffer,
             &self.main_caret,
             self.mark,
@@ -218,8 +214,8 @@ mod tests {
             input: Vec<EditorOperation>,
             output: String,
             max_width: usize,
-            main_caret_pos: PhisicalPosition,
-            mark_pos: Option<PhisicalPosition>,
+            main_caret_pos: PhysicalPosition,
+            mark_pos: Option<PhysicalPosition>,
         }
         let cases = [
             TestCase {
@@ -228,7 +224,7 @@ mod tests {
                 )],
                 output: "ABCD\nE\nFGHI\nJ\nKLMN\nO".to_string(),
                 max_width: 4,
-                main_caret_pos: PhisicalPosition { row: 5, col: 1 },
+                main_caret_pos: PhysicalPosition { row: 5, col: 1 },
                 mark_pos: None,
             },
             TestCase {
@@ -237,14 +233,14 @@ mod tests {
                 )],
                 output: "ABCDE\nFGHIJ\nKLMNO".to_string(),
                 max_width: 10,
-                main_caret_pos: PhisicalPosition { row: 2, col: 5 },
+                main_caret_pos: PhysicalPosition { row: 2, col: 5 },
                 mark_pos: None,
             },
             TestCase {
                 input: vec![EditorOperation::InsertString("日本の四季折々".to_string())],
                 output: "日本の四季\n折々".to_string(),
                 max_width: 10,
-                main_caret_pos: PhisicalPosition { row: 1, col: 4 },
+                main_caret_pos: PhysicalPosition { row: 1, col: 4 },
                 mark_pos: None,
             },
             TestCase {
@@ -255,7 +251,7 @@ mod tests {
                 ],
                 output: "\n\n日本の四季\n折々".to_string(),
                 max_width: 10,
-                main_caret_pos: PhisicalPosition { row: 1, col: 0 },
+                main_caret_pos: PhysicalPosition { row: 1, col: 0 },
                 mark_pos: None,
             },
             TestCase {
@@ -269,8 +265,8 @@ mod tests {
                 ],
                 output: "ABC\nDEF\nGHI\nJK".to_string(),
                 max_width: 3,
-                main_caret_pos: PhisicalPosition { row: 1, col: 0 },
-                mark_pos: Some(PhisicalPosition { row: 0, col: 1 }),
+                main_caret_pos: PhysicalPosition { row: 1, col: 0 },
+                mark_pos: Some(PhysicalPosition { row: 0, col: 1 }),
             },
         ];
         for (idx, case) in cases.iter().enumerate() {

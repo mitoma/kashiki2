@@ -3,4 +3,4 @@ pub mod buffer;
 pub mod caret;
 pub mod char_type;
 pub mod editor;
-mod phisical_layout_calcurator;
+pub mod layout;
