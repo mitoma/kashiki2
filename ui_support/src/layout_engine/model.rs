@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use glam::{Mat4, Quat, Vec2, Vec3};
 use serde::Serialize;
-use text_buffer::{action::EditorOperation, editor::CharWidthResolver};
+use text_buffer::{action::EditorOperation, layout::CharWidthResolver};
 
 use font_rasterizer::{
     glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
@@ -247,6 +247,9 @@ pub enum ModelOperation {
     IncreaseMaxCol,
     DecreaseMaxCol,
     ToggleHighlightMode,
+    // IME のプレエディット（未確定文字列）をモデルへ設定/解除する
+    // None で解除、Some((value, selection)) で設定
+    SetPreedit(Option<(String, Option<(usize, usize)>)>),
 }
 
 #[derive(PartialEq)]

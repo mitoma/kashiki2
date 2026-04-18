@@ -210,8 +210,11 @@ impl Model for StackLayout {
             }
         }
 
-        for model in self.models.iter_mut() {
-            if model.model_operation(op) != ModelOperationResult::NoCare {
+        for (idx, model) in self.models.iter_mut().enumerate() {
+            let should_apply =
+                !matches!(op, ModelOperation::SetPreedit(_)) || Some(idx) == self.focus_model_index;
+
+            if should_apply && model.model_operation(op) != ModelOperationResult::NoCare {
                 result = ModelOperationResult::RequireReLayout;
             }
         }

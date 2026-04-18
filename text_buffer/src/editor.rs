@@ -1,10 +1,10 @@
-use std::fmt::Display;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 
 use super::action::*;
 use super::buffer::*;
 use super::caret::*;
+use super::layout::*;
 
 pub struct Editor {
     main_caret: Caret,
@@ -163,219 +163,24 @@ impl Editor {
         }
     }
 
-    /// 箇条書きのような行では折り返す場合のインデント数を計算する
-    /// 例えば "  - ABCDEFG" という行があった場合、折り返し時には "    EFG" のようにインデントを入れるため 4 を返す
-    /// 引数の line_string は行全体の文字列を表す
-    #[inline]
-    fn calc_indent(line_string: &str, width_resolver: Arc<dyn CharWidthResolver>) -> usize {
-        let mut list_indent_pattern = DEFAULT_LIST_INDENT_PATTERN.to_vec();
-        // インデントパターンを長い順で評価しないと、長いパターンが使われないケースがある
-        // 例えば "- " と "- [ ] " がある場合、"- [ ] " が先に評価されないと "- " がマッチしてしまう
-        list_indent_pattern.sort_by(|l, r| l.len().cmp(&r.len()).reverse());
-        for pattern in list_indent_pattern {
-            if line_string.trim_start().starts_with(pattern) {
-                // line_string の何文字目に pattern がマッチするかを取得する
-                let space_num = line_string.find(pattern).unwrap();
-                let space_size = line_string[0..space_num]
-                    .chars()
-                    .map(|c| width_resolver.resolve_width(c))
-                    .sum::<usize>();
-                let pattern_size = pattern
-                    .chars()
-                    .map(|c| width_resolver.resolve_width(c))
-                    .sum::<usize>();
-                return space_size + pattern_size;
-            }
-        }
-        0
-    }
-
     pub fn calc_phisical_layout(
         &self,
         max_line_width: usize,
         line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
         width_resolver: Arc<dyn CharWidthResolver>,
-    ) -> PhisicalLayout {
-        let mut chars = Vec::new();
-        let mut phisical_row = 0;
-
-        let mut main_caret_pos = PhisicalPosition { row: 0, col: 0 };
-        let mut mark_pos = self.mark.map(|_| PhisicalPosition { row: 0, col: 0 });
-
-        for line in self.buffer.lines.iter() {
-            let mut phisical_col = 0;
-
-            // 空行に caret だけ存在するケース
-            if line.chars.is_empty() {
-                if self.main_caret.position.row == line.row_num {
-                    main_caret_pos.row = phisical_row;
-                    main_caret_pos.col = phisical_col;
-                }
-                if let Some(mark) = mark_pos.as_mut()
-                    && self.mark.unwrap().position.row == line.row_num
-                {
-                    mark.row = phisical_row;
-                    mark.col = phisical_col;
-                }
-            }
-
-            // 箇条書きっぽい行では折り返し時にインデントを入れる
-            let indent = Self::calc_indent(&line.to_line_string(), width_resolver.clone());
-            for buffer_char in line.chars.iter() {
-                // 物理位置を計算
-                let char_width = width_resolver.resolve_width(buffer_char.c);
-
-                // 禁則文字の計算
-                if buffer_char.position.col == 0 {
-                    // 論理行の行頭では禁則文字を考慮しない
-                } else if phisical_col + char_width >= max_line_width
-                    && line_boundary_prohibited_chars.end.contains(&buffer_char.c)
-                {
-                    // 行末禁則文字の場合は max_line_width に達する前に改行する
-                    phisical_row += 1;
-                    phisical_col = indent;
-                } else if phisical_col + char_width > max_line_width {
-                    if line_boundary_prohibited_chars
-                        .start
-                        .contains(&buffer_char.c)
-                        && max_line_width >= phisical_col
-                    {
-                        // 行頭禁則文字の場合は max_line_width を超えていても 1 文字だけ改行しない
-                    } else {
-                        phisical_row += 1;
-                        phisical_col = indent;
-                    }
-                }
-
-                // char の位置を確定
-                let phisical_position = PhisicalPosition {
-                    row: phisical_row,
-                    col: phisical_col,
-                };
-                chars.push((*buffer_char, phisical_position));
-
-                // キャレットの位置を確定
-                Self::update_caret_position(
-                    &mut main_caret_pos,
-                    &self.main_caret,
-                    buffer_char,
-                    phisical_row,
-                    phisical_col,
-                    char_width,
-                );
-                if let Some(mark) = mark_pos.as_mut() {
-                    Self::update_caret_position(
-                        mark,
-                        &self.mark.unwrap(),
-                        buffer_char,
-                        phisical_row,
-                        phisical_col,
-                        char_width,
-                    );
-                }
-
-                phisical_col += char_width;
-            }
-            phisical_row += 1;
-        }
-        PhisicalLayout {
-            chars,
-            main_caret_pos,
-            mark_pos,
-        }
+        preedit_string: Option<String>,
+    ) -> PhysicalLayout {
+        PhysicalLayoutCalculator::new(
+            &self.buffer,
+            &self.main_caret,
+            self.mark,
+            max_line_width,
+            line_boundary_prohibited_chars,
+            width_resolver,
+            preedit_string,
+        )
+        .calc()
     }
-
-    /// caret_pos を更新するヘルパー関数
-    #[inline]
-    fn update_caret_position(
-        caret_pos: &mut PhisicalPosition,
-        caret: &Caret,
-        buffer_char: &BufferChar,
-        phisical_row: usize,
-        phisical_col: usize,
-        char_width: usize,
-    ) {
-        let caret = caret.position;
-        let buffer_char = buffer_char.position;
-        // caret と buffer_char が同じ位置にある場合、caret_pos を更新する
-        if caret.row == buffer_char.row {
-            if caret.col == buffer_char.col {
-                caret_pos.row = phisical_row;
-                caret_pos.col = phisical_col;
-            } else if caret.col == buffer_char.col + 1 {
-                // caret が buffer_char の次の位置にある場合、caret_pos を更新する
-                // (行末の場合に位置を計算するためにこの処理が必要になる)
-                caret_pos.row = phisical_row;
-                caret_pos.col = phisical_col + char_width;
-            }
-        }
-    }
-}
-
-// 画面表示の都合の折り返しや禁則文字を考慮した文字列のレイアウトを表す構造体
-#[derive(Debug)]
-pub struct PhisicalLayout {
-    pub chars: Vec<(BufferChar, PhisicalPosition)>,
-    pub main_caret_pos: PhisicalPosition,
-    pub mark_pos: Option<PhisicalPosition>,
-}
-
-impl Display for PhisicalLayout {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut current_row = 0;
-        let mut result = String::new();
-        for (c, position) in self.chars.iter() {
-            while current_row != position.row {
-                result.push('\n');
-                result.push_str(&" ".repeat(position.col));
-                current_row += 1;
-            }
-            result.push(c.c);
-        }
-        write!(f, "{}", result)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
-pub struct PhisicalPosition {
-    pub row: usize,
-    pub col: usize,
-}
-
-const DEFAULT_LIST_INDENT_PATTERN: [&str; 17] = [
-    "* ", "* [ ] ", "* [x] ", "- ", "- [ ] ", "- [x] ", "> ", "・",
-    // TODO 数字の箇条書きをもっとちゃんとサポートしたいが、現状は 1. ～ 9. まで雑に対応
-    "1. ", "2. ", "3. ", "4. ", "5. ", "6. ", "7. ", "8. ", "9. ",
-];
-
-/// 禁則文字の定義を持つ enum
-pub struct LineBoundaryProhibitedChars {
-    pub start: Vec<char>,
-    pub end: Vec<char>,
-}
-
-impl LineBoundaryProhibitedChars {
-    pub fn new(start: Vec<char>, end: Vec<char>) -> Self {
-        Self { start, end }
-    }
-}
-
-const DEFAULT_STARTS: &str =
-    ",.!?;:)]}”’）〉》〕〗〙〛｝〉》〕〗〙〛｝」』】、。！？；：-ー…～〃々ゝゞヽヾ";
-const DEFAULT_ENDS: &str = "([{“‘（〈《〔〖〘〚｛〈《〔〖〘〚｛「『【";
-
-impl Default for LineBoundaryProhibitedChars {
-    fn default() -> Self {
-        Self {
-            start: DEFAULT_STARTS.chars().collect(),
-            end: DEFAULT_ENDS.chars().collect(),
-        }
-    }
-}
-
-/// 文字の幅を解決する trait
-pub trait CharWidthResolver {
-    fn resolve_width(&self, char: char) -> usize;
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -409,8 +214,8 @@ mod tests {
             input: Vec<EditorOperation>,
             output: String,
             max_width: usize,
-            main_caret_pos: PhisicalPosition,
-            mark_pos: Option<PhisicalPosition>,
+            main_caret_pos: PhysicalPosition,
+            mark_pos: Option<PhysicalPosition>,
         }
         let cases = [
             TestCase {
@@ -419,7 +224,7 @@ mod tests {
                 )],
                 output: "ABCD\nE\nFGHI\nJ\nKLMN\nO".to_string(),
                 max_width: 4,
-                main_caret_pos: PhisicalPosition { row: 5, col: 1 },
+                main_caret_pos: PhysicalPosition { row: 5, col: 1 },
                 mark_pos: None,
             },
             TestCase {
@@ -428,14 +233,14 @@ mod tests {
                 )],
                 output: "ABCDE\nFGHIJ\nKLMNO".to_string(),
                 max_width: 10,
-                main_caret_pos: PhisicalPosition { row: 2, col: 5 },
+                main_caret_pos: PhysicalPosition { row: 2, col: 5 },
                 mark_pos: None,
             },
             TestCase {
                 input: vec![EditorOperation::InsertString("日本の四季折々".to_string())],
                 output: "日本の四季\n折々".to_string(),
                 max_width: 10,
-                main_caret_pos: PhisicalPosition { row: 1, col: 4 },
+                main_caret_pos: PhysicalPosition { row: 1, col: 4 },
                 mark_pos: None,
             },
             TestCase {
@@ -446,7 +251,7 @@ mod tests {
                 ],
                 output: "\n\n日本の四季\n折々".to_string(),
                 max_width: 10,
-                main_caret_pos: PhisicalPosition { row: 1, col: 0 },
+                main_caret_pos: PhysicalPosition { row: 1, col: 0 },
                 mark_pos: None,
             },
             TestCase {
@@ -460,11 +265,11 @@ mod tests {
                 ],
                 output: "ABC\nDEF\nGHI\nJK".to_string(),
                 max_width: 3,
-                main_caret_pos: PhisicalPosition { row: 1, col: 0 },
-                mark_pos: Some(PhisicalPosition { row: 0, col: 1 }),
+                main_caret_pos: PhysicalPosition { row: 1, col: 0 },
+                mark_pos: Some(PhysicalPosition { row: 0, col: 1 }),
             },
         ];
-        for case in cases.iter() {
+        for (idx, case) in cases.iter().enumerate() {
             let (sender, receiver) = std::sync::mpsc::channel();
             let mut editor = Editor::new(sender.clone());
             case.input.iter().for_each(|op| editor.operation(op));
@@ -474,10 +279,15 @@ mod tests {
                 case.max_width,
                 &LineBoundaryProhibitedChars::new(vec![], vec![]),
                 Arc::new(TestWidthResolver),
+                None,
             );
-            assert_eq!(layout.to_string(), case.output);
-            assert_eq!(layout.main_caret_pos, case.main_caret_pos);
-            assert_eq!(layout.mark_pos, case.mark_pos);
+            assert_eq!(layout.to_string(), case.output, "case index: {}", idx);
+            assert_eq!(
+                layout.main_caret_pos, case.main_caret_pos,
+                "case index: {}",
+                idx
+            );
+            assert_eq!(layout.mark_pos, case.mark_pos, "case index: {}", idx);
         }
     }
 
@@ -544,10 +354,12 @@ mod tests {
                 case.max_width,
                 &case.prohibited_chars,
                 Arc::new(TestWidthResolver),
+                None,
             );
             assert_eq!(layout.to_string(), case.output);
         }
     }
+
     #[test]
     fn test_indent() {
         struct TestCase {
@@ -592,7 +404,83 @@ mod tests {
                 case.max_width,
                 &case.prohibited_chars,
                 Arc::new(TestWidthResolver),
+                None,
             );
+            assert_eq!(layout.to_string(), case.output);
+        }
+    }
+
+    #[test]
+    fn test_preedit() {
+        struct TestCase {
+            input: Vec<EditorOperation>,
+            preedit_string: String,
+            output: String,
+            prohibited_chars: LineBoundaryProhibitedChars,
+            max_width: usize,
+        }
+        let cases = [
+            TestCase {
+                input: vec![
+                    EditorOperation::InsertString("こんにちはさん".to_string()),
+                    EditorOperation::Back,
+                    EditorOperation::Back,
+                ],
+                preedit_string: "山田太郎".to_string(),
+                output: "こんにちはさん".to_string(),
+                prohibited_chars: LineBoundaryProhibitedChars::default(),
+                max_width: 100,
+            },
+            // 折り返しが起きるテストケース：preedit が max_width を超える
+            TestCase {
+                input: vec![EditorOperation::InsertString("inline".to_string())],
+                preedit_string: "ダダダダダダ".to_string(), // 12文字 = 24 の幅
+                output: "inline".to_string(),
+                prohibited_chars: LineBoundaryProhibitedChars::default(),
+                max_width: 10, // 折り返しが起きる
+            },
+            // 折り返し後に行頭禁則文字が来るケース
+            TestCase {
+                input: vec![EditorOperation::InsertString("text".to_string())],
+                preedit_string: "ダダ。ダ".to_string(), // 「。」が行頭禁則文字
+                output: "text".to_string(),
+                prohibited_chars: LineBoundaryProhibitedChars::default(),
+                max_width: 8, // "text" = 4 + "ダ" = 2 で 6、次の "ダ" で 8、次の "。" で 10 > 8 なので行頭禁則関連
+            },
+            // 改行直後に行頭禁則文字が来るケース（真の問題）
+            TestCase {
+                input: vec![EditorOperation::InsertString("x".to_string())],
+                preedit_string: "ダダ。。".to_string(), // 改行後の「。」で is_line_head ミス問題を再現
+                output: "x".to_string(),
+                prohibited_chars: LineBoundaryProhibitedChars::default(),
+                max_width: 6, // "x" = 1 + "ダ" = 2 で 3、"ダ" で 5、"。" で 7 > 6 → 改行すべき
+                              // 改行後 col=0 の新行で「。」が来る
+            },
+        ];
+        for case in cases.iter() {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            let mut editor = Editor::new(sender.clone());
+            case.input.iter().for_each(|op| editor.operation(op));
+            let _ = receiver.try_iter().collect::<Vec<_>>();
+
+            let layout = editor.calc_phisical_layout(
+                case.max_width,
+                &case.prohibited_chars,
+                Arc::new(TestWidthResolver),
+                Some(case.preedit_string.clone()),
+            );
+            println!(
+                "\n=== Test case: max_width={}, preedit={} ===",
+                case.max_width, case.preedit_string
+            );
+            println!("preedit_chars layout:");
+            for (i, (bc, pos)) in layout.preedit_chars.iter().enumerate() {
+                println!(
+                    "  [{}] '{}' -> physical row={}, col={}",
+                    i, bc.c, pos.row, pos.col
+                );
+            }
+            println!("layout: {:#?}", layout);
             assert_eq!(layout.to_string(), case.output);
         }
     }

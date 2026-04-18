@@ -9,9 +9,10 @@ use std::{
 use glam::{Quat, Vec3};
 use text_buffer::{
     action::EditorOperation,
-    buffer::CellPosition,
+    buffer::{BufferChar, CellPosition},
     caret::{Caret, CaretType},
-    editor::{ChangeEvent, CharWidthResolver, Editor, PhisicalLayout},
+    editor::{ChangeEvent, Editor},
+    layout::{CharWidthResolver, PhysicalLayout},
 };
 
 use font_rasterizer::{
@@ -23,7 +24,9 @@ use font_rasterizer::{
 };
 
 use crate::{
-    ui::{BulkedChangeEvent, SortOrder, bulk_change_events, detect_sort_order},
+    ui::{
+        BulkedChangeEvent, SortOrder, bulk_change_events, detect_sort_order, split_preedit_string,
+    },
     ui_context::{CharEasingsPreset, UiContext},
 };
 
@@ -42,6 +45,27 @@ use super::{
     view_element_state::{BorderStates, CaretStates, CharStates, ViewElementStateUpdateRequest},
 };
 
+// IME プレエディットの状態
+#[derive(Clone, Debug)]
+struct PreeditState {
+    value: String,
+    selection: Option<(usize, usize)>,
+}
+
+impl PreeditState {
+    fn preedit_string(&self) -> String {
+        if let Some((start_bytes, end_bytes)) = self.selection
+            && start_bytes != end_bytes
+        {
+            let (start, middle, end) =
+                split_preedit_string(self.value.to_string(), start_bytes, end_bytes);
+            format!("{}[{}]{}", start, middle, end)
+        } else {
+            format!("[{}]", self.value)
+        }
+    }
+}
+
 pub struct TextEdit {
     config: TextContext,
 
@@ -54,6 +78,8 @@ pub struct TextEdit {
     char_states: CharStates,
     caret_states: CaretStates,
     border_states: Option<BorderStates>,
+
+    preedit: Option<PreeditState>,
 
     // バッファが更新されたかどうか。カーソルの移動も含む
     buffer_updated: bool,
@@ -92,6 +118,8 @@ impl Default for TextEdit {
             char_states: CharStates::default(),
             caret_states: CaretStates::default(),
             border_states: None,
+
+            preedit: None,
 
             buffer_updated: true,
             text_updated: true,
@@ -202,8 +230,25 @@ impl Model for TextEdit {
 
         if self.buffer_updated || self.config_updated {
             let layout = self.calc_phisical_layout(context.char_width_calcurator().clone());
+            let (preedit_chars, has_selection) = self.collect_preedit_chars(&layout);
+            let preedit_initial_position = self
+                .caret_states
+                .main_caret_position()
+                .unwrap_or([0.0, 0.0, 0.0]);
+            self.char_states.sync_preedit_chars(
+                &preedit_chars,
+                has_selection,
+                preedit_initial_position,
+                &self.config,
+                device,
+            );
             let bound = self.calc_bound(&layout);
-            self.calc_position(context.char_width_calcurator(), &layout, bound);
+            self.calc_position(
+                context.char_width_calcurator(),
+                &layout,
+                bound,
+                &preedit_chars,
+            );
         }
         if self.text_updated {
             self.highlight();
@@ -285,6 +330,7 @@ impl Model for TextEdit {
                             self.max_display_width(),
                             &self.config.line_prohibited_chars,
                             width_resolver.clone(),
+                            self.preedit.as_ref().map(|p| p.preedit_string()),
                         )
                         .to_string(),
                 );
@@ -346,6 +392,14 @@ impl Model for TextEdit {
                 };
                 // バッファを更新したわけではないがハイライトが変わるため text_updated を true にする
                 self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::SetPreedit(opt) => {
+                self.preedit = opt
+                    .clone()
+                    .map(|(value, selection)| PreeditState { value, selection });
+                // レイアウトに依存するので再レイアウト相当の更新を要求
+                self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
         }
@@ -459,19 +513,21 @@ impl TextEdit {
 
             match event {
                 BulkedChangeEvent::SingleEvent(ChangeEvent::AddChar(c)) => {
-                    let caret_pos = self
-                        .caret_states
-                        .main_caret_position()
-                        .unwrap_or([0.0, 1.0, 0.0]);
-                    self.char_states.add_char(
-                        c,
-                        caret_pos,
-                        color_theme.text().get_color(),
-                        char_change_counter.add_char,
-                        &self.config,
-                        device,
-                    );
-                    char_change_counter.add_char += 1;
+                    if !self.char_states.promote_preedit_to_char(c, device) {
+                        let caret_pos = self
+                            .caret_states
+                            .main_caret_position()
+                            .unwrap_or([0.0, 1.0, 0.0]);
+                        self.char_states.add_char(
+                            c,
+                            caret_pos,
+                            color_theme.text().get_color(),
+                            char_change_counter.add_char,
+                            &self.config,
+                            device,
+                        );
+                        char_change_counter.add_char += 1;
+                    }
                 }
                 BulkedChangeEvent::SingleEvent(ChangeEvent::MoveChar { from, to }) => {
                     if let Some([row, _col]) = self.caret_states.main_caret_logical_position() {
@@ -568,17 +624,18 @@ impl TextEdit {
     fn calc_phisical_layout(
         &mut self,
         char_width_calcurator: Arc<dyn CharWidthResolver>,
-    ) -> PhisicalLayout {
+    ) -> PhysicalLayout {
         self.editor.calc_phisical_layout(
             self.max_display_width(),
             &self.config.line_prohibited_chars,
             char_width_calcurator,
+            self.preedit.as_ref().map(|p| p.preedit_string()),
         )
     }
 
     // レイアウト情報から bound の計算を行い更新する
     #[inline]
-    fn calc_bound(&mut self, layout: &PhisicalLayout) -> [f32; 2] {
+    fn calc_bound(&mut self, layout: &PhysicalLayout) -> [f32; 2] {
         // update bound
         let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
             (result.0.max(pos.col), result.1.max(pos.row))
@@ -610,8 +667,9 @@ impl TextEdit {
     fn calc_position(
         &mut self,
         char_width_calcurator: &CharWidthCalculator,
-        layout: &PhisicalLayout,
+        layout: &PhysicalLayout,
         bound: [f32; 2],
+        preedit_chars: &[BufferChar],
     ) {
         // update char position
         layout.chars.iter().for_each(|(c, pos)| {
@@ -629,6 +687,26 @@ impl TextEdit {
                 &self.config,
             )
         });
+
+        layout
+            .preedit_chars
+            .iter()
+            .zip(preedit_chars.iter())
+            .for_each(|((_, pos), c)| {
+                let width = char_width_calcurator.get_width(c.c);
+                let position =
+                    Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+                let position = Self::apply_render_anchor_offset(&self.config, position);
+                self.char_states.update_state(
+                    c,
+                    &ViewElementStateUpdateRequest {
+                        position: Some(position),
+                        scale: Some(self.config.instance_scale()),
+                        ..Default::default()
+                    },
+                    &self.config,
+                )
+            });
 
         // update caret position
         {
@@ -757,8 +835,30 @@ impl TextEdit {
         self.config_updated = true;
     }
 
-    pub(crate) fn direction(&self) -> Direction {
-        self.config.direction
+    fn collect_preedit_chars(&self, layout: &PhysicalLayout) -> (Vec<BufferChar>, bool) {
+        let Some(preedit) = self.preedit.as_ref() else {
+            return (vec![], false);
+        };
+
+        let preedit_string = preedit.preedit_string();
+        if preedit_string.is_empty() {
+            return (vec![], false);
+        }
+
+        let has_selection = matches!(preedit.selection, Some((start, end)) if start != end);
+        let chars = layout
+            .preedit_chars
+            .iter()
+            .zip(preedit_string.chars())
+            .map(|((_, pos), c)| BufferChar {
+                position: CellPosition {
+                    row: pos.row,
+                    col: pos.col,
+                },
+                c,
+            })
+            .collect();
+        (chars, has_selection)
     }
 
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {

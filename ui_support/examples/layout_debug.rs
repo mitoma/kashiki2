@@ -52,6 +52,7 @@ enum CaseArg {
     TexteditVertical,
     WorldMixed,
     SvgAndSelectBox,
+    InlineTextedit,
 }
 
 impl CaseArg {
@@ -65,6 +66,7 @@ impl CaseArg {
                 "textedit_vertical",
                 "world_mixed",
                 "svg_and_select_box",
+                "inline_textedit",
             ],
             Self::StackHorizontal => vec!["stack_horizontal"],
             Self::StackVertical => vec!["stack_vertical"],
@@ -73,6 +75,7 @@ impl CaseArg {
             Self::TexteditVertical => vec!["textedit_vertical"],
             Self::WorldMixed => vec!["world_mixed"],
             Self::SvgAndSelectBox => vec!["svg_and_select_box"],
+            Self::InlineTextedit => vec!["inline_textedit"],
         }
     }
 }
@@ -228,6 +231,7 @@ fn build_case(name: &str) -> BuildCaseFn {
         "textedit_vertical" => build_textedit_vertical_case,
         "world_mixed" => build_world_mixed_case,
         "svg_and_select_box" => build_svg_and_select_box_case,
+        "inline_textedit" => build_inline_textedit_case,
         _ => panic!("unknown case: {name}"),
     }
 }
@@ -390,6 +394,23 @@ fn build_svg_and_select_box_case(context: &UiContext, world: &mut DefaultWorld) 
     layout.add_model(Box::new(start_select));
     layout.set_focus_model_index(2, false);
     world.add(Box::new(layout));
+}
+
+fn build_inline_textedit_case(context: &UiContext, world: &mut DefaultWorld) {
+    let textedit = make_text_edit(
+        "inline textedit\nwith multiple lines",
+        Direction::Horizontal,
+        Some(30),
+    );
+    world.add(Box::new(textedit));
+    world.look_next(ui_support::camera::CameraAdjustment::FitBoth);
+    world.editor_operation(&text_buffer::action::EditorOperation::Head);
+    world.model_operation(&ModelOperation::SetPreedit(Some((
+        "ほげほげ".to_string(),
+        None,
+    ))));
+    context.register_string("[ほげほげ]".to_string());
+    world.re_layout();
 }
 
 fn make_text_edit(text: &str, direction: Direction, max_col: Option<usize>) -> TextEdit {

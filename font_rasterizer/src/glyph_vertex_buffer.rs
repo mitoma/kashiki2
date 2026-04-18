@@ -2,7 +2,7 @@ use std::{collections::HashSet, fmt::Debug, sync::Arc};
 
 use font_collector::FontData;
 use log::debug;
-use text_buffer::editor::CharWidthResolver;
+use text_buffer::layout::CharWidthResolver;
 
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},

@@ -83,16 +83,16 @@ impl ModalWorld for CategorizedMemosWorld {
         self.world.chars()
     }
 
-    fn add_modal(&mut self, context: &UiContext, chars: &mut HashSet<char>, model: Box<dyn Model>) {
+    fn add_modal(
+        &mut self,
+        _context: &UiContext,
+        chars: &mut HashSet<char>,
+        model: Box<dyn Model>,
+    ) {
         chars.extend(model.to_string().chars());
-        self.world.add_next(model);
+        self.world.add_modal(model);
         self.world.re_layout();
-        let adjustment = if context.global_direction() == Direction::Horizontal {
-            CameraAdjustment::FitWidth
-        } else {
-            CameraAdjustment::FitHeight
-        };
-        self.world.look_next(adjustment);
+        self.world.look_modal(CameraAdjustment::FitBoth);
     }
 
     fn apply_action(
