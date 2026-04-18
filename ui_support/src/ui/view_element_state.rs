@@ -152,6 +152,40 @@ impl CharStates {
         self.instances.add(c.into(), instance, device);
     }
 
+    pub(crate) fn promote_preedit_to_char(&mut self, to: BufferChar, device: &Device) -> bool {
+        // まずは完全一致（同一セル・同一文字）を優先する。
+        let from = if self.preedit_chars.contains_key(&to) {
+            Some(to)
+        } else {
+            self.preedit_chars
+                .keys()
+                .filter(|candidate| candidate.c == to.c)
+                .min_by_key(|candidate| {
+                    let row_distance = candidate.position.row.abs_diff(to.position.row);
+                    let col_distance = candidate.position.col.abs_diff(to.position.col);
+                    row_distance * 1_000 + col_distance
+                })
+                .copied()
+        };
+
+        let Some(from) = from else {
+            return false;
+        };
+
+        let Some(mut state) = self.preedit_chars.remove(&from) else {
+            return false;
+        };
+        state.base_color = ThemedColor::Text;
+        state.in_selection = false;
+        self.chars.insert(to, state);
+
+        if let Some(instance) = self.instances.remove_preedit(&from.into()) {
+            self.instances.add(to.into(), instance, device);
+        }
+
+        true
+    }
+
     #[inline]
     fn crate_state_and_attribute(
         &mut self,

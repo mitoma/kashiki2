@@ -508,19 +508,21 @@ impl TextEdit {
 
             match event {
                 BulkedChangeEvent::SingleEvent(ChangeEvent::AddChar(c)) => {
-                    let caret_pos = self
-                        .caret_states
-                        .main_caret_position()
-                        .unwrap_or([0.0, 1.0, 0.0]);
-                    self.char_states.add_char(
-                        c,
-                        caret_pos,
-                        color_theme.text().get_color(),
-                        char_change_counter.add_char,
-                        &self.config,
-                        device,
-                    );
-                    char_change_counter.add_char += 1;
+                    if !self.char_states.promote_preedit_to_char(c, device) {
+                        let caret_pos = self
+                            .caret_states
+                            .main_caret_position()
+                            .unwrap_or([0.0, 1.0, 0.0]);
+                        self.char_states.add_char(
+                            c,
+                            caret_pos,
+                            color_theme.text().get_color(),
+                            char_change_counter.add_char,
+                            &self.config,
+                            device,
+                        );
+                        char_change_counter.add_char += 1;
+                    }
                 }
                 BulkedChangeEvent::SingleEvent(ChangeEvent::MoveChar { from, to }) => {
                     if let Some([row, _col]) = self.caret_states.main_caret_logical_position() {
