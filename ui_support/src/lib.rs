@@ -309,12 +309,10 @@ impl ApplicationHandler for App {
                                 ..
                             },
                         ..
-                    } => {
-                        if flags.contains(Flags::EXIT_ON_ESC) {
-                            print_metrics_to_stdout();
-                            state.shutdown();
-                            event_loop.exit();
-                        }
+                    } if flags.contains(Flags::EXIT_ON_ESC) => {
+                        print_metrics_to_stdout();
+                        state.shutdown();
+                        event_loop.exit();
                     }
                     WindowEvent::KeyboardInput {
                         event:
@@ -324,14 +322,10 @@ impl ApplicationHandler for App {
                                 ..
                             },
                         ..
-                    } => {
-                        if flags.contains(Flags::FULL_SCREEN) {
-                            match window.fullscreen() {
-                                Some(_) => window.set_fullscreen(None),
-                                None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
-                            }
-                        }
-                    }
+                    } if flags.contains(Flags::FULL_SCREEN) => match window.fullscreen() {
+                        Some(_) => window.set_fullscreen(None),
+                        None => window.set_fullscreen(Some(Fullscreen::Borderless(None))),
+                    },
                     WindowEvent::Focused(focused) => {
                         render_rate_adjuster.change_focus(focused);
                         if focused {

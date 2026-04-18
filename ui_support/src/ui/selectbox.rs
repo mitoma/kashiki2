@@ -415,12 +415,10 @@ impl Model for SelectBox {
                 // TODO 何かしらのエラーメッセージを出すべきか？
             }
             // unmark を使っているのがなんか変な気はするなぁ
-            EditorOperation::UnMark => {
-                if self.cancellable {
-                    self.action_queue_sender
-                        .send(Action::new_command("world", "remove-current"))
-                        .unwrap();
-                }
+            EditorOperation::UnMark if self.cancellable => {
+                self.action_queue_sender
+                    .send(Action::new_command("world", "remove-current"))
+                    .unwrap();
             }
             _ => (),
         }

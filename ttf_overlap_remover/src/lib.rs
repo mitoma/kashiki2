@@ -287,7 +287,7 @@ fn split_all_segments(segments: Vec<PathSegment>) -> Vec<PathSegment> {
                 let split_j = split_segment_at_points(&seg_j, &cross_points, false);
 
                 let insert_pos = i.min(j_adj);
-                for (k, s) in split_i.into_iter().chain(split_j.into_iter()).enumerate() {
+                for (k, s) in split_i.into_iter().chain(split_j).enumerate() {
                     let bb = s.bounding_rect();
                     result.insert(insert_pos + k, s);
                     bboxes.insert(insert_pos + k, bb);
