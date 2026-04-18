@@ -90,18 +90,6 @@ impl TextInstances {
         })
     }
 
-    // 文字とセル位置を直接指定して追加するユーティリティ
-    pub(crate) fn add_char_at_position(
-        &mut self,
-        c: char,
-        position: CellPosition,
-        instance: InstanceAttributes,
-        device: &Device,
-    ) {
-        let key = TextInstancesKey { c, position };
-        self.add(key, instance, device);
-    }
-
     pub(crate) fn get_mut(&mut self, key: &TextInstancesKey) -> Option<&mut InstanceAttributes> {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
             instances.get_mut(&key.to_instance_key())
@@ -110,9 +98,28 @@ impl TextInstances {
         }
     }
 
+    pub(crate) fn get_mut_preedit(
+        &mut self,
+        key: &TextInstancesKey,
+    ) -> Option<&mut InstanceAttributes> {
+        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
+            instances.get_mut(&key.to_preedit_instance_key())
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn remove(&mut self, key: &TextInstancesKey) -> Option<InstanceAttributes> {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
             instances.remove(&key.to_instance_key())
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn remove_preedit(&mut self, key: &TextInstancesKey) -> Option<InstanceAttributes> {
+        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
+            instances.remove(&key.to_preedit_instance_key())
         } else {
             None
         }

@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::Range};
+use std::{collections::BTreeMap, collections::BTreeSet, ops::Range};
 
 use glam::{Mat4, Quat, Vec3};
 use rand::RngExt;
@@ -90,6 +90,50 @@ impl CharStates {
 
         self.preedit_chars.insert(c, state);
         self.instances.add_preedit(c.into(), instance, device);
+    }
+
+    pub(crate) fn sync_preedit_chars(
+        &mut self,
+        next_chars: &[BufferChar],
+        has_selection: bool,
+        text_context: &TextContext,
+        device: &Device,
+    ) {
+        let prev_set: BTreeSet<BufferChar> = self.preedit_chars.keys().copied().collect();
+        let next_set: BTreeSet<BufferChar> = next_chars.iter().copied().collect();
+
+        for c in prev_set.difference(&next_set) {
+            self.preedit_chars.remove(c);
+            let _ = self.instances.remove_preedit(&(*c).into());
+        }
+
+        for c in next_chars.iter().copied() {
+            let base_color = if has_selection && (c.c == '[' || c.c == ']') {
+                ThemedColor::TextComment
+            } else {
+                ThemedColor::Text
+            };
+
+            if !self.preedit_chars.contains_key(&c) {
+                self.add_preedit_char(
+                    c,
+                    [0.0, 0.0, 0.0],
+                    base_color.get_color(&text_context.color_theme),
+                    0,
+                    text_context,
+                    device,
+                );
+            }
+
+            self.update_preedit_state(
+                &c,
+                &ViewElementStateUpdateRequest {
+                    base_color: Some(base_color),
+                    ..Default::default()
+                },
+                text_context,
+            );
+        }
     }
 
     pub(crate) fn add_char(
@@ -202,37 +246,78 @@ impl CharStates {
         update_request: &ViewElementStateUpdateRequest,
         text_context: &TextContext,
     ) {
-        if let Some(c_pos) = self.chars.get_mut(c) {
-            update_easings(c_pos, &text_context.char_easings);
-            if let Some(base_color) = update_request.base_color {
-                c_pos.base_color = base_color;
-                let color = if c_pos.in_selection {
-                    c_pos
-                        .base_color
-                        .get_selection_color(&text_context.color_theme)
-                } else {
-                    c_pos.base_color.get_color(&text_context.color_theme)
-                };
+        if self.chars.contains_key(c) {
+            self.update_char_state(c, update_request, text_context);
+        } else if self.preedit_chars.contains_key(c) {
+            self.update_preedit_state(c, update_request, text_context);
+        }
+    }
 
-                c_pos.color.update(color);
-            }
-            if let Some(position) = update_request.position {
-                c_pos.position.update(position);
-            }
-            if let Some(color) = update_request.color {
-                c_pos.color.update(color);
-            }
-            if let Some(scale) = update_request.scale {
-                c_pos.scale.update(scale);
-            }
-            if let Some(motion_gain) = update_request.motion_gain {
-                c_pos.motion_gain.update(motion_gain);
-            }
+    fn update_char_state(
+        &mut self,
+        c: &BufferChar,
+        update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
+    ) {
+        if let Some(c_pos) = self.chars.get_mut(c) {
+            Self::apply_update_request(c_pos, update_request, text_context);
+        }
+    }
+
+    fn update_preedit_state(
+        &mut self,
+        c: &BufferChar,
+        update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
+    ) {
+        if let Some(c_pos) = self.preedit_chars.get_mut(c) {
+            Self::apply_update_request(c_pos, update_request, text_context);
+        }
+    }
+
+    fn apply_update_request(
+        c_pos: &mut ViewElementState,
+        update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
+    ) {
+        update_easings(c_pos, &text_context.char_easings);
+        if let Some(base_color) = update_request.base_color {
+            c_pos.base_color = base_color;
+            let color = if c_pos.in_selection {
+                c_pos
+                    .base_color
+                    .get_selection_color(&text_context.color_theme)
+            } else {
+                c_pos.base_color.get_color(&text_context.color_theme)
+            };
+
+            c_pos.color.update(color);
+        }
+        if let Some(position) = update_request.position {
+            c_pos.position.update(position);
+        }
+        if let Some(color) = update_request.color {
+            c_pos.color.update(color);
+        }
+        if let Some(scale) = update_request.scale {
+            c_pos.scale.update(scale);
+        }
+        if let Some(motion_gain) = update_request.motion_gain {
+            c_pos.motion_gain.update(motion_gain);
         }
     }
 
     pub(crate) fn update_char_theme(&mut self, color_theme: &ColorTheme) {
         self.chars.iter_mut().for_each(|(_, i)| {
+            let color = if i.in_selection {
+                i.base_color.get_selection_color(color_theme)
+            } else {
+                i.base_color.get_color(color_theme)
+            };
+            i.color.update(color);
+        });
+
+        self.preedit_chars.iter_mut().for_each(|(_, i)| {
             let color = if i.in_selection {
                 i.base_color.get_selection_color(color_theme)
             } else {
@@ -267,6 +352,17 @@ impl CharStates {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
+                let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
+                update_instance(instance, i, model_attribuetes, char_rotation);
+            }
+        }
+
+        // update preedit chars
+        for (c, i) in self.preedit_chars.iter_mut() {
+            if !update_environment && !i.in_animation() {
+                continue;
+            }
+            if let Some(instance) = self.instances.get_mut_preedit(&(*c).into()) {
                 let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
                 update_instance(instance, i, model_attribuetes, char_rotation);
             }
