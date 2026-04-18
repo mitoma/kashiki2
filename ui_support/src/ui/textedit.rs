@@ -231,9 +231,14 @@ impl Model for TextEdit {
         if self.buffer_updated || self.config_updated {
             let layout = self.calc_phisical_layout(context.char_width_calcurator().clone());
             let (preedit_chars, has_selection) = self.collect_preedit_chars(&layout);
+            let preedit_initial_position = self
+                .caret_states
+                .main_caret_position()
+                .unwrap_or([0.0, 0.0, 0.0]);
             self.char_states.sync_preedit_chars(
                 &preedit_chars,
                 has_selection,
+                preedit_initial_position,
                 &self.config,
                 device,
             );

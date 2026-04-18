@@ -96,6 +96,7 @@ impl CharStates {
         &mut self,
         next_chars: &[BufferChar],
         has_selection: bool,
+        initial_position: [f32; 3],
         text_context: &TextContext,
         device: &Device,
     ) {
@@ -117,7 +118,7 @@ impl CharStates {
             if !self.preedit_chars.contains_key(&c) {
                 self.add_preedit_char(
                     c,
-                    [0.0, 0.0, 0.0],
+                    initial_position,
                     base_color.get_color(&text_context.color_theme),
                     0,
                     text_context,
