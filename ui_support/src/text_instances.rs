@@ -45,6 +45,10 @@ impl TextInstancesKey {
     pub(crate) fn to_pre_remove_instance_key(&self) -> InstanceKey {
         InstanceKey::PreRemovePosition(self.position.row, self.position.col)
     }
+
+    pub(crate) fn to_preedit_instance_key(&self) -> InstanceKey {
+        InstanceKey::PreeditPosition(self.position.row, self.position.col)
+    }
 }
 
 #[derive(Default)]
@@ -60,24 +64,30 @@ impl TextInstances {
         instance: InstanceAttributes,
         device: &Device,
     ) {
-        let instances = self.glyph_instances.entry(key.c).or_insert_with(|| {
-            let mut instances = GlyphInstances::new(key.c, device);
-            instances.set_direction(&self.direction);
-            instances
-        });
-        instances.insert(key.to_instance_key(), instance)
+        self.get_or_insert_glyph_instances_mut(&key, device)
+            .insert(key.to_instance_key(), instance)
     }
 
-    // 文字とセル位置を直接指定して追加するユーティリティ
-    pub(crate) fn add_char_at_position(
+    pub(crate) fn add_preedit(
         &mut self,
-        c: char,
-        position: CellPosition,
+        key: TextInstancesKey,
         instance: InstanceAttributes,
         device: &Device,
     ) {
-        let key = TextInstancesKey { c, position };
-        self.add(key, instance, device);
+        self.get_or_insert_glyph_instances_mut(&key, device)
+            .insert(key.to_preedit_instance_key(), instance)
+    }
+
+    fn get_or_insert_glyph_instances_mut(
+        &mut self,
+        key: &TextInstancesKey,
+        device: &Device,
+    ) -> &mut GlyphInstances {
+        self.glyph_instances.entry(key.c).or_insert_with(|| {
+            let mut instances = GlyphInstances::new(key.c, device);
+            instances.set_direction(&self.direction);
+            instances
+        })
     }
 
     pub(crate) fn get_mut(&mut self, key: &TextInstancesKey) -> Option<&mut InstanceAttributes> {
@@ -88,9 +98,28 @@ impl TextInstances {
         }
     }
 
+    pub(crate) fn get_mut_preedit(
+        &mut self,
+        key: &TextInstancesKey,
+    ) -> Option<&mut InstanceAttributes> {
+        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
+            instances.get_mut(&key.to_preedit_instance_key())
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn remove(&mut self, key: &TextInstancesKey) -> Option<InstanceAttributes> {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
             instances.remove(&key.to_instance_key())
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn remove_preedit(&mut self, key: &TextInstancesKey) -> Option<InstanceAttributes> {
+        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
+            instances.remove(&key.to_preedit_instance_key())
         } else {
             None
         }

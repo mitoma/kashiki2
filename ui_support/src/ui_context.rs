@@ -12,7 +12,7 @@ use font_rasterizer::{
 };
 use glam::Vec2;
 use stroke_parser::Action;
-use text_buffer::editor::LineBoundaryProhibitedChars;
+use text_buffer::layout::LineBoundaryProhibitedChars;
 
 pub(crate) struct CpuEasingConfig {
     pub(crate) duration: Duration,

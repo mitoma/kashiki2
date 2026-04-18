@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ops::Range};
+use std::{collections::BTreeMap, collections::BTreeSet, ops::Range};
 
 use glam::{Mat4, Quat, Vec3};
 use rand::RngExt;
@@ -59,6 +59,7 @@ impl ViewElementState {
 #[derive(Default)]
 pub(crate) struct CharStates {
     chars: BTreeMap<BufferChar, ViewElementState>,
+    preedit_chars: BTreeMap<BufferChar, ViewElementState>,
     removed_chars: BTreeMap<BufferChar, ViewElementState>,
     pub(crate) instances: TextInstances,
 }
@@ -75,6 +76,67 @@ impl CharStates {
         })
     }
 
+    pub(crate) fn add_preedit_char(
+        &mut self,
+        c: BufferChar,
+        position: [f32; 3],
+        color: [f32; 3],
+        counter: u32,
+        text_context: &TextContext,
+        device: &Device,
+    ) {
+        let (state, instance) =
+            self.crate_state_and_attribute(position, color, counter, text_context);
+
+        self.preedit_chars.insert(c, state);
+        self.instances.add_preedit(c.into(), instance, device);
+    }
+
+    pub(crate) fn sync_preedit_chars(
+        &mut self,
+        next_chars: &[BufferChar],
+        has_selection: bool,
+        initial_position: [f32; 3],
+        text_context: &TextContext,
+        device: &Device,
+    ) {
+        let prev_set: BTreeSet<BufferChar> = self.preedit_chars.keys().copied().collect();
+        let next_set: BTreeSet<BufferChar> = next_chars.iter().copied().collect();
+
+        for c in prev_set.difference(&next_set) {
+            self.preedit_chars.remove(c);
+            let _ = self.instances.remove_preedit(&(*c).into());
+        }
+
+        for c in next_chars.iter().copied() {
+            let base_color = if has_selection && (c.c == '[' || c.c == ']') {
+                ThemedColor::TextComment
+            } else {
+                ThemedColor::Text
+            };
+
+            if !self.preedit_chars.contains_key(&c) {
+                self.add_preedit_char(
+                    c,
+                    initial_position,
+                    base_color.get_color(&text_context.color_theme),
+                    0,
+                    text_context,
+                    device,
+                );
+            }
+
+            self.update_preedit_state(
+                &c,
+                &ViewElementStateUpdateRequest {
+                    base_color: Some(base_color),
+                    ..Default::default()
+                },
+                text_context,
+            );
+        }
+    }
+
     pub(crate) fn add_char(
         &mut self,
         c: BufferChar,
@@ -84,6 +146,55 @@ impl CharStates {
         text_context: &TextContext,
         device: &Device,
     ) {
+        let (state, instance) =
+            self.crate_state_and_attribute(position, color, counter, text_context);
+
+        self.chars.insert(c, state);
+        self.instances.add(c.into(), instance, device);
+    }
+
+    pub(crate) fn promote_preedit_to_char(&mut self, to: BufferChar, device: &Device) -> bool {
+        // まずは完全一致（同一セル・同一文字）を優先する。
+        let from = if self.preedit_chars.contains_key(&to) {
+            Some(to)
+        } else {
+            self.preedit_chars
+                .keys()
+                .filter(|candidate| candidate.c == to.c)
+                .min_by_key(|candidate| {
+                    let row_distance = candidate.position.row.abs_diff(to.position.row);
+                    let col_distance = candidate.position.col.abs_diff(to.position.col);
+                    row_distance * 1_000 + col_distance
+                })
+                .copied()
+        };
+
+        let Some(from) = from else {
+            return false;
+        };
+
+        let Some(mut state) = self.preedit_chars.remove(&from) else {
+            return false;
+        };
+        state.base_color = ThemedColor::Text;
+        state.in_selection = false;
+        self.chars.insert(to, state);
+
+        if let Some(instance) = self.instances.remove_preedit(&from.into()) {
+            self.instances.add(to.into(), instance, device);
+        }
+
+        true
+    }
+
+    #[inline]
+    fn crate_state_and_attribute(
+        &mut self,
+        position: [f32; 3],
+        color: [f32; 3],
+        counter: u32,
+        text_context: &TextContext,
+    ) -> (ViewElementState, InstanceAttributes) {
         let mut easing_color = EasingPointN::new(color);
         easing_color.update_duration_and_easing_func(
             text_context.char_easings.color_easing.duration,
@@ -113,7 +224,6 @@ impl CharStates {
             scale: easing_scale,
             motion_gain: easing_motion_gain,
         };
-        self.chars.insert(c, state);
         let instance = InstanceAttributes {
             color,
             start_time: now_millis() + counter,
@@ -121,7 +231,7 @@ impl CharStates {
             duration: text_context.char_easings.add_char.duration,
             ..InstanceAttributes::default()
         };
-        self.instances.add(c.into(), instance, device);
+        (state, instance)
     }
 
     pub(crate) fn move_char(
@@ -171,37 +281,78 @@ impl CharStates {
         update_request: &ViewElementStateUpdateRequest,
         text_context: &TextContext,
     ) {
-        if let Some(c_pos) = self.chars.get_mut(c) {
-            update_easings(c_pos, &text_context.char_easings);
-            if let Some(base_color) = update_request.base_color {
-                c_pos.base_color = base_color;
-                let color = if c_pos.in_selection {
-                    c_pos
-                        .base_color
-                        .get_selection_color(&text_context.color_theme)
-                } else {
-                    c_pos.base_color.get_color(&text_context.color_theme)
-                };
+        if self.chars.contains_key(c) {
+            self.update_char_state(c, update_request, text_context);
+        } else if self.preedit_chars.contains_key(c) {
+            self.update_preedit_state(c, update_request, text_context);
+        }
+    }
 
-                c_pos.color.update(color);
-            }
-            if let Some(position) = update_request.position {
-                c_pos.position.update(position);
-            }
-            if let Some(color) = update_request.color {
-                c_pos.color.update(color);
-            }
-            if let Some(scale) = update_request.scale {
-                c_pos.scale.update(scale);
-            }
-            if let Some(motion_gain) = update_request.motion_gain {
-                c_pos.motion_gain.update(motion_gain);
-            }
+    fn update_char_state(
+        &mut self,
+        c: &BufferChar,
+        update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
+    ) {
+        if let Some(c_pos) = self.chars.get_mut(c) {
+            Self::apply_update_request(c_pos, update_request, text_context);
+        }
+    }
+
+    fn update_preedit_state(
+        &mut self,
+        c: &BufferChar,
+        update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
+    ) {
+        if let Some(c_pos) = self.preedit_chars.get_mut(c) {
+            Self::apply_update_request(c_pos, update_request, text_context);
+        }
+    }
+
+    fn apply_update_request(
+        c_pos: &mut ViewElementState,
+        update_request: &ViewElementStateUpdateRequest,
+        text_context: &TextContext,
+    ) {
+        update_easings(c_pos, &text_context.char_easings);
+        if let Some(base_color) = update_request.base_color {
+            c_pos.base_color = base_color;
+            let color = if c_pos.in_selection {
+                c_pos
+                    .base_color
+                    .get_selection_color(&text_context.color_theme)
+            } else {
+                c_pos.base_color.get_color(&text_context.color_theme)
+            };
+
+            c_pos.color.update(color);
+        }
+        if let Some(position) = update_request.position {
+            c_pos.position.update(position);
+        }
+        if let Some(color) = update_request.color {
+            c_pos.color.update(color);
+        }
+        if let Some(scale) = update_request.scale {
+            c_pos.scale.update(scale);
+        }
+        if let Some(motion_gain) = update_request.motion_gain {
+            c_pos.motion_gain.update(motion_gain);
         }
     }
 
     pub(crate) fn update_char_theme(&mut self, color_theme: &ColorTheme) {
         self.chars.iter_mut().for_each(|(_, i)| {
+            let color = if i.in_selection {
+                i.base_color.get_selection_color(color_theme)
+            } else {
+                i.base_color.get_color(color_theme)
+            };
+            i.color.update(color);
+        });
+
+        self.preedit_chars.iter_mut().for_each(|(_, i)| {
             let color = if i.in_selection {
                 i.base_color.get_selection_color(color_theme)
             } else {
@@ -236,6 +387,17 @@ impl CharStates {
                 continue;
             }
             if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
+                let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
+                update_instance(instance, i, model_attribuetes, char_rotation);
+            }
+        }
+
+        // update preedit chars
+        for (c, i) in self.preedit_chars.iter_mut() {
+            if !update_environment && !i.in_animation() {
+                continue;
+            }
+            if let Some(instance) = self.instances.get_mut_preedit(&(*c).into()) {
                 let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
                 update_instance(instance, i, model_attribuetes, char_rotation);
             }

@@ -1,5 +1,4 @@
 use std::{
-    collections::BTreeSet,
     ops::Range,
     sync::{
         Arc,
@@ -12,7 +11,8 @@ use text_buffer::{
     action::EditorOperation,
     buffer::{BufferChar, CellPosition},
     caret::{Caret, CaretType},
-    editor::{ChangeEvent, CharWidthResolver, Editor, PhisicalLayout},
+    editor::{ChangeEvent, Editor},
+    layout::{CharWidthResolver, PhysicalLayout},
 };
 
 use font_rasterizer::{
@@ -20,7 +20,6 @@ use font_rasterizer::{
     color_theme::{ColorTheme, ThemedColor},
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
-    vector_instances::InstanceAttributes,
     vector_instances::VectorInstances,
 };
 
@@ -80,9 +79,6 @@ pub struct TextEdit {
     caret_states: CaretStates,
     border_states: Option<BorderStates>,
 
-    // IME プレエディットの描画用インスタンス
-    preedit_instances: crate::text_instances::TextInstances,
-    preedit_rendered_chars: Vec<BufferChar>,
     preedit: Option<PreeditState>,
 
     // バッファが更新されたかどうか。カーソルの移動も含む
@@ -123,8 +119,6 @@ impl Default for TextEdit {
             caret_states: CaretStates::default(),
             border_states: None,
 
-            preedit_instances: Default::default(),
-            preedit_rendered_chars: vec![],
             preedit: None,
 
             buffer_updated: true,
@@ -201,12 +195,7 @@ impl Model for TextEdit {
     }
 
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
-        let mut list = self.char_states.instances.to_instances();
-        let mut preedit = self.preedit_instances.to_instances();
-        if !preedit.is_empty() {
-            list.append(&mut preedit);
-        }
-        list
+        self.char_states.instances.to_instances()
     }
 
     fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
@@ -239,22 +228,26 @@ impl Model for TextEdit {
 
         self.sync_editor_events(device, color_theme);
 
-        let rebuild_preedit_for_animation = self.preedit.is_some()
-            && (self.position.in_animation()
-                || self.bound.in_animation()
-                || self.rotation.in_animation());
-
-        if self.buffer_updated || self.config_updated || rebuild_preedit_for_animation {
+        if self.buffer_updated || self.config_updated {
             let layout = self.calc_phisical_layout(context.char_width_calcurator().clone());
-            let bound = self.calc_bound(&layout);
-            self.calc_position(context.char_width_calcurator(), &layout, bound);
-            // preedit のレイアウトは buffer のレイアウトに依存するため、同タイミングで再構築する
-            self.rebuild_preedit_instances(
+            let (preedit_chars, has_selection) = self.collect_preedit_chars(&layout);
+            let preedit_initial_position = self
+                .caret_states
+                .main_caret_position()
+                .unwrap_or([0.0, 0.0, 0.0]);
+            self.char_states.sync_preedit_chars(
+                &preedit_chars,
+                has_selection,
+                preedit_initial_position,
+                &self.config,
                 device,
+            );
+            let bound = self.calc_bound(&layout);
+            self.calc_position(
                 context.char_width_calcurator(),
                 &layout,
                 bound,
-                color_theme,
+                &preedit_chars,
             );
         }
         if self.text_updated {
@@ -263,7 +256,6 @@ impl Model for TextEdit {
         self.calc_instance_positions(context.char_width_calcurator());
         self.char_states.instances.update(device, queue);
         self.caret_states.instances.update(device, queue);
-        self.preedit_instances.update(device, queue);
         if let Some(state) = self.border_states.as_mut() {
             state.instances.update(device, queue);
         }
@@ -288,7 +280,6 @@ impl Model for TextEdit {
                 self.char_states
                     .instances
                     .set_direction(&self.config.direction);
-                self.preedit_instances.set_direction(&self.config.direction);
                 self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
@@ -522,19 +513,21 @@ impl TextEdit {
 
             match event {
                 BulkedChangeEvent::SingleEvent(ChangeEvent::AddChar(c)) => {
-                    let caret_pos = self
-                        .caret_states
-                        .main_caret_position()
-                        .unwrap_or([0.0, 1.0, 0.0]);
-                    self.char_states.add_char(
-                        c,
-                        caret_pos,
-                        color_theme.text().get_color(),
-                        char_change_counter.add_char,
-                        &self.config,
-                        device,
-                    );
-                    char_change_counter.add_char += 1;
+                    if !self.char_states.promote_preedit_to_char(c, device) {
+                        let caret_pos = self
+                            .caret_states
+                            .main_caret_position()
+                            .unwrap_or([0.0, 1.0, 0.0]);
+                        self.char_states.add_char(
+                            c,
+                            caret_pos,
+                            color_theme.text().get_color(),
+                            char_change_counter.add_char,
+                            &self.config,
+                            device,
+                        );
+                        char_change_counter.add_char += 1;
+                    }
                 }
                 BulkedChangeEvent::SingleEvent(ChangeEvent::MoveChar { from, to }) => {
                     if let Some([row, _col]) = self.caret_states.main_caret_logical_position() {
@@ -631,7 +624,7 @@ impl TextEdit {
     fn calc_phisical_layout(
         &mut self,
         char_width_calcurator: Arc<dyn CharWidthResolver>,
-    ) -> PhisicalLayout {
+    ) -> PhysicalLayout {
         self.editor.calc_phisical_layout(
             self.max_display_width(),
             &self.config.line_prohibited_chars,
@@ -642,7 +635,7 @@ impl TextEdit {
 
     // レイアウト情報から bound の計算を行い更新する
     #[inline]
-    fn calc_bound(&mut self, layout: &PhisicalLayout) -> [f32; 2] {
+    fn calc_bound(&mut self, layout: &PhysicalLayout) -> [f32; 2] {
         // update bound
         let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
             (result.0.max(pos.col), result.1.max(pos.row))
@@ -674,8 +667,9 @@ impl TextEdit {
     fn calc_position(
         &mut self,
         char_width_calcurator: &CharWidthCalculator,
-        layout: &PhisicalLayout,
+        layout: &PhysicalLayout,
         bound: [f32; 2],
+        preedit_chars: &[BufferChar],
     ) {
         // update char position
         layout.chars.iter().for_each(|(c, pos)| {
@@ -693,6 +687,26 @@ impl TextEdit {
                 &self.config,
             )
         });
+
+        layout
+            .preedit_chars
+            .iter()
+            .zip(preedit_chars.iter())
+            .for_each(|((_, pos), c)| {
+                let width = char_width_calcurator.get_width(c.c);
+                let position =
+                    Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+                let position = Self::apply_render_anchor_offset(&self.config, position);
+                self.char_states.update_state(
+                    c,
+                    &ViewElementStateUpdateRequest {
+                        position: Some(position),
+                        scale: Some(self.config.instance_scale()),
+                        ..Default::default()
+                    },
+                    &self.config,
+                )
+            });
 
         // update caret position
         {
@@ -809,7 +823,6 @@ impl TextEdit {
     pub(crate) fn set_config(&mut self, config: TextContext) {
         // direction が変わった場合は char_states の direction も更新する
         self.char_states.instances.set_direction(&config.direction);
-        self.preedit_instances.set_direction(&config.direction);
         self.config = config;
         self.position.update_duration_and_easing_func(
             self.config.char_easings.position_easing.duration,
@@ -822,42 +835,18 @@ impl TextEdit {
         self.config_updated = true;
     }
 
-    // preedit 用の GlyphInstances を再構築する
-    fn rebuild_preedit_instances(
-        &mut self,
-        device: &wgpu::Device,
-        char_width_calcurator: &CharWidthCalculator,
-        layout: &PhisicalLayout,
-        bound: [f32; 2],
-        color_theme: &ColorTheme,
-    ) {
-        // 方向は毎回同期する（差分更新時も既存インスタンスへ反映するため）
-        self.preedit_instances.set_direction(&self.config.direction);
-
+    fn collect_preedit_chars(&self, layout: &PhysicalLayout) -> (Vec<BufferChar>, bool) {
         let Some(preedit) = self.preedit.as_ref() else {
-            for c in self.preedit_rendered_chars.iter().copied() {
-                let key: crate::text_instances::TextInstancesKey = c.into();
-                let _ = self.preedit_instances.remove(&key);
-            }
-            self.preedit_rendered_chars.clear();
-            return;
+            return (vec![], false);
         };
 
         let preedit_string = preedit.preedit_string();
         if preedit_string.is_empty() {
-            for c in self.preedit_rendered_chars.iter().copied() {
-                let key: crate::text_instances::TextInstancesKey = c.into();
-                let _ = self.preedit_instances.remove(&key);
-            }
-            self.preedit_rendered_chars.clear();
-            return;
+            return (vec![], false);
         }
+
         let has_selection = matches!(preedit.selection, Some((start, end)) if start != end);
-
-        // モデル属性（ワールド座標変換に必要）
-        let model_attributes = self.model_attributes();
-
-        let next_chars: Vec<BufferChar> = layout
+        let chars = layout
             .preedit_chars
             .iter()
             .zip(preedit_string.chars())
@@ -869,87 +858,7 @@ impl TextEdit {
                 c,
             })
             .collect();
-
-        let prev_set: BTreeSet<BufferChar> = self.preedit_rendered_chars.iter().copied().collect();
-        let next_set: BTreeSet<BufferChar> = next_chars.iter().copied().collect();
-
-        // 現在は不要になった文字を削除
-        for c in prev_set.difference(&next_set) {
-            let key: crate::text_instances::TextInstancesKey = (*c).into();
-            let _ = self.preedit_instances.remove(&key);
-        }
-
-        for c in next_chars.iter().copied() {
-            let themed_color = if has_selection && (c.c == '[' || c.c == ']') {
-                ThemedColor::TextComment
-            } else {
-                ThemedColor::Text
-            };
-            // 位置（モデル座標）を算出
-            let width = char_width_calcurator.get_width(c.c);
-            let position = Self::get_adjusted_position(
-                &self.config,
-                width,
-                bound,
-                [c.position.col, c.position.row],
-            );
-            let position = Self::apply_render_anchor_offset(&self.config, position);
-
-            // インスタンス属性を構築（既定値を基に必要フィールドを初期化）
-            let mut instance = InstanceAttributes {
-                color: themed_color.get_color(color_theme),
-                world_scale: model_attributes.world_scale,
-                ..Default::default()
-            };
-            // 縦書き時の回転
-            let char_rotation = match self.config.direction {
-                Direction::Horizontal => None,
-                Direction::Vertical => match width {
-                    CharWidth::Regular => Some(glam::Quat::from_axis_angle(
-                        glam::Vec3::Z,
-                        -90.0f32.to_radians(),
-                    )),
-                    CharWidth::Wide => None,
-                },
-            };
-            // スケール
-            let scale = self.config.instance_scale();
-            instance.instance_scale = if char_rotation.is_some() {
-                [scale[1], scale[0]]
-            } else {
-                scale
-            };
-
-            // 位置（ワールド座標）と回転
-            let [x, y, z] = position;
-            let pos_local = glam::Vec3::new(
-                x - model_attributes.center.x,
-                y - model_attributes.center.y,
-                z,
-            );
-            let pos_world = (glam::Mat4::from_quat(model_attributes.rotation)
-                * glam::Mat4::from_translation(pos_local))
-            .w_axis;
-            instance.position = glam::Vec3::new(
-                pos_world.x + model_attributes.position.x,
-                pos_world.y + model_attributes.position.y,
-                pos_world.z + model_attributes.position.z,
-            );
-            instance.rotation = match char_rotation {
-                Some(r) => model_attributes.rotation * r,
-                None => model_attributes.rotation,
-            };
-
-            let key: crate::text_instances::TextInstancesKey = c.into();
-            if let Some(existing) = self.preedit_instances.get_mut(&key) {
-                *existing = instance;
-            } else {
-                self.preedit_instances
-                    .add_char_at_position(c.c, c.position, instance, device);
-            }
-        }
-
-        self.preedit_rendered_chars = next_chars;
+        (chars, has_selection)
     }
 
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
