@@ -59,6 +59,7 @@ impl ViewElementState {
 #[derive(Default)]
 pub(crate) struct CharStates {
     chars: BTreeMap<BufferChar, ViewElementState>,
+    preedit_chars: BTreeMap<BufferChar, ViewElementState>,
     removed_chars: BTreeMap<BufferChar, ViewElementState>,
     pub(crate) instances: TextInstances,
 }
@@ -75,6 +76,22 @@ impl CharStates {
         })
     }
 
+    pub(crate) fn add_preedit_char(
+        &mut self,
+        c: BufferChar,
+        position: [f32; 3],
+        color: [f32; 3],
+        counter: u32,
+        text_context: &TextContext,
+        device: &Device,
+    ) {
+        let (state, instance) =
+            self.crate_state_and_attribute(position, color, counter, text_context);
+
+        self.preedit_chars.insert(c, state);
+        self.instances.add_preedit(c.into(), instance, device);
+    }
+
     pub(crate) fn add_char(
         &mut self,
         c: BufferChar,
@@ -84,6 +101,21 @@ impl CharStates {
         text_context: &TextContext,
         device: &Device,
     ) {
+        let (state, instance) =
+            self.crate_state_and_attribute(position, color, counter, text_context);
+
+        self.chars.insert(c, state);
+        self.instances.add(c.into(), instance, device);
+    }
+
+    #[inline]
+    fn crate_state_and_attribute(
+        &mut self,
+        position: [f32; 3],
+        color: [f32; 3],
+        counter: u32,
+        text_context: &TextContext,
+    ) -> (ViewElementState, InstanceAttributes) {
         let mut easing_color = EasingPointN::new(color);
         easing_color.update_duration_and_easing_func(
             text_context.char_easings.color_easing.duration,
@@ -113,7 +145,6 @@ impl CharStates {
             scale: easing_scale,
             motion_gain: easing_motion_gain,
         };
-        self.chars.insert(c, state);
         let instance = InstanceAttributes {
             color,
             start_time: now_millis() + counter,
@@ -121,7 +152,7 @@ impl CharStates {
             duration: text_context.char_easings.add_char.duration,
             ..InstanceAttributes::default()
         };
-        self.instances.add(c.into(), instance, device);
+        (state, instance)
     }
 
     pub(crate) fn move_char(

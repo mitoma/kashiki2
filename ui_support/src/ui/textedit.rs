@@ -695,6 +695,22 @@ impl TextEdit {
             )
         });
 
+        layout.preedit_chars.iter().for_each(|(c, pos)| {
+            let width = char_width_calcurator.get_width(c.c);
+            let position =
+                Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+            let position = Self::apply_render_anchor_offset(&self.config, position);
+            self.char_states.update_state(
+                c,
+                &ViewElementStateUpdateRequest {
+                    position: Some(position),
+                    scale: Some(self.config.instance_scale()),
+                    ..Default::default()
+                },
+                &self.config,
+            )
+        });
+
         // update caret position
         {
             let caret_width = char_width_calcurator.get_width(caret_char(CaretType::Primary));
