@@ -25,7 +25,16 @@ pub(crate) struct FontVertexConverter {
 impl FontVertexConverter {
     pub(crate) fn new(fonts: Arc<Vec<FontData>>, ascii_override_font: Option<FontData>) -> Self {
         #[cfg(all(feature = "cache", not(target_arch = "wasm32")))]
-        let cache = crate::glyph_cache::GlyphCache::open(&fonts);
+        let cache = {
+            let fonts = if let Some(ascii_override_font) = &ascii_override_font {
+                let mut v = vec![ascii_override_font.clone()];
+                v.append(&mut (*fonts).clone());
+                Arc::new(v)
+            } else {
+                fonts.clone()
+            };
+            crate::glyph_cache::GlyphCache::open(&fonts)
+        };
         Self {
             fonts,
             ascii_override_font,
