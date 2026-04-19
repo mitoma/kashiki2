@@ -4,6 +4,7 @@ mod action_repository;
 #[allow(dead_code)]
 mod categorized_memos;
 mod kashikishi_actions;
+mod kashikishi_config;
 mod local_datetime_format;
 mod memos;
 mod rokid_max_ext;
@@ -39,7 +40,7 @@ use ui_support::{
     ui_context::UiContext,
 };
 
-use crate::kashikishi_actions::command_palette_select;
+use crate::{kashikishi_actions::command_palette_select, kashikishi_config::KashikishiConfig};
 
 const ICON_IMAGE: &[u8] = include_bytes!("../kashikishi-icon.ico");
 
@@ -110,6 +111,9 @@ impl ActionProcessor for SystemCommandPalette {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run(args: Args) {
+    // load config
+    let config = KashikishiConfig::load();
+
     // setup icon
     let icon_image = image::load_from_memory(ICON_IMAGE).unwrap().to_rgba8();
     let icon = RgbaIcon::new(icon_image.to_vec(), icon_image.width(), icon_image.height())
@@ -128,16 +132,23 @@ pub async fn run(args: Args) {
                 font_repository.add_fallback_font_from_system(name);
             });
         }
+
+        // 埋め込みフォントを追加
         font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
         font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
+
+        // コンフィグで指定されたフォントを優先的に設定する
+        if let Some(font_name) = &config.font {
+            font_repository.set_primary_font(font_name);
+        }
+        if let Some(ascii_override_font) = &config.ascii_override_font {
+            font_repository.set_ascii_override_font(ascii_override_font);
+        }
         font_repository
     };
 
     set_clock_mode(font_rasterizer::time::ClockMode::StepByStep);
     let window_size = WindowSize::new(800, 600);
-    let config = KashikishiConfig {
-        ime_on_the_fly: args.ime_on_the_fly,
-    };
     let callback = KashikishiCallback::new(window_size, config);
     let support = SimpleStateSupport {
         window_icon: icon,
@@ -283,6 +294,17 @@ impl SimpleStateCallback for KashikishiCallback {
             .action_processor_store
             .process(&action, context, self.world.get_mut());
         if result != InputResult::Noop {
+            match &result {
+                // フォントの変更はコンフィグにも反映する
+                InputResult::ChangeFont(font_name) => {
+                    self.config.font = font_name.as_ref().map(|s| s.to_string())
+                }
+                InputResult::ChangeAsciiOverrideFont(font_name) => {
+                    self.config.ascii_override_font = font_name.as_ref().map(|s| s.to_string())
+                }
+                _ => {}
+            }
+
             return result;
         }
 
@@ -389,9 +411,6 @@ impl SimpleStateCallback for KashikishiCallback {
 
     fn shutdown(&mut self) {
         self.world.graceful_exit();
+        self.config.save();
     }
-}
-
-struct KashikishiConfig {
-    ime_on_the_fly: bool,
 }
