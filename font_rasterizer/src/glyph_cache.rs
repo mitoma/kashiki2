@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use font_collector::FontData;
-use redb::{Database, TableDefinition};
+use redb::{Database, ReadableDatabase, TableDefinition};
 
 use crate::{
     char_width_calcurator::CharWidth,
