@@ -10,6 +10,8 @@
 //! 4. ワインディングナンバーを用いて各エッジの内外を判定
 //! 5. 外側境界のエッジのみ残してパスを再構成
 
+use std::iter::chain;
+
 pub use outline_builder::OverlapRemoveOutlineBuilder;
 
 mod cross_point;
@@ -287,7 +289,7 @@ fn split_all_segments(segments: Vec<PathSegment>) -> Vec<PathSegment> {
                 let split_j = split_segment_at_points(&seg_j, &cross_points, false);
 
                 let insert_pos = i.min(j_adj);
-                for (k, s) in split_i.into_iter().chain(split_j).enumerate() {
+                for (k, s) in chain(split_i, split_j).enumerate() {
                     let bb = s.bounding_rect();
                     result.insert(insert_pos + k, s);
                     bboxes.insert(insert_pos + k, bb);

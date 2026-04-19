@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, HashSet},
+    iter::chain,
     ops::Range,
 };
 
@@ -111,11 +112,7 @@ impl DefaultWorld {
         let models: Vec<&GlyphInstances> =
             Self::to_glyph_instances(&self.models[self.get_surrounding_model_range()]);
         let removed_models: Vec<&GlyphInstances> = Self::to_glyph_instances(&self.removed_models);
-        models
-            .iter()
-            .chain(removed_models.iter())
-            .cloned()
-            .collect()
+        chain(models, removed_models).collect()
     }
 
     #[inline]
@@ -124,11 +121,7 @@ impl DefaultWorld {
             Self::to_vector_instances(&self.models[self.get_surrounding_model_range()]);
         let removed_models: Vec<&VectorInstances<String>> =
             Self::to_vector_instances(&self.removed_models);
-        models
-            .iter()
-            .chain(removed_models.iter())
-            .cloned()
-            .collect()
+        chain(models, removed_models).collect()
     }
 }
 
