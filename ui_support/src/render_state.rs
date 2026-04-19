@@ -420,8 +420,12 @@ impl RenderState {
         let font_binaries = font_repository.get_fonts();
         let font_binaries = Arc::new(font_binaries);
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
-        let glyph_vertex_buffer =
-            GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
+        let ascii_override_font = font_repository.get_ascii_override_font();
+        let glyph_vertex_buffer = GlyphVertexBuffer::new(
+            font_binaries,
+            ascii_override_font,
+            char_width_calcurator.clone(),
+        );
         let svg_vertex_buffer = SvgVertexBuffer::default();
 
         let (ui_string_sender, ui_string_receiver) = std::sync::mpsc::channel();
@@ -747,13 +751,39 @@ impl RenderState {
                     .clear_primary_font();
             }
         }
+        self.refresh_font_buffers();
+    }
+
+    pub(crate) fn change_ascii_override_font(&mut self, font_name: Option<String>) {
+        match font_name {
+            Some(font_name) => {
+                self.context
+                    .state_context_mut()
+                    .font_repository
+                    .set_ascii_override_font(&font_name);
+            }
+            None => {
+                self.context
+                    .state_context_mut()
+                    .font_repository
+                    .clear_ascii_override_font();
+            }
+        }
+        self.refresh_font_buffers();
+    }
+
+    fn refresh_font_buffers(&mut self) {
         let font_binaries = self.context.font_repository().get_fonts();
         let font_binaries = Arc::new(font_binaries);
+        let ascii_override_font = self.context.font_repository().get_ascii_override_font();
         let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
 
         let registerd_chars = self.glyph_vertex_buffer.registerd_chars();
-        self.glyph_vertex_buffer =
-            GlyphVertexBuffer::new(font_binaries, char_width_calcurator.clone());
+        self.glyph_vertex_buffer = GlyphVertexBuffer::new(
+            font_binaries,
+            ascii_override_font,
+            char_width_calcurator.clone(),
+        );
         let _ = self.glyph_vertex_buffer.append_chars(
             self.context.device(),
             self.context.queue(),

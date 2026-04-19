@@ -17,6 +17,7 @@ pub struct FontData {
 pub struct FontRepository {
     font_collector: FontCollector,
     primary_font: Option<FontData>,
+    ascii_override_font: Option<FontData>,
     fallback_fonts: Vec<FontData>,
 }
 
@@ -25,6 +26,7 @@ impl FontRepository {
         Self {
             font_collector,
             primary_font: None,
+            ascii_override_font: None,
             fallback_fonts: Vec::new(),
         }
     }
@@ -49,6 +51,20 @@ impl FontRepository {
 
     pub fn clear_primary_font(&mut self) {
         self.primary_font = None;
+    }
+
+    pub fn set_ascii_override_font(&mut self, font_name: &str) {
+        if let Some(font_data) = self.font_collector.load_font(font_name) {
+            self.ascii_override_font = Some(font_data);
+        }
+    }
+
+    pub fn clear_ascii_override_font(&mut self) {
+        self.ascii_override_font = None;
+    }
+
+    pub fn get_ascii_override_font(&self) -> Option<FontData> {
+        self.ascii_override_font.clone()
     }
 
     pub fn add_fallback_font_from_system(&mut self, font_name: &str) {

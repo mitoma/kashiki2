@@ -26,6 +26,11 @@
     },
     {
         "namespace": "system",
+        "name": "change-ascii-font-ui",
+        "description": "ASCII文字用フォントの上書き設定"
+    },
+    {
+        "namespace": "system",
         "name": "change-global-direction",
         "description": "システム全体の縦書き・横書き設定を変更"
     },
