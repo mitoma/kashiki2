@@ -73,6 +73,7 @@ tree-sitter-json = "0.24.8"
 tree-sitter-bash = "0.25.0"
 tree-sitter-toml-ng = "0.7.0"
 
+redb = "4.0.0"
 rayon = "1.12.0"
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
 fs_extra = "1.3.0"

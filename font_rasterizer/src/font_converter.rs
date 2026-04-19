@@ -17,11 +17,19 @@ use crate::{
 
 pub(crate) struct FontVertexConverter {
     fonts: Arc<Vec<FontData>>,
+    #[cfg(all(feature = "cache", not(target_arch = "wasm32")))]
+    cache: Option<crate::glyph_cache::GlyphCache>,
 }
 
 impl FontVertexConverter {
     pub(crate) fn new(fonts: Arc<Vec<FontData>>) -> Self {
-        Self { fonts }
+        #[cfg(all(feature = "cache", not(target_arch = "wasm32")))]
+        let cache = crate::glyph_cache::GlyphCache::open(&fonts);
+        Self {
+            fonts,
+            #[cfg(all(feature = "cache", not(target_arch = "wasm32")))]
+            cache,
+        }
     }
 
     fn is_remove_outline_fontname(fontname: &str) -> bool {
@@ -95,6 +103,26 @@ impl FontVertexConverter {
         c: char,
         width: CharWidth,
     ) -> Result<GlyphVertex, FontRasterizerError> {
+        // キャッシュヒット時はそのまま返す
+        #[cfg(all(feature = "cache", not(target_arch = "wasm32")))]
+        if let Some(cache) = &self.cache
+            && let Some(glyph) = cache.get(c, width)
+        {
+            return Ok(glyph);
+        }
+
+        let result = self.convert_inner(c, width)?;
+
+        // コンバート結果をキャッシュに保存
+        #[cfg(all(feature = "cache", not(target_arch = "wasm32")))]
+        if let Some(cache) = &self.cache {
+            cache.set(&result, width);
+        }
+
+        Ok(result)
+    }
+
+    fn convert_inner(&self, c: char, width: CharWidth) -> Result<GlyphVertex, FontRasterizerError> {
         let (
             face,
             remove_overlap,

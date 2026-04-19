@@ -1061,6 +1061,7 @@ dependencies = [
  "cfg-if",
  "console_error_panic_hook",
  "console_log",
+ "dirs",
  "env_logger",
  "font_collector",
  "fs_extra",
@@ -1069,6 +1070,7 @@ dependencies = [
  "image",
  "log",
  "rand 0.10.1",
+ "redb",
  "rustybuzz",
  "text_buffer",
  "thiserror 2.0.18",
@@ -2577,6 +2579,15 @@ version = "0.1.0"
 source = "git+https://github.com/mitoma/sandbox?branch=main#b47ba9cc112ea6dc27ec826db49c80b394e21904"
 dependencies = [
  "rayon",
+]
+
+[[package]]
+name = "redb"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67f7f231ea7b1172b7ac00ccf96b1250f0fb5a16d5585836aa4ebc997df7cbde"
+dependencies = [
+ "libc",
 ]
 
 [[package]]

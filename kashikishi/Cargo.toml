@@ -18,7 +18,7 @@ arboard = { workspace = true }
 dirs = { workspace = true }
 
 font_collector = { path = "../font_collector" }
-font_rasterizer = { path = "../font_rasterizer" }
+font_rasterizer = { path = "../font_rasterizer", features = ["cache"] }
 text_buffer = { path = "../text_buffer" }
 stroke_parser = { path = "../stroke_parser" }
 rokid_3dof = { path = "../rokid_3dof" }
