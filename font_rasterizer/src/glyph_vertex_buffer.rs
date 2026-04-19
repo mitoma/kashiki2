@@ -39,8 +39,9 @@ impl GlyphVertexBuffer {
     pub fn new(
         font_binaries: Arc<Vec<FontData>>,
         char_width_calculator: Arc<CharWidthCalculator>,
+        ascii_override_font: Option<FontData>,
     ) -> GlyphVertexBuffer {
-        let font_vertex_converter = FontVertexConverter::new(font_binaries);
+        let font_vertex_converter = FontVertexConverter::new(font_binaries, ascii_override_font);
         GlyphVertexBuffer {
             font_vertex_converter,
             char_width_calculator,

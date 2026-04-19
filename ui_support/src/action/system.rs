@@ -385,6 +385,79 @@ impl ActionProcessor for SystemChangeFont {
     }
 }
 
+pub struct SystemChangeAsciiFontUi;
+impl ActionProcessor for SystemChangeAsciiFontUi {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-ascii-font-ui".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        context: &UiContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let mut options = vec![SelectOption::new(
+            "ASCII フォント上書きを無効化".to_string(),
+            Action::new_command("system", "change-ascii-font"),
+        )];
+
+        options.extend(
+            context
+                .font_repository()
+                .list_font_names()
+                .iter()
+                .map(|name| {
+                    SelectOption::new(
+                        name.clone(),
+                        Action::new_command_with_argument("system", "change-ascii-font", name),
+                    )
+                }),
+        );
+
+        let model = SelectBox::new_without_action_name(
+            context,
+            "ASCII 文字用フォントを選択してください".to_string(),
+            options,
+            None,
+        );
+        context.register_string(model.to_string());
+        world.add_modal(Box::new(model));
+        world.re_layout();
+        world.look_modal(CameraAdjustment::FitBoth);
+
+        InputResult::InputConsumed
+    }
+}
+
+pub struct SystemChangeAsciiFont;
+impl ActionProcessor for SystemChangeAsciiFont {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-ascii-font".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        _context: &UiContext,
+        _world: &mut dyn World,
+    ) -> InputResult {
+        if let ActionArgument::String(font_name) = arg {
+            InputResult::ChangeAsciiOverrideFont(Some(font_name.clone()))
+        } else {
+            InputResult::ChangeAsciiOverrideFont(None)
+        }
+    }
+}
+
 pub struct SystemChangeQualityUi;
 impl ActionProcessor for SystemChangeQualityUi {
     fn namespace(&self) -> CommandNamespace {

@@ -285,6 +285,9 @@ impl ApplicationHandler for App {
             InputResult::ChangeFont(font_name) => {
                 state.change_font(font_name);
             }
+            InputResult::ChangeAsciiOverrideFont(font_name) => {
+                state.change_ascii_override_font(font_name);
+            }
             InputResult::ChangeGlobalDirection(direction) => {
                 state.context.set_global_direction(direction);
             }
@@ -415,6 +418,9 @@ impl ApplicationHandler for App {
                 InputResult::ChangeFont(font_name) => {
                     state.change_font(font_name);
                 }
+                InputResult::ChangeAsciiOverrideFont(font_name) => {
+                    state.change_ascii_override_font(font_name);
+                }
                 InputResult::ToggleDecorations => {
                     window.set_decorations(!window.is_decorated());
                 }
@@ -506,6 +512,10 @@ fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> O
             state.change_font(font_name);
             None
         }
+        InputResult::ChangeAsciiOverrideFont(font_name) => {
+            state.change_ascii_override_font(font_name);
+            None
+        }
         InputResult::ChangeGlobalDirection(direction) => {
             state.context.set_global_direction(direction);
             None
@@ -530,6 +540,7 @@ pub enum InputResult {
     ChangeGlobalDirection(Direction),
     ChangeWindowSize(WindowSize),
     ChangeFont(Option<String>),
+    ChangeAsciiOverrideFont(Option<String>),
     ChangeQuarity(Quarity),
     SendExit,
     Noop,
