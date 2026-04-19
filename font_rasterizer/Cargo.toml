@@ -4,10 +4,15 @@ version = "0.1.0"
 authors = ["Ryo Mitoma <mutetheradio@gmail.com>"]
 edition = "2024"
 
+[features]
+cache = ["dep:redb", "dep:dirs"]
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+redb = { workspace = true, optional = true }
+dirs = { workspace = true, optional = true }
 cfg-if = { workspace = true }
 thiserror = { workspace = true }
 env_logger = { workspace = true }
