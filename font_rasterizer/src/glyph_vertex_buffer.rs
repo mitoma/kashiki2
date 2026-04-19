@@ -38,8 +38,8 @@ pub struct GlyphVertexBuffer {
 impl GlyphVertexBuffer {
     pub fn new(
         font_binaries: Arc<Vec<FontData>>,
-        char_width_calculator: Arc<CharWidthCalculator>,
         ascii_override_font: Option<FontData>,
+        char_width_calculator: Arc<CharWidthCalculator>,
     ) -> GlyphVertexBuffer {
         let font_vertex_converter = FontVertexConverter::new(font_binaries, ascii_override_font);
         GlyphVertexBuffer {

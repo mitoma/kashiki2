@@ -423,8 +423,8 @@ impl RenderState {
         let ascii_override_font = font_repository.get_ascii_override_font();
         let glyph_vertex_buffer = GlyphVertexBuffer::new(
             font_binaries,
-            char_width_calcurator.clone(),
             ascii_override_font,
+            char_width_calcurator.clone(),
         );
         let svg_vertex_buffer = SvgVertexBuffer::default();
 
@@ -781,8 +781,8 @@ impl RenderState {
         let registerd_chars = self.glyph_vertex_buffer.registerd_chars();
         self.glyph_vertex_buffer = GlyphVertexBuffer::new(
             font_binaries,
-            char_width_calcurator.clone(),
             ascii_override_font,
+            char_width_calcurator.clone(),
         );
         let _ = self.glyph_vertex_buffer.append_chars(
             self.context.device(),
