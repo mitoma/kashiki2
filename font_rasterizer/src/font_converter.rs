@@ -203,7 +203,11 @@ impl GlyphVertexBuilder {
 
         let rect_em = face.units_per_em() as f32;
         let center_x = face.glyph_hor_advance(glyph_id).unwrap() as f32 / 2.0;
-        let center_y = face.capital_height().unwrap() as f32 / 2.0;
+        let center_y = face
+            .capital_height()
+            .or_else(|| face.x_height())
+            .unwrap_or((face.units_per_em() as f32 * 0.8) as i16) as f32
+            / 2.0;
 
         let mut builder = builder.with_options(VertexBuilderOptions::new(
             [center_x, center_y],
