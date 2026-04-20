@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use font_collector::FontData;
-use redb::{Database, ReadableDatabase, TableDefinition};
+use redb::{Database, ReadableDatabase, TableDefinition, TypeName, Value};
 
 use crate::{
     char_width_calcurator::CharWidth,
@@ -9,7 +9,41 @@ use crate::{
     vector_vertex::{VectorVertex, Vertex},
 };
 
-const GLYPH_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("glyphs");
+const GLYPH_TABLE: TableDefinition<&str, GlyphVertex> = TableDefinition::new("glyphs");
+
+impl Value for GlyphVertex {
+    type SelfType<'a>
+        = GlyphVertex
+    where
+        Self: 'a;
+
+    type AsBytes<'a>
+        = Vec<u8>
+    where
+        Self: 'a;
+
+    fn fixed_width() -> Option<usize> {
+        None
+    }
+
+    fn from_bytes<'a>(data: &'a [u8]) -> Self::SelfType<'a>
+    where
+        Self: 'a,
+    {
+        deserialize_glyph_vertex(data).expect("deserialize glyph vertex from bytes")
+    }
+
+    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Self::AsBytes<'a>
+    where
+        Self: 'b,
+    {
+        serialize_glyph_vertex(value)
+    }
+
+    fn type_name() -> redb::TypeName {
+        TypeName::new("GlyphVertex")
+    }
+}
 
 /// フォントバイナリの FNV-1a ハッシュを計算する（実行間で安定した値を返す）
 fn fonts_hash(fonts: &[FontData]) -> u64 {
@@ -74,14 +108,16 @@ impl GlyphCache {
     pub(crate) fn get(&self, c: char, width: CharWidth) -> Option<GlyphVertex> {
         let read_txn = self.db.begin_read().ok()?;
         let table = read_txn.open_table(GLYPH_TABLE).ok()?;
-        let guard = table.get(Self::make_key(c, width).as_str()).ok()??;
-        deserialize_glyph_vertex(guard.value())
+        table
+            .get(Self::make_key(c, width).as_str())
+            .ok()
+            .flatten()
+            .map(|entry| entry.value())
     }
 
     /// グリフ頂点データをキャッシュに保存する。失敗した場合はログに警告を出す。
     pub(crate) fn set(&self, glyph: &GlyphVertex, width: CharWidth) {
-        let value = serialize_glyph_vertex(glyph);
-        if let Err(e) = self.set_inner(Self::make_key(glyph.c, width).as_str(), &value) {
+        if let Err(e) = self.set_inner(Self::make_key(glyph.c, width).as_str(), glyph) {
             log::warn!("グリフキャッシュへの書き込みに失敗: {e}");
         }
     }
@@ -89,12 +125,12 @@ impl GlyphCache {
     fn set_inner(
         &self,
         key: &str,
-        value: &[u8],
+        glyph: &GlyphVertex,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let write_txn = self.db.begin_write()?;
         {
             let mut table = write_txn.open_table(GLYPH_TABLE)?;
-            table.insert(key, value)?;
+            table.insert(key, glyph)?;
         }
         write_txn.commit()?;
         Ok(())

@@ -179,6 +179,7 @@ struct CharGlyphIds {
     vertical_glyph_id: Option<GlyphId>,
 }
 
+#[derive(Debug)]
 pub(crate) struct GlyphVertex {
     pub(crate) c: char,
     pub(crate) h_vertex: VectorVertex,
