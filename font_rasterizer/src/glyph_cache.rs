@@ -9,7 +9,7 @@ use crate::{
     vector_vertex::{VectorVertex, Vertex},
 };
 
-const GLYPH_TABLE: TableDefinition<&[u8], &[u8]> = TableDefinition::new("glyphs");
+const GLYPH_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("glyphs");
 
 /// フォントバイナリの FNV-1a ハッシュを計算する（実行間で安定した値を返す）
 fn fonts_hash(fonts: &[FontData]) -> u64 {
@@ -59,36 +59,36 @@ impl GlyphCache {
         }
     }
 
-    fn make_key(c: char, width: CharWidth) -> [u8; 5] {
-        let c_bytes = (c as u32).to_le_bytes();
-        let w_byte = match width {
-            CharWidth::Regular => 0u8,
-            CharWidth::Wide => 1u8,
-        };
-        [c_bytes[0], c_bytes[1], c_bytes[2], c_bytes[3], w_byte]
+    fn make_key(c: char, width: CharWidth) -> String {
+        format!(
+            "{}:{}",
+            c as u32,
+            match width {
+                CharWidth::Regular => "R",
+                CharWidth::Wide => "W",
+            }
+        )
     }
 
     /// キャッシュからグリフ頂点データを取得する。存在しない場合は None を返す。
     pub(crate) fn get(&self, c: char, width: CharWidth) -> Option<GlyphVertex> {
-        let key = Self::make_key(c, width);
         let read_txn = self.db.begin_read().ok()?;
         let table = read_txn.open_table(GLYPH_TABLE).ok()?;
-        let guard = table.get(key.as_slice()).ok()??;
+        let guard = table.get(Self::make_key(c, width).as_str()).ok()??;
         deserialize_glyph_vertex(guard.value())
     }
 
     /// グリフ頂点データをキャッシュに保存する。失敗した場合はログに警告を出す。
     pub(crate) fn set(&self, glyph: &GlyphVertex, width: CharWidth) {
-        let key = Self::make_key(glyph.c, width);
         let value = serialize_glyph_vertex(glyph);
-        if let Err(e) = self.set_inner(&key, &value) {
+        if let Err(e) = self.set_inner(Self::make_key(glyph.c, width).as_str(), &value) {
             log::warn!("グリフキャッシュへの書き込みに失敗: {e}");
         }
     }
 
     fn set_inner(
         &self,
-        key: &[u8],
+        key: &str,
         value: &[u8],
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let write_txn = self.db.begin_write()?;
