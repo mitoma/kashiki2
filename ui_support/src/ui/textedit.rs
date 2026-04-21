@@ -163,13 +163,13 @@ impl Model for TextEdit {
         let [current_bound_x, current_bound_y] = self.bound.last();
         match self.config.direction {
             Direction::Horizontal => Vec3::new(
-                position_x,
+                position_x + caret_position_x - current_bound_x / 2.0,
                 position_y + caret_position_y + current_bound_y / 2.0,
                 position_z,
             ),
             Direction::Vertical => Vec3::new(
                 position_x + caret_position_x - current_bound_x / 2.0,
-                position_y,
+                position_y + caret_position_y + current_bound_y / 2.0,
                 position_z,
             ),
         }
