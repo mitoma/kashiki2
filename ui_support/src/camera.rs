@@ -246,32 +246,42 @@ impl CameraController {
             // 向きへの距離
             forward.length()
         };
-
-        let target_position: Vec3 = if adjustment == CameraAdjustment::FitBothAndCentering {
-            target.last_position()
-        } else {
-            target.focus_position()
-        };
         let normal = Vec3::Z;
 
         // aspect は width / height
         let (w, h) = target.bound();
         // bound にちょっと余裕を持たせる。
         let (w, h) = (w + 3.0, h + 3.0);
+        let tan_half_fovy = (camera.fovy.to_radians() / 2.0).tan();
+        let aspect = camera.aspect.max(f32::EPSILON);
         let size = match adjustment {
             // w と h のうち大きい方を使う
             CameraAdjustment::FitBoth | CameraAdjustment::FitBothAndCentering => {
-                if w / camera.aspect > h {
-                    (w / 2.0) / (camera.fovy.to_radians() / 2.0).tan() / camera.aspect
+                if w / aspect > h {
+                    (w / 2.0) / tan_half_fovy / aspect
                 } else {
-                    (h / 2.0) / (camera.fovy.to_radians() / 2.0).tan()
+                    (h / 2.0) / tan_half_fovy
                 }
             }
-            CameraAdjustment::FitWidth => {
-                (w / 2.0) / (camera.fovy.to_radians() / 2.0).tan() / camera.aspect
-            }
-            CameraAdjustment::FitHeight => (h / 2.0) / (camera.fovy.to_radians() / 2.0).tan(),
+            CameraAdjustment::FitWidth => (w / 2.0) / tan_half_fovy / aspect,
+            CameraAdjustment::FitHeight => (h / 2.0) / tan_half_fovy,
             CameraAdjustment::NoCare => forward_mag,
+        };
+
+        let target_position: Vec3 = {
+            // 現在の size で見える領域比率を使って、全体表示(last)と注視点(focus)を補間する。
+            let visible_half_height = size * tan_half_fovy;
+            let visible_half_width = visible_half_height * aspect;
+            let width_fit_ratio =
+                (visible_half_width / (w / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
+            let height_fit_ratio =
+                (visible_half_height / (h / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
+            let whole_fit_ratio = width_fit_ratio.min(height_fit_ratio);
+            let focus_weight = 1.0 - whole_fit_ratio;
+
+            target
+                .last_position()
+                .lerp(target.focus_position(), focus_weight)
         };
 
         let camera_position = target_position + (target.rotation() * normal * (size));
