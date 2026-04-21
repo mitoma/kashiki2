@@ -179,13 +179,15 @@ impl<'a> PhysicalLayoutCalculator<'a> {
                 state,
                 0,
             );
+            state.main_caret_pos.row = state.phisical_row;
+            state.main_caret_pos.col = state.phisical_col;
             state.preedit_injected = true;
         }
     }
 
     /// caret が buffer_char の位置にある場合、その直前に preedit を挿入する。
     ///
-    /// 入力中テキスト (preedit) は caret 位置から始まるため、文字走査時に挿入タイミングを決定する。
+    /// 入力中テキスト (preedit) は caret 位置から始まり、main caret は preedit の末尾直後に置く。
     fn try_insert_preedit_before_char(
         &self,
         state: &mut LayoutState,
@@ -199,9 +201,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             && !state.preedit_injected
             && buffer_char.position.col == self.main_caret.position.col
         {
-            state.main_caret_pos.row = state.phisical_row;
-            state.main_caret_pos.col = state.phisical_col;
-
             if let Some(preedit) = preedit_opt {
                 self.insert_preedit_chars(
                     preedit,
@@ -210,6 +209,11 @@ impl<'a> PhysicalLayoutCalculator<'a> {
                     state,
                     indent,
                 );
+                state.main_caret_pos.row = state.phisical_row;
+                state.main_caret_pos.col = state.phisical_col;
+            } else {
+                state.main_caret_pos.row = state.phisical_row;
+                state.main_caret_pos.col = state.phisical_col;
             }
             state.preedit_injected = true;
         }
@@ -275,8 +279,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
     ) {
         if is_caret_row && !state.preedit_injected && self.main_caret.position.col >= line_char_len
         {
-            state.main_caret_pos.row = state.phisical_row;
-            state.main_caret_pos.col = state.phisical_col;
             if let Some(preedit) = preedit_opt {
                 self.insert_preedit_chars(
                     preedit,
@@ -285,6 +287,11 @@ impl<'a> PhysicalLayoutCalculator<'a> {
                     state,
                     indent,
                 );
+                state.main_caret_pos.row = state.phisical_row;
+                state.main_caret_pos.col = state.phisical_col;
+            } else {
+                state.main_caret_pos.row = state.phisical_row;
+                state.main_caret_pos.col = state.phisical_col;
             }
             state.preedit_injected = true;
         }

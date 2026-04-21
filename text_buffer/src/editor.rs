@@ -431,6 +431,21 @@ mod tests {
                 prohibited_chars: LineBoundaryProhibitedChars::default(),
                 max_width: 100,
             },
+            // 文中の caret に preedit を差し込むケース
+            TestCase {
+                input: vec![
+                    EditorOperation::InsertString("テストテストテストテスト".to_string()),
+                    EditorOperation::BufferHead,
+                    EditorOperation::Forward,
+                    EditorOperation::Forward,
+                    EditorOperation::Forward,
+                    EditorOperation::Forward,
+                ],
+                preedit_string: "かな".to_string(),
+                output: "テストテストテストテスト".to_string(),
+                prohibited_chars: LineBoundaryProhibitedChars::default(),
+                max_width: 100,
+            },
             // 折り返しが起きるテストケース：preedit が max_width を超える
             TestCase {
                 input: vec![EditorOperation::InsertString("inline".to_string())],
@@ -482,6 +497,18 @@ mod tests {
             }
             println!("layout: {:#?}", layout);
             assert_eq!(layout.to_string(), case.output);
+
+            if let Some((last_preedit_char, last_preedit_pos)) = layout.preedit_chars.last() {
+                let expected_main_caret_pos = PhysicalPosition {
+                    row: last_preedit_pos.row,
+                    col: last_preedit_pos.col
+                        + TestWidthResolver.resolve_width(last_preedit_char.c),
+                };
+                assert_eq!(
+                    layout.main_caret_pos, expected_main_caret_pos,
+                    "main caret should be placed right after preedit"
+                );
+            }
         }
     }
 }
