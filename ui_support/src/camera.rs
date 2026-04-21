@@ -276,12 +276,17 @@ impl CameraController {
                 (visible_half_width / (w / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
             let height_fit_ratio =
                 (visible_half_height / (h / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
-            let whole_fit_ratio = width_fit_ratio.min(height_fit_ratio);
-            let focus_weight = 1.0 - whole_fit_ratio;
+            let focus_weight_x = 1.0 - width_fit_ratio;
+            let focus_weight_y = 1.0 - height_fit_ratio;
+            let focus_weight_z = focus_weight_x.max(focus_weight_y);
 
-            target
-                .last_position()
-                .lerp(target.focus_position(), focus_weight)
+            let last_position = target.last_position();
+            let focus_position = target.focus_position();
+            Vec3::new(
+                last_position.x + (focus_position.x - last_position.x) * focus_weight_x,
+                last_position.y + (focus_position.y - last_position.y) * focus_weight_y,
+                last_position.z + (focus_position.z - last_position.z) * focus_weight_z,
+            )
         };
 
         let camera_position = target_position + (target.rotation() * normal * (size));
