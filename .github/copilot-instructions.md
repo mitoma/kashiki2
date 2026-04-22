@@ -22,7 +22,7 @@
 
 ## 機能開発フロー
 
-機能開発を始める際は [`@.github/prompts/workflow-feature-dev.prompt.md`](prompts/workflow-feature-dev.prompt.md) のフローに従ってください。
+機能開発を始める際は [`doc/ai-agent/workflows/feature-dev.md`](doc/ai-agent/workflows/feature-dev.md) のフローに従ってください。
 
 ## コーディング規約
 
