@@ -273,11 +273,11 @@ impl CameraController {
             let visible_half_height = size * tan_half_fovy;
             let visible_half_width = visible_half_height * aspect;
             let width_fit_ratio =
-                (visible_half_width / (w / 1.8).max(f32::EPSILON)).clamp(0.0, 1.0);
+                (visible_half_width / (w / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
             let height_fit_ratio =
-                (visible_half_height / (h / 1.8).max(f32::EPSILON)).clamp(0.0, 1.0);
-            let focus_weight_x = 1.0 - width_fit_ratio;
-            let focus_weight_y = 1.0 - height_fit_ratio;
+                (visible_half_height / (h / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
+            let focus_weight_x = (1.0 - width_fit_ratio) * 1.2;
+            let focus_weight_y = (1.0 - height_fit_ratio) * 1.2;
             let focus_weight_z = focus_weight_x.max(focus_weight_y);
 
             let last_position = target.last_position();
