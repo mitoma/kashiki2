@@ -9,6 +9,8 @@ use crate::{
     screen_bind_group::ScreenBindGroup,
     screen_texture::{BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
+    shader_art_bind_group::ShaderArtUniformBuffer,
+    time::now_millis,
     vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
@@ -71,6 +73,12 @@ pub struct RasterizerPipeline {
     pub(crate) background_image_texture: Option<BackgroundImageTexture>,
     pub(crate) background_image_bind_group: BackgroundImageBindGroup,
     pub(crate) background_image_render_pipeline: wgpu::RenderPipeline,
+
+    // シェーダーアート
+    pub(crate) shader_art_pipeline: Option<wgpu::RenderPipeline>,
+    pub(crate) shader_art_uniform_buffer: ShaderArtUniformBuffer,
+    pub(crate) target_texture_format: wgpu::TextureFormat,
+    pub(crate) window_size: (u32, u32),
 
     // 画面に表示する用のパイプライン
     pub(crate) screen_bind_group: ScreenBindGroup,
@@ -321,6 +329,12 @@ impl RasterizerPipeline {
             background_image_bind_group,
             background_image_render_pipeline,
 
+            // シェーダーアート
+            shader_art_pipeline: None,
+            shader_art_uniform_buffer: ShaderArtUniformBuffer::new(device),
+            target_texture_format,
+            window_size: (width, height),
+
             // default
             screen_render_pipeline,
             screen_render_modal_background_pipeline,
@@ -430,7 +444,7 @@ impl RasterizerPipeline {
         screen_view: &wgpu::TextureView,
     ) {
         let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Screen Render Pass"),
+            label: Some("Screen Background Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: screen_view,
                 resolve_target: None,
@@ -446,6 +460,22 @@ impl RasterizerPipeline {
             multiview_mask: None,
         });
 
+        // シェーダーアートが設定されている場合は優先して描画
+        if let Some(shader_art_pipeline) = self.shader_art_pipeline.as_ref() {
+            let bind_group = self.shader_art_uniform_buffer.to_bind_group(device);
+            screen_render_pass.set_pipeline(shader_art_pipeline);
+            screen_render_pass.set_bind_group(0, &bind_group, &[]);
+            screen_render_pass
+                .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
+            screen_render_pass.set_index_buffer(
+                self.screen_vertex_buffer.index_buffer.slice(..),
+                wgpu::IndexFormat::Uint16,
+            );
+            screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
+            return;
+        }
+
+        // 背景画像が設定されている場合は描画
         let Some(background_image_texture) = self.background_image_texture.as_ref() else {
             return;
         };
@@ -475,11 +505,79 @@ impl RasterizerPipeline {
         });
     }
 
+    /// シェーダーアートを設定する。
+    /// `shader_source` が `None` の場合はシェーダーアートを解除する。
+    pub fn set_shader_art(&mut self, device: &wgpu::Device, shader_source: Option<&str>) {
+        let Some(source) = shader_source else {
+            self.shader_art_pipeline = None;
+            return;
+        };
+
+        let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Shader Art Module"),
+            source: wgpu::ShaderSource::Wgsl(source.into()),
+        });
+
+        let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Shader Art Pipeline Layout"),
+            bind_group_layouts: &[Some(&self.shader_art_uniform_buffer.bind_group_layout)],
+            immediate_size: 0,
+        });
+
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Shader Art Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader_module,
+                entry_point: Some("vs_main"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader_module,
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: self.target_texture_format,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            cache: None,
+            multiview_mask: None,
+        });
+
+        self.shader_art_pipeline = Some(pipeline);
+    }
+
     // render_state から呼び出す用。prepare という名前が適切か？
     #[inline]
     pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
         self.rasterizer_renderrer
             .overlap_bind_group
             .update_buffer(queue);
+
+        // シェーダーアートのユニフォームを更新
+        if self.shader_art_pipeline.is_some() {
+            let time_secs = now_millis() as f32 / 1000.0;
+            let (w, h) = self.window_size;
+            self.shader_art_uniform_buffer
+                .update(queue, time_secs, w as f32, h as f32);
+        }
     }
 }

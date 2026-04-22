@@ -116,6 +116,7 @@ async fn run_case(case_name: &str, args: &Args) {
         font_repository: build_font_repository(),
         performance_mode: false,
         background_image: None,
+        shader_art: None,
     };
 
     let image_iter = generate_image_iter(support, 100, web_time::Duration::from_millis(16)).await;

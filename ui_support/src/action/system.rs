@@ -679,3 +679,131 @@ impl ActionProcessor for SystemChangeBackgroundImage {
         }
     }
 }
+
+pub struct SystemSelectShaderArtUi;
+impl ActionProcessor for SystemSelectShaderArtUi {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "select-shader-art-ui".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        context: &UiContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let mut options = Vec::new();
+
+        let current_dir = if let ActionArgument::String(path) = arg {
+            PathBuf::from(path)
+        } else {
+            std::env::current_dir().unwrap()
+        };
+
+        if let Some(parent_dir) = current_dir.parent() {
+            options.push(SelectOption::new(
+                "📁 ../".to_string(),
+                Action::new_command_with_argument(
+                    "system",
+                    "select-shader-art-ui",
+                    parent_dir.to_str().unwrap(),
+                ),
+            ));
+        }
+
+        let Ok(dir) = std::fs::read_dir(current_dir) else {
+            return InputResult::Noop;
+        };
+
+        for entry in dir {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if path.is_dir() {
+                options.push(SelectOption::new(
+                    format!("📁 {}", path.file_name().unwrap().to_str().unwrap()),
+                    Action::new_command_with_argument(
+                        "system",
+                        "select-shader-art-ui",
+                        path.to_str().unwrap(),
+                    ),
+                ));
+            } else if path.is_file() {
+                let is_wgsl = path.extension().and_then(|e| e.to_str()) == Some("wgsl");
+                if !is_wgsl {
+                    continue;
+                }
+                options.push(SelectOption::new(
+                    format!("🎨 {}", path.file_name().unwrap().to_str().unwrap()),
+                    Action::new_command_with_argument(
+                        "system",
+                        "change-shader-art",
+                        path.to_str().unwrap(),
+                    ),
+                ));
+            }
+        }
+
+        options.push(SelectOption::new(
+            "🚫 シェーダーアートを使わない".to_string(),
+            Action::new_command("system", "change-shader-art"),
+        ));
+
+        let model = SelectBox::new_without_action_name(
+            context,
+            "シェーダーアートを選択する".to_string(),
+            options,
+            None,
+        );
+        let model_string = model.to_string();
+        context.register_string(model_string);
+
+        world.add_modal(Box::new(model));
+        world.re_layout();
+        world.look_modal(CameraAdjustment::FitBoth);
+
+        InputResult::InputConsumed
+    }
+}
+
+pub struct SystemChangeShaderArt;
+impl ActionProcessor for SystemChangeShaderArt {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-shader-art".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        _context: &UiContext,
+        _world: &mut dyn World,
+    ) -> InputResult {
+        match arg {
+            ActionArgument::String(path) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    match std::fs::read_to_string(path) {
+                        Ok(source) => InputResult::ChangeShaderArt(Some(source)),
+                        Err(e) => {
+                            log::warn!("Failed to read shader file {}: {}", path, e);
+                            InputResult::Noop
+                        }
+                    }
+                }
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let _ = path;
+                    InputResult::Noop
+                }
+            }
+            _ => InputResult::ChangeShaderArt(None),
+        }
+    }
+}

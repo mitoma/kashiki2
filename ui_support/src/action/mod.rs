@@ -44,6 +44,8 @@ impl ActionProcessorStore {
 
         self.add_processor(Box::new(SystemSelectBackgroundImageUi));
         self.add_processor(Box::new(SystemChangeBackgroundImage));
+        self.add_processor(Box::new(SystemSelectShaderArtUi));
+        self.add_processor(Box::new(SystemChangeShaderArt));
     }
 
     pub fn add_default_edit_processors(&mut self) {

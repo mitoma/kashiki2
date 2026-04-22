@@ -5,6 +5,7 @@ pub(crate) struct KashikishiConfig {
     pub(crate) ime_on_the_fly: bool,
     pub(crate) font: Option<String>,
     pub(crate) ascii_override_font: Option<String>,
+    pub(crate) background_shader: Option<String>,
 }
 
 impl Default for KashikishiConfig {
@@ -13,6 +14,7 @@ impl Default for KashikishiConfig {
             ime_on_the_fly: true,
             font: None,
             ascii_override_font: None,
+            background_shader: None,
         }
     }
 }

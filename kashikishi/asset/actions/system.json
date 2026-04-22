@@ -21,6 +21,11 @@
     },
     {
         "namespace": "system",
+        "name": "select-shader-art-ui",
+        "description": "背景シェーダーアートの変更"
+    },
+    {
+        "namespace": "system",
         "name": "change-font-ui",
         "description": "フォントの変更"
     },

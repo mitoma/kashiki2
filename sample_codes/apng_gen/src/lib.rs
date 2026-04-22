@@ -175,6 +175,7 @@ pub async fn run(
         font_repository,
         performance_mode: false,
         background_image,
+        shader_art: None,
     };
     log::info!("support initialized.");
 
