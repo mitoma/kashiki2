@@ -20,6 +20,11 @@ pub static BUILTIN_SHADERS: &[BuiltinShaderArt] = &[
         display_name: "スターフィールドワープ",
         source: include_str!("shader/sa_starfield_warp.wgsl"),
     },
+    BuiltinShaderArt {
+        name: "pale_snowfall",
+        display_name: "淡い雪景色",
+        source: include_str!("shader/sa_pale_snowfall.wgsl"),
+    },
 ];
 
 /// 識別名からシェーダーソースを取得する。見つからない場合は `None`。
