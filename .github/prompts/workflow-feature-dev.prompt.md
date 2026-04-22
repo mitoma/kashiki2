@@ -20,7 +20,8 @@ git worktree add ..\kashiki2-<feature-name> -b feature/<feature-name>
 
 ## Step 2: 実装
 
-worktree 内で実装を進めます。コミットは適切な粒度で積み上げてください。  
+worktree 内で実装を進めます。コミットは**意味的にひとまとまりになる単位**で行ってください。  
+「この変更は何をするものか」が一文で説明できる範囲を1コミットとします。  
 各コミットメッセージはコミット内容を日本語で簡潔に説明します。
 
 ```powershell
@@ -54,10 +55,21 @@ cargo test --all
 開発者の承認が得られたら PR を作成します。
 
 ```powershell
-gh pr create --base main --title "<PRタイトル>" --body "<変更概要>"
+gh pr create --base main --title "<PRタイトル>" --body "<本文>"
 ```
 
-PR タイトルは日本語で簡潔に、本文は変更内容・動作確認方法を記載します。
+PR タイトルは日本語で簡潔に記述します。  
+本文には以下を含めてください。
+
+```markdown
+## 目的
+
+（この PR で何を実現するか・なぜ必要か）
+
+## 実装の概要
+
+（どのように実現したか・主な変更点）
+```
 
 ## Step 6: worktree の後片付け（マージ後）
 
