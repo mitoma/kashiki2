@@ -5,6 +5,7 @@ pub(crate) struct KashikishiConfig {
     pub(crate) ime_on_the_fly: bool,
     pub(crate) font: Option<String>,
     pub(crate) ascii_override_font: Option<String>,
+    /// 組み込みシェーダーアートの識別名 (例: "starfield_warp", "gradient")
     pub(crate) background_shader: Option<String>,
 }
 

@@ -692,60 +692,19 @@ impl ActionProcessor for SystemSelectShaderArtUi {
 
     fn process(
         &self,
-        arg: &ActionArgument,
+        _arg: &ActionArgument,
         context: &UiContext,
         world: &mut dyn World,
     ) -> InputResult {
-        let mut options = Vec::new();
-
-        let current_dir = if let ActionArgument::String(path) = arg {
-            PathBuf::from(path)
-        } else {
-            std::env::current_dir().unwrap()
-        };
-
-        if let Some(parent_dir) = current_dir.parent() {
-            options.push(SelectOption::new(
-                "📁 ../".to_string(),
-                Action::new_command_with_argument(
-                    "system",
-                    "select-shader-art-ui",
-                    parent_dir.to_str().unwrap(),
-                ),
-            ));
-        }
-
-        let Ok(dir) = std::fs::read_dir(current_dir) else {
-            return InputResult::Noop;
-        };
-
-        for entry in dir {
-            let entry = entry.unwrap();
-            let path = entry.path();
-            if path.is_dir() {
-                options.push(SelectOption::new(
-                    format!("📁 {}", path.file_name().unwrap().to_str().unwrap()),
-                    Action::new_command_with_argument(
-                        "system",
-                        "select-shader-art-ui",
-                        path.to_str().unwrap(),
-                    ),
-                ));
-            } else if path.is_file() {
-                let is_wgsl = path.extension().and_then(|e| e.to_str()) == Some("wgsl");
-                if !is_wgsl {
-                    continue;
-                }
-                options.push(SelectOption::new(
-                    format!("🎨 {}", path.file_name().unwrap().to_str().unwrap()),
-                    Action::new_command_with_argument(
-                        "system",
-                        "change-shader-art",
-                        path.to_str().unwrap(),
-                    ),
-                ));
-            }
-        }
+        let mut options: Vec<SelectOption> = font_rasterizer::builtin_shader_art::BUILTIN_SHADERS
+            .iter()
+            .map(|shader| {
+                SelectOption::new(
+                    format!("🎨 {}", shader.display_name),
+                    Action::new_command_with_argument("system", "change-shader-art", shader.name),
+                )
+            })
+            .collect();
 
         options.push(SelectOption::new(
             "🚫 シェーダーアートを使わない".to_string(),
@@ -786,21 +745,13 @@ impl ActionProcessor for SystemChangeShaderArt {
         _world: &mut dyn World,
     ) -> InputResult {
         match arg {
-            ActionArgument::String(path) => {
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    match std::fs::read_to_string(path) {
-                        Ok(source) => InputResult::ChangeShaderArt(Some(source)),
-                        Err(e) => {
-                            log::warn!("Failed to read shader file {}: {}", path, e);
-                            InputResult::Noop
-                        }
+            ActionArgument::String(name) => {
+                match font_rasterizer::builtin_shader_art::find_by_name(name) {
+                    Some(source) => InputResult::ChangeShaderArt(Some(source.to_string())),
+                    None => {
+                        log::warn!("組み込みシェーダー '{}' が見つかりません", name);
+                        InputResult::Noop
                     }
-                }
-                #[cfg(target_arch = "wasm32")]
-                {
-                    let _ = path;
-                    InputResult::Noop
                 }
             }
             _ => InputResult::ChangeShaderArt(None),

@@ -150,18 +150,16 @@ pub async fn run(args: Args) {
     set_clock_mode(font_rasterizer::time::ClockMode::StepByStep);
     let window_size = WindowSize::new(800, 600);
 
-    // 設定ファイルで指定されたシェーダーアートを読み込む
-    let shader_art =
-        config
-            .background_shader
-            .as_ref()
-            .and_then(|path| match std::fs::read_to_string(path) {
-                Ok(source) => Some(source),
-                Err(e) => {
-                    log::warn!("Failed to load background shader '{}': {}", path, e);
-                    None
-                }
-            });
+    // 設定ファイルで指定された組み込みシェーダーアートを読み込む
+    let shader_art = config.background_shader.as_deref().and_then(|name| {
+        match font_rasterizer::builtin_shader_art::find_by_name(name) {
+            Some(source) => Some(source.to_string()),
+            None => {
+                log::warn!("組み込みシェーダー '{}' が見つかりません", name);
+                None
+            }
+        }
+    });
 
     let callback = KashikishiCallback::new(window_size, config);
     let support = SimpleStateSupport {
