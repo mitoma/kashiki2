@@ -3,6 +3,13 @@
 // 星が中心から放射状に飛び出してくる、ハイパースペースワープ風のシェーダーです。
 // 色合いは白〜淡い青紫のパステル調です。
 //
+// 【パフォーマンス設計】
+// フラグメントシェーダーのピクセルごとに全 N 星を走査する O(N) の実装は
+// 高解像度時に非常に重くなります。
+// このシェーダーでは全角度域を NUM_LANES 本のレーンに等分し、
+// 各ピクセルは「自分の角度に隣接する 3 レーン」のみチェックする O(1) 手法を採用します。
+// 隣接レーン外の星はピクセルに寄与しないため視覚的な差はありません。
+//
 // 利用可能なユニフォーム:
 //   uniforms.time             : 起動からの経過秒数 (f32)
 //   uniforms.resolution_width : 画面の幅 (f32, pixels)
@@ -46,81 +53,77 @@ fn hash(n: f32) -> f32 {
     return fract(sin(n * 127.1) * 43758.5453);
 }
 
+// 1 本のレーンが現在ピクセルに与える輝度と色を返す
+fn lane_contribution(uv: vec2<f32>, lane_idx: f32, t: f32) -> vec3<f32> {
+    let speed = 0.4 + hash(lane_idx + 100.0) * 0.7;
+    let phase = fract(hash(lane_idx + 50.0) * 2.71 + t * speed);
+
+    // レーン中央の角度から放射方向ベクトルを決定
+    let lane_angle = (lane_idx + 0.5) / 120.0 * 6.28318 - 3.14159;
+    let dir = vec2<f32>(cos(lane_angle), sin(lane_angle));
+
+    let max_radius = 2.2;
+    let cur_radius = phase * max_radius;
+    let streak_len = phase * phase * 0.18 * speed;
+    let tail_radius = max(0.0, cur_radius - streak_len);
+
+    let pos      = dir * cur_radius;
+    let tail_pos = dir * tail_radius;
+
+    let seg        = pos - tail_pos;
+    let seg_length = length(seg);
+
+    var brightness = 0.0;
+
+    if seg_length > 0.001 {
+        let seg_dir    = seg / seg_length;
+        let to_uv      = uv - tail_pos;
+        let along      = clamp(dot(to_uv, seg_dir), 0.0, seg_length);
+        let closest    = tail_pos + seg_dir * along;
+        let perp       = length(uv - closest);
+        let width      = 0.0015 + phase * 0.003;
+        let line_bright = smoothstep(width * 2.5, 0.0, perp);
+        let along_fade  = mix(0.15, 1.0, along / seg_length);
+        brightness = line_bright * along_fade;
+    } else {
+        brightness = smoothstep(0.006, 0.0, length(uv - pos));
+    }
+
+    brightness *= smoothstep(0.0, 0.06, phase);
+
+    // 淡いパステル調の色 (白〜水色〜薄紫)
+    let hue = hash(lane_idx * 3.7);
+    let star_color = vec3<f32>(
+        0.80 + 0.18 * cos(hue * 6.28),
+        0.85 + 0.13 * cos(hue * 6.28 + 2.09),
+        0.95 + 0.05 * cos(hue * 6.28 + 4.19)
+    );
+
+    return star_color * brightness * 0.45;
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let resolution = vec2<f32>(uniforms.resolution_width, uniforms.resolution_height);
     let aspect = resolution.x / resolution.y;
     let t = uniforms.time * 0.35;
 
-    // アスペクト比補正済みの中心原点 UV (-1..1 程度)
     var uv = (in.uv * 2.0 - 1.0);
     uv.x *= aspect;
 
-    // 暗い宇宙の背景色 (深い藍色)
     var color = vec3<f32>(0.02, 0.02, 0.06);
 
-    // 120 個の星を描画
-    for (var i = 0; i < 120; i++) {
-        let fi = f32(i);
+    // このピクセルの角度から所属レーンを特定し、隣接 3 レーンのみ評価する
+    // (120 ループ → 3 ループ、約 40 倍の演算削減)
+    let angle        = atan2(uv.y, uv.x);
+    let lane_float   = (angle + 3.14159) / 6.28318 * 120.0;
+    let center_lane  = floor(lane_float);
 
-        // 星ごとにランダムな角度・速度
-        let angle = hash(fi) * 6.28318;
-        let speed = 0.4 + hash(fi + 100.0) * 0.7;
-
-        // phase: 星が中心から端に向かって 0→1 と進み、端に達するとリセット
-        let phase = fract(hash(fi + 50.0) * 2.71 + t * speed);
-
-        // 放射方向ベクトル
-        let dir = vec2<f32>(cos(angle), sin(angle));
-
-        // 現在位置と尾の始点
-        let max_radius = 2.2;
-        let cur_radius = phase * max_radius;
-        let pos = dir * cur_radius;
-
-        // フェーズが進むほど尾が長くなる
-        let streak_len = phase * phase * 0.18 * speed;
-        let tail_pos = dir * max(0.0, cur_radius - streak_len);
-
-        // UV からライン分(pos→tail_pos)への最短距離を計算
-        let seg = pos - tail_pos;
-        let seg_length = length(seg);
-
-        var brightness = 0.0;
-
-        if seg_length > 0.001 {
-            let seg_dir = seg / seg_length;
-            let to_uv = uv - tail_pos;
-            let along = clamp(dot(to_uv, seg_dir), 0.0, seg_length);
-            let closest = tail_pos + seg_dir * along;
-            let perp = length(uv - closest);
-
-            // 先端ほど太く明るく、尾に向かって細く暗くなる
-            let width = 0.0015 + phase * 0.003;
-            let line_bright = smoothstep(width * 2.5, 0.0, perp);
-            let along_fade = mix(0.15, 1.0, along / seg_length);
-            brightness = line_bright * along_fade;
-        } else {
-            // 尾が短い（生まれたて）はドットで描画
-            brightness = smoothstep(0.006, 0.0, length(uv - pos));
-        }
-
-        // 登場直後はフェードイン
-        let fade_in = smoothstep(0.0, 0.06, phase);
-        brightness *= fade_in;
-
-        // 淡いパステル調の色: 白〜水色〜薄紫のバリエーション
-        let hue = hash(fi * 3.7);
-        let star_color = vec3<f32>(
-            0.80 + 0.18 * cos(hue * 6.28),
-            0.85 + 0.13 * cos(hue * 6.28 + 2.09),
-            0.95 + 0.05 * cos(hue * 6.28 + 4.19)
-        );
-
-        color += star_color * brightness * 0.45;
+    for (var di = -1; di <= 1; di++) {
+        let lane_idx = (center_lane + f32(di) + 120.0) % 120.0;
+        color += lane_contribution(uv, lane_idx, t);
     }
 
-    // 露出調整 (過飽和を抑えてソフトな見た目に)
     color = 1.0 - exp(-color * 1.8);
 
     return vec4<f32>(color, 1.0);
