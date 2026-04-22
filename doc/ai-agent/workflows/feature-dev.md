@@ -12,11 +12,11 @@ git fetch origin
 git checkout main
 git pull origin main
 
-# ブランチと worktree を同時に作成（kashiki2 リポジトリと同じ階層に配置）
-git worktree add ..\kashiki2-<feature-name> -b feature/<feature-name>
+# ブランチと worktree を同時に作成（doc/ai-agent/worktrees に配置）
+git worktree add doc\ai-agent\worktrees\kashiki2-<feature-name> -b feature/<feature-name>
 ```
 
-以降の作業は `..\kashiki2-<feature-name>` ディレクトリで行います。
+以降の作業は `doc\ai-agent\worktrees\kashiki2-<feature-name>` ディレクトリで行います。
 
 ## Step 2: 実装
 
@@ -25,7 +25,7 @@ worktree 内で実装を進めます。コミットは**意味的にひとまと
 各コミットメッセージはコミット内容を日本語で簡潔に説明します。
 
 ```powershell
-cd ..\kashiki2-<feature-name>
+cd doc\ai-agent\worktrees\kashiki2-<feature-name>
 # ... 実装 ...
 git add .
 git commit -m "feat: <変更内容の要約>"
@@ -77,6 +77,6 @@ PR がマージされたら worktree を削除します。
 
 ```powershell
 cd ..\kashiki2
-git worktree remove ..\kashiki2-<feature-name>
+git worktree remove doc\ai-agent\worktrees\kashiki2-<feature-name>
 git branch -d feature/<feature-name>
 ```
