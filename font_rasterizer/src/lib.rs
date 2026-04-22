@@ -17,6 +17,7 @@ pub mod rasterizer_renderrer;
 mod screen_bind_group;
 mod screen_texture;
 mod screen_vertex_buffer;
+pub mod shader_art_bind_group;
 pub mod svg;
 pub mod time;
 pub mod vector_instances;
