@@ -52,6 +52,7 @@ pub async fn run() {
         font_repository,
         performance_mode: false,
         background_image: None,
+        shader_art: None,
     };
     run_support(support).await;
 }

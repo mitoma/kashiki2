@@ -87,6 +87,7 @@ pub async fn run(args: Args) {
         font_repository,
         performance_mode: false,
         background_image: None,
+        shader_art: None,
     };
 
     info!("start generate images");
