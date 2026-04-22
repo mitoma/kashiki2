@@ -22,8 +22,8 @@ struct VertexOutput {
 fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
     var positions = array<vec2<f32>, 3>(
         vec2<f32>(-1.0, -3.0),
-        vec2<f32>( 3.0,  1.0),
-        vec2<f32>(-1.0,  1.0),
+        vec2<f32>(3.0, 1.0),
+        vec2<f32>(-1.0, 1.0),
     );
     var uvs = array<vec2<f32>, 3>(
         vec2<f32>(0.0, 2.0),
@@ -122,8 +122,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     color = color + vec3<f32>(snow * 0.55);
 
-    let vignette = smoothstep(1.45, 0.35, length(centered));
-    color = mix(vec3<f32>(0.57, 0.62, 0.68), color, vignette);
+    //let vignette = smoothstep(1.45, 0.35, length(centered));
+    //color = mix(vec3<f32>(0.57, 0.62, 0.68), color, vignette);
 
     return vec4<f32>(clamp(color, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);
 }
