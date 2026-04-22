@@ -20,6 +20,10 @@
 コードを変更した際は必ず `mise r check` を通過させてください。  
 開発は主に **Windows** 上で行われるため、Bash ではなく **PowerShell** を使用してください。
 
+## 機能開発フロー
+
+機能開発を始める際は [`@.github/prompts/workflow-feature-dev.prompt.md`](prompts/workflow-feature-dev.prompt.md) のフローに従ってください。
+
 ## コーディング規約
 
 - エラー型は `thiserror` で定義する
