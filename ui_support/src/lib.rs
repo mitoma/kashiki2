@@ -86,6 +86,7 @@ impl ApplicationHandler for App {
             font_repository,
             performance_mode,
             background_image,
+            shader_art,
         } = self.support.take().expect("Support is not set");
         #[allow(unused_mut)]
         let mut window_attributes = WindowAttributes::default()
@@ -145,6 +146,7 @@ impl ApplicationHandler for App {
                         performance_mode,
                         flags.contains(Flags::TRANCEPARENT),
                         background_image,
+                        shader_art,
                     ));
 
                     // focus があるときは 120 FPS ぐらいまで出してもいいが focus が無い時は 5 FPS 程度にする。(GPU の負荷が高いので)
@@ -181,6 +183,7 @@ impl ApplicationHandler for App {
                             performance_mode,
                             flags.contains(Flags::TRANCEPARENT),
                             background_image,
+                            shader_art,
                         )
                         .await;
 
@@ -281,6 +284,9 @@ impl ApplicationHandler for App {
             }
             InputResult::ChangeBackgroundImage(dynamic_image) => {
                 state.change_background_image(dynamic_image);
+            }
+            InputResult::ChangeShaderArt(shader_source) => {
+                state.change_shader_art(shader_source);
             }
             InputResult::ChangeFont(font_name) => {
                 state.change_font(font_name);
@@ -415,6 +421,9 @@ impl ApplicationHandler for App {
                 InputResult::ChangeBackgroundImage(dynamic_image) => {
                     state.change_background_image(dynamic_image);
                 }
+                InputResult::ChangeShaderArt(shader_source) => {
+                    state.change_shader_art(shader_source);
+                }
                 InputResult::ChangeFont(font_name) => {
                     state.change_font(font_name);
                 }
@@ -461,6 +470,7 @@ pub struct SimpleStateSupport {
     pub font_repository: FontRepository,
     pub performance_mode: bool,
     pub background_image: Option<DynamicImage>,
+    pub shader_art: Option<String>,
 }
 
 pub async fn run_support(support: SimpleStateSupport) {
@@ -508,6 +518,10 @@ fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> O
             state.change_background_image(dynamic_image);
             None
         }
+        InputResult::ChangeShaderArt(shader_source) => {
+            state.change_shader_art(shader_source);
+            None
+        }
         InputResult::ChangeFont(font_name) => {
             state.change_font(font_name);
             None
@@ -537,6 +551,7 @@ pub enum InputResult {
     ToggleDecorations,
     ChangeColorTheme(ColorTheme),
     ChangeBackgroundImage(Option<DynamicImage>),
+    ChangeShaderArt(Option<String>),
     ChangeGlobalDirection(Direction),
     ChangeWindowSize(WindowSize),
     ChangeFont(Option<String>),
@@ -586,6 +601,7 @@ pub async fn generate_images<F>(
         support.performance_mode,
         support.flags.contains(Flags::TRANCEPARENT),
         support.background_image,
+        support.shader_art,
     )
     .await;
     state.resize(support.window_size);
@@ -636,6 +652,7 @@ pub async fn generate_image_iter(
         support.performance_mode,
         support.flags.contains(Flags::TRANCEPARENT),
         support.background_image,
+        support.shader_art,
     )
     .await;
     state.resize(support.window_size);

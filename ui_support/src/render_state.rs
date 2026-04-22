@@ -258,6 +258,7 @@ pub(crate) struct RenderState {
 
     background_color: EasingPointN<4>,
     background_image: Option<DynamicImage>,
+    shader_art: Option<String>,
 
     pub(crate) ui_string_receiver: Receiver<String>,
     pub(crate) ui_svg_receiver: Receiver<(String, String)>,
@@ -276,6 +277,7 @@ impl RenderState {
         performance_mode: bool,
         transparent_background: bool,
         background_image: Option<DynamicImage>,
+        shader_art: Option<String>,
     ) -> Self {
         let window_size = render_target_request.window_size();
 
@@ -471,6 +473,7 @@ impl RenderState {
 
             background_color,
             background_image: background_image.clone(),
+            shader_art: shader_art.clone(),
 
             ui_string_receiver,
             ui_svg_receiver,
@@ -487,6 +490,13 @@ impl RenderState {
             );
             let [r, g, b] = render_state.context.color_theme().background().get_color();
             render_state.background_color.update([r, g, b, 0.0]);
+        }
+
+        // Set shader art if provided
+        if let Some(ref source) = shader_art {
+            render_state
+                .rasterizer_pipeline
+                .set_shader_art(render_state.context.device(), Some(source));
         }
 
         render_state
@@ -517,6 +527,12 @@ impl RenderState {
             self.context.queue(),
             self.background_image.as_ref(),
         );
+    }
+
+    pub(crate) fn change_shader_art(&mut self, shader_source: Option<String>) {
+        self.shader_art = shader_source;
+        self.rasterizer_pipeline
+            .set_shader_art(self.context.device(), self.shader_art.as_deref());
     }
 
     pub(crate) fn resize(&mut self, new_size: WindowSize) {
@@ -591,6 +607,8 @@ impl RenderState {
                 self.context.queue(),
                 self.background_image.as_ref(),
             );
+            self.rasterizer_pipeline
+                .set_shader_art(self.context.device(), self.shader_art.as_deref());
         }
     }
 
@@ -810,6 +828,8 @@ impl RenderState {
                 self.context.queue(),
                 self.background_image.as_ref(),
             );
+            self.rasterizer_pipeline
+                .set_shader_art(self.context.device(), self.shader_art.as_deref());
         }
     }
 }
