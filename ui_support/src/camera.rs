@@ -251,7 +251,7 @@ impl CameraController {
         // aspect は width / height
         let (w, h) = target.bound();
         // bound にちょっと余裕を持たせる。
-        let (w, h) = (w + 3.0, h + 3.0);
+        let (w, h) = (w * 1.1, h * 1.1);
         let tan_half_fovy = (camera.fovy.to_radians() / 2.0).tan();
         let aspect = camera.aspect.max(f32::EPSILON);
         let size = match adjustment {
@@ -269,22 +269,88 @@ impl CameraController {
         };
 
         let target_position: Vec3 = {
-            // 現在の size で見える領域比率を使って、全体表示(last)と注視点(focus)を補間する。
+            // A-2改善: X/Y軸ごとに連続補間しつつ、可能なら片側エッジを画面内に残す。
             let visible_half_height = size * tan_half_fovy;
             let visible_half_width = visible_half_height * aspect;
             let width_fit_ratio =
                 (visible_half_width / (w / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
             let height_fit_ratio =
                 (visible_half_height / (h / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
-            let focus_weight_x = (1.0 - width_fit_ratio) * 1.2;
-            let focus_weight_y = (1.0 - height_fit_ratio) * 1.2;
-            let focus_weight_z = focus_weight_x.max(focus_weight_y);
 
             let last_position = target.last_position();
             let focus_position = target.focus_position();
+
+            let calc_axis = |position_axis: f32,
+                             focus_axis: f32,
+                             half_bound: f32,
+                             visible_half: f32,
+                             fit_ratio: f32|
+             -> (f32, f32) {
+                if fit_ratio >= 1.0 || half_bound <= f32::EPSILON {
+                    return (position_axis, 0.0);
+                }
+
+                let overflow_weight = 1.0 - fit_ratio;
+                let blended = position_axis + (focus_axis - position_axis) * overflow_weight;
+
+                let left_edge = position_axis - half_bound;
+                let right_edge = position_axis + half_bound;
+                let left_anchor = left_edge + visible_half;
+                let right_anchor = right_edge - visible_half;
+
+                let can_include_left = (focus_axis - left_anchor).abs() <= visible_half;
+                let can_include_right = (focus_axis - right_anchor).abs() <= visible_half;
+
+                let boundary_anchor = if focus_axis >= position_axis {
+                    if can_include_right {
+                        right_anchor
+                    } else if can_include_left {
+                        left_anchor
+                    } else {
+                        focus_axis
+                    }
+                } else if can_include_left {
+                    left_anchor
+                } else if can_include_right {
+                    right_anchor
+                } else {
+                    focus_axis
+                };
+
+                let mut axis = blended + (boundary_anchor - blended) * overflow_weight;
+
+                // focus は常に画面内に含める。
+                let focus_min = focus_axis - visible_half;
+                let focus_max = focus_axis + visible_half;
+                axis = axis.clamp(focus_min.min(focus_max), focus_min.max(focus_max));
+
+                // 位置はpositionとfocusの間を連続的に遷移させる。
+                let between_min = position_axis.min(focus_axis);
+                let between_max = position_axis.max(focus_axis);
+                axis = axis.clamp(between_min, between_max);
+
+                (axis, overflow_weight)
+            };
+
+            let (x, focus_weight_x) = calc_axis(
+                last_position.x,
+                focus_position.x,
+                w / 2.0,
+                visible_half_width,
+                width_fit_ratio,
+            );
+            let (y, focus_weight_y) = calc_axis(
+                last_position.y,
+                focus_position.y,
+                h / 2.0,
+                visible_half_height,
+                height_fit_ratio,
+            );
+            let focus_weight_z = focus_weight_x.max(focus_weight_y);
+
             Vec3::new(
-                last_position.x + (focus_position.x - last_position.x) * focus_weight_x,
-                last_position.y + (focus_position.y - last_position.y) * focus_weight_y,
+                x,
+                y,
                 last_position.z + (focus_position.z - last_position.z) * focus_weight_z,
             )
         };
