@@ -13,7 +13,9 @@ struct ShaderArtUniforms {
     time: f32,
     resolution_width: f32,
     resolution_height: f32,
+    // vec4<f32> の 16 バイトアライメントを合わせるためのパディング
     _padding: f32,
+    background_color: [f32; 4],
 }
 
 impl ShaderArtUniformBuffer {
@@ -51,12 +53,14 @@ impl ShaderArtUniformBuffer {
         time_secs: f32,
         resolution_width: f32,
         resolution_height: f32,
+        background_color: [f32; 4],
     ) {
         let uniforms = ShaderArtUniforms {
             time: time_secs,
             resolution_width,
             resolution_height,
             _padding: 0.0,
+            background_color,
         };
         queue.write_buffer(&self.buffer, 0, bytemuck::bytes_of(&uniforms));
     }

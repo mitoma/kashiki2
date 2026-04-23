@@ -2,12 +2,14 @@
 //
 // kashikishi の設定ファイル (~/.config/kashikishi/config.json) で
 // "background_shader" にこのファイルのパスを指定すると背景に適用されます。
+// 背景色は uniforms.background_color を使用し、雪の色は背景色からコントラスト差を持つ色を導出します。
 
 struct ShaderArtUniforms {
     time: f32,
     resolution_width: f32,
     resolution_height: f32,
     _padding: f32,
+    background_color: vec4<f32>,
 }
 
 @group(0) @binding(0)
@@ -102,28 +104,42 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         uv.y * 2.0 - 1.0,
     );
 
-    let sky_bottom = vec3<f32>(0.62, 0.68, 0.74);
-    let sky_top = vec3<f32>(0.74, 0.79, 0.85);
+    let bg_color = uniforms.background_color.rgb;
+    let bg_luma  = dot(bg_color, vec3<f32>(0.2126, 0.7152, 0.0722));
+
+    // 背景色のやや明るい/暗いバリアントでグラジエントを作る
+    let sky_offset = select(vec3<f32>(-0.08), vec3<f32>(0.08), bg_luma < 0.5);
+    let sky_bottom = clamp(bg_color + sky_offset * 0.5, vec3<f32>(0.0), vec3<f32>(1.0));
+    let sky_top    = clamp(bg_color + sky_offset,       vec3<f32>(0.0), vec3<f32>(1.0));
     var color = mix(sky_bottom, sky_top, clamp(uv.y, 0.0, 1.0));
 
     let mist = fbm(centered * 1.4 + vec2<f32>(0.0, t * 0.03));
-    color = color + vec3<f32>(0.02, 0.02, 0.03) * (mist - 0.5);
+    let mist_tint = select(vec3<f32>(0.02, 0.02, 0.03), vec3<f32>(-0.02, -0.02, -0.03), bg_luma >= 0.5);
+    color = color + mist_tint * (mist - 0.5);
 
+    // 地面: 背景より少し明るい or 暗い
+    let ground_shift = select(vec3<f32>(0.10), vec3<f32>(-0.08), bg_luma >= 0.5);
     let ground_mask = 1.0 - smoothstep(0.28, 0.46, uv.y);
     let ground_tex = fbm(vec2<f32>(uv.x * 5.0, uv.y * 18.0) + vec2<f32>(0.0, t * 0.02));
-    let ground_color = vec3<f32>(0.78, 0.83, 0.88) + vec3<f32>(ground_tex * 0.03);
+    let ground_color = clamp(bg_color + ground_shift + vec3<f32>(ground_tex * 0.03), vec3<f32>(0.0), vec3<f32>(1.0));
     color = mix(color, ground_color, ground_mask);
 
     let snow_uv = vec2<f32>(centered.x, uv.y);
-    let snow_far = snow_layer(snow_uv, t, 14.0, 0.06, 0.15) * 0.35;
-    let snow_mid = snow_layer(snow_uv, t, 24.0, 0.12, 0.25) * 0.45;
+    let snow_far  = snow_layer(snow_uv, t, 14.0, 0.06, 0.15) * 0.35;
+    let snow_mid  = snow_layer(snow_uv, t, 24.0, 0.12, 0.25) * 0.45;
     let snow_near = snow_layer(snow_uv, t, 38.0, 0.22, 0.40) * 0.65;
     let snow = snow_far + snow_mid + snow_near;
 
-    color = color + vec3<f32>(snow * 0.55);
-
-    //let vignette = smoothstep(1.45, 0.35, length(centered));
-    //color = mix(vec3<f32>(0.57, 0.62, 0.68), color, vignette);
+    // 雪の色: 背景の補色方向に輝度差をつける
+    let inv_bg   = 1.0 - bg_color;
+    let inv_luma = dot(inv_bg, vec3<f32>(0.2126, 0.7152, 0.0722));
+    let snow_color = clamp(inv_bg / max(inv_luma, 0.001) * 0.80, vec3<f32>(0.0), vec3<f32>(1.0));
+    let snow_blend = select(
+        clamp(color + snow_color * snow * 0.55, vec3<f32>(0.0), vec3<f32>(1.0)),
+        clamp(color - snow_color * snow * 0.45, vec3<f32>(0.0), vec3<f32>(1.0)),
+        bg_luma >= 0.5
+    );
+    color = snow_blend;
 
     return vec4<f32>(clamp(color, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);
 }
