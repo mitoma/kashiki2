@@ -15,11 +15,18 @@
 //   uniforms.resolution_width : 画面の幅 (f32, pixels)
 //   uniforms.resolution_height: 画面の高さ (f32, pixels)
 
+// 利用可能なユニフォーム:
+//   uniforms.time             : 起動からの経過秒数 (f32)
+//   uniforms.resolution_width : 画面の幅 (f32, pixels)
+//   uniforms.resolution_height: 画面の高さ (f32, pixels)
+//   uniforms.background_color : 背景色 (vec4<f32>, RGBA)
+
 struct ShaderArtUniforms {
     time: f32,
     resolution_width: f32,
     resolution_height: f32,
     _padding: f32,
+    background_color: vec4<f32>,
 }
 
 @group(0) @binding(0)

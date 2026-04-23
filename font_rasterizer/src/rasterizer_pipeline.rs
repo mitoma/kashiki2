@@ -576,8 +576,14 @@ impl RasterizerPipeline {
         if self.shader_art_pipeline.is_some() {
             let time_secs = now_millis() as f32 / 1000.0;
             let (w, h) = self.window_size;
-            self.shader_art_uniform_buffer
-                .update(queue, time_secs, w as f32, h as f32);
+            let bg = self.bg_color;
+            self.shader_art_uniform_buffer.update(
+                queue,
+                time_secs,
+                w as f32,
+                h as f32,
+                [bg.r as f32, bg.g as f32, bg.b as f32, bg.a as f32],
+            );
         }
     }
 }

@@ -8,6 +8,7 @@ struct ShaderArtUniforms {
     resolution_width: f32,
     resolution_height: f32,
     _padding: f32,
+    background_color: vec4<f32>,
 }
 
 @group(0) @binding(0)
