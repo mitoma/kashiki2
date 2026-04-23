@@ -47,17 +47,23 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> VertexOutput {
     return out;
 }
 
-// フラグメントシェーダー: ここを自由に書き換えてください
+// フラグメントシェーダー: background_color をベースに弱く色変化するレインボー
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let resolution = vec2<f32>(uniforms.resolution_width, uniforms.resolution_height);
     let uv = in.uv;
     let t = uniforms.time;
 
-    // サンプル: 時間とともに変化するグラデーション
-    let r = 0.5 + 0.5 * sin(t + uv.x * 3.14159);
-    let g = 0.5 + 0.5 * sin(t * 0.7 + uv.y * 3.14159);
-    let b = 0.5 + 0.5 * cos(t * 1.3);
+    let bg = uniforms.background_color.rgb;
 
-    return vec4<f32>(r, g, b, 1.0);
+    // 視認性を落とさないよう振れ幅を小さく (±0.08) に抑えたカラーウェーブ
+    let wave = vec3<f32>(
+        0.08 * sin(t        + uv.x * 3.14159),
+        0.08 * sin(t * 0.7  + uv.y * 3.14159),
+        0.08 * cos(t * 1.3  + (uv.x + uv.y) * 1.5708),
+    );
+
+    let color = clamp(bg + wave, vec3<f32>(0.0), vec3<f32>(1.0));
+
+    return vec4<f32>(color, 1.0);
 }

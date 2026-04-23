@@ -1,20 +1,8 @@
 // スターフィールドワープシェーダー (Star Wars 風の流れる星)
 //
 // 星が中心から放射状に飛び出してくる、ハイパースペースワープ風のシェーダーです。
-// 色合いは白〜淡い青紫のパステル調です。
+// 背景色は uniforms.background_color を使用し、星の色は背景色の補色から自動導出されます。
 //
-// 【パフォーマンス設計】
-// フラグメントシェーダーのピクセルごとに全 N 星を走査する O(N) の実装は
-// 高解像度時に非常に重くなります。
-// このシェーダーでは全角度域を NUM_LANES 本のレーンに等分し、
-// 各ピクセルは「自分の角度に隣接する 3 レーン」のみチェックする O(1) 手法を採用します。
-// 隣接レーン外の星はピクセルに寄与しないため視覚的な差はありません。
-//
-// 利用可能なユニフォーム:
-//   uniforms.time             : 起動からの経過秒数 (f32)
-//   uniforms.resolution_width : 画面の幅 (f32, pixels)
-//   uniforms.resolution_height: 画面の高さ (f32, pixels)
-
 // 利用可能なユニフォーム:
 //   uniforms.time             : 起動からの経過秒数 (f32)
 //   uniforms.resolution_width : 画面の幅 (f32, pixels)
@@ -61,7 +49,7 @@ fn hash(n: f32) -> f32 {
 }
 
 // 1 本のレーンが現在ピクセルに与える輝度と色を返す
-fn lane_contribution(uv: vec2<f32>, lane_idx: f32, t: f32) -> vec3<f32> {
+fn lane_contribution(uv: vec2<f32>, lane_idx: f32, t: f32, bg_color: vec3<f32>) -> vec3<f32> {
     let speed = 0.4 + hash(lane_idx + 100.0) * 0.7;
     let phase = fract(hash(lane_idx + 50.0) * 2.71 + t * speed);
 
@@ -98,13 +86,13 @@ fn lane_contribution(uv: vec2<f32>, lane_idx: f32, t: f32) -> vec3<f32> {
 
     brightness *= smoothstep(0.0, 0.06, phase);
 
-    // 淡いパステル調の色 (白〜水色〜薄紫)
+    // 背景の補色を基準に、ハッシュで色相バリエーションを加えてコントラストのある星色を導出
     let hue = hash(lane_idx * 3.7);
-    let star_color = vec3<f32>(
-        0.80 + 0.18 * cos(hue * 6.28),
-        0.85 + 0.13 * cos(hue * 6.28 + 2.09),
-        0.95 + 0.05 * cos(hue * 6.28 + 4.19)
-    );
+    let inv_bg = 1.0 - bg_color;
+    let inv_luma = dot(inv_bg, vec3<f32>(0.2126, 0.7152, 0.0722));
+    let base = inv_bg / max(inv_luma, 0.001) * 0.85;
+    let hue_shift = 0.15 * cos(hue * 6.28318 + vec3<f32>(0.0, 2.094, 4.189));
+    let star_color = clamp(base + hue_shift, vec3<f32>(0.0), vec3<f32>(1.0));
 
     return star_color * brightness * 0.45;
 }
@@ -118,7 +106,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var uv = (in.uv * 2.0 - 1.0);
     uv.x *= aspect;
 
-    var color = vec3<f32>(0.02, 0.02, 0.06);
+    let bg_color = uniforms.background_color.rgb;
+    let bg_luma  = dot(bg_color, vec3<f32>(0.2126, 0.7152, 0.0722));
+    var stars = vec3<f32>(0.0);
 
     // このピクセルの角度から所属レーンを特定し、隣接 3 レーンのみ評価する
     // (120 ループ → 3 ループ、約 40 倍の演算削減)
@@ -128,10 +118,15 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     for (var di = -1; di <= 1; di++) {
         let lane_idx = (center_lane + f32(di) + 120.0) % 120.0;
-        color += lane_contribution(uv, lane_idx, t);
+        stars += lane_contribution(uv, lane_idx, t, bg_color);
     }
 
-    color = 1.0 - exp(-color * 1.8);
+    stars = 1.0 - exp(-stars * 1.8);
 
-    return vec4<f32>(color, 1.0);
+    // 背景が暗ければ星を加算（明るい星）、明るければ減算（暗い星）でコントラストを確保
+    let final_color = clamp(
+        select(bg_color - stars, bg_color + stars, bg_luma < 0.5),
+        vec3<f32>(0.0), vec3<f32>(1.0)
+    );
+    return vec4<f32>(final_color, 1.0);
 }
