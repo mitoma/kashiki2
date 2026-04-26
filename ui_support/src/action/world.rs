@@ -60,14 +60,28 @@ fn look_current(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn Wor
     world.look_current(CameraAdjustment::NoCare);
 }
 
+fn arg_to_camera_adjustment(arg: &ActionArgument) -> CameraAdjustment {
+    match arg {
+        ActionArgument::String(camera_adjustment) => match camera_adjustment.as_str() {
+            "fit-both" => CameraAdjustment::FitBoth,
+            "fit-width" => CameraAdjustment::FitWidth,
+            "fit-height" => CameraAdjustment::FitHeight,
+            _ => CameraAdjustment::NoCare,
+        },
+        _ => CameraAdjustment::NoCare,
+    }
+}
+
 world_processor!(WorldLookNext, "look-next", look_next);
-fn look_next(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
-    world.look_next(CameraAdjustment::NoCare);
+fn look_next(arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    let adjustment = arg_to_camera_adjustment(arg);
+    world.look_next(adjustment);
 }
 
 world_processor!(WorldLookPrev, "look-prev", look_prev);
-fn look_prev(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
-    world.look_prev(CameraAdjustment::NoCare);
+fn look_prev(arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    let adjustment = arg_to_camera_adjustment(arg);
+    world.look_prev(adjustment);
 }
 
 world_processor!(WorldSwapNext, "swap-next", swap_next);
