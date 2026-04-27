@@ -344,12 +344,15 @@ impl From<Color> for wgpu::Color {
     fn from(value: Color) -> Self {
         match value {
             Color::Solarized(color) => color.into(),
-            Color::Custom { r, g, b } => Self {
-                r: r as f64 / 255.0,
-                g: g as f64 / 255.0,
-                b: b as f64 / 255.0,
-                a: 1.0,
-            },
+            Color::Custom { .. } => {
+                let [r, g, b] = value.get_color();
+                Self {
+                    r: r as f64,
+                    g: g as f64,
+                    b: b as f64,
+                    a: 1.0,
+                }
+            }
         }
     }
 }
