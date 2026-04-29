@@ -207,10 +207,15 @@ impl CameraController {
         // 向きへの距離
         let forward_mag = forward.length();
 
-        // TODO: 近づきすぎないようにしているが、もう少し良い制御したいよ
-        if self.is_forward_pressed && forward_mag > self.speed {
+        if self.is_forward_pressed {
+            // TODO: 追い越さないようにスピードより距離が近いときは距離に応じたスピードにする
+            let speed = if forward_mag > self.speed {
+                self.speed
+            } else {
+                forward_mag / 3.0
+            };
             // カメラの位置に向きの単位行列 * 速度分足加える(近づく)
-            current_eye += forward_norm * self.speed;
+            current_eye += forward_norm * speed;
         }
         if self.is_backward_pressed {
             // カメラの位置に向きの単位行列 * 速度分足引く(離れる)
