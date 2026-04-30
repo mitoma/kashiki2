@@ -194,7 +194,9 @@ dependencies = [
  "log",
  "png",
  "pollster",
+ "rav1e",
  "regex",
+ "shiguredo_mp4",
  "stroke_parser",
  "text_buffer",
  "ui_support",
@@ -2830,6 +2832,12 @@ checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
 dependencies = [
  "serde_core",
 ]
+
+[[package]]
+name = "shiguredo_mp4"
+version = "2026.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b135058874815f8f13edae644ceedb659f7238fe4a9e2b1bdceecc72dc659b35"
 
 [[package]]
 name = "shlex"

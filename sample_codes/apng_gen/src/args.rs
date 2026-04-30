@@ -20,6 +20,15 @@ pub struct Args {
     pub window_size: WindowSizeArg,
     #[arg(long, default_value_t = false)]
     pub transparent_bg: bool,
+    #[arg(short = 'f', long, default_value = "apng")]
+    pub output_format: OutputFormatArg,
+}
+
+#[derive(Clone, Debug, ValueEnum, Default)]
+pub enum OutputFormatArg {
+    #[default]
+    Apng,
+    Mp4,
 }
 
 #[derive(Clone, Debug, ValueEnum, Default)]

@@ -84,6 +84,8 @@ winresource = "0.1.31"
 
 regex = "1.12.3"
 png = "0.18.1"
+rav1e = { version = "0.8.1", default-features = false, features = ["threading"] }
+shiguredo_mp4 = "2026.3.0"
 
 [profile.release-optimized]
 inherits = "release"

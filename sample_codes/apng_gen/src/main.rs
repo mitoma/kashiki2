@@ -16,5 +16,6 @@ fn main() {
         args.transparent_bg,
         None,
         Some(include_bytes!("../../../kashikishi/asset/image/wallpaper.jpg").to_vec()),
+        args.output_format.into(),
     ));
 }
