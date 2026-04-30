@@ -1,5 +1,16 @@
 import init, * as apng from "../wasm/apng_gen/apng_gen.js";
 
+const OUTPUT_META = {
+    apng: {
+        mime: "image/apng",
+        ext: "apng",
+    },
+    mp4: {
+        mime: "video/mp4",
+        ext: "mp4",
+    },
+};
+
 // ローカルフォント一覧を取得
 async function loadLocalFonts() {
     if (!("queryLocalFonts" in window)) {
@@ -29,6 +40,38 @@ async function loadLocalFonts() {
 async function blobToUint8Array(blob) {
     const arrayBuffer = await blob.arrayBuffer();
     return new Uint8Array(arrayBuffer);
+}
+
+function clearNode(node) {
+    while (node.firstChild) {
+        node.removeChild(node.firstChild);
+    }
+}
+
+function createDownloadLink(url, ext) {
+    const downloadLink = document.createElement("a");
+    downloadLink.href = url;
+    downloadLink.download = `kashikishi-animation.${ext}`;
+    downloadLink.textContent = `Download ${ext.toUpperCase()}`;
+    downloadLink.style.display = "inline-block";
+    downloadLink.style.marginTop = "8px";
+    return downloadLink;
+}
+
+function createOutputElement(url, format) {
+    if (format === "mp4") {
+        const video = document.createElement("video");
+        video.src = url;
+        video.controls = true;
+        video.playsInline = true;
+        video.style.maxWidth = "100%";
+        return video;
+    }
+    const image = document.createElement("img");
+    image.src = url;
+    image.alt = "Generated APNG";
+    image.style.maxWidth = "100%";
+    return image;
 }
 
 init().then(async () => {
@@ -124,6 +167,8 @@ init().then(async () => {
         const selectedMotionType = motionTypeSelect.value;
         const fps = document.getElementById("fps");
         const fpsNum = fps.value;
+        const outputFormatSelect = document.getElementById("output-format");
+        const outputFormat = outputFormatSelect.value;
         const transparentBgCheckbox = document.getElementById("transparent-bg");
         const transparentBg = transparentBgCheckbox.checked ? true : false;
 
@@ -148,26 +193,35 @@ init().then(async () => {
             );
         }
 
-        apng.run_wasm(
-            message.value,
-            selectedSize,
-            selectedTheme,
-            selectedMotionType,
-            fpsNum,
-            transparentBg,
-            selectedFontBinary,
-            backgroundImageBinary
-        ).then((res) => {
-            const blob = new Blob([res], { type: "image/apng" });
+        const meta = OUTPUT_META[outputFormat] || OUTPUT_META.apng;
+        const output = document.getElementById("output");
+
+        try {
+            const res = await apng.run_wasm(
+                message.value,
+                selectedSize,
+                selectedTheme,
+                selectedMotionType,
+                fpsNum,
+                transparentBg,
+                selectedFontBinary,
+                backgroundImageBinary,
+                outputFormat
+            );
+
+            const blob = new Blob([res], { type: meta.mime });
             const url = URL.createObjectURL(blob);
-            // Display the generated image
-            const img = document.createElement("img");
-            img.src = url;
-            const output = document.getElementById("output");
-            // Clear previous output
-            output.innerHTML = "";
-            output.appendChild(img);
-        });
+
+            clearNode(output);
+            output.appendChild(createOutputElement(url, outputFormat));
+            output.appendChild(createDownloadLink(url, meta.ext));
+        } catch (err) {
+            console.error("Failed to generate animation", err);
+            clearNode(output);
+            const error = document.createElement("p");
+            error.textContent = "Failed to generate animation. Please check browser console.";
+            output.appendChild(error);
+        }
     });
 });
 

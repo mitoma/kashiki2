@@ -17,9 +17,7 @@ use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_p
 #[cfg(target_arch = "wasm32")]
 use js_sys::Uint8Array;
 use log::info;
-#[cfg(not(target_arch = "wasm32"))]
 use rav1e::prelude::*;
-#[cfg(not(target_arch = "wasm32"))]
 use shiguredo_mp4::{
     TrackKind, Uint,
     boxes::{Av01Box, Av1cBox, SampleEntry, VisualSampleEntryFields},
@@ -29,7 +27,6 @@ use ui_support::{Flags, SimpleStateSupport, generate_images, ui_context::CharEas
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub use crate::args::OutputFormatArg;
 #[cfg(target_arch = "wasm32")]
 use crate::args::WindowSizeArg;
@@ -39,7 +36,6 @@ use crate::{acrion_record_converter::ActionRecordConverter, callback::Callback};
 const FONT_DATA: &[u8] = include_bytes!("../../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../../fonts/NotoEmoji-Regular.ttf");
 
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone, Copy, Debug, Default)]
 pub enum OutputFormat {
     #[default]
@@ -47,7 +43,6 @@ pub enum OutputFormat {
     Mp4,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl OutputFormat {
     fn output_path(self) -> &'static str {
         match self {
@@ -57,7 +52,6 @@ impl OutputFormat {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl From<OutputFormatArg> for OutputFormat {
     fn from(value: OutputFormatArg) -> Self {
         match value {
@@ -86,6 +80,7 @@ pub async fn run_wasm(
     transparent_bg: bool,
     font_binary: Option<Uint8Array>,
     background_image_binary: Option<Uint8Array>,
+    output_format: &str,
 ) -> Vec<u8> {
     let window_size = WindowSizeArg::from_str(window_size, true)
         .unwrap_or_default()
@@ -96,37 +91,58 @@ pub async fn run_wasm(
     let easing_preset = CharEasingsPresetArg::from_str(easing_preset, true)
         .unwrap_or_default()
         .into();
+    let output_format = OutputFormatArg::from_str(output_format, true).unwrap_or_default();
     let fps_num: u32 = fps.parse().unwrap_or(24);
 
     // Convert Uint8Array to Vec<u8> if provided
     let font_binary_vec = font_binary.map(|arr| arr.to_vec());
     let background_image_binary_vec = background_image_binary.map(|arr| arr.to_vec());
 
-    run(
-        target_string,
-        window_size,
-        color_theme,
-        easing_preset,
-        fps_num,
-        transparent_bg,
-        font_binary_vec,
-        background_image_binary_vec,
-        Some(Box::new(|idx, total| {
-            web_sys::window()
-                .unwrap()
-                .document()
-                .unwrap()
-                .get_element_by_id("progress")
-                .unwrap()
-                .set_inner_html(&format!(
-                    "Progress: {}/{} ({:.2}%)",
-                    idx,
-                    total,
-                    (idx as f64 / total as f64) * 100.0
-                ));
-        })),
-    )
-    .await
+    let progress_callback = Some(Box::new(|idx: u32, total: u32| {
+        web_sys::window()
+            .unwrap()
+            .document()
+            .unwrap()
+            .get_element_by_id("progress")
+            .unwrap()
+            .set_inner_html(&format!(
+                "Progress: {}/{} ({:.2}%)",
+                idx,
+                total,
+                (idx as f64 / total as f64) * 100.0
+            ));
+    }) as Box<dyn Fn(u32, u32) + Send + 'static>);
+
+    match OutputFormat::from(output_format) {
+        OutputFormat::Apng => {
+            run(
+                target_string,
+                window_size,
+                color_theme,
+                easing_preset,
+                fps_num,
+                transparent_bg,
+                font_binary_vec,
+                background_image_binary_vec,
+                progress_callback,
+            )
+            .await
+        }
+        OutputFormat::Mp4 => {
+            run_mp4(
+                target_string,
+                window_size,
+                color_theme,
+                easing_preset,
+                fps_num,
+                transparent_bg,
+                font_binary_vec,
+                background_image_binary_vec,
+                progress_callback,
+            )
+            .await
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -312,7 +328,6 @@ pub async fn run(
     encoder.get_writer().into_inner()
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 #[allow(clippy::too_many_arguments)]
 pub async fn run_mp4(
     target_string: &str,
@@ -359,7 +374,6 @@ pub async fn run_mp4(
     encoder.lock().unwrap().finish()
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 struct Mp4VideoEncoder {
     context: rav1e::Context<u8>,
     muxer: Mp4FileMuxer,
@@ -368,7 +382,6 @@ struct Mp4VideoEncoder {
     timescale: NonZeroU32,
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 impl Mp4VideoEncoder {
     fn new(window_size: WindowSize, fps: u32, total_frames: u32) -> Self {
         let mut encoder_config = EncoderConfig::with_speed_preset(10);
@@ -473,7 +486,6 @@ impl Mp4VideoEncoder {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn av1_sample_entry(window_size: WindowSize) -> SampleEntry {
     SampleEntry::Av01(Av01Box {
         visual: VisualSampleEntryFields {
@@ -503,7 +515,6 @@ fn av1_sample_entry(window_size: WindowSize) -> SampleEntry {
     })
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn rgba_to_yuv444(image: &image::RgbaImage) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
     let width = image.width() as usize;
     let height = image.height() as usize;
@@ -524,7 +535,6 @@ fn rgba_to_yuv444(image: &image::RgbaImage) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
     (y_plane, u_plane, v_plane)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn composite_pixel([red, green, blue, alpha]: [u8; 4]) -> [u8; 3] {
     [
         premultiply_over_black(red, alpha),
@@ -533,17 +543,14 @@ fn composite_pixel([red, green, blue, alpha]: [u8; 4]) -> [u8; 3] {
     ]
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn premultiply_over_black(color: u8, alpha: u8) -> u8 {
     ((color as u16 * alpha as u16 + 127) / 255) as u8
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn rgb_to_y(red: u8, green: u8, blue: u8) -> u8 {
     yuv_component(54 * red as i32 + 183 * green as i32 + 18 * blue as i32, 0)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn rgb_to_u(red: u8, green: u8, blue: u8) -> u8 {
     yuv_component(
         -29 * red as i32 - 99 * green as i32 + 128 * blue as i32,
@@ -551,7 +558,6 @@ fn rgb_to_u(red: u8, green: u8, blue: u8) -> u8 {
     )
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn rgb_to_v(red: u8, green: u8, blue: u8) -> u8 {
     yuv_component(
         128 * red as i32 - 116 * green as i32 - 12 * blue as i32,
@@ -559,12 +565,11 @@ fn rgb_to_v(red: u8, green: u8, blue: u8) -> u8 {
     )
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn yuv_component(value: i32, offset: i32) -> u8 {
     ((value + 128) >> 8).saturating_add(offset).clamp(0, 255) as u8
 }
 
-#[cfg(all(test, not(target_arch = "wasm32")))]
+#[cfg(test)]
 mod tests {
     use super::*;
 

@@ -8,7 +8,7 @@
 | `<enter>`, `<return>`              | 改行                       |
 | `<wait-X>`                         | Xミリ秒待機(Xは任意の整数) |
 
-以下のテキストエリアに文章を入力し、各種設定を選択して「Generate」ボタンを押すと Animation PNG が生成されます。
+以下のテキストエリアに文章を入力し、各種設定を選択して「Generate」ボタンを押すと APNG または MP4 が生成されます。
 
 <style>
 /* レイアウト */
@@ -90,6 +90,13 @@
                 <option value="energetic">Energetic</option>
                 <option value="gentle">Gentle</option>
                 <option value="minimal">Minimal</option>
+            </select>
+        </div>
+        <div class="row">
+            <label for="output-format">Output Format</label>
+            <select id="output-format">
+                <option value="apng">APNG</option>
+                <option value="mp4">MP4</option>
             </select>
         </div>
         <div class="row">
