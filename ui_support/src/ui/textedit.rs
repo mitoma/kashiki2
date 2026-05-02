@@ -52,6 +52,15 @@ struct PreeditState {
     selection: Option<(usize, usize)>,
 }
 
+#[derive(Clone, Copy)]
+enum PhysicalMoveOperation {
+    // WONTFIX 物理行の先頭と末尾に移動する処理は一般的なテキストエディタの処理は複雑なので今は実装しない。
+    // Head,
+    // Last,
+    Previous,
+    Next,
+}
+
 impl PreeditState {
     fn preedit_string(&self) -> String {
         if let Some((start_bytes, end_bytes)) = self.selection
@@ -382,6 +391,17 @@ impl Model for TextEdit {
                 self.buffer_updated = true;
                 ModelOperationResult::RequireReLayout
             }
+            ModelOperation::MovePhysicalPrevious(width_resolver) => {
+                self.move_with_physical_row(
+                    PhysicalMoveOperation::Previous,
+                    width_resolver.clone(),
+                );
+                ModelOperationResult::RequireReLayout
+            }
+            ModelOperation::MovePhysicalNext(width_resolver) => {
+                self.move_with_physical_row(PhysicalMoveOperation::Next, width_resolver.clone());
+                ModelOperationResult::RequireReLayout
+            }
             ModelOperation::ToggleHighlightMode => {
                 self.config.highlight_mode = match self.config.highlight_mode {
                     HighlightMode::None => HighlightMode::Markdown,
@@ -481,6 +501,107 @@ impl TextEdit {
             HighlightMode::None => "none",
             HighlightMode::Markdown => "markdown",
             HighlightMode::Language(_) => "language",
+        }
+    }
+
+    fn move_with_physical_row(
+        &mut self,
+        move_operation: PhysicalMoveOperation,
+        width_resolver: Arc<dyn CharWidthResolver>,
+    ) {
+        let layout = self.editor.calc_phisical_layout(
+            self.max_display_width(),
+            &self.config.line_prohibited_chars,
+            width_resolver.clone(),
+            self.preedit.as_ref().map(|p| p.preedit_string()),
+        );
+
+        let Some(target) = self.find_target_position_in_physical_layout(
+            &layout,
+            width_resolver.as_ref(),
+            move_operation,
+        ) else {
+            return;
+        };
+
+        self.editor_operation(&EditorOperation::MoveTo(Caret::new_without_event(
+            target,
+            CaretType::Primary,
+        )));
+        self.buffer_updated = true;
+    }
+
+    fn find_target_position_in_physical_layout(
+        &self,
+        layout: &PhysicalLayout,
+        width_resolver: &dyn CharWidthResolver,
+        move_operation: PhysicalMoveOperation,
+    ) -> Option<CellPosition> {
+        let [logical_row, logical_col] = self.caret_states.main_caret_logical_position()?;
+        let current_physical_pos = layout.main_caret_pos;
+        let target_row = match move_operation {
+            PhysicalMoveOperation::Previous => current_physical_pos.row.checked_sub(1),
+            PhysicalMoveOperation::Next => Some(current_physical_pos.row + 1),
+        }?;
+
+        let row_candidates = self.collect_row_candidates(layout, width_resolver, target_row);
+        if row_candidates.is_empty() {
+            return self.find_fallback_position(move_operation, logical_row, logical_col);
+        }
+
+        match move_operation {
+            PhysicalMoveOperation::Previous | PhysicalMoveOperation::Next => row_candidates
+                .iter()
+                .min_by_key(|(_, col)| col.abs_diff(current_physical_pos.col))
+                .map(|(position, _)| *position),
+        }
+    }
+
+    fn collect_row_candidates(
+        &self,
+        layout: &PhysicalLayout,
+        width_resolver: &dyn CharWidthResolver,
+        target_row: usize,
+    ) -> Vec<(CellPosition, usize)> {
+        let mut candidates = Vec::new();
+        for (buffer_char, pos) in layout.chars.iter() {
+            if pos.row != target_row {
+                continue;
+            }
+            candidates.push((buffer_char.position, pos.col));
+            let char_width = width_resolver.resolve_width(buffer_char.c);
+            candidates.push((
+                CellPosition {
+                    row: buffer_char.position.row,
+                    col: buffer_char.position.col + 1,
+                },
+                pos.col + char_width,
+            ));
+        }
+        candidates
+    }
+
+    fn find_fallback_position(
+        &self,
+        move_operation: PhysicalMoveOperation,
+        logical_row: usize,
+        logical_col: usize,
+    ) -> Option<CellPosition> {
+        let lines = self.editor.buffer_chars();
+        match move_operation {
+            PhysicalMoveOperation::Previous => logical_row.checked_sub(1).and_then(|row| {
+                lines.get(row).map(|line| CellPosition {
+                    row,
+                    col: logical_col.min(line.len()),
+                })
+            }),
+            PhysicalMoveOperation::Next => {
+                let row = logical_row + 1;
+                lines.get(row).map(|line| CellPosition {
+                    row,
+                    col: logical_col.min(line.len()),
+                })
+            }
         }
     }
 
