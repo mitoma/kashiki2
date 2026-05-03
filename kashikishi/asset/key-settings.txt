@@ -17,8 +17,12 @@ C-E edit:last
 End edit:last
 C-F edit:forward
 C-B edit:back
-C-N edit:next
-C-P edit:previous
+# 論理行での移動
+A-N edit:next
+A-P edit:previous
+# 物理行での移動
+C-N world:move-physical-next
+C-P world:move-physical-previous
 A-S-Comma  edit:buffer-head
 A-S-Period edit:buffer-last
 
