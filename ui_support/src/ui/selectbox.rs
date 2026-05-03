@@ -316,6 +316,27 @@ impl SelectBox {
         self.select_items_text_edit_mut()
             .editor_operation(&EditorOperation::Last);
     }
+
+    #[inline]
+    fn previous_operation(&mut self) {
+        if self.max_narrowd_options_len() == 0 {
+            return;
+        }
+        let narrowed_options_len = self.narrowd_options().len();
+        self.current_selection =
+            (self.current_selection + narrowed_options_len - 1) % narrowed_options_len;
+        self.update_select_items_text_edit()
+    }
+
+    #[inline]
+    fn next_operation(&mut self) {
+        if self.max_narrowd_options_len() == 0 {
+            return;
+        }
+        let narrowed_options_len = self.narrowd_options().len();
+        self.current_selection = (self.current_selection + 1) % narrowed_options_len;
+        self.update_select_items_text_edit()
+    }
 }
 
 impl Model for SelectBox {
@@ -379,19 +400,10 @@ impl Model for SelectBox {
             | EditorOperation::BackWord => self.search_text_edit_mut().editor_operation(op),
             // search_items_text_edit に対して操作を行う
             EditorOperation::Previous => {
-                if self.max_narrowd_options_len() == 0 {
-                    return;
-                }
-                self.current_selection =
-                    (self.current_selection + narrowed_options_len - 1) % narrowed_options_len;
-                self.update_select_items_text_edit()
+                self.previous_operation();
             }
             EditorOperation::Next => {
-                if self.max_narrowd_options_len() == 0 {
-                    return;
-                }
-                self.current_selection = (self.current_selection + 1) % narrowed_options_len;
-                self.update_select_items_text_edit()
+                self.next_operation();
             }
             EditorOperation::BufferHead => {
                 self.current_selection = 0;
@@ -429,7 +441,19 @@ impl Model for SelectBox {
         &mut self,
         op: &crate::layout_engine::ModelOperation,
     ) -> crate::layout_engine::ModelOperationResult {
-        self.layout.model_operation(op)
+        match op {
+            crate::layout_engine::ModelOperation::MovePhysicalPrevious(_) => {
+                self.previous_operation();
+                self.update_current_selection();
+                crate::layout_engine::ModelOperationResult::RequireReLayout
+            }
+            crate::layout_engine::ModelOperation::MovePhysicalNext(_) => {
+                self.next_operation();
+                self.update_current_selection();
+                crate::layout_engine::ModelOperationResult::RequireReLayout
+            }
+            _ => self.layout.model_operation(op),
+        }
     }
 
     fn to_string(&self) -> String {
