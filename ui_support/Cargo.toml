@@ -37,6 +37,7 @@ wasm-bindgen-futures = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = { workspace = true }
+html-to-markdown-rs = { workspace = true }
 highlighter = { path = "../highlighter" }
 
 [dev-dependencies]

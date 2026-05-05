@@ -109,12 +109,33 @@ impl ActionProcessor for EditPaste {
                 let text = clipboard.clone();
                 world.editor_operation(&EditorOperation::InsertString(text));
             } else {
-                match arboard::Clipboard::new().and_then(|mut context| context.get_text()) {
-                    Ok(text) => {
-                        context.register_string(text.clone());
-                        world.editor_operation(&EditorOperation::InsertString(text));
+                let mut clipboard = arboard::Clipboard::new().unwrap();
+                let has_html = match clipboard.get().html().map(|html| html_to_markdown_rs::convert(&html, None)) {
+                    Ok(result) => {
+                        match result {
+                            Ok(markdown) => {
+                                match markdown.content {
+                                    Some(md) => {
+                                        context.register_string(md.clone());
+                                        world.editor_operation(&EditorOperation::InsertString(md));
+                                        true
+                                    },
+                                    None => false,
+                                }
+                            }
+                            Err(_) => false,
+                        }
                     }
-                    Err(_) => return InputResult::Noop,
+                    Err(_) => false,
+                };
+                if !has_html {
+                    match clipboard.get().text() {
+                        Ok(text) => {
+                            context.register_string(text.clone());
+                            world.editor_operation(&EditorOperation::InsertString(text));
+                        }
+                        Err(_) => return InputResult::Noop,
+                    }
                 }
             }
         }
