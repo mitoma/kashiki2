@@ -36,7 +36,8 @@ A-D edit:delete-word
 C-M edit:return
 C-Space edit:mark
 C-G edit:unmark
-S-Insert edit:paste
+C-S-V edit:paste
+S-Insert edit:paste-rich-text
 A-W edit:copy
 C-W edit:cut
 C-Y edit:paste
