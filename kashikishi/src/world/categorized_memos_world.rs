@@ -43,6 +43,9 @@ impl CategorizedMemosWorld {
         for memo in self.memos.get_current_memos().unwrap().memos.iter() {
             let mut textedit = TextEdit::default();
             textedit.model_operation(&ModelOperation::ChangeDirection(Some(direction)));
+            textedit.model_operation(&ModelOperation::SetHighlightMode(
+                ui_support::ui_context::HighlightMode::Markdown,
+            ));
             textedit.editor_operation(&EditorOperation::InsertString(memo.to_string()));
             textedit.editor_operation(&EditorOperation::BufferHead);
             let model = Box::new(textedit);
@@ -116,6 +119,9 @@ impl ModalWorld for CategorizedMemosWorld {
                 textedit.model_operation(&ModelOperation::ChangeDirection(Some(
                     context.global_direction(),
                 )));
+                textedit.model_operation(&ModelOperation::SetHighlightMode(
+                    ui_support::ui_context::HighlightMode::Markdown,
+                ));
                 let model = Box::new(textedit);
                 self.world.add(model);
                 self.world.re_layout();

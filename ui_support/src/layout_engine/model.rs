@@ -11,7 +11,7 @@ use font_rasterizer::{
 
 use crate::{
     camera::Camera,
-    ui_context::{CharEasingsPreset, UiContext},
+    ui_context::{CharEasingsPreset, HighlightMode, UiContext},
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Serialize)]
@@ -252,6 +252,7 @@ pub enum ModelOperation {
     MovePhysicalPrevious(Arc<dyn CharWidthResolver>),
     MovePhysicalNext(Arc<dyn CharWidthResolver>),
     ToggleHighlightMode,
+    SetHighlightMode(HighlightMode),
     // IME のプレエディット（未確定文字列）をモデルへ設定/解除する
     // None で解除、Some((value, selection)) で設定
     SetPreedit(Option<(String, Option<(usize, usize)>)>),

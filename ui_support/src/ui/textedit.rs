@@ -402,6 +402,12 @@ impl Model for TextEdit {
                 self.move_with_physical_row(PhysicalMoveOperation::Next, width_resolver.clone());
                 ModelOperationResult::RequireReLayout
             }
+            ModelOperation::SetHighlightMode(highlight_mode) => {
+                self.config.highlight_mode = highlight_mode.clone();
+                // バッファを更新したわけではないがハイライトが変わるため text_updated を true にする
+                self.text_updated = true;
+                ModelOperationResult::RequireReLayout
+            }
             ModelOperation::ToggleHighlightMode => {
                 self.config.highlight_mode = match self.config.highlight_mode {
                     HighlightMode::None => HighlightMode::Markdown,
