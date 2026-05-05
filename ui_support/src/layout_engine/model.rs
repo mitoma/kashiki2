@@ -246,6 +246,11 @@ pub enum ModelOperation {
     SetMaxCol(usize),
     IncreaseMaxCol,
     DecreaseMaxCol,
+    // WONTFIX 物理行の先頭と末尾に移動する処理は一般的なテキストエディタの処理は複雑なので今は実装しない。
+    //MovePhysicalHead(Arc<dyn CharWidthResolver>),
+    //MovePhysicalLast(Arc<dyn CharWidthResolver>),
+    MovePhysicalPrevious(Arc<dyn CharWidthResolver>),
+    MovePhysicalNext(Arc<dyn CharWidthResolver>),
     ToggleHighlightMode,
     // IME のプレエディット（未確定文字列）をモデルへ設定/解除する
     // None で解除、Some((value, selection)) で設定

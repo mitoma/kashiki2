@@ -314,6 +314,28 @@ fn decrease_max_col(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn
 }
 
 world_processor!(
+    WorldMovePhysicalPrevious,
+    "move-physical-previous",
+    move_physical_previous
+);
+fn move_physical_previous(_arg: &ActionArgument, context: &UiContext, world: &mut dyn World) {
+    world.model_operation(&ModelOperation::MovePhysicalPrevious(
+        context.char_width_calcurator().clone(),
+    ));
+}
+
+world_processor!(
+    WorldMovePhysicalNext,
+    "move-physical-next",
+    move_physical_next
+);
+fn move_physical_next(_arg: &ActionArgument, context: &UiContext, world: &mut dyn World) {
+    world.model_operation(&ModelOperation::MovePhysicalNext(
+        context.char_width_calcurator().clone(),
+    ));
+}
+
+world_processor!(
     WorldToggleHighlightMode,
     "toggle-highlight-mode",
     toggle_highlight_mode
