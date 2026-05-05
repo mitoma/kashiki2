@@ -99,19 +99,19 @@
         "key_definitions": [
             {
                 "key": "function_item.identifier",
-                "depth": 1
+                "depth": 0
             },
             {
                 "key": "function_signature_item.identifier",
-                "depth": 1
+                "depth": 0
             },
             {
                 "key": "call_expression.identifier",
-                "depth": 1
+                "depth": 0
             },
             {
                 "key": "generic_function.identifier",
-                "depth": 1
+                "depth": 0
             }
         ]
     },
@@ -121,11 +121,11 @@
         "key_definitions": [
             {
                 "key": "call_expression.field_expression.field_identifier",
-                "depth": 2
+                "depth": 0
             },
             {
                 "key": "generic_function.field_expression.field_identifier",
-                "depth": 2
+                "depth": 0
             }
         ]
     },
@@ -135,7 +135,7 @@
         "key_definitions": [
             {
                 "key": "macro_invocation.identifier",
-                "depth": 1
+                "depth": 0
             }
         ]
     },
@@ -325,7 +325,7 @@
         "key_definitions": [
             {
                 "key": "parameter.identifier",
-                "depth": 1
+                "depth": 0
             }
         ]
     },

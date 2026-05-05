@@ -497,4 +497,79 @@ func main() {
         };
         println!("categories: {:?}", categories);
     }
+
+    #[test]
+    fn test_rust_function_highlight_is_not_block_wide() {
+        let settings = HighlightSettings::default();
+        let target_string = r#"
+```rust
+fn main() {
+    let x = test_add(1);
+    println!("{}", x);
+}
+```
+"#;
+
+        let highlighted = markdown_highlight(target_string, &settings);
+        let source_chars: Vec<_> = target_string.chars().collect();
+
+        let function_texts: Vec<String> = highlighted
+            .iter()
+            .filter(|(category, _)| category == "function" || category == "function.method")
+            .map(|(_, range)| source_chars[range.clone()].iter().collect::<String>())
+            .collect();
+
+        assert!(
+            function_texts.iter().any(|text| text == "main"),
+            "expected function name to be highlighted: {:?}",
+            function_texts
+        );
+
+        assert!(
+            function_texts
+                .iter()
+                .all(|text| { !text.contains('{') && !text.contains('}') && !text.contains('\n') }),
+            "function highlight must not include whole blocks: {:?}",
+            function_texts
+        );
+    }
+
+    #[test]
+    fn test_rust_macro_highlight_is_not_invocation_wide() {
+        let settings = HighlightSettings::default();
+        let target_string = r#"
+```rust
+fn save_json_name(now: &str) {
+    println!("{}.json", now.format("%Y%m%d%H%M%S"));
+}
+```
+"#;
+
+        let highlighted = markdown_highlight(target_string, &settings);
+        let source_chars: Vec<_> = target_string.chars().collect();
+
+        let macro_texts: Vec<String> = highlighted
+            .iter()
+            .filter(|(category, _)| category == "function.macro")
+            .map(|(_, range)| source_chars[range.clone()].iter().collect::<String>())
+            .collect();
+
+        assert!(
+            macro_texts.iter().any(|text| text == "println"),
+            "expected macro name to be highlighted: {:?}",
+            macro_texts
+        );
+
+        assert!(
+            macro_texts.iter().all(|text| {
+                !text.contains('!')
+                    && !text.contains('(')
+                    && !text.contains(')')
+                    && !text.contains(',')
+                    && !text.contains('\n')
+            }),
+            "macro highlight must not include invocation body: {:?}",
+            macro_texts
+        );
+    }
 }
