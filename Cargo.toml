@@ -16,7 +16,7 @@ resolver = "2"
 
 [workspace.dependencies]
 thiserror = "2.0.18"
-wgpu = "29.0.1"
+wgpu = "29.0.3"
 # fork元は winit = "0.31.x" ブランチ。いくつかのパッチを当てたものを使っている。
 # patch-1
 #   wasm で ime support が十分でないのでパッチを当てている。
@@ -49,10 +49,10 @@ cached = "0.59.0"
 usvg = "0.47.0"
 console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
-wasm-bindgen = "0.2.118"
-wasm-bindgen-futures = "0.4.64"
-web-sys = "0.3.95"
-js-sys = "0.3.95"
+wasm-bindgen = "0.2.120"
+wasm-bindgen-futures = "0.4.70"
+web-sys = "0.3.97"
+js-sys = "0.3.97"
 getrandom = "0.4.2"
 encoding_rs = "0.8.33"
 hidapi = "2.6.5"
@@ -73,7 +73,7 @@ tree-sitter-json = "0.24.8"
 tree-sitter-bash = "0.25.0"
 tree-sitter-toml-ng = "0.7.0"
 
-redb = "4.0.0"
+redb = "4.1.0"
 rayon = "1.12.0"
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
 fs_extra = "1.3.0"
