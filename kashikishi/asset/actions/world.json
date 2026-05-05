@@ -158,5 +158,25 @@
         "namespace": "world",
         "name": "change-char-easings-preset-ui",
         "description": "文字のイージングプリセットを変更する"
+    },
+    {
+        "namespace": "world",
+        "name": "camera-move-up",
+        "description": "カメラを上に移動する"
+    },
+    {
+        "namespace": "world",
+        "name": "camera-move-down",
+        "description": "カメラを下に移動する"
+    },
+    {
+        "namespace": "world",
+        "name": "camera-move-left",
+        "description": "カメラを左に移動する"
+    },
+    {
+        "namespace": "world",
+        "name": "camera-move-right",
+        "description": "カメラを右に移動する"
     }
 ]

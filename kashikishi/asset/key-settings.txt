@@ -98,8 +98,12 @@ ClickRight  rokid-max:reset
 S-ClickLeft world:move-to-click-with-mark
 WheelUp     edit:previous
 WheelDown   edit:next
-S-WheelUp   world:look-prev
-S-WheelDown world:look-next
+# S-WheelUp   world:look-prev
+# S-WheelDown world:look-next
+S-WheelUp   world:camera-move-up
+S-WheelDown world:camera-move-down
+A-S-WheelUp   world:camera-move-left
+A-S-WheelDown world:camera-move-right
 C-ClickMiddle world:reset-zoom
 C-WheelUp     world:forward
 C-WheelDown   world:back

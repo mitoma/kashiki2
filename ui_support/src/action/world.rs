@@ -414,3 +414,21 @@ fn change_char_easings_preset(_arg: &ActionArgument, _context: &UiContext, world
         }
     }
 }
+
+world_processor!(WorldCameraMoveUp, "camera-move-up", camera_move_up);
+fn camera_move_up(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    world.camera_operation(CameraOperation::Up);
+}
+
+world_processor!(WorldCameraMoveDown, "camera-move-down", camera_move_down);
+fn camera_move_down(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    world.camera_operation(CameraOperation::Down);
+}
+world_processor!(WorldCameraMoveLeft, "camera-move-left", camera_move_left);
+fn camera_move_left(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    world.camera_operation(CameraOperation::Left);
+}
+world_processor!(WorldCameraMoveRight, "camera-move-right", camera_move_right);
+fn camera_move_right(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    world.camera_operation(CameraOperation::Right);
+}

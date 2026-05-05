@@ -113,6 +113,10 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(WorldToggleHighlightMode));
         self.add_processor(Box::new(WorldChangeCharEasingsPresetUi));
         self.add_processor(Box::new(WorldChangeCharEasingsPreset));
+        self.add_processor(Box::new(WorldCameraMoveUp));
+        self.add_processor(Box::new(WorldCameraMoveDown));
+        self.add_processor(Box::new(WorldCameraMoveLeft));
+        self.add_processor(Box::new(WorldCameraMoveRight));
     }
 
     pub fn add_lambda_processor(
