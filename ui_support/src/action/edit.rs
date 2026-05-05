@@ -1,3 +1,4 @@
+use html_to_markdown_rs::ConversionOptions;
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
@@ -115,6 +116,51 @@ impl ActionProcessor for EditPaste {
                         world.editor_operation(&EditorOperation::InsertString(text));
                     }
                     Err(_) => return InputResult::Noop,
+                }
+            }
+        }
+        InputResult::InputConsumed
+    }
+}
+
+pub struct EditPasteRichText;
+impl ActionProcessor for EditPasteRichText {
+    fn namespace(&self) -> CommandNamespace {
+        "edit".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "paste-rich-text".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        context: &UiContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        cfg_if::cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                let clipboard = CLIPBOARD_FOR_WASM.lock().unwrap();
+                let text = clipboard.clone();
+                world.editor_operation(&EditorOperation::InsertString(text));
+            } else {
+                let mut clipboard = arboard::Clipboard::new().unwrap();
+                // HTML 形式であれば markdown に変換して貼り付ける。そうでなければテキスト形式で貼り付ける。
+                let consumed = clipboard
+                    .get()
+                    .html()
+                    .ok()
+                    .and_then(|html| html_to_markdown_rs::convert(&html, Some(ConversionOptions::builder().skip_images(true).build())).ok())
+                    .and_then(|markdown| markdown.content)
+                    .or_else(||clipboard.get().text().ok())
+                    .map(|text| {
+                        context.register_string(text.clone());
+                        world.editor_operation(&EditorOperation::InsertString(text));
+                    })
+                    .is_some();
+                if !consumed {
+                    return InputResult::Noop;
                 }
             }
         }

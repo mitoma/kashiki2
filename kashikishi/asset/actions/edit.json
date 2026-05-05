@@ -86,6 +86,11 @@
     },
     {
         "namespace": "edit",
+        "name": "paste-rech-text",
+        "description": "リッチテキスト形式でペースト"
+    },
+    {
+        "namespace": "edit",
         "name": "cut",
         "description": "カット"
     },

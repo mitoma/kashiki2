@@ -72,6 +72,7 @@ tree-sitter-md = "0.5.3"
 tree-sitter-json = "0.24.8"
 tree-sitter-bash = "0.25.0"
 tree-sitter-toml-ng = "0.7.0"
+html-to-markdown-rs = "3.3.3"
 
 redb = "4.1.0"
 rayon = "1.12.0"
