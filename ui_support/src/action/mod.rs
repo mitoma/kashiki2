@@ -69,6 +69,7 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(EditUnmark));
         self.add_processor(Box::new(EditCopy));
         self.add_processor(Box::new(EditPaste));
+        self.add_processor(Box::new(EditPasteRichText));
         self.add_processor(Box::new(EditCut));
         self.add_processor(Box::new(EditHighlightUi));
         self.add_processor(Box::new(EditHighlight));
