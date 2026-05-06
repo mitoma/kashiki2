@@ -24,6 +24,8 @@ pub(crate) trait ModalWorld {
     fn apply_action(&mut self, context: &UiContext, action: Action)
     -> (InputResult, HashSet<char>);
     fn world_chars(&self) -> HashSet<char>;
-    fn graceful_exit(&mut self);
+    fn graceful_exit(&mut self) {
+        // noop
+    }
     fn add_modal(&mut self, context: &UiContext, chars: &mut HashSet<char>, model: Box<dyn Model>);
 }

@@ -47,10 +47,6 @@ impl ModalWorld for NullWorld {
         HashSet::new()
     }
 
-    fn graceful_exit(&mut self) {
-        // noop
-    }
-
     fn add_modal(&mut self, context: &UiContext, chars: &mut HashSet<char>, model: Box<dyn Model>) {
         chars.extend(model.to_string().chars());
         self.world.add_next(model);
