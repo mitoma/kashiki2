@@ -1761,6 +1761,7 @@ dependencies = [
  "glam 0.32.1",
  "image",
  "log",
+ "markdown_heading_splitter",
  "pollster",
  "rokid_3dof",
  "serde",
@@ -1909,6 +1910,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e0b564323a0fb6d54b864f625ae139de9612e27edb944dda37c109f05aac531"
 dependencies = [
  "hashbrown 0.17.0",
+]
+
+[[package]]
+name = "markdown_heading_splitter"
+version = "0.1.0"
+dependencies = [
+ "tree-sitter",
+ "tree-sitter-md",
 ]
 
 [[package]]

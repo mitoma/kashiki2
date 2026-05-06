@@ -1,0 +1,8 @@
+[package]
+name = "markdown_heading_splitter"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tree-sitter = { workspace = true }
+tree-sitter-md = { workspace = true }

@@ -2,6 +2,7 @@
 members = [
     "text_buffer",
     "stroke_parser",
+    "markdown_heading_splitter",
     "font_collector",
     "font_rasterizer",
     "rokid_3dof",
