@@ -41,6 +41,7 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(SystemChangeWindowSize));
         self.add_processor(Box::new(SystemChangeQualityUi));
         self.add_processor(Box::new(SystemChangeQuality));
+        self.add_processor(Box::new(SystemFileChooserUi));
 
         self.add_processor(Box::new(SystemSelectBackgroundImageUi));
         self.add_processor(Box::new(SystemChangeBackgroundImage));

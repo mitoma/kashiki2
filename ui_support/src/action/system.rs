@@ -11,7 +11,7 @@ use font_rasterizer::{color_theme::ColorTheme, context::WindowSize};
 use crate::{
     camera::CameraAdjustment,
     layout_engine::{Model, World},
-    ui::{SelectBox, SelectOption},
+    ui::{FileChooser, SelectBox, SelectOption},
     ui_context::UiContext,
 };
 
@@ -755,6 +755,41 @@ impl ActionProcessor for SystemChangeShaderArt {
                 }
             }
             _ => InputResult::ChangeShaderArt(None),
+        }
+    }
+}
+
+pub struct SystemFileChooserUi;
+impl ActionProcessor for SystemFileChooserUi {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "file-chooser-ui".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        context: &UiContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        info!("SystemFileChooserUi: arg={:?}", arg);
+        if let ActionArgument::String4(path, message, namespace, name) = arg {
+            let model = FileChooser::new(
+                context,
+                &PathBuf::from(path),
+                message,
+                Action::new_command(namespace, name),
+            );
+            context.register_string(model.to_string());
+            world.add_modal(Box::new(model));
+            world.re_layout();
+            world.look_modal(CameraAdjustment::FitBoth);
+            InputResult::InputConsumed
+        } else {
+            InputResult::Noop
         }
     }
 }

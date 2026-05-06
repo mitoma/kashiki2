@@ -1,8 +1,6 @@
-use std::path::PathBuf;
-
 use chrono::Days;
 use stroke_parser::Action;
-use ui_support::ui::{SelectBox, SelectOption, TextInput};
+use ui_support::ui::{FileChooser, SelectBox, SelectOption, TextInput};
 use ui_support::ui_context::UiContext;
 
 use crate::{
@@ -180,48 +178,11 @@ pub(crate) fn remove_category_ui(
     )
 }
 
-pub(crate) fn open_file_ui(context: &UiContext, path: Option<&str>) -> SelectBox {
-    let mut options = Vec::new();
-    // current directory のファイル一覧を取得
-    let current_dir = if let Some(path) = path {
-        PathBuf::from(path)
-    } else {
-        std::env::current_dir().unwrap()
-    };
-
-    if let Some(parent_dir) = current_dir.parent() {
-        options.push(SelectOption::new(
-            "📁 ../".to_string(),
-            Action::new_command_with_argument(
-                "kashikishi",
-                "open-file-ui",
-                parent_dir.to_str().unwrap(),
-            ),
-        ));
-    }
-
-    for entry in std::fs::read_dir(current_dir).unwrap() {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if path.is_dir() {
-            options.push(SelectOption::new(
-                format!("📁 {}", path.file_name().unwrap().to_str().unwrap()),
-                Action::new_command_with_argument(
-                    "kashikishi",
-                    "open-file-ui",
-                    path.to_str().unwrap(),
-                ),
-            ));
-        } else if path.is_file() {
-            options.push(SelectOption::new(
-                format!("📄 {}", path.file_name().unwrap().to_str().unwrap()),
-                Action::new_command_with_argument(
-                    "kashikishi",
-                    "open-file",
-                    path.to_str().unwrap(),
-                ),
-            ));
-        }
-    }
-    SelectBox::new_without_action_name(context, "ファイルを開く".to_string(), options, None)
+pub(crate) fn open_file_ui(context: &UiContext) -> FileChooser {
+    FileChooser::new(
+        context,
+        &std::env::current_dir().unwrap(),
+        "ファイルを開く",
+        Action::new_command("kashikishi", "open-file"),
+    )
 }

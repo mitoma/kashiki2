@@ -1,4 +1,5 @@
 mod card;
+mod file_chooser;
 mod ime_input;
 mod select_option;
 mod selectbox;
@@ -12,6 +13,7 @@ mod view_element_state;
 use std::{cmp::Ordering, sync::mpsc::Receiver};
 
 pub use card::Card;
+pub use file_chooser::FileChooser;
 pub use ime_input::ImeInput;
 pub use select_option::SelectOption;
 pub use selectbox::SelectBox;

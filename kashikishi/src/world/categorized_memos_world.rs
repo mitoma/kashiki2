@@ -220,15 +220,7 @@ impl ModalWorld for CategorizedMemosWorld {
                 }
             }
             "open-file-ui" => {
-                let arg = match argument {
-                    ActionArgument::String(path) => Some(path),
-                    _ => None,
-                };
-                self.add_modal(
-                    context,
-                    &mut chars,
-                    Box::new(open_file_ui(context, arg.as_deref())),
-                );
+                self.add_modal(context, &mut chars, Box::new(open_file_ui(context)));
             }
             _ => { /* noop */ }
         }

@@ -28,6 +28,8 @@ impl SelectOption {
             match arg {
                 ActionArgument::String(_)
                 | ActionArgument::String2(_, _)
+                | ActionArgument::String3(_, _, _)
+                | ActionArgument::String4(_, _, _, _)
                 | ActionArgument::Integer(_)
                 | ActionArgument::Float(_)
                 | ActionArgument::Point(_) => {
