@@ -40,7 +40,10 @@ use ui_support::{
     ui_context::UiContext,
 };
 
-use crate::{kashikishi_actions::command_palette_select, kashikishi_config::KashikishiConfig};
+use crate::{
+    kashikishi_actions::command_palette_select, kashikishi_config::KashikishiConfig,
+    world::MarkdownPresentationWorld,
+};
 
 const ICON_IMAGE: &[u8] = include_bytes!("../kashikishi-icon.ico");
 
@@ -334,6 +337,7 @@ impl SimpleStateCallback for KashikishiCallback {
                             context.window_size(),
                             context.global_direction(),
                         ))),
+                        "presentation" => Some(Box::new(MarkdownPresentationWorld::new(context))),
                         "help" => Some(Box::new(HelpWorld::new(context.window_size()))),
                         _ => None,
                     };

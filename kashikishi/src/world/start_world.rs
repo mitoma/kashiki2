@@ -39,6 +39,10 @@ impl StartWorld {
                 Action::new_command("mode", "category"),
             ),
             SelectOption::new(
+                "プレゼンモードを開く".to_string(),
+                Action::new_command("mode", "presentation"),
+            ),
+            SelectOption::new(
                 "ヘルプ(使い方の概説)を開く".to_string(),
                 Action::new_command("mode", "help"),
             ),

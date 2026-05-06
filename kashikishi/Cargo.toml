@@ -23,6 +23,7 @@ text_buffer = { path = "../text_buffer" }
 stroke_parser = { path = "../stroke_parser" }
 rokid_3dof = { path = "../rokid_3dof" }
 ui_support = { path = "../ui_support" }
+markdown_heading_splitter = { path = "../markdown_heading_splitter" }
 
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
