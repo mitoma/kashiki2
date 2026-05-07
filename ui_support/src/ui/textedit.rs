@@ -774,6 +774,9 @@ impl TextEdit {
         let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
             (result.0.max(pos.col), result.1.max(pos.row))
         });
+        // 行末にメインキャレットだけある場合に画面外にキャレットがいかないように結果を補正する
+        let (max_col, max_row) = (max_col, max_row.max(layout.main_caret_pos.row));
+
         let [max_x, max_y, _max_z] = Self::get_adjusted_position(
             &self.config,
             CharWidth::Wide, /* この指定に深い意図はない */
