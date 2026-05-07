@@ -1,4 +1,3 @@
-use html_to_markdown_rs::ConversionOptions;
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 use text_buffer::action::EditorOperation;
 
@@ -151,7 +150,7 @@ impl ActionProcessor for EditPasteRichText {
                     .get()
                     .html()
                     .ok()
-                    .and_then(|html| html_to_markdown_rs::convert(&html, Some(ConversionOptions::builder().skip_images(true).build())).ok())
+                    .and_then(|html| html_to_markdown_rs::convert(&html, Some(html_to_markdown_rs::ConversionOptions::builder().skip_images(true).build())).ok())
                     .and_then(|markdown| markdown.content)
                     .or_else(||clipboard.get().text().ok())
                     .map(|text| {
