@@ -155,9 +155,9 @@ mod tests {
 
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].0, Heading::H1("H1".to_string()));
-        assert_eq!(sections[0].1, "first\n\n".to_string());
+        assert_eq!(sections[0].1, "first".to_string());
         assert_eq!(sections[1].0, Heading::H2("H2".to_string()));
-        assert_eq!(sections[1].1, "second\n".to_string());
+        assert_eq!(sections[1].1, "second".to_string());
     }
 
     #[test]
@@ -167,9 +167,9 @@ mod tests {
 
         assert_eq!(sections.len(), 2);
         assert_eq!(sections[0].0, Heading::H1("Title".to_string()));
-        assert_eq!(sections[0].1, "A\n\n".to_string());
+        assert_eq!(sections[0].1, "A".to_string());
         assert_eq!(sections[1].0, Heading::H2("Sub".to_string()));
-        assert_eq!(sections[1].1, "B\n".to_string());
+        assert_eq!(sections[1].1, "B".to_string());
     }
 
     #[test]
