@@ -2,6 +2,7 @@ pub mod action;
 pub mod action_recorder;
 pub mod camera;
 mod easing_value;
+pub mod editor_settings;
 pub mod layout_engine;
 mod metrics_counter;
 mod render_rate_adjuster;
@@ -20,6 +21,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender};
 
 use camera::Camera;
+use editor_settings::EditorSettings;
 use font_rasterizer::{
     color_theme::ColorTheme,
     context::WindowSize,
@@ -295,7 +297,7 @@ impl ApplicationHandler for App {
                 state.change_ascii_override_font(font_name);
             }
             InputResult::ChangeGlobalDirection(direction) => {
-                state.context.set_global_direction(direction);
+                state.change_global_direction(direction);
             }
             InputResult::ChangeWindowSize(window_size) => {
                 state.resize(window_size);
@@ -434,7 +436,7 @@ impl ApplicationHandler for App {
                     window.set_decorations(!window.is_decorated());
                 }
                 InputResult::ChangeGlobalDirection(direction) => {
-                    state.context.set_global_direction(direction);
+                    state.change_global_direction(direction);
                 }
                 InputResult::ChangeWindowSize(window_size) => {
                     state.resize(window_size);
@@ -531,7 +533,7 @@ fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> O
             None
         }
         InputResult::ChangeGlobalDirection(direction) => {
-            state.context.set_global_direction(direction);
+            state.change_global_direction(direction);
             None
         }
         InputResult::SendExit => Some(input_result),
@@ -568,7 +570,10 @@ pub trait SimpleStateCallback {
     fn input(&mut self, context: &UiContext, event: &WindowEvent) -> InputResult;
     fn action(&mut self, context: &UiContext, action: Action) -> InputResult;
     fn render(&'_ mut self) -> RenderData<'_>;
-    fn shutdown(&mut self);
+    fn initial_editor_settings(&self) -> EditorSettings {
+        EditorSettings::default()
+    }
+    fn shutdown(&mut self, context: &UiContext);
 }
 
 pub struct RenderData<'a> {

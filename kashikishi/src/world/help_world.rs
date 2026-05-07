@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use font_rasterizer::{context::WindowSize, glyph_vertex_buffer::Direction};
+use font_rasterizer::glyph_vertex_buffer::Direction;
 use ui_support::{
     InputResult,
     camera::CameraAdjustment,
@@ -19,16 +19,16 @@ pub(crate) struct HelpWorld {
 }
 
 impl HelpWorld {
-    pub(crate) fn new(window_size: WindowSize) -> Self {
+    pub(crate) fn new(context: &UiContext) -> Self {
         let mut result = Self {
-            world: DefaultWorld::new(window_size),
+            world: DefaultWorld::new(context.window_size()),
         };
 
         let help_contents: Vec<String> =
             serde_json::from_str(include_str!("../../asset/help.json")).unwrap();
 
         for help_content in help_contents {
-            let mut textedit = TextEdit::default();
+            let mut textedit = TextEdit::from_context(context);
             textedit.editor_operation(&EditorOperation::InsertString(help_content));
             textedit.editor_operation(&EditorOperation::BufferHead);
             let model = Box::new(textedit);

@@ -279,6 +279,7 @@ impl RenderState {
         background_image: Option<DynamicImage>,
         shader_art: Option<String>,
     ) -> Self {
+        let editor_settings = simple_state_callback.initial_editor_settings();
         let window_size = render_target_request.window_size();
 
         // The instance is a handle to our GPU
@@ -444,7 +445,7 @@ impl RenderState {
             char_width_calcurator,
             color_theme,
             window_size,
-            Direction::Horizontal,
+            editor_settings.global_direction(),
             font_repository,
         );
 
@@ -455,7 +456,7 @@ impl RenderState {
             post_action_queue_sender,
         );
 
-        let context = UiContext::new(state_context, senders);
+        let context = UiContext::new(state_context, senders, editor_settings);
 
         simple_state_callback.init(&context);
 
@@ -508,8 +509,17 @@ impl RenderState {
 
     pub(crate) fn change_color_theme(&mut self, color_theme: ColorTheme) {
         self.context.state_context_mut().color_theme = color_theme;
+        self.context
+            .update_editor_settings(|editor_settings| editor_settings.set_color_theme(color_theme));
         let [r, g, b] = self.context.color_theme().background().get_color();
         self.background_color.update([r, g, b, 1.0]);
+    }
+
+    pub(crate) fn change_global_direction(&mut self, direction: Direction) {
+        self.context.set_global_direction(direction);
+        self.context.update_editor_settings(|editor_settings| {
+            editor_settings.set_global_direction(direction);
+        });
     }
 
     pub(crate) fn change_background_image(&mut self, background_image: Option<DynamicImage>) {
@@ -751,7 +761,7 @@ impl RenderState {
     }
 
     pub(crate) fn shutdown(&mut self) {
-        self.simple_state_callback.shutdown();
+        self.simple_state_callback.shutdown(&self.context);
     }
 
     pub(crate) fn change_font(&mut self, font_name: Option<String>) {

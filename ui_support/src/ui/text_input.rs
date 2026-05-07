@@ -4,11 +4,9 @@ use glam::{Quat, Vec3};
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::{
-    glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
-    vector_instances::VectorInstances,
-};
+use font_rasterizer::{glyph_instances::GlyphInstances, vector_instances::VectorInstances};
 
+use crate::editor_settings::EditorTextContextProfile;
 use crate::ui::StackLayout;
 use crate::ui_context::{CharEasingsPreset, UiContext};
 
@@ -16,7 +14,7 @@ use crate::{
     layout_engine::{
         DebugModelDetails, DebugModelNode, DebugTextInputSnapshot, Model, ModelBorder,
     },
-    ui_context::{CharEasings, HighlightMode, TextContext},
+    ui_context::TextContext,
 };
 
 use super::textedit::TextEdit;
@@ -33,16 +31,8 @@ pub struct TextInput {
 }
 
 impl TextInput {
-    fn text_context(direction: Direction) -> TextContext {
-        TextContext {
-            max_col: usize::MAX,
-            char_easings: CharEasings::zero_motion(),
-            hyde_caret: true,
-            highlight_mode: HighlightMode::None,
-            direction,
-            min_bound: (1.0, 1.0).into(),
-            ..Default::default()
-        }
+    fn text_context(context: &UiContext, profile: EditorTextContextProfile) -> TextContext {
+        context.text_context(profile)
     }
 
     pub fn new(
@@ -54,20 +44,20 @@ impl TextInput {
         let mut layout = StackLayout::new(context.global_direction());
 
         let title_text_edit = {
-            let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::text_context(context.global_direction()));
+            let mut text_edit = TextEdit::new(Self::text_context(
+                context,
+                EditorTextContextProfile::ModalLabel,
+            ));
             text_edit.editor_operation(&EditorOperation::InsertString(message));
 
             text_edit
         };
         layout.add_model(Box::new(title_text_edit));
         let input_text_edit = {
-            let mut text_edit = TextEdit::default();
-            text_edit.set_config(TextContext {
-                direction: context.global_direction(),
-                min_bound: (1.0, 1.0).into(),
-                ..Default::default()
-            });
+            let mut text_edit = TextEdit::new(Self::text_context(
+                context,
+                EditorTextContextProfile::ModalInput,
+            ));
             if let Some(input) = default_input.as_ref() {
                 text_edit.editor_operation(&EditorOperation::InsertString(input.to_owned()));
             }

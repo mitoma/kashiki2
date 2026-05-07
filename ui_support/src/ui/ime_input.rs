@@ -1,17 +1,13 @@
-use glam::Vec2;
 use log::info;
 use stroke_parser::Action;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{color_theme::ThemedColor, glyph_instances::GlyphInstances};
 
+use crate::editor_settings::{EditorSettings, EditorTextContextProfile};
 use crate::ui_context::UiContext;
 
-use crate::{
-    layout_engine::Model,
-    ui::textedit::TextEditOperation,
-    ui_context::{CharEasings, HighlightMode, TextContext},
-};
+use crate::{layout_engine::Model, ui::textedit::TextEditOperation};
 
 use super::textedit::TextEdit;
 
@@ -30,20 +26,21 @@ const IME_DEFAULT_SCALE: [f32; 2] = [0.1, 0.1];
 
 impl ImeInput {
     pub fn new() -> Self {
-        let config = TextContext {
-            char_easings: CharEasings::ignore_camera(),
-            max_col: usize::MAX, // IME は基本的に改行しないので大きな値を設定
-            min_bound: Vec2::new(1.0, 10.0),
-            hyde_caret: true,
-            highlight_mode: HighlightMode::None,
-            ..Default::default()
-        };
-        let mut text_edit = TextEdit::default();
-        text_edit.set_config(config);
+        Self::with_settings(EditorSettings::default())
+    }
+
+    pub fn with_settings(editor_settings: EditorSettings) -> Self {
+        let mut text_edit =
+            TextEdit::new(editor_settings.text_context(EditorTextContextProfile::ImePreedit));
         text_edit.set_world_scale(IME_DEFAULT_SCALE);
         text_edit.set_position((0.0, -8.0, 0.0).into());
 
         Self { text_edit }
+    }
+
+    pub fn set_editor_settings(&mut self, editor_settings: EditorSettings) {
+        self.text_edit
+            .set_config(editor_settings.text_context(EditorTextContextProfile::ImePreedit));
     }
 
     pub fn apply_ime_event(&mut self, action: &Action, context: &UiContext) -> bool {

@@ -1,14 +1,11 @@
-use glam::Vec2;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::glyph_instances::GlyphInstances;
 
+use crate::editor_settings::{EditorSettings, EditorTextContextProfile};
 use crate::ui_context::UiContext;
 
-use crate::{
-    layout_engine::Model,
-    ui_context::{CharEasings, TextContext},
-};
+use crate::layout_engine::Model;
 
 use super::textedit::TextEdit;
 
@@ -26,15 +23,12 @@ const CARD_DEFAULT_SCALE: [f32; 2] = [0.1, 0.1];
 
 impl Card {
     pub fn new() -> Self {
-        let config = TextContext {
-            char_easings: CharEasings::ignore_camera(),
-            max_col: usize::MAX,
-            min_bound: Vec2::new(1.0, 10.0),
-            hyde_caret: true,
-            ..Default::default()
-        };
-        let mut text_edit = TextEdit::default();
-        text_edit.set_config(config);
+        Self::with_settings(EditorSettings::default())
+    }
+
+    pub fn with_settings(editor_settings: EditorSettings) -> Self {
+        let mut text_edit =
+            TextEdit::new(editor_settings.text_context(EditorTextContextProfile::Card));
         text_edit.set_world_scale(CARD_DEFAULT_SCALE);
         text_edit.set_position((0.0, -1.5, 0.0).into());
 

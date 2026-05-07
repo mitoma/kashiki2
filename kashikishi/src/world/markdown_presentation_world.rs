@@ -45,7 +45,7 @@ impl MarkdownPresentationWorld {
         }
     }
 
-    pub(crate) fn open_markdown(&mut self, path: PathBuf) {
+    pub(crate) fn open_markdown(&mut self, context: &UiContext, path: PathBuf) {
         self.markdown_path = Some(path);
 
         if let Some(markdown_path) = &self.markdown_path {
@@ -59,7 +59,7 @@ impl MarkdownPresentationWorld {
             let markdowns = split_headings(&markdown_content);
 
             for (heading, content) in markdowns {
-                let mut textedit = ui_support::ui::TextEdit::default();
+                let mut textedit = ui_support::ui::TextEdit::from_context(context);
                 textedit.editor_operation(&text_buffer::action::EditorOperation::InsertString(
                     format!(
                         "{} {}\n\n{}",
@@ -115,7 +115,7 @@ impl ModalWorld for MarkdownPresentationWorld {
 
     fn apply_action(
         &mut self,
-        _context: &ui_support::ui_context::UiContext,
+        context: &ui_support::ui_context::UiContext,
         action: stroke_parser::Action,
     ) -> (ui_support::InputResult, std::collections::HashSet<char>) {
         match action {
@@ -123,7 +123,7 @@ impl ModalWorld for MarkdownPresentationWorld {
                 if namespace == "kashikishi".into() && name == "open-markdown".into() =>
             {
                 if let stroke_parser::ActionArgument::String(path) = argument {
-                    self.open_markdown(PathBuf::from(path));
+                    self.open_markdown(context, PathBuf::from(path));
                 }
                 (ui_support::InputResult::InputConsumed, self.world_chars())
             }

@@ -1,5 +1,6 @@
 use log::warn;
-use std::sync::{Arc, mpsc::Sender};
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock, mpsc::Sender};
 use std::time::Duration;
 
 use font_collector::FontRepository;
@@ -13,6 +14,8 @@ use font_rasterizer::{
 use glam::Vec2;
 use stroke_parser::Action;
 use text_buffer::layout::LineBoundaryProhibitedChars;
+
+use crate::editor_settings::{EditorSettings, EditorTextContextProfile};
 
 pub(crate) struct CpuEasingConfig {
     pub(crate) duration: Duration,
@@ -85,7 +88,7 @@ pub(crate) enum RemoveCharMode {
 }
 
 /// CharEasings のプリセットを指定するための enum
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CharEasingsPreset {
     /// デフォルトのアニメーション設定
     Default,
@@ -862,14 +865,20 @@ impl Senders {
 pub struct UiContext {
     state_context: StateContext,
     senders: Senders,
+    editor_settings: Arc<RwLock<EditorSettings>>,
 }
 
 impl UiContext {
     #[inline]
-    pub fn new(state_context: StateContext, senders: Senders) -> Self {
+    pub fn new(
+        state_context: StateContext,
+        senders: Senders,
+        editor_settings: EditorSettings,
+    ) -> Self {
         Self {
             state_context,
             senders,
+            editor_settings: Arc::new(RwLock::new(editor_settings)),
         }
     }
 
@@ -913,6 +922,39 @@ impl UiContext {
     #[inline]
     pub fn font_repository(&self) -> &FontRepository {
         &self.state_context.font_repository
+    }
+
+    #[inline]
+    pub fn editor_settings(&self) -> EditorSettings {
+        self.editor_settings
+            .read()
+            .expect("editor settings lock poisoned")
+            .clone()
+    }
+
+    #[inline]
+    pub fn set_editor_settings(&self, editor_settings: EditorSettings) {
+        *self
+            .editor_settings
+            .write()
+            .expect("editor settings lock poisoned") = editor_settings;
+    }
+
+    #[inline]
+    pub fn update_editor_settings<F>(&self, update: F)
+    where
+        F: FnOnce(&mut EditorSettings),
+    {
+        let mut editor_settings = self
+            .editor_settings
+            .write()
+            .expect("editor settings lock poisoned");
+        update(&mut editor_settings);
+    }
+
+    #[inline]
+    pub fn text_context(&self, profile: EditorTextContextProfile) -> TextContext {
+        self.editor_settings().text_context(profile)
     }
 
     // Senders の移譲
