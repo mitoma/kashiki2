@@ -776,6 +776,12 @@ impl TextEdit {
         });
         // 行末にメインキャレットだけある場合に画面外にキャレットがいかないように結果を補正する
         let (max_col, max_row) = (max_col, max_row.max(layout.main_caret_pos.row));
+        let (max_col, max_row) = if self.border != ModelBorder::None {
+            // border がある場合は border の幅を考慮して bound を大きくする
+            (max_col + 1, max_row + 1)
+        } else {
+            (max_col, max_row)
+        };
 
         let [max_x, max_y, _max_z] = Self::get_adjusted_position(
             &self.config,
@@ -882,6 +888,7 @@ impl TextEdit {
         }
     }
 
+    /// レイアウトのセル位置を TextEdit 内の位置に変換する。direction や char_width を考慮している。
     #[inline]
     fn get_adjusted_position(
         config: &TextContext,
@@ -897,11 +904,12 @@ impl TextEdit {
         }
     }
 
+    /// レンダリングアンカーのオフセットを適用する
     #[inline]
     fn apply_render_anchor_offset(config: &TextContext, [x, y, z]: [f32; 3]) -> [f32; 3] {
         match config.direction {
             Direction::Horizontal => [x + config.col_interval * 0.5, y - config.row_scale * 0.5, z],
-            Direction::Vertical => [x - config.row_scale * 0.5, y, z],
+            Direction::Vertical => [x - config.row_scale * 0.5, y - config.col_interval * 0.5, z],
         }
     }
 
