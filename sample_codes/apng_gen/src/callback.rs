@@ -123,5 +123,5 @@ impl SimpleStateCallback for Callback {
         }
     }
 
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self, _context: &ui_support::ui_context::UiContext) {}
 }

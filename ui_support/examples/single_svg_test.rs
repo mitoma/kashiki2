@@ -143,5 +143,5 @@ impl SimpleStateCallback for SingleCharCallback {
         }
     }
 
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self, _context: &UiContext) {}
 }
