@@ -216,7 +216,7 @@ impl SimpleStateCallback for LayoutDebugCallback {
         }
     }
 
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self, _context: &UiContext) {}
 }
 
 fn register_world_chars(context: &UiContext, world: &DefaultWorld) {
