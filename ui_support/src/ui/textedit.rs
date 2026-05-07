@@ -107,39 +107,7 @@ pub struct TextEdit {
 
 impl Default for TextEdit {
     fn default() -> Self {
-        let config = TextContext::default();
-        let (tx, rx) = std::sync::mpsc::channel();
-        let (text_edit_operation_sender, text_edit_operation_receiver) = std::sync::mpsc::channel();
-
-        let position = EasingPointN::new([0.0, 0.0, 0.0]);
-        let bound = config.min_bound.into();
-        let rotation = Quat::IDENTITY;
-        let [x, y, z, w] = rotation.to_array();
-        let rotation = EasingPointN::new([x, y, z, w]);
-        Self {
-            config,
-            editor: Editor::new(tx),
-            receiver: rx,
-
-            text_edit_operation_sender,
-            text_edit_operation_receiver,
-
-            char_states: CharStates::default(),
-            caret_states: CaretStates::default(),
-            border_states: None,
-
-            preedit: None,
-
-            buffer_updated: true,
-            text_updated: true,
-            config_updated: true,
-
-            position,
-            rotation,
-            world_scale: [1.0, 1.0],
-            bound,
-            border: ModelBorder::default(),
-        }
+        Self::new(TextContext::default())
     }
 }
 
@@ -498,6 +466,45 @@ impl Model for TextEdit {
 }
 
 impl TextEdit {
+    pub fn new(config: TextContext) -> Self {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (text_edit_operation_sender, text_edit_operation_receiver) = std::sync::mpsc::channel();
+
+        let position = EasingPointN::new([0.0, 0.0, 0.0]);
+        let bound = config.min_bound.into();
+        let rotation = Quat::IDENTITY;
+        let [x, y, z, w] = rotation.to_array();
+        let rotation = EasingPointN::new([x, y, z, w]);
+        Self {
+            config,
+            editor: Editor::new(tx),
+            receiver: rx,
+
+            text_edit_operation_sender,
+            text_edit_operation_receiver,
+
+            char_states: CharStates::default(),
+            caret_states: CaretStates::default(),
+            border_states: None,
+
+            preedit: None,
+
+            buffer_updated: true,
+            text_updated: true,
+            config_updated: true,
+
+            position,
+            rotation,
+            world_scale: [1.0, 1.0],
+            bound,
+            border: ModelBorder::default(),
+        }
+    }
+
+    pub fn from_context(context: &UiContext) -> Self {
+        Self::new(context.text_context(crate::editor_settings::EditorTextContextProfile::Document))
+    }
+
     pub(crate) fn text_edit_operation(&mut self, op: TextEditOperation) {
         self.text_edit_operation_sender.send(op).unwrap();
     }

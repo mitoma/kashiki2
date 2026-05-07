@@ -8,9 +8,10 @@ use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator, glyph_instances::GlyphInstances,
-    glyph_vertex_buffer::Direction, vector_instances::VectorInstances,
+    vector_instances::VectorInstances,
 };
 
+use crate::editor_settings::EditorTextContextProfile;
 use crate::ui::StackLayout;
 use crate::ui_context::{CharEasingsPreset, UiContext};
 
@@ -18,7 +19,7 @@ use crate::{
     layout_engine::{
         DebugModelDetails, DebugModelNode, DebugSelectBoxSnapshot, Model, ModelBorder,
     },
-    ui_context::{CharEasings, GpuEasingConfig, HighlightMode, TextContext},
+    ui_context::TextContext,
 };
 
 use super::{select_option::SelectOption, textedit::TextEdit};
@@ -42,30 +43,12 @@ pub struct SelectBox {
 }
 
 impl SelectBox {
-    fn search_context(direction: Direction) -> TextContext {
-        TextContext {
-            min_bound: (1.0, 1.0).into(),
-            direction,
-            ..Default::default()
-        }
+    fn search_context(context: &UiContext) -> TextContext {
+        context.text_context(EditorTextContextProfile::SelectBoxSearch)
     }
 
-    fn text_context(direction: Direction) -> TextContext {
-        TextContext {
-            max_col: usize::MAX, // SELECTBOX は基本的に改行しないので大きな値を設定
-            char_easings: CharEasings {
-                select_char: GpuEasingConfig::default(),
-                unselect_char: GpuEasingConfig::default(),
-                add_char: GpuEasingConfig::fadein(),
-                remove_char: GpuEasingConfig::fadeout(),
-                ..Default::default()
-            },
-            hyde_caret: true,
-            highlight_mode: HighlightMode::None,
-            min_bound: (1.0, 1.0).into(),
-            direction,
-            ..Default::default()
-        }
+    fn text_context(context: &UiContext) -> TextContext {
+        context.text_context(EditorTextContextProfile::SelectBoxItem)
     }
 
     pub fn new(
@@ -104,16 +87,15 @@ impl SelectBox {
         let mut layout = StackLayout::new(context.global_direction());
 
         let title_text_edit = {
-            let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::text_context(context.global_direction()));
+            let mut text_edit =
+                TextEdit::new(context.text_context(EditorTextContextProfile::ModalLabel));
             text_edit.editor_operation(&EditorOperation::InsertString(message));
             text_edit
         };
         layout.add_model(Box::new(title_text_edit));
 
         let search_text_edit = {
-            let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::search_context(context.global_direction()));
+            let mut text_edit = TextEdit::new(Self::search_context(context));
             if let Some(default_narrow) = default_narrow {
                 text_edit.editor_operation(&EditorOperation::InsertString(format!(
                     "{} ",
@@ -124,11 +106,7 @@ impl SelectBox {
         };
         layout.add_model(Box::new(search_text_edit));
 
-        let select_items_text_edit = {
-            let mut text_edit = TextEdit::default();
-            text_edit.set_config(Self::text_context(context.global_direction()));
-            text_edit
-        };
+        let select_items_text_edit = TextEdit::new(Self::text_context(context));
         layout.add_model(Box::new(select_items_text_edit));
         layout.set_focus_model_index(SEARCH_TEXT_INDEX, false);
 

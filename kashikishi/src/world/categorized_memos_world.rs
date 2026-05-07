@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use font_rasterizer::{context::WindowSize, glyph_vertex_buffer::Direction};
+use font_rasterizer::glyph_vertex_buffer::Direction;
 use stroke_parser::{Action, ActionArgument};
 use text_buffer::action::EditorOperation;
 use ui_support::{
@@ -28,21 +28,20 @@ pub(crate) struct CategorizedMemosWorld {
 }
 
 impl CategorizedMemosWorld {
-    pub(crate) fn new(window_size: WindowSize, direction: Direction) -> Self {
+    pub(crate) fn new(context: &UiContext) -> Self {
         let mut result = Self {
-            world: DefaultWorld::new(window_size),
+            world: DefaultWorld::new(context.window_size()),
             memos: CategorizedMemos::load_memos(),
         };
-        result.reset_world(window_size, direction);
+        result.reset_world(context);
         result
     }
 
     // ワールドを今のカテゴリでリセットする
-    fn reset_world(&mut self, window_size: WindowSize, direction: Direction) {
-        let mut world = DefaultWorld::new(window_size);
+    fn reset_world(&mut self, context: &UiContext) {
+        let mut world = DefaultWorld::new(context.window_size());
         for memo in self.memos.get_current_memos().unwrap().memos.iter() {
-            let mut textedit = TextEdit::default();
-            textedit.model_operation(&ModelOperation::ChangeDirection(Some(direction)));
+            let mut textedit = TextEdit::from_context(context);
             textedit.model_operation(&ModelOperation::SetHighlightMode(
                 ui_support::ui_context::HighlightMode::Markdown,
             ));
@@ -52,7 +51,7 @@ impl CategorizedMemosWorld {
             world.add(model);
         }
         let look_at = 0;
-        let adjustment = match direction {
+        let adjustment = match context.global_direction() {
             Direction::Horizontal => CameraAdjustment::FitWidth,
             Direction::Vertical => CameraAdjustment::FitHeight,
         };
@@ -115,10 +114,7 @@ impl ModalWorld for CategorizedMemosWorld {
         match name.as_str() {
             "save" => self.save(),
             "add-memo" => {
-                let mut textedit = TextEdit::default();
-                textedit.model_operation(&ModelOperation::ChangeDirection(Some(
-                    context.global_direction(),
-                )));
+                let mut textedit = TextEdit::from_context(context);
                 textedit.model_operation(&ModelOperation::SetHighlightMode(
                     ui_support::ui_context::HighlightMode::Markdown,
                 ));
@@ -150,7 +146,7 @@ impl ModalWorld for CategorizedMemosWorld {
                     }
                     self.sync();
                     self.memos.current_category = category;
-                    self.reset_world(context.window_size(), context.global_direction());
+                    self.reset_world(context);
                     chars.extend(self.world_chars());
                 }
                 _ => { /* noop */ }
@@ -215,7 +211,7 @@ impl ModalWorld for CategorizedMemosWorld {
                 if let ActionArgument::String(category) = argument {
                     self.memos.remove_category(&category);
                     if self.memos.current_category == category {
-                        self.reset_world(context.window_size(), context.global_direction());
+                        self.reset_world(context);
                     }
                 }
             }

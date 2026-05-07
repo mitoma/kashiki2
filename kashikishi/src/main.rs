@@ -24,10 +24,7 @@ use text_buffer::action::EditorOperation;
 use winit::{event::WindowEvent, icon::RgbaIcon};
 use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld};
 
-use font_rasterizer::{
-    color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity,
-    time::set_clock_mode,
-};
+use font_rasterizer::{context::WindowSize, rasterizer_pipeline::Quarity, time::set_clock_mode};
 use log::info;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
@@ -80,8 +77,6 @@ pub struct Args {
     #[arg(short, long, default_values = ["UD デジタル 教科書体 N", "UD デジタル 教科書体 N-R"])]
     pub font_names: Vec<String>,
 }
-
-const COLOR_THEME: ColorTheme = ColorTheme::SolarizedDark;
 
 struct SystemCommandPalette;
 impl ActionProcessor for SystemCommandPalette {
@@ -164,6 +159,7 @@ pub async fn run(args: Args) {
         }
     });
 
+    let color_theme = config.editor_settings.color_theme();
     let callback = KashikishiCallback::new(window_size, config);
     let support = SimpleStateSupport {
         window_icon: icon,
@@ -172,7 +168,7 @@ pub async fn run(args: Args) {
         callback: Box::new(callback),
         //quarity: Quarity::CappedVeryHigh(1920 * 2, 1200 * 2),
         quarity: Quarity::Middle,
-        color_theme: COLOR_THEME,
+        color_theme,
         flags: Flags::DEFAULT,
         font_repository,
         performance_mode: args.performance_mode,
@@ -201,7 +197,7 @@ impl KashikishiCallback {
         keybinds
             .iter()
             .for_each(|k| store.register_keybind(k.clone()));
-        let ime = ImeInput::new();
+        let ime = ImeInput::with_settings(config.editor_settings.clone());
 
         let mut action_processor_store = ActionProcessorStore::default();
         action_processor_store.add_default_system_processors();
@@ -318,6 +314,16 @@ impl SimpleStateCallback for KashikishiCallback {
                 InputResult::ChangeAsciiOverrideFont(font_name) => {
                     self.config.ascii_override_font = font_name.as_ref().map(|s| s.to_string())
                 }
+                InputResult::ChangeColorTheme(color_theme) => {
+                    self.config.editor_settings.set_color_theme(*color_theme);
+                    self.ime
+                        .set_editor_settings(self.config.editor_settings.clone());
+                }
+                InputResult::ChangeGlobalDirection(direction) => {
+                    self.config.editor_settings.set_global_direction(*direction);
+                    self.ime
+                        .set_editor_settings(self.config.editor_settings.clone());
+                }
                 _ => {}
             }
 
@@ -333,12 +339,9 @@ impl SimpleStateCallback for KashikishiCallback {
                 "mode" => {
                     let world: Option<Box<dyn ModalWorld>> = match &*name.to_string() {
                         "start" => Some(Box::new(StartWorld::new(context))),
-                        "category" => Some(Box::new(CategorizedMemosWorld::new(
-                            context.window_size(),
-                            context.global_direction(),
-                        ))),
+                        "category" => Some(Box::new(CategorizedMemosWorld::new(context))),
                         "presentation" => Some(Box::new(MarkdownPresentationWorld::new(context))),
-                        "help" => Some(Box::new(HelpWorld::new(context.window_size()))),
+                        "help" => Some(Box::new(HelpWorld::new(context))),
                         _ => None,
                     };
                     if let Some(world) = world {
@@ -426,8 +429,13 @@ impl SimpleStateCallback for KashikishiCallback {
         }
     }
 
-    fn shutdown(&mut self) {
+    fn initial_editor_settings(&self) -> ui_support::editor_settings::EditorSettings {
+        self.config.editor_settings.clone()
+    }
+
+    fn shutdown(&mut self, context: &UiContext) {
         self.world.graceful_exit();
+        self.config.editor_settings = context.editor_settings();
         self.config.save();
     }
 }

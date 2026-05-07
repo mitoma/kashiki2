@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use ui_support::editor_settings::EditorSettings;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct KashikishiConfig {
@@ -7,6 +8,8 @@ pub(crate) struct KashikishiConfig {
     pub(crate) ascii_override_font: Option<String>,
     /// 組み込みシェーダーアートの識別名 (例: "starfield_warp", "gradient")
     pub(crate) background_shader: Option<String>,
+    #[serde(default)]
+    pub(crate) editor_settings: EditorSettings,
 }
 
 impl Default for KashikishiConfig {
@@ -16,6 +19,7 @@ impl Default for KashikishiConfig {
             font: None,
             ascii_override_font: None,
             background_shader: None,
+            editor_settings: EditorSettings::default(),
         }
     }
 }
@@ -35,7 +39,7 @@ impl KashikishiConfig {
     }
 
     pub fn save(&self) {
-        let config_json = serde_json::to_string(self).unwrap();
+        let config_json = serde_json::to_string_pretty(self).unwrap();
         std::fs::write(Self::config_file(), config_json).unwrap();
     }
 
