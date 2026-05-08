@@ -148,5 +148,15 @@
                 "depth": 0
             }
         ]
+    },
+    {
+        "name": "markdown.block_quote",
+        "language": "markdown",
+        "key_definitions": [
+            {
+                "key": "block_quote",
+                "depth": 0
+            }
+        ]
     }
 ]

@@ -100,7 +100,6 @@ struct HighlightContext<'a> {
     target_string: &'a str,
     target_string_byte_offset: usize,
     in_inline: bool,
-    depth: usize,
     kind_stack: KindStack,
     language_suggestion: String,
 }
@@ -111,7 +110,6 @@ impl<'a> HighlightContext<'a> {
             target_string,
             target_string_byte_offset: 0,
             in_inline: false,
-            depth: 0,
             kind_stack: KindStack::default(),
             language_suggestion: "markdown".to_string(),
         }
@@ -120,7 +118,6 @@ impl<'a> HighlightContext<'a> {
     fn with_kind(&self, kind: &KindAndRange) -> Self {
         let mut new_context = self.clone();
         new_context.kind_stack.push(kind.clone());
-        new_context.depth += 1;
         if kind.kind == "inline" {
             new_context.in_inline = true;
         }
@@ -361,6 +358,8 @@ mod tests {
 # Hello, world!
 
 This is a **bold** text and *italic* text.
+
+> This is a block quote.
 
 ## Hoge, world2
 
