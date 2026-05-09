@@ -255,9 +255,7 @@ impl CameraController {
 
         // aspect は width / height
         let (w, h) = target.bound();
-        // bound にちょっと余裕を持たせる。
-        let (w, h) = (w * 1.1, h * 1.1);
-        let tan_half_fovy = (camera.fovy.to_radians() / 2.0).tan();
+        let tan_half_fovy = (camera.fovy.to_radians() / 2.0).tan() * 0.9;
         let aspect = camera.aspect.max(f32::EPSILON);
         let size = match adjustment {
             // w と h のうち大きい方を使う
