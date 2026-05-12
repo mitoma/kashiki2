@@ -10,7 +10,12 @@ mod memos;
 mod rokid_max_ext;
 mod world;
 
-use std::{rc::Rc, sync::Mutex};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+    rc::Rc,
+    sync::Mutex,
+};
 
 use arboard::Clipboard;
 use clap::Parser;
@@ -46,6 +51,8 @@ const ICON_IMAGE: &[u8] = include_bytes!("../kashikishi-icon.ico");
 
 const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
+const LOG_FILE_NAME: &str = "kashikishi.log";
+const LOG_GENERATIONS: usize = 5;
 
 pub fn main() {
     //std::env::set_var("RUST_LOG", "simple_text=debug");
@@ -54,8 +61,64 @@ pub fn main() {
     //std::env::set_var("RUST_LOG", "font_rasterizer::layout_engine=info");
     //std::env::set_var("RUST_LOG", "ui_support::action::system=debug");
     //std::env::set_var("FONT_RASTERIZER_DEBUG", "debug");
+    if let Err(err) = init_rotating_file_logger() {
+        eprintln!("failed to initialize file logger: {err}");
+    }
     let args = Args::parse();
     pollster::block_on(run(args));
+}
+
+fn init_rotating_file_logger() -> io::Result<()> {
+    let log_dir = resolve_log_dir();
+    fs::create_dir_all(&log_dir)?;
+    rotate_log_files(&log_dir, LOG_FILE_NAME, LOG_GENERATIONS)?;
+
+    let log_path = log_dir.join(LOG_FILE_NAME);
+    let log_file = fs::File::create(&log_path)?;
+
+    let mut builder = env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("warn,ui_support::render_state=info"),
+    );
+    builder
+        .format_timestamp_millis()
+        .target(env_logger::Target::Pipe(Box::new(log_file)))
+        .try_init()
+        .map_err(|err| io::Error::other(err.to_string()))?;
+
+    Ok(())
+}
+
+fn resolve_log_dir() -> PathBuf {
+    match dirs::data_local_dir() {
+        Some(dir) => dir.join("kashikishi").join("logs"),
+        None => PathBuf::from(".").join("logs"),
+    }
+}
+
+fn rotate_log_files(log_dir: &Path, base_name: &str, generations: usize) -> io::Result<()> {
+    if generations == 0 {
+        return Ok(());
+    }
+
+    let oldest = log_dir.join(format!("{base_name}.{generations}"));
+    if oldest.exists() {
+        fs::remove_file(&oldest)?;
+    }
+
+    for i in (1..generations).rev() {
+        let src = log_dir.join(format!("{base_name}.{i}"));
+        let dst = log_dir.join(format!("{base_name}.{}", i + 1));
+        if src.exists() {
+            fs::rename(src, dst)?;
+        }
+    }
+
+    let current = log_dir.join(base_name);
+    if current.exists() {
+        fs::rename(current, log_dir.join(format!("{base_name}.1")))?;
+    }
+
+    Ok(())
 }
 
 #[derive(Parser, Debug, Clone)]

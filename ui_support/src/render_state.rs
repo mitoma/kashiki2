@@ -15,7 +15,7 @@ use font_rasterizer::{
 
 use crate::ui_context::{Senders, UiContext};
 use image::{DynamicImage, ImageBuffer, Rgba};
-use log::info;
+use log::{error, info, warn};
 
 use crate::{
     InputResult, RenderData, SimpleStateCallback, easing_value::EasingPointN,
@@ -333,6 +333,19 @@ impl RenderState {
             .await
             .unwrap();
 
+        // 復帰時や他アプリの GPU 競合時のトラブル調査のため、デバイスロストと uncaptured error を必ず記録する。
+        let adapter_info = adapter.get_info();
+        info!(
+            "wgpu device initialized: backend={:?}, name={}, vendor={}, device_type={:?}",
+            adapter_info.backend, adapter_info.name, adapter_info.vendor, adapter_info.device_type
+        );
+        device.set_device_lost_callback(move |reason, message| {
+            error!("wgpu device lost: reason={:?}, message={}", reason, message);
+        });
+        device.on_uncaptured_error(Arc::new(|err| {
+            warn!("wgpu uncaptured error: {}", err);
+        }));
+
         let render_target = match render_target_request {
             RenderTargetRequest::Window { .. } => {
                 let surface = surface.unwrap();
@@ -603,6 +616,12 @@ impl RenderState {
             self.simple_state_callback.resize(new_size);
 
             let bg_color = self.rasterizer_pipeline.bg_color;
+            info!(
+                "rebuild rasterizer pipeline start: window={}x{}, target_format={:?}",
+                new_size.width,
+                new_size.height,
+                self.render_target.format(),
+            );
             // サイズ変更時にはパイプラインを作り直す
             self.rasterizer_pipeline = RasterizerPipeline::new(
                 self.context.device(),
@@ -619,6 +638,12 @@ impl RenderState {
             );
             self.rasterizer_pipeline
                 .set_shader_art(self.context.device(), self.shader_art.as_deref());
+            info!(
+                "rebuild rasterizer pipeline done: window={}x{}, target_format={:?}",
+                new_size.width,
+                new_size.height,
+                self.render_target.format(),
+            );
         }
     }
 
