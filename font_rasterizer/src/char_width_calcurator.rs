@@ -1,6 +1,6 @@
 use std::sync::{Arc, LazyLock};
 
-use cached::proc_macro::cached;
+use cached::cached;
 use font_collector::FontData;
 use log::debug;
 use rustybuzz::Face;

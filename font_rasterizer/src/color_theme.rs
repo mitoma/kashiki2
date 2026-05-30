@@ -1,4 +1,4 @@
-use cached::proc_macro::cached;
+use cached::cached;
 
 #[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
