@@ -7,9 +7,6 @@ edition = "2024"
 [features]
 cache = ["dep:redb", "dep:dirs"]
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 redb = { workspace = true, optional = true }
 dirs = { workspace = true, optional = true }
