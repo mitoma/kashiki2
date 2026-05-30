@@ -69,11 +69,9 @@ impl CharStates {
         &mut self,
         c: &BufferChar,
     ) -> Option<(&mut ViewElementState, &mut InstanceAttributes)> {
-        self.chars.get_mut(c).and_then(|state| {
-            self.instances
-                .get_mut(&(*c).into())
-                .map(|instance| (state, instance))
-        })
+        self.chars
+            .get_mut(c)
+            .zip(self.instances.get_mut(&(*c).into()))
     }
 
     pub(crate) fn add_preedit_char(
