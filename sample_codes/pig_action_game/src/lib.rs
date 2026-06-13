@@ -25,7 +25,8 @@ use wasm_bindgen::prelude::*;
 use web_time::Duration;
 use web_time::Instant;
 use winit::{
-    event::{ElementState, KeyEvent, WindowEvent},
+    dpi::PhysicalPosition,
+    event::{ElementState, KeyEvent, TouchPhase, WindowEvent},
     keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
 };
 
@@ -103,7 +104,6 @@ struct PigActionGame {
     meat_collected_time: Option<Instant>,
     last_update: Instant,
     window_size: WindowSize,
-    last_mouse_pos: Option<(f64, f64)>,
 }
 
 impl PigActionGame {
@@ -154,7 +154,6 @@ impl PigActionGame {
             meat_collected_time: None,
             last_update: Instant::now(),
             window_size,
-            last_mouse_pos: None,
         }
     }
 
@@ -527,19 +526,26 @@ impl SimpleStateCallback for PigActionGame {
                     _ => InputResult::Noop,
                 }
             }
-            WindowEvent::PointerMoved { position, .. } => {
-                // Record mouse position for click detection
-                self.last_mouse_pos = Some((position.x, position.y));
-                InputResult::Noop
+            WindowEvent::PinchGesture {
+                phase: TouchPhase::Ended,
+                delta,
+                ..
+            } => {
+                if *delta > 0.0 {
+                    // Pinch out (zoom in)
+                    InputResult::SetFullScreen(true)
+                } else {
+                    // Pinch in (zoom out)
+                    InputResult::SetFullScreen(false)
+                }
             }
             WindowEvent::PointerButton {
                 state: ElementState::Pressed,
+                position: PhysicalPosition { x, y },
                 ..
             } => {
                 // Detect direction from last recorded mouse position
-                if let Some((x, y)) = self.last_mouse_pos
-                    && let Some((dx, dz)) = self.get_direction_from_position(x, y)
-                {
+                if let Some((dx, dz)) = self.get_direction_from_position(*x, *y) {
                     self.try_move(dx, dz);
                     return InputResult::InputConsumed;
                 }

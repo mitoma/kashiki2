@@ -278,6 +278,13 @@ impl ApplicationHandler for App {
                     }
                 }
             }
+            InputResult::SetFullScreen(full_screen) => {
+                if flags.contains(Flags::FULL_SCREEN) && full_screen {
+                    window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                } else {
+                    window.set_fullscreen(None);
+                }
+            }
             InputResult::ToggleDecorations => {
                 window.set_decorations(!window.is_decorated());
             }
@@ -417,6 +424,13 @@ impl ApplicationHandler for App {
                         }
                     }
                 }
+                InputResult::SetFullScreen(full_screen) => {
+                    if flags.contains(Flags::FULL_SCREEN) && full_screen {
+                        window.set_fullscreen(Some(Fullscreen::Borderless(None)));
+                    } else {
+                        window.set_fullscreen(None);
+                    }
+                }
                 InputResult::ChangeColorTheme(color_theme) => {
                     state.change_color_theme(color_theme);
                 }
@@ -538,6 +552,7 @@ fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> O
         }
         InputResult::SendExit => Some(input_result),
         InputResult::ToggleFullScreen => Some(input_result),
+        InputResult::SetFullScreen(_) => Some(input_result),
         InputResult::ToggleDecorations => Some(input_result),
         InputResult::ChangeWindowSize(_) => Some(input_result),
         InputResult::ChangeQuarity(_) => Some(input_result),
@@ -550,6 +565,7 @@ fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> O
 pub enum InputResult {
     InputConsumed,
     ToggleFullScreen,
+    SetFullScreen(bool),
     ToggleDecorations,
     ChangeColorTheme(ColorTheme),
     ChangeBackgroundImage(Option<DynamicImage>),
