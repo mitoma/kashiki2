@@ -1,7 +1,7 @@
 pub mod action;
 pub mod action_recorder;
 pub mod camera;
-mod easing_value;
+pub mod easing_value;
 pub mod editor_settings;
 pub mod layout_engine;
 mod metrics_counter;
