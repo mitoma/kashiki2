@@ -8,7 +8,7 @@ use font_rasterizer::{
     time::{increment_fixed_clock, set_clock_mode},
     vector_instances::{InstanceAttributes, InstanceKey},
 };
-use glam::Vec3;
+use glam::{Quat, Vec3};
 use stroke_parser::Action;
 use ui_support::ui_context::UiContext;
 use ui_support::{
@@ -38,6 +38,19 @@ const GRAVITY: f32 = 20.0;
 const CAMERA_HEIGHT: f32 = 3.0;
 const CAMERA_BACK_OFFSET_Z: f32 = 12.0;
 const MOVE_EASING_MILLIS: u64 = 360;
+const PIG_FORWARD_TILT_RAD: f32 = 0.20;
+
+#[derive(Clone, Copy, Debug)]
+enum PigFacingHorizontal {
+    Left,
+    Right,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum PigFacingVertical {
+    Up,
+    Down,
+}
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
@@ -76,6 +89,8 @@ struct PigActionGame {
     visual_grid_position: EasingPointN<2>,
     jump_height: f32,
     jump_velocity: f32,
+    pig_facing_horizontal: PigFacingHorizontal,
+    pig_facing_vertical: PigFacingVertical,
     last_update: Instant,
 }
 
@@ -106,6 +121,8 @@ impl PigActionGame {
             visual_grid_position,
             jump_height: 0.0,
             jump_velocity: 0.0,
+            pig_facing_horizontal: PigFacingHorizontal::Right,
+            pig_facing_vertical: PigFacingVertical::Down,
             last_update: Instant::now(),
         }
     }
@@ -116,6 +133,16 @@ impl PigActionGame {
     }
 
     fn try_move(&mut self, dx: i32, dz: i32) {
+        if dx < 0 {
+            self.pig_facing_horizontal = PigFacingHorizontal::Left;
+        } else if dx > 0 {
+            self.pig_facing_horizontal = PigFacingHorizontal::Right;
+        } else if dz < 0 {
+            self.pig_facing_vertical = PigFacingVertical::Up;
+        } else if dz > 0 {
+            self.pig_facing_vertical = PigFacingVertical::Down;
+        }
+
         self.grid_x += dx;
         self.grid_z += dz;
         self.clamp_grid();
@@ -157,8 +184,27 @@ impl PigActionGame {
         }
     }
 
+    fn pig_transform_by_facing(&self) -> Quat {
+        let rotation = match (self.pig_facing_vertical, self.pig_facing_horizontal) {
+            (PigFacingVertical::Up, PigFacingHorizontal::Left) => {
+                Quat::from_rotation_y(-45.0_f32.to_radians())
+            }
+            (PigFacingVertical::Up, PigFacingHorizontal::Right) => {
+                Quat::from_rotation_y(225.0_f32.to_radians())
+            }
+            (PigFacingVertical::Down, PigFacingHorizontal::Left) => {
+                Quat::from_rotation_y(45.0_f32.to_radians())
+            }
+            (PigFacingVertical::Down, PigFacingHorizontal::Right) => {
+                Quat::from_rotation_y(-225.0_f32.to_radians())
+            }
+        };
+        rotation
+    }
+
     fn init_scene_instances(&mut self, context: &UiContext) {
         let pig_position = self.world_position();
+        let pig_rotation = self.pig_transform_by_facing();
 
         let (Some(ground), Some(marker), Some(pig)) = (
             self.ground.as_mut(),
@@ -197,6 +243,7 @@ impl PigActionGame {
             InstanceKey::Monotonic(0),
             InstanceAttributes {
                 position: pig_position,
+                rotation: pig_rotation,
                 instance_scale: [1.3, 1.3],
                 color: context.color_theme().magenta().get_color(),
                 motion: MotionFlags::builder()
@@ -217,6 +264,7 @@ impl PigActionGame {
 
     fn update_scene_instances(&mut self, context: &UiContext) {
         let pig_position = self.world_position();
+        let pig_rotation = self.pig_transform_by_facing();
 
         let (Some(ground), Some(marker), Some(pig)) = (
             self.ground.as_mut(),
@@ -243,6 +291,8 @@ impl PigActionGame {
         // Update pig position only (preserving animation state)
         if let Some(inst) = pig.get_mut(&InstanceKey::Monotonic(0)) {
             inst.position = pig_position;
+            inst.rotation = pig_rotation;
+            inst.instance_scale = [1.3, 1.3];
         }
 
         ground.update_buffer(context.device(), context.queue());
@@ -268,7 +318,7 @@ impl SimpleStateCallback for PigActionGame {
         self.pig = Some(GlyphInstances::new('🐖', context.device()));
         self.visual_grid_position
             .update(self.logical_world_position());
-        context.register_string("🐖草・".to_string());
+        context.register_string("🐖+・".to_string());
         self.init_scene_instances(context);
     }
 
@@ -340,9 +390,6 @@ impl SimpleStateCallback for PigActionGame {
         let mut glyph_instances = vec![];
         if let Some(ground) = self.ground.as_ref() {
             glyph_instances.push(ground);
-        }
-        if let Some(marker) = self.marker.as_ref() {
-            //glyph_instances.push(marker);
         }
         if let Some(pig) = self.pig.as_ref() {
             glyph_instances.push(pig);
