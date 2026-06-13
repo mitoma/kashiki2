@@ -9,6 +9,7 @@ use font_rasterizer::{
     vector_instances::{InstanceAttributes, InstanceKey},
 };
 use glam::{Quat, Vec3};
+use std::f32::consts::PI;
 use stroke_parser::Action;
 use ui_support::ui_context::UiContext;
 use ui_support::{
@@ -38,6 +39,7 @@ const GRAVITY: f32 = 20.0;
 const CAMERA_HEIGHT: f32 = 3.0;
 const CAMERA_BACK_OFFSET_Z: f32 = 12.0;
 const MOVE_EASING_MILLIS: u64 = 360;
+const PIG_TURN_EASING_MILLIS: u64 = 220;
 const PIG_FORWARD_TILT_RAD: f32 = 0.20;
 
 #[derive(Clone, Copy, Debug)]
@@ -91,6 +93,7 @@ struct PigActionGame {
     jump_velocity: f32,
     pig_facing_horizontal: PigFacingHorizontal,
     pig_facing_vertical: PigFacingVertical,
+    pig_orientation: EasingPointN<1>,
     last_update: Instant,
 }
 
@@ -99,8 +102,19 @@ impl PigActionGame {
         let mut camera = Camera::basic(window_size);
         let mut camera_controller = CameraController::new(0.0);
         let mut visual_grid_position: EasingPointN<2> = [0.0, 0.0].into();
+        let initial_pig_facing_horizontal = PigFacingHorizontal::Right;
+        let initial_pig_facing_vertical = PigFacingVertical::Down;
+        let mut pig_orientation: EasingPointN<1> = [PigActionGame::target_yaw_by_facing(
+            initial_pig_facing_vertical,
+            initial_pig_facing_horizontal,
+        )]
+        .into();
         visual_grid_position.update_duration_and_easing_func(
             Duration::from_millis(MOVE_EASING_MILLIS),
+            nenobi::functions::sin_in_out,
+        );
+        pig_orientation.update_duration_and_easing_func(
+            Duration::from_millis(PIG_TURN_EASING_MILLIS),
             nenobi::functions::sin_in_out,
         );
         camera_controller.process(&CameraOperation::CangeTargetAndEye(
@@ -121,8 +135,9 @@ impl PigActionGame {
             visual_grid_position,
             jump_height: 0.0,
             jump_velocity: 0.0,
-            pig_facing_horizontal: PigFacingHorizontal::Right,
-            pig_facing_vertical: PigFacingVertical::Down,
+            pig_facing_horizontal: initial_pig_facing_horizontal,
+            pig_facing_vertical: initial_pig_facing_vertical,
+            pig_orientation,
             last_update: Instant::now(),
         }
     }
@@ -146,6 +161,7 @@ impl PigActionGame {
         self.grid_x += dx;
         self.grid_z += dz;
         self.clamp_grid();
+        self.update_pig_orientation_target();
         self.visual_grid_position.update([
             self.grid_x as f32 * CELL_SIZE,
             self.grid_z as f32 * CELL_SIZE,
@@ -184,22 +200,32 @@ impl PigActionGame {
         }
     }
 
+    fn target_yaw_by_facing(vertical: PigFacingVertical, horizontal: PigFacingHorizontal) -> f32 {
+        match (vertical, horizontal) {
+            (PigFacingVertical::Up, PigFacingHorizontal::Left) => -45.0_f32.to_radians(),
+            (PigFacingVertical::Up, PigFacingHorizontal::Right) => 225.0_f32.to_radians(),
+            (PigFacingVertical::Down, PigFacingHorizontal::Left) => 45.0_f32.to_radians(),
+            (PigFacingVertical::Down, PigFacingHorizontal::Right) => -225.0_f32.to_radians(),
+        }
+    }
+
+    fn normalize_angle_near(current: f32, target: f32) -> f32 {
+        let two_pi = 2.0 * PI;
+        let diff = (target - current + PI).rem_euclid(two_pi) - PI;
+        current + diff
+    }
+
+    fn update_pig_orientation_target(&mut self) {
+        let [current_yaw] = self.pig_orientation.current();
+        let target_yaw_raw =
+            Self::target_yaw_by_facing(self.pig_facing_vertical, self.pig_facing_horizontal);
+        let target_yaw = Self::normalize_angle_near(current_yaw, target_yaw_raw);
+        self.pig_orientation.update([target_yaw]);
+    }
+
     fn pig_transform_by_facing(&self) -> Quat {
-        let rotation = match (self.pig_facing_vertical, self.pig_facing_horizontal) {
-            (PigFacingVertical::Up, PigFacingHorizontal::Left) => {
-                Quat::from_rotation_y(-45.0_f32.to_radians())
-            }
-            (PigFacingVertical::Up, PigFacingHorizontal::Right) => {
-                Quat::from_rotation_y(225.0_f32.to_radians())
-            }
-            (PigFacingVertical::Down, PigFacingHorizontal::Left) => {
-                Quat::from_rotation_y(45.0_f32.to_radians())
-            }
-            (PigFacingVertical::Down, PigFacingHorizontal::Right) => {
-                Quat::from_rotation_y(-225.0_f32.to_radians())
-            }
-        };
-        rotation
+        let [yaw] = self.pig_orientation.current();
+        Quat::from_rotation_y(yaw)
     }
 
     fn init_scene_instances(&mut self, context: &UiContext) {
