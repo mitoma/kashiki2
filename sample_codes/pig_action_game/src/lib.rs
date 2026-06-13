@@ -9,7 +9,9 @@ use font_rasterizer::{
     vector_instances::{InstanceAttributes, InstanceKey},
 };
 use glam::{Quat, Vec3};
+use std::collections::hash_map::DefaultHasher;
 use std::f32::consts::PI;
+use std::hash::{Hash, Hasher};
 use stroke_parser::Action;
 use ui_support::ui_context::UiContext;
 use ui_support::{
@@ -26,8 +28,6 @@ use winit::{
     event::{ElementState, KeyEvent, WindowEvent},
     keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
 };
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 const FONT_DATA: &[u8] = include_bytes!("../../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../../fonts/NotoEmoji-Regular.ttf");
@@ -248,9 +248,7 @@ impl PigActionGame {
 
     fn get_meat_collection_progress(&self) -> Option<f32> {
         if let Some(collected_time) = self.meat_collected_time {
-            let elapsed = Instant::now()
-                .duration_since(collected_time)
-                .as_millis() as f32;
+            let elapsed = Instant::now().duration_since(collected_time).as_millis() as f32;
             let progress = (elapsed / MEAT_COLLECTION_ANIM_MILLIS as f32).min(1.0);
             if progress < 1.0 {
                 return Some(progress);
@@ -261,9 +259,7 @@ impl PigActionGame {
 
     fn clear_meat_collection_flag_if_done(&mut self) {
         if let Some(collected_time) = self.meat_collected_time {
-            let elapsed = Instant::now()
-                .duration_since(collected_time)
-                .as_millis() as f32;
+            let elapsed = Instant::now().duration_since(collected_time).as_millis() as f32;
             if elapsed >= MEAT_COLLECTION_ANIM_MILLIS as f32 {
                 self.meat_collected_time = None;
                 // Generate new meat position when animation completes
@@ -282,7 +278,8 @@ impl PigActionGame {
         self.rng_seed = self.rng_seed.wrapping_mul(1103515245).wrapping_add(12345);
         let x = ((self.rng_seed >> 16) as i32).abs() % (GRID_HALF_WIDTH * 2 + 1) - GRID_HALF_WIDTH;
         self.rng_seed = self.rng_seed.wrapping_mul(1103515245).wrapping_add(12345);
-        let z = ((self.rng_seed >> 16) as i32).abs() % (GRID_HALF_HEIGHT * 2 + 1) - GRID_HALF_HEIGHT;
+        let z =
+            ((self.rng_seed >> 16) as i32).abs() % (GRID_HALF_HEIGHT * 2 + 1) - GRID_HALF_HEIGHT;
         (x, z)
     }
 
@@ -535,13 +532,16 @@ impl SimpleStateCallback for PigActionGame {
                 self.last_mouse_pos = Some((position.x, position.y));
                 InputResult::Noop
             }
-            WindowEvent::PointerButton { state: ElementState::Pressed, .. } => {
+            WindowEvent::PointerButton {
+                state: ElementState::Pressed,
+                ..
+            } => {
                 // Detect direction from last recorded mouse position
-                if let Some((x, y)) = self.last_mouse_pos {
-                    if let Some((dx, dz)) = self.get_direction_from_position(x, y) {
-                        self.try_move(dx, dz);
-                        return InputResult::InputConsumed;
-                    }
+                if let Some((x, y)) = self.last_mouse_pos
+                    && let Some((dx, dz)) = self.get_direction_from_position(x, y)
+                {
+                    self.try_move(dx, dz);
+                    return InputResult::InputConsumed;
                 }
                 InputResult::Noop
             }
