@@ -26,12 +26,14 @@ use winit::{
     event::{ElementState, KeyEvent, WindowEvent},
     keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
 };
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 const FONT_DATA: &[u8] = include_bytes!("../../../fonts/BIZUDMincho-Regular.ttf");
 const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../../fonts/NotoEmoji-Regular.ttf");
 
-const GRID_HALF_WIDTH: i32 = 8;
-const GRID_HALF_HEIGHT: i32 = 6;
+const GRID_HALF_WIDTH: i32 = 4;
+const GRID_HALF_HEIGHT: i32 = 4;
 const CELL_SIZE: f32 = 1.8;
 
 const JUMP_INITIAL_VELOCITY: f32 = 7.5;
@@ -40,7 +42,7 @@ const CAMERA_HEIGHT: f32 = 3.0;
 const CAMERA_BACK_OFFSET_Z: f32 = 12.0;
 const MOVE_EASING_MILLIS: u64 = 360;
 const PIG_TURN_EASING_MILLIS: u64 = 220;
-const PIG_FORWARD_TILT_RAD: f32 = 0.20;
+const MEAT_COLLECTION_ANIM_MILLIS: u64 = 600;
 
 #[derive(Clone, Copy, Debug)]
 enum PigFacingHorizontal {
@@ -86,14 +88,19 @@ struct PigActionGame {
     pig: Option<GlyphInstances>,
     ground: Option<GlyphInstances>,
     marker: Option<GlyphInstances>,
+    meat: Option<GlyphInstances>,
     grid_x: i32,
     grid_z: i32,
+    meat_grid_x: i32,
+    meat_grid_z: i32,
     visual_grid_position: EasingPointN<2>,
     jump_height: f32,
     jump_velocity: f32,
     pig_facing_horizontal: PigFacingHorizontal,
     pig_facing_vertical: PigFacingVertical,
     pig_orientation: EasingPointN<1>,
+    rng_seed: u64,
+    meat_collected_time: Option<Instant>,
     last_update: Instant,
 }
 
@@ -130,14 +137,19 @@ impl PigActionGame {
             pig: None,
             ground: None,
             marker: None,
+            meat: None,
             grid_x: 0,
             grid_z: 0,
+            meat_grid_x: 2,
+            meat_grid_z: 2,
             visual_grid_position,
             jump_height: 0.0,
             jump_velocity: 0.0,
             pig_facing_horizontal: initial_pig_facing_horizontal,
             pig_facing_vertical: initial_pig_facing_vertical,
             pig_orientation,
+            rng_seed: 12345,
+            meat_collected_time: None,
             last_update: Instant::now(),
         }
     }
@@ -166,6 +178,8 @@ impl PigActionGame {
             self.grid_x as f32 * CELL_SIZE,
             self.grid_z as f32 * CELL_SIZE,
         ]);
+        // Check for meat collection immediately after position update
+        self.check_and_collect_meat();
     }
 
     fn world_position(&self) -> Vec3 {
@@ -228,14 +242,69 @@ impl PigActionGame {
         Quat::from_rotation_y(yaw)
     }
 
+    fn get_meat_collection_progress(&self) -> Option<f32> {
+        if let Some(collected_time) = self.meat_collected_time {
+            let elapsed = Instant::now()
+                .duration_since(collected_time)
+                .as_millis() as f32;
+            let progress = (elapsed / MEAT_COLLECTION_ANIM_MILLIS as f32).min(1.0);
+            if progress < 1.0 {
+                return Some(progress);
+            }
+        }
+        None
+    }
+
+    fn clear_meat_collection_flag_if_done(&mut self) {
+        if let Some(collected_time) = self.meat_collected_time {
+            let elapsed = Instant::now()
+                .duration_since(collected_time)
+                .as_millis() as f32;
+            if elapsed >= MEAT_COLLECTION_ANIM_MILLIS as f32 {
+                self.meat_collected_time = None;
+                // Generate new meat position when animation completes
+                let mut hasher = DefaultHasher::new();
+                Instant::now().hash(&mut hasher);
+                self.rng_seed = hasher.finish();
+                let (new_x, new_z) = self.generate_random_grid_pos();
+                self.meat_grid_x = new_x;
+                self.meat_grid_z = new_z;
+            }
+        }
+    }
+
+    fn generate_random_grid_pos(&mut self) -> (i32, i32) {
+        // Simple LCG random number generator
+        self.rng_seed = self.rng_seed.wrapping_mul(1103515245).wrapping_add(12345);
+        let x = ((self.rng_seed >> 16) as i32).abs() % (GRID_HALF_WIDTH * 2 + 1) - GRID_HALF_WIDTH;
+        self.rng_seed = self.rng_seed.wrapping_mul(1103515245).wrapping_add(12345);
+        let z = ((self.rng_seed >> 16) as i32).abs() % (GRID_HALF_HEIGHT * 2 + 1) - GRID_HALF_HEIGHT;
+        (x, z)
+    }
+
+    fn check_and_collect_meat(&mut self) -> bool {
+        if self.grid_x == self.meat_grid_x && self.grid_z == self.meat_grid_z {
+            // Mark collection time for animation only, don't update position yet
+            self.meat_collected_time = Some(Instant::now());
+            return true;
+        }
+        false
+    }
+
     fn init_scene_instances(&mut self, context: &UiContext) {
         let pig_position = self.world_position();
         let pig_rotation = self.pig_transform_by_facing();
+        let meat_position = Vec3::new(
+            self.meat_grid_x as f32 * CELL_SIZE,
+            0.0,
+            self.meat_grid_z as f32 * CELL_SIZE,
+        );
 
-        let (Some(ground), Some(marker), Some(pig)) = (
+        let (Some(ground), Some(marker), Some(pig), Some(meat)) = (
             self.ground.as_mut(),
             self.marker.as_mut(),
             self.pig.as_mut(),
+            self.meat.as_mut(),
         ) else {
             return;
         };
@@ -283,19 +352,39 @@ impl PigActionGame {
             },
         );
 
+        meat.insert(
+            InstanceKey::Monotonic(0),
+            InstanceAttributes {
+                position: meat_position,
+                instance_scale: [1.2, 1.2],
+                color: context.color_theme().red().get_color(),
+                ..Default::default()
+            },
+        );
+
         ground.update_buffer(context.device(), context.queue());
         marker.update_buffer(context.device(), context.queue());
         pig.update_buffer(context.device(), context.queue());
+        meat.update_buffer(context.device(), context.queue());
     }
 
     fn update_scene_instances(&mut self, context: &UiContext) {
         let pig_position = self.world_position();
         let pig_rotation = self.pig_transform_by_facing();
+        let meat_position = Vec3::new(
+            self.meat_grid_x as f32 * CELL_SIZE,
+            0.0,
+            self.meat_grid_z as f32 * CELL_SIZE,
+        );
 
-        let (Some(ground), Some(marker), Some(pig)) = (
+        // Calculate animation progress before borrowing
+        let meat_collection_progress = self.get_meat_collection_progress();
+
+        let (Some(ground), Some(marker), Some(pig), Some(meat)) = (
             self.ground.as_mut(),
             self.marker.as_mut(),
             self.pig.as_mut(),
+            self.meat.as_mut(),
         ) else {
             return;
         };
@@ -314,16 +403,49 @@ impl PigActionGame {
             inst.position = Vec3::new(pig_position.x, -0.05, pig_position.z);
         }
 
-        // Update pig position only (preserving animation state)
-        if let Some(inst) = pig.get_mut(&InstanceKey::Monotonic(0)) {
-            inst.position = pig_position;
-            inst.rotation = pig_rotation;
-            inst.instance_scale = [1.3, 1.3];
+        // Update pig with shake animation if meat was collected
+        if let Some(progress) = meat_collection_progress {
+            // Pig shakes: scale oscillates
+            let shake = (progress * PI * 4.0).sin() * 0.15;
+            let scale_x = 1.3 + shake;
+            let scale_y = 1.3 - shake * 0.5;
+            if let Some(inst) = pig.get_mut(&InstanceKey::Monotonic(0)) {
+                inst.position = pig_position;
+                inst.rotation = pig_rotation;
+                inst.instance_scale = [scale_x, scale_y];
+            }
+        } else {
+            // Normal pig update
+            if let Some(inst) = pig.get_mut(&InstanceKey::Monotonic(0)) {
+                inst.position = pig_position;
+                inst.rotation = pig_rotation;
+                inst.instance_scale = [1.3, 1.3];
+            }
+        }
+
+        // Update meat with float-up animation if collected
+        if let Some(progress) = meat_collection_progress {
+            // Meat floats up and scales
+            let float_height = progress * progress * 2.0; // Quadratic rise
+            let fade_scale = 1.2 + progress * 0.5; // Grows slightly
+            if let Some(inst) = meat.get_mut(&InstanceKey::Monotonic(0)) {
+                inst.position = meat_position + Vec3::new(0.0, float_height, 0.0);
+                inst.instance_scale = [fade_scale, fade_scale];
+            }
+        } else {
+            // Normal meat position
+            if let Some(inst) = meat.get_mut(&InstanceKey::Monotonic(0)) {
+                inst.position = meat_position;
+                inst.instance_scale = [1.2, 1.2];
+            }
         }
 
         ground.update_buffer(context.device(), context.queue());
         marker.update_buffer(context.device(), context.queue());
         pig.update_buffer(context.device(), context.queue());
+        meat.update_buffer(context.device(), context.queue());
+
+        self.clear_meat_collection_flag_if_done();
     }
 
     fn update_camera_follow(&mut self) {
@@ -342,9 +464,14 @@ impl SimpleStateCallback for PigActionGame {
         self.ground = Some(GlyphInstances::new('・', context.device()));
         self.marker = Some(GlyphInstances::new('+', context.device()));
         self.pig = Some(GlyphInstances::new('🐖', context.device()));
+        self.meat = Some(GlyphInstances::new('🍖', context.device()));
         self.visual_grid_position
             .update(self.logical_world_position());
-        context.register_string("🐖+・".to_string());
+        context.register_string("🐖🍖+・".to_string());
+        // Random initialize meat position
+        let (meat_x, meat_z) = self.generate_random_grid_pos();
+        self.meat_grid_x = meat_x;
+        self.meat_grid_z = meat_z;
         self.init_scene_instances(context);
     }
 
@@ -416,6 +543,9 @@ impl SimpleStateCallback for PigActionGame {
         let mut glyph_instances = vec![];
         if let Some(ground) = self.ground.as_ref() {
             glyph_instances.push(ground);
+        }
+        if let Some(meat) = self.meat.as_ref() {
+            glyph_instances.push(meat);
         }
         if let Some(pig) = self.pig.as_ref() {
             glyph_instances.push(pig);
