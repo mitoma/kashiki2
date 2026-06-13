@@ -1,7 +1,12 @@
 use font_collector::FontRepository;
 use font_rasterizer::{
-    color_theme::ColorTheme, context::WindowSize, glyph_instances::GlyphInstances,
-    rasterizer_pipeline::Quarity, vector_instances::InstanceAttributes,
+    color_theme::ColorTheme,
+    context::WindowSize,
+    glyph_instances::GlyphInstances,
+    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
+    rasterizer_pipeline::Quarity,
+    time::{increment_fixed_clock, set_clock_mode},
+    vector_instances::{InstanceAttributes, InstanceKey},
 };
 use glam::Vec3;
 use stroke_parser::Action;
@@ -30,7 +35,7 @@ const CELL_SIZE: f32 = 1.8;
 
 const JUMP_INITIAL_VELOCITY: f32 = 7.5;
 const GRAVITY: f32 = 20.0;
-const CAMERA_HEIGHT: f32 = 16.0;
+const CAMERA_HEIGHT: f32 = 3.0;
 const CAMERA_BACK_OFFSET_Z: f32 = 12.0;
 const MOVE_EASING_MILLIS: u64 = 360;
 
@@ -40,6 +45,7 @@ pub async fn run() {
     font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
     font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
+    set_clock_mode(font_rasterizer::time::ClockMode::StepByStep);
     let window_size = WindowSize::new(1024, 768);
     let callback = PigActionGame::new(window_size);
     let support = SimpleStateSupport {
@@ -48,7 +54,7 @@ pub async fn run() {
         window_size,
         callback: Box::new(callback),
         quarity: Quarity::High,
-        color_theme: ColorTheme::SolarizedDark,
+        color_theme: ColorTheme::SolarizedLight,
         flags: Flags::DEFAULT,
         font_repository,
         performance_mode: false,
@@ -151,7 +157,7 @@ impl PigActionGame {
         }
     }
 
-    fn rebuild_scene_instances(&mut self, context: &UiContext) {
+    fn init_scene_instances(&mut self, context: &UiContext) {
         let pig_position = self.world_position();
 
         let (Some(ground), Some(marker), Some(pig)) = (
@@ -162,35 +168,82 @@ impl PigActionGame {
             return;
         };
 
-        ground.clear();
-        marker.clear();
-        pig.clear();
-
-        let ground_color = context.color_theme().background_highlights().get_color();
+        let ground_color = context.color_theme().green().get_color();
         for x in -GRID_HALF_WIDTH..=GRID_HALF_WIDTH {
             for z in -GRID_HALF_HEIGHT..=GRID_HALF_HEIGHT {
-                ground.push(InstanceAttributes {
-                    position: Vec3::new(x as f32 * CELL_SIZE, -0.3, z as f32 * CELL_SIZE),
-                    instance_scale: [0.8, 0.8],
-                    color: ground_color,
-                    ..Default::default()
-                });
+                ground.insert(
+                    InstanceKey::Position(x as usize, z as usize),
+                    InstanceAttributes {
+                        position: Vec3::new(x as f32 * CELL_SIZE, -0.3, z as f32 * CELL_SIZE),
+                        instance_scale: [0.8, 0.8],
+                        color: ground_color,
+                        ..Default::default()
+                    },
+                );
             }
         }
 
-        marker.push(InstanceAttributes {
-            position: Vec3::new(pig_position.x, -0.05, pig_position.z),
-            instance_scale: [0.7, 0.7],
-            color: context.color_theme().yellow().get_color(),
-            ..Default::default()
-        });
+        marker.insert(
+            InstanceKey::Monotonic(0),
+            InstanceAttributes {
+                position: Vec3::new(pig_position.x, -0.05, pig_position.z),
+                instance_scale: [0.7, 0.7],
+                color: context.color_theme().yellow().get_color(),
+                ..Default::default()
+            },
+        );
 
-        pig.push(InstanceAttributes {
-            position: pig_position,
-            instance_scale: [1.3, 1.3],
-            color: context.color_theme().magenta().get_color(),
-            ..Default::default()
-        });
+        pig.insert(
+            InstanceKey::Monotonic(0),
+            InstanceAttributes {
+                position: pig_position,
+                instance_scale: [1.3, 1.3],
+                color: context.color_theme().magenta().get_color(),
+                motion: MotionFlags::builder()
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Sin, true))
+                    .motion_detail(MotionDetail::USE_X_DISTANCE)
+                    .motion_target(MotionTarget::MOVE_X_PLUS)
+                    .build(),
+                gain: 0.15,
+                duration: Duration::from_millis(800),
+                ..Default::default()
+            },
+        );
+
+        ground.update_buffer(context.device(), context.queue());
+        marker.update_buffer(context.device(), context.queue());
+        pig.update_buffer(context.device(), context.queue());
+    }
+
+    fn update_scene_instances(&mut self, context: &UiContext) {
+        let pig_position = self.world_position();
+
+        let (Some(ground), Some(marker), Some(pig)) = (
+            self.ground.as_mut(),
+            self.marker.as_mut(),
+            self.pig.as_mut(),
+        ) else {
+            return;
+        };
+
+        // Update ground positions only
+        for x in -GRID_HALF_WIDTH..=GRID_HALF_WIDTH {
+            for z in -GRID_HALF_HEIGHT..=GRID_HALF_HEIGHT {
+                if let Some(inst) = ground.get_mut(&InstanceKey::Position(x as usize, z as usize)) {
+                    inst.position = Vec3::new(x as f32 * CELL_SIZE, -0.3, z as f32 * CELL_SIZE);
+                }
+            }
+        }
+
+        // Update marker position only (preserving animation state)
+        if let Some(inst) = marker.get_mut(&InstanceKey::Monotonic(0)) {
+            inst.position = Vec3::new(pig_position.x, -0.05, pig_position.z);
+        }
+
+        // Update pig position only (preserving animation state)
+        if let Some(inst) = pig.get_mut(&InstanceKey::Monotonic(0)) {
+            inst.position = pig_position;
+        }
 
         ground.update_buffer(context.device(), context.queue());
         marker.update_buffer(context.device(), context.queue());
@@ -215,8 +268,8 @@ impl SimpleStateCallback for PigActionGame {
         self.pig = Some(GlyphInstances::new('🐖', context.device()));
         self.visual_grid_position
             .update(self.logical_world_position());
-        context.register_string("🐖・+".to_string());
-        self.rebuild_scene_instances(context);
+        context.register_string("🐖草・".to_string());
+        self.init_scene_instances(context);
     }
 
     fn update(&mut self, context: &UiContext) {
@@ -226,7 +279,7 @@ impl SimpleStateCallback for PigActionGame {
 
         self.update_jump(dt);
         self.update_camera_follow();
-        self.rebuild_scene_instances(context);
+        self.update_scene_instances(context);
     }
 
     fn input(&mut self, _context: &UiContext, event: &WindowEvent) -> InputResult {
@@ -242,11 +295,10 @@ impl SimpleStateCallback for PigActionGame {
                     },
                 ..
             } => {
-                if *repeat {
-                    return InputResult::InputConsumed;
-                }
-
                 if *physical_key == PhysicalKey::Code(KeyCode::Space) {
+                    if *repeat {
+                        return InputResult::InputConsumed;
+                    }
                     self.request_jump();
                     return InputResult::InputConsumed;
                 }
@@ -290,11 +342,13 @@ impl SimpleStateCallback for PigActionGame {
             glyph_instances.push(ground);
         }
         if let Some(marker) = self.marker.as_ref() {
-            glyph_instances.push(marker);
+            //glyph_instances.push(marker);
         }
         if let Some(pig) = self.pig.as_ref() {
             glyph_instances.push(pig);
         }
+
+        increment_fixed_clock(Duration::ZERO);
 
         RenderData {
             camera: &self.camera,
