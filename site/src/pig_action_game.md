@@ -3,6 +3,7 @@
 font_rasterizer を使った小さなアクションゲームです。Web 版では iframe 内の canvas にフォーカスした状態で操作してください。
 
 - ← ↑ ↓ → : 移動
+- クリックまたはタッチ : 移動
 - Space : ジャンプ
 
 <style>

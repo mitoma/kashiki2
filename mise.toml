@@ -29,10 +29,19 @@ description = "Run wasm-opt"
 run = "wasm-opt -Oz -o site/src/wasm/showcase/showcase_bg.wasm site/src/wasm/showcase/showcase_bg.wasm"
 depends = ["bindgen-sites"]
 
+[tasks.pig-action-game-build-sites]
+description = "Build pig_action_game for sites"
+run = "cargo build --target wasm32-unknown-unknown --release -p pig_action_game"
+
+[tasks.pig-action-game-bindgen-sites]
+description = "Run wasm-bindgen for pig_action_game"
+run = "wasm-bindgen target/wasm32-unknown-unknown/release/pig_action_game.wasm --target web --out-dir site/src/wasm/pig_action_game"
+depends = ["pig-action-game-build-sites"]
+
 [tasks.dev-sites]
 description = "Run the development server"
 run = "mdbook serve site --open"
-depends = ["bindgen-sites", "apng-bindgen-sites"]
+depends = ["bindgen-sites", "apng-bindgen-sites", "pig-action-game-bindgen-sites"]
 
 [tasks.dev-sites-opt]
 description = "Run the development server"
