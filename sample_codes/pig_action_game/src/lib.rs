@@ -102,6 +102,8 @@ struct PigActionGame {
     rng_seed: u64,
     meat_collected_time: Option<Instant>,
     last_update: Instant,
+    window_size: WindowSize,
+    last_mouse_pos: Option<(f64, f64)>,
 }
 
 impl PigActionGame {
@@ -151,6 +153,8 @@ impl PigActionGame {
             rng_seed: 12345,
             meat_collected_time: None,
             last_update: Instant::now(),
+            window_size,
+            last_mouse_pos: None,
         }
     }
 
@@ -526,6 +530,21 @@ impl SimpleStateCallback for PigActionGame {
                     _ => InputResult::Noop,
                 }
             }
+            WindowEvent::PointerMoved { position, .. } => {
+                // Record mouse position for click detection
+                self.last_mouse_pos = Some((position.x, position.y));
+                InputResult::Noop
+            }
+            WindowEvent::PointerButton { state: ElementState::Pressed, .. } => {
+                // Detect direction from last recorded mouse position
+                if let Some((x, y)) = self.last_mouse_pos {
+                    if let Some((dx, dz)) = self.get_direction_from_position(x, y) {
+                        self.try_move(dx, dz);
+                        return InputResult::InputConsumed;
+                    }
+                }
+                InputResult::Noop
+            }
             _ => InputResult::Noop,
         }
     }
@@ -535,6 +554,7 @@ impl SimpleStateCallback for PigActionGame {
     }
 
     fn resize(&mut self, size: WindowSize) {
+        self.window_size = size;
         self.camera_controller
             .update_camera_aspect(&mut self.camera, size);
     }
@@ -563,4 +583,35 @@ impl SimpleStateCallback for PigActionGame {
     }
 
     fn shutdown(&mut self, _context: &UiContext) {}
+}
+
+impl PigActionGame {
+    fn get_direction_from_position(&self, x: f64, y: f64) -> Option<(i32, i32)> {
+        // Divide screen into 4 quadrants to determine direction
+        let center_x = self.window_size.width as f64 / 2.0;
+        let center_y = self.window_size.height as f64 / 2.0;
+
+        let dx_from_center = x - center_x;
+        let dy_from_center = y - center_y;
+
+        // Determine primary direction based on absolute distance
+        let abs_dx = dx_from_center.abs();
+        let abs_dy = dy_from_center.abs();
+
+        if abs_dx > abs_dy {
+            // Horizontal movement is dominant
+            if dx_from_center > 0.0 {
+                Some((1, 0)) // Right
+            } else {
+                Some((-1, 0)) // Left
+            }
+        } else {
+            // Vertical movement is dominant
+            if dy_from_center > 0.0 {
+                Some((0, 1)) // Down
+            } else {
+                Some((0, -1)) // Up
+            }
+        }
+    }
 }
