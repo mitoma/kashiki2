@@ -12,7 +12,9 @@ use crate::{color_theme::SolarizedColor, motion::MotionFlags, time::now_millis};
 pub struct InstanceAttributes {
     pub position: glam::Vec3,
     pub rotation: glam::Quat,
+    // ワールド座標系ごとの拡大率。translation より前に掛かるため位置にも影響する。
     pub world_scale: [f32; 2],
+    // 各 glyph 自身の見た目の拡大率。位置は変えたくないが大きさだけ変えたい時はこちらを使う。
     pub instance_scale: [f32; 2],
     pub color: [f32; 3],
     pub motion: MotionFlags,
@@ -82,6 +84,8 @@ impl InstanceAttributes {
             self.instance_scale[1],
             1.0,
         ));
+        // world_scale * translation の順なので、world_scale は位置にも効く。
+        // 位置を保ったまま glyph サイズだけ変えたい場合は instance_scale を使う。
         let model = world_scale
             .mul_mat4(&translation)
             .mul_mat4(&rotation)
