@@ -28,6 +28,9 @@ build_wasm_project "showcase" "${GIT_ROOT_DIR}/sample_codes/showcase"
 # apng_gen をビルド
 build_wasm_project "apng_gen" "${GIT_ROOT_DIR}/sample_codes/apng_gen"
 
+# pig_action_game をビルド
+build_wasm_project "pig_action_game" "${GIT_ROOT_DIR}/sample_codes/pig_action_game"
+
 cd "${GIT_ROOT_DIR}/site"
 mdbook clean
 mdbook build
