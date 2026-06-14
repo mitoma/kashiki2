@@ -3,7 +3,7 @@ use font_rasterizer::{
     color_theme::ColorTheme,
     context::WindowSize,
     glyph_instances::GlyphInstances,
-    motion::{EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
+    motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
     rasterizer_pipeline::Quarity,
     time::{increment_fixed_clock, set_clock_mode},
     vector_instances::{InstanceAttributes, InstanceKey},
@@ -26,7 +26,7 @@ use web_time::Duration;
 use web_time::Instant;
 use winit::{
     dpi::PhysicalPosition,
-    event::{ElementState, KeyEvent, TouchPhase, WindowEvent},
+    event::{ElementState, KeyEvent, WindowEvent},
     keyboard::{Key, KeyCode, NamedKey, PhysicalKey},
 };
 
@@ -44,6 +44,8 @@ const CAMERA_BACK_OFFSET_Z: f32 = 12.0;
 const MOVE_EASING_MILLIS: u64 = 360;
 const PIG_TURN_EASING_MILLIS: u64 = 220;
 const MEAT_COLLECTION_ANIM_MILLIS: u64 = 600;
+const FULLSCREEN_BUTTON_SIZE: f32 = 0.08;
+const FULLSCREEN_BUTTON_MARGIN: f32 = 0.39;
 
 #[derive(Clone, Copy, Debug)]
 enum PigFacingHorizontal {
@@ -90,6 +92,7 @@ struct PigActionGame {
     ground: Option<GlyphInstances>,
     marker: Option<GlyphInstances>,
     meat: Option<GlyphInstances>,
+    fullscreen_button: Option<GlyphInstances>,
     grid_x: i32,
     grid_z: i32,
     meat_grid_x: i32,
@@ -140,6 +143,7 @@ impl PigActionGame {
             ground: None,
             marker: None,
             meat: None,
+            fullscreen_button: None,
             grid_x: 0,
             grid_z: 0,
             meat_grid_x: 2,
@@ -299,12 +303,14 @@ impl PigActionGame {
             0.0,
             self.meat_grid_z as f32 * CELL_SIZE,
         );
+        let fullscreen_button_position = self.get_fullscreen_button_world_position();
 
-        let (Some(ground), Some(marker), Some(pig), Some(meat)) = (
+        let (Some(ground), Some(marker), Some(pig), Some(meat), Some(fullscreen_button)) = (
             self.ground.as_mut(),
             self.marker.as_mut(),
             self.pig.as_mut(),
             self.meat.as_mut(),
+            self.fullscreen_button.as_mut(),
         ) else {
             return;
         };
@@ -362,10 +368,28 @@ impl PigActionGame {
             },
         );
 
+        fullscreen_button.insert(
+            InstanceKey::Monotonic(0),
+            InstanceAttributes {
+                position: fullscreen_button_position,
+                instance_scale: [FULLSCREEN_BUTTON_SIZE, FULLSCREEN_BUTTON_SIZE],
+                color: context.color_theme().cyan().get_color(),
+                motion: MotionFlags::builder()
+                    .camera_detail(CameraDetail::IGNORE_CAMERA)
+                    .motion_target(MotionTarget::ROTATE_Z_PLUS)
+                    .motion_type(MotionType::EaseInOut(EasingFuncType::Liner, true))
+                    .build(),
+                gain: 1.0,
+                duration: Duration::from_millis(3000),
+                ..Default::default()
+            },
+        );
+
         ground.update_buffer(context.device(), context.queue());
         marker.update_buffer(context.device(), context.queue());
         pig.update_buffer(context.device(), context.queue());
         meat.update_buffer(context.device(), context.queue());
+        fullscreen_button.update_buffer(context.device(), context.queue());
     }
 
     fn update_scene_instances(&mut self, context: &UiContext) {
@@ -379,12 +403,14 @@ impl PigActionGame {
 
         // Calculate animation progress before borrowing
         let meat_collection_progress = self.get_meat_collection_progress();
+        let fullscreen_button_position = self.get_fullscreen_button_world_position();
 
-        let (Some(ground), Some(marker), Some(pig), Some(meat)) = (
+        let (Some(ground), Some(marker), Some(pig), Some(meat), Some(fullscreen_button)) = (
             self.ground.as_mut(),
             self.marker.as_mut(),
             self.pig.as_mut(),
             self.meat.as_mut(),
+            self.fullscreen_button.as_mut(),
         ) else {
             return;
         };
@@ -440,10 +466,16 @@ impl PigActionGame {
             }
         }
 
+        // Update fullscreen button position
+        if let Some(inst) = fullscreen_button.get_mut(&InstanceKey::Monotonic(0)) {
+            inst.position = fullscreen_button_position;
+        }
+
         ground.update_buffer(context.device(), context.queue());
         marker.update_buffer(context.device(), context.queue());
         pig.update_buffer(context.device(), context.queue());
         meat.update_buffer(context.device(), context.queue());
+        fullscreen_button.update_buffer(context.device(), context.queue());
 
         self.clear_meat_collection_flag_if_done();
     }
@@ -465,9 +497,10 @@ impl SimpleStateCallback for PigActionGame {
         self.marker = Some(GlyphInstances::new('+', context.device()));
         self.pig = Some(GlyphInstances::new('🐖', context.device()));
         self.meat = Some(GlyphInstances::new('🍖', context.device()));
+        self.fullscreen_button = Some(GlyphInstances::new('📺', context.device()));
         self.visual_grid_position
             .update(self.logical_world_position());
-        context.register_string("🐖🍖+・".to_string());
+        context.register_string("🐖🍖+・📺".to_string());
         // Random initialize meat position
         let (meat_x, meat_z) = self.generate_random_grid_pos();
         self.meat_grid_x = meat_x;
@@ -526,25 +559,16 @@ impl SimpleStateCallback for PigActionGame {
                     _ => InputResult::Noop,
                 }
             }
-            WindowEvent::PinchGesture {
-                phase: TouchPhase::Ended,
-                delta,
-                ..
-            } => {
-                if *delta > 0.0 {
-                    // Pinch out (zoom in)
-                    InputResult::SetFullScreen(true)
-                } else {
-                    // Pinch in (zoom out)
-                    InputResult::SetFullScreen(false)
-                }
-            }
             WindowEvent::PointerButton {
                 state: ElementState::Pressed,
                 position: PhysicalPosition { x, y },
                 ..
             } => {
-                // Detect direction from last recorded mouse position
+                // Check if fullscreen button was clicked
+                if self.is_fullscreen_button_clicked(*x, *y) {
+                    return InputResult::ToggleFullScreen;
+                }
+                // Detect direction from click/touch position
                 if let Some((dx, dz)) = self.get_direction_from_position(*x, *y) {
                     self.try_move(dx, dz);
                     return InputResult::InputConsumed;
@@ -576,6 +600,9 @@ impl SimpleStateCallback for PigActionGame {
         if let Some(pig) = self.pig.as_ref() {
             glyph_instances.push(pig);
         }
+        if let Some(fullscreen_button) = self.fullscreen_button.as_ref() {
+            glyph_instances.push(fullscreen_button);
+        }
 
         increment_fixed_clock(Duration::ZERO);
 
@@ -592,6 +619,42 @@ impl SimpleStateCallback for PigActionGame {
 }
 
 impl PigActionGame {
+    fn get_fullscreen_button_world_position(&self) -> Vec3 {
+        // カメラの位置を無視してスクリーン座標で配置する
+        // -1.0 ~ 1.0 の範囲で、右上に配置。aspect ration は self.window_size.aspect() で取得する。
+        Vec3::new(
+            (FULLSCREEN_BUTTON_MARGIN - FULLSCREEN_BUTTON_SIZE / 2.0) * self.window_size.aspect(),
+            FULLSCREEN_BUTTON_MARGIN - FULLSCREEN_BUTTON_SIZE / 2.0,
+            0.0,
+        )
+    }
+
+    fn is_fullscreen_button_clicked(&self, x: f64, y: f64) -> bool {
+        let x = (x / self.window_size.width as f64) - 0.5;
+        let y = 0.5 - (y / self.window_size.height as f64);
+
+        let x = x as f32 * self.window_size.aspect();
+        let y = y as f32;
+
+        let Vec3 {
+            x: button_x,
+            y: button_y,
+            ..
+        } = self.get_fullscreen_button_world_position();
+
+        log::info!(
+            "Click at screen ({:.2}, {:.2}), button center at ({:.2}, {:.2})",
+            x,
+            y,
+            button_x,
+            button_y
+        );
+
+        let size = FULLSCREEN_BUTTON_SIZE;
+        let size_x = size * self.window_size.aspect();
+        x >= button_x && x <= button_x + size_x && y >= button_y && y <= button_y + size
+    }
+
     fn get_direction_from_position(&self, x: f64, y: f64) -> Option<(i32, i32)> {
         // Divide screen into 4 quadrants to determine direction
         let center_x = self.window_size.width as f64 / 2.0;
