@@ -7,14 +7,21 @@ font_rasterizer を使った小さなアクションゲームです。Web 版で
 - Space : ジャンプ
 - テレビをタッチ : フルスクリーン切り替え
 
+<script>
+document.documentElement.style.setProperty(
+  "--device-pixel-ratio",
+  window.devicePixelRatio
+);
+</script>
+
 <style>
 .pig-action-game {
     display: grid;
     gap: 0px;
     margin: 0px;
     padding: 0px;
-    width: 1024px;
-    height: 768px;
+    width: calc(1024px / var(--device-pixel-ratio));
+    height: calc(768px / var(--device-pixel-ratio));
     border: none;
 }
 </style>
