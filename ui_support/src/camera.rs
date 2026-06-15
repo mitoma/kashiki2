@@ -74,11 +74,12 @@ impl Camera {
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
 
-    // カメラの位置に依存しないビュー行列を作る
+    // カメラの位置に依存しない平行投影を作る
     pub fn build_default_view_projection_matrix(&self) -> Mat4 {
         let default_view =
             Mat4::look_at_rh((0.0, 0.0, 1.0).into(), (0.0, 0.0, 0.0).into(), Vec3::Y);
-        let proj = Mat4::perspective_rh(self.fovy.to_radians(), self.aspect, self.znear, self.zfar);
+        let proj =
+            Mat4::orthographic_rh(-self.aspect, self.aspect, -1.0, 1.0, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * default_view
     }
 
