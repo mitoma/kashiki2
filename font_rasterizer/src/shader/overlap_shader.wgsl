@@ -452,7 +452,7 @@ fn linerstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 
 // Fragment shader (マルチターゲット版)
 @fragment
-fn fs_main(in: VertexOutput) -> FragmentOutput {
+fn fs_main(@builtin(front_facing) front_facing: bool, in: VertexOutput) -> FragmentOutput {
     let enable_antialiasing = u_buffer.u_antialiasing != 0u;
     let is_bezier_pre = near_eq_one(in.triangle_type.x);
     let is_bezier_line_pre = near_eq_one(in.triangle_type.y);
@@ -461,6 +461,9 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
     let is_bezier = is_bezier_pre && !is_bezier_line_pre && !is_line_pre;
     let is_bezier_line = is_bezier_line_pre && !is_bezier_pre && !is_line_pre;
     let is_line = is_line_pre && !is_bezier_pre && !is_bezier_line_pre;
+
+    // Non-Zero Winding Rule: 三角形のスクリーン空間での向きで符号を決定する
+    let winding_sign = select(-1.0, 1.0, front_facing);
 
     var output: FragmentOutput;
     output.color = vec4<f32>(in.color.rgb, 1f);
@@ -487,10 +490,10 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         }
 
         if alpha > 0.0 {
-            output.count.r = UNIT;
+            output.count.r = UNIT * winding_sign;
             if !near_eq_one(alpha) {
-                output.count.g = alpha / ALPHA_STEP;
-                output.count.b = UNIT;
+                output.count.g = alpha / ALPHA_STEP * winding_sign;
+                output.count.b = UNIT * winding_sign;
             }
         } else {
             discard;
@@ -506,14 +509,14 @@ fn fs_main(in: VertexOutput) -> FragmentOutput {
         // ベジエの補完的直線
         if is_bezier_line {
             if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
-                output.count.r = UNIT;
+                output.count.r = UNIT * winding_sign;
             }
         } else if is_line {
             if (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
-                output.count.r = UNIT;
+                output.count.r = UNIT * winding_sign;
                 if !near_eq_one(alpha) {
-                    output.count.g = alpha / ALPHA_STEP;
-                    output.count.b = UNIT;
+                    output.count.g = alpha / ALPHA_STEP * winding_sign;
+                    output.count.b = UNIT * winding_sign;
                 }
             }
         } else {

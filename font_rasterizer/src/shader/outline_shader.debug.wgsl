@@ -36,33 +36,37 @@ var t_overlap_count: texture_2d<f32>;
 const UNIT :f32 = 0.00390625;
 const HARFUNIT: f32 = 0.001953125;
 const ALPHA_STEP: f32 = 16f;
+const WINDING_THRESHOLD: f32 = 0.001;
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // テクスチャから色を取得
     let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    // 重なり回数テクスチャから値を取得
+    // 重なり回数テクスチャから値を取得（Rgba16Float: 符号付き浮動小数点）
     let overlap_count = textureSample(t_overlap_count, s_diffuse, in.tex_coords);
 
-    let count_value = overlap_count.r;
-    let counts = u32(count_value * 256.0 + HARFUNIT); // 8ビットから整数に復元
-
+    let winding = overlap_count.r;
     let alpha_accum = overlap_count.g;
-    let alpha_counts = u32(overlap_count.b * 256.0 + HARFUNIT); // 8ビットから整数に復元
-    let alpha = clamp(alpha_accum * ALPHA_STEP / f32(alpha_counts), 0.0, 1.0);
+    let alpha_counts = overlap_count.b;
 
-    // 奇数かどうかを判定し、奇数なら色をつける
-    if counts % 2u == 1u {
-        if alpha_counts % 2u == 1u {
+    // Non-Zero Winding Rule: winding が非ゼロなら内側
+    let is_inside = abs(winding) > WINDING_THRESHOLD;
+
+    if is_inside {
+        if abs(alpha_counts) > WINDING_THRESHOLD {
+            // エッジ付近: アルファで滑らかに
+            let alpha = clamp(abs(alpha_accum) * ALPHA_STEP / abs(alpha_counts * 256.0), 0.0, 1.0);
             return vec4<f32>(color.rgb, alpha);
         } else {
-            return vec4<f32>(color.rgb, 1f - alpha);
+            return vec4<f32>(color.rgb, 1.0);
         }
     } else {
-        if alpha_counts % 2u == 1u {
-            return vec4<f32>(color.rgb, 1f - alpha);
-        } else {
-            return vec4<f32>(color.rgb, alpha);
+        if abs(alpha_counts) > WINDING_THRESHOLD {
+            let alpha = 1.0 - clamp(abs(alpha_accum) * ALPHA_STEP / abs(alpha_counts * 256.0), 0.0, 1.0);
+            if alpha > 0.001 {
+                return vec4<f32>(color.rgb, alpha);
+            }
         }
+        return vec4<f32>(color.rgb, 0.0);
     }
 }
