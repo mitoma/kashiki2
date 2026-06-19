@@ -116,6 +116,13 @@ impl VectorVertexBuilder {
     }
 
     pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        let Some(last) = &self.vertex.last() else {
+            return;
+        };
+        if last.x == x1 && last.y == y1 && last.x == x && last.y == y {
+            return;
+        }
+
         let wait = self.next_wait();
         self.subpath_points.push([x, y]);
 
@@ -145,6 +152,16 @@ impl VectorVertexBuilder {
     pub fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
         // 3 次ベジエを 2 次ベジエに近似する
         let last = &self.vertex.last().unwrap();
+        if last.x == x1
+            && last.y == y1
+            && last.x == x2
+            && last.y == y2
+            && last.x == x
+            && last.y == y
+        {
+            return;
+        }
+
         let cb = CubicBezier {
             x0: last.x,
             y0: last.y,
