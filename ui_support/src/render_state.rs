@@ -424,6 +424,7 @@ impl RenderState {
         } else {
             color_theme.background().into()
         };
+        let outline_fill_rule = editor_settings.outline_fill_rule();
         let rasterizer_pipeline = RasterizerPipeline::new(
             &device,
             initial_pipeline_size.0,
@@ -431,6 +432,7 @@ impl RenderState {
             render_target.format(),
             quarity,
             bg_color,
+            outline_fill_rule,
         );
 
         let font_binaries = font_repository.get_fonts();
@@ -535,6 +537,34 @@ impl RenderState {
         });
     }
 
+    pub(crate) fn change_outline_fill_rule(
+        &mut self,
+        outline_fill_rule: font_rasterizer::rasterizer_renderrer::OutlineFillRule,
+    ) {
+        self.context.update_editor_settings(|editor_settings| {
+            editor_settings.set_outline_fill_rule(outline_fill_rule);
+        });
+
+        let bg_color = self.rasterizer_pipeline.bg_color;
+        let window_size = self.context.window_size();
+        self.rasterizer_pipeline = RasterizerPipeline::new(
+            self.context.device(),
+            window_size.width,
+            window_size.height,
+            self.render_target.format(),
+            self.quarity,
+            bg_color,
+            outline_fill_rule,
+        );
+        self.rasterizer_pipeline.set_background_image(
+            self.context.device(),
+            self.context.queue(),
+            self.background_image.as_ref(),
+        );
+        self.rasterizer_pipeline
+            .set_shader_art(self.context.device(), self.shader_art.as_deref());
+    }
+
     pub(crate) fn change_background_image(&mut self, background_image: Option<DynamicImage>) {
         let [r, g, b] = self.context.color_theme().background().get_color();
         let color = match background_image {
@@ -630,6 +660,7 @@ impl RenderState {
                 self.render_target.format(),
                 self.quarity,
                 bg_color,
+                self.context.editor_settings().outline_fill_rule(),
             );
             self.rasterizer_pipeline.set_background_image(
                 self.context.device(),
@@ -857,6 +888,7 @@ impl RenderState {
                 self.render_target.format(),
                 self.quarity,
                 bg_color,
+                self.context.editor_settings().outline_fill_rule(),
             );
             self.rasterizer_pipeline.set_background_image(
                 self.context.device(),

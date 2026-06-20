@@ -6,7 +6,9 @@ use std::{
 use log::info;
 use stroke_parser::{Action, ActionArgument, CommandName, CommandNamespace};
 
-use font_rasterizer::{color_theme::ColorTheme, context::WindowSize};
+use font_rasterizer::{
+    color_theme::ColorTheme, context::WindowSize, rasterizer_renderrer::OutlineFillRule,
+};
 
 use crate::{
     camera::CameraAdjustment,
@@ -181,6 +183,76 @@ impl ActionProcessor for SystemChangeTheme {
                 _ => return InputResult::Noop,
             };
             InputResult::ChangeColorTheme(theme)
+        } else {
+            InputResult::Noop
+        }
+    }
+}
+
+pub struct SystemChangeOutlineFillRuleUi;
+impl ActionProcessor for SystemChangeOutlineFillRuleUi {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-outline-fill-rule-ui".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        context: &UiContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let options = vec![
+            SelectOption::new(
+                "Non-Zero".to_string(),
+                Action::new_command_with_argument("system", "change-outline-fill-rule", "non-zero"),
+            ),
+            SelectOption::new(
+                "Even-Odd".to_string(),
+                Action::new_command_with_argument("system", "change-outline-fill-rule", "even-odd"),
+            ),
+        ];
+        let model = SelectBox::new_without_action_name(
+            context,
+            "塗りつぶしルールを選択してください".to_string(),
+            options,
+            None,
+        );
+        context.register_string(model.to_string());
+        world.add_modal(Box::new(model));
+        world.re_layout();
+        world.look_modal(CameraAdjustment::FitBoth);
+
+        InputResult::InputConsumed
+    }
+}
+
+pub struct SystemChangeOutlineFillRule;
+impl ActionProcessor for SystemChangeOutlineFillRule {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-outline-fill-rule".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        _context: &UiContext,
+        _world: &mut dyn World,
+    ) -> InputResult {
+        if let ActionArgument::String(fill_rule) = arg {
+            let fill_rule = match fill_rule.as_str() {
+                "even-odd" => OutlineFillRule::EvenOdd,
+                "non-zero" => OutlineFillRule::NonZero,
+                _ => return InputResult::Noop,
+            };
+            InputResult::ChangeOutlineFillRule(fill_rule)
         } else {
             InputResult::Noop
         }

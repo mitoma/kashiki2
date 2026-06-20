@@ -387,6 +387,11 @@ impl SimpleStateCallback for KashikishiCallback {
                     self.ime
                         .set_editor_settings(self.config.editor_settings.clone());
                 }
+                InputResult::ChangeOutlineFillRule(outline_fill_rule) => {
+                    self.config
+                        .editor_settings
+                        .set_outline_fill_rule(*outline_fill_rule);
+                }
                 _ => {}
             }
 
