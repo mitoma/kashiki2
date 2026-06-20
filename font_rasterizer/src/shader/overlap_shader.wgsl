@@ -488,7 +488,7 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
             output.count.r = UNIT * winding_sign;
             if !near_eq_one(alpha) {
                 output.count.g = alpha / ALPHA_STEP * winding_sign;
-                output.count.b = UNIT * winding_sign;
+                output.count.b = UNIT;
             }
         } else {
             discard;
@@ -511,7 +511,7 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
                 output.count.r = UNIT * winding_sign;
                 if !near_eq_one(alpha) {
                     output.count.g = alpha / ALPHA_STEP * winding_sign;
-                    output.count.b = UNIT * winding_sign;
+                    output.count.b = UNIT;
                 }
             }
         } else {
