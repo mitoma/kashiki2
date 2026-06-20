@@ -5,7 +5,7 @@ use crate::{
     background_bind_group::BackgroundImageBindGroup,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::GlyphVertexBuffer,
-    rasterizer_renderrer::RasterizerRenderrer,
+    rasterizer_renderrer::{OutlineFillRule, RasterizerRenderrer},
     screen_bind_group::ScreenBindGroup,
     screen_texture::{BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
@@ -136,6 +136,7 @@ impl RasterizerPipeline {
             height,
             target_texture_format,
             enable_antialiasing,
+            OutlineFillRule::NonZero,
         );
         let rasterizer_renderrer_for_modal = RasterizerRenderrer::new(
             device,
@@ -143,6 +144,7 @@ impl RasterizerPipeline {
             height,
             target_texture_format,
             enable_antialiasing,
+            OutlineFillRule::NonZero,
         );
 
         let outline_texture = ScreenTexture::new_with_format(

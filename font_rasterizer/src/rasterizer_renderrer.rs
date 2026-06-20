@@ -21,6 +21,12 @@ const OVERLAP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
 const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
     include_wgsl!("shader/outline_shader.wgsl");
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutlineFillRule {
+    EvenOdd,
+    NonZero,
+}
+
 pub struct RasterizerRenderrer {
     enable_antialiasing: bool,
 
@@ -45,6 +51,7 @@ impl RasterizerRenderrer {
         height: u32,
         target_texture_format: wgpu::TextureFormat,
         enable_antialiasing: bool,
+        outline_fill_rule: OutlineFillRule,
     ) -> Self {
         // overlap
         let overlap_shader = if DEBUG_FLAGS.debug_shader {
@@ -79,6 +86,11 @@ impl RasterizerRenderrer {
                 immediate_size: 0,
             });
 
+        let overlap_fragment_entry = match outline_fill_rule {
+            OutlineFillRule::EvenOdd => "fs_main_even_odd",
+            OutlineFillRule::NonZero => "fs_main_non_zero",
+        };
+
         let overlap_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Overlap Render Pipeline"),
@@ -91,7 +103,7 @@ impl RasterizerRenderrer {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &overlap_shader,
-                    entry_point: Some("fs_main"),
+                    entry_point: Some(overlap_fragment_entry),
                     targets: &[
                         Some(wgpu::ColorTargetState {
                             format: overlap_texture.texture_format,
@@ -165,6 +177,11 @@ impl RasterizerRenderrer {
                 immediate_size: 0,
             });
 
+        let outline_fragment_entry = match outline_fill_rule {
+            OutlineFillRule::EvenOdd => "fs_main_even_odd",
+            OutlineFillRule::NonZero => "fs_main_non_zero",
+        };
+
         let outline_render_pipeline =
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Outline Render Pipeline"),
@@ -177,7 +194,7 @@ impl RasterizerRenderrer {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &outline_shader,
-                    entry_point: Some("fs_main"),
+                    entry_point: Some(outline_fragment_entry),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: target_texture_format,
                         blend: Some(wgpu::BlendState::REPLACE),

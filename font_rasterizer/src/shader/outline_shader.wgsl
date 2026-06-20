@@ -39,7 +39,38 @@ const ALPHA_STEP: f32 = 16f;
 const WINDING_THRESHOLD: f32 = 0.001;
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fs_main_even_odd(in: VertexOutput) -> @location(0) vec4<f32> {
+    // テクスチャから色を取得
+    let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    // 重なり回数テクスチャから値を取得（Rgba16Float: 符号付き浮動小数点）
+    let overlap_count = textureSample(t_overlap_count, s_diffuse, in.tex_coords);
+
+    let counts = u32(abs(overlap_count.r) * 256.0 + HARFUNIT);
+    let alpha_accum = overlap_count.g;
+    let alpha_counts = u32(abs(overlap_count.b) * 256.0 + HARFUNIT);
+    var alpha = 0.0;
+    if alpha_counts != 0u {
+        alpha = clamp(abs(alpha_accum) * ALPHA_STEP / f32(alpha_counts), 0.0, 1.0);
+    }
+
+    // EvenOdd Rule
+    if counts % 2u == 1u {
+        if alpha_counts % 2u == 1u {
+            return vec4<f32>(color.rgb, alpha);
+        } else {
+            return vec4<f32>(color.rgb, 1f - alpha);
+        }
+    } else {
+        if alpha_counts % 2u == 1u {
+            return vec4<f32>(color.rgb, 1f - alpha);
+        } else {
+            return vec4<f32>(color.rgb, alpha);
+        }
+    }
+}
+
+@fragment
+fn fs_main_non_zero(in: VertexOutput) -> @location(0) vec4<f32> {
     // テクスチャから色を取得
     let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     // 重なり回数テクスチャから値を取得（Rgba16Float: 符号付き浮動小数点）
