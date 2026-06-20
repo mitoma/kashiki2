@@ -44,8 +44,8 @@ const CAMERA_BACK_OFFSET_Z: f32 = 12.0;
 const MOVE_EASING_MILLIS: u64 = 360;
 const PIG_TURN_EASING_MILLIS: u64 = 220;
 const MEAT_COLLECTION_ANIM_MILLIS: u64 = 600;
-const FULLSCREEN_BUTTON_SIZE: f32 = 0.08;
-const FULLSCREEN_BUTTON_MARGIN: f32 = 0.39;
+const FULLSCREEN_BUTTON_SIZE: f32 = 0.2;
+const FULLSCREEN_BUTTON_MARGIN: f32 = 1.0;
 
 #[derive(Clone, Copy, Debug)]
 enum PigFacingHorizontal {
@@ -623,15 +623,15 @@ impl PigActionGame {
         // カメラの位置を無視してスクリーン座標で配置する
         // -1.0 ~ 1.0 の範囲で、右上に配置。aspect ration は self.window_size.aspect() で取得する。
         Vec3::new(
-            (FULLSCREEN_BUTTON_MARGIN - FULLSCREEN_BUTTON_SIZE / 2.0) * self.window_size.aspect(),
-            FULLSCREEN_BUTTON_MARGIN - FULLSCREEN_BUTTON_SIZE / 2.0,
+            (FULLSCREEN_BUTTON_MARGIN - FULLSCREEN_BUTTON_SIZE) * self.window_size.aspect(),
+            FULLSCREEN_BUTTON_MARGIN - FULLSCREEN_BUTTON_SIZE,
             0.0,
         )
     }
 
     fn is_fullscreen_button_clicked(&self, x: f64, y: f64) -> bool {
-        let x = (x / self.window_size.width as f64) - 0.5;
-        let y = 0.5 - (y / self.window_size.height as f64);
+        let x = ((x / self.window_size.width as f64) - 0.5) * 2.0;
+        let y = (0.5 - (y / self.window_size.height as f64)) * 2.0;
 
         let x = x as f32 * self.window_size.aspect();
         let y = y as f32;
@@ -652,7 +652,10 @@ impl PigActionGame {
 
         let size = FULLSCREEN_BUTTON_SIZE;
         let size_x = size * self.window_size.aspect();
-        x >= button_x && x <= button_x + size_x && y >= button_y && y <= button_y + size
+        x >= button_x - size_x / 2.0
+            && x <= button_x + size_x / 2.0
+            && y >= button_y - size / 2.0
+            && y <= button_y + size / 2.0
     }
 
     fn get_direction_from_position(&self, x: f64, y: f64) -> Option<(i32, i32)> {
