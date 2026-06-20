@@ -25,6 +25,11 @@ pub static BUILTIN_SHADERS: &[BuiltinShaderArt] = &[
         display_name: "淡い雪景色",
         source: include_str!("shader/sa_pale_snowfall.wgsl"),
     },
+    BuiltinShaderArt {
+        name: "summer_sea",
+        display_name: "夏の海の波",
+        source: include_str!("shader/sa_summer_sea.wgsl"),
+    },
 ];
 
 /// 識別名からシェーダーソースを取得する。見つからない場合は `None`。
