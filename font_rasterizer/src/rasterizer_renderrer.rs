@@ -62,11 +62,11 @@ impl RasterizerRenderrer {
 
         let overlap_texture = ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
 
-        // 重なり回数記録用のテクスチャ（RGBA8Unorm フォーマットを使用してブレンド可能にする）
+        // 重なり回数記録用のテクスチャ（Rgba16Float フォーマットを使用して符号付き値とブレンドを可能にする）
         let overlap_count_texture = ScreenTexture::new_with_format(
             device,
             (width, height),
-            wgpu::TextureFormat::Bgra8Unorm,
+            wgpu::TextureFormat::Rgba16Float,
             Some("Overlap Count Texture"),
         );
 
