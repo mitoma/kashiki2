@@ -393,6 +393,15 @@ mod tests {
                 prohibited_chars: LineBoundaryProhibitedChars::default(),
                 max_width: 10,
             },
+            // 「名前: 」形式の発言行は、折り返し後に名前の右側へインデントする
+            TestCase {
+                input: vec![EditorOperation::InsertString(
+                    "三苫: 私はこう思います。".to_string(),
+                )],
+                output: "三苫: 私は\n      こう\n      思い\n      ます。".to_string(),
+                prohibited_chars: LineBoundaryProhibitedChars::default(),
+                max_width: 10,
+            },
         ];
         for case in cases.iter() {
             let (sender, receiver) = std::sync::mpsc::channel();

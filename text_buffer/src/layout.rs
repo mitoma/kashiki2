@@ -318,7 +318,41 @@ impl<'a> PhysicalLayoutCalculator<'a> {
                 return space_size + pattern_size;
             }
         }
+        if let Some(indent) = self.calc_speaker_indent(line_string) {
+            return indent;
+        }
         0
+    }
+
+    /// 「名前: 」形式 (行頭の話者名 + コロン + 空白) を検出し、折り返し用のインデント幅を返す。
+    ///
+    /// 発言行では、折り返し後の本文を話者名の右側 (コロンの後) にそろえてインデントする。
+    /// 名前が空・空白を含む・長すぎる・文末記号を含む場合は発言行とみなさない。
+    fn calc_speaker_indent(&self, line_string: &str) -> Option<usize> {
+        let trimmed = line_string.trim_start();
+
+        // 行頭の話者名と本文を分ける区切りを探す (最も手前のコロンを採用)
+        let (name, separator) = SPEAKER_SEPARATORS
+            .iter()
+            .filter_map(|sep| trimmed.split_once(sep).map(|(name, _)| (name, *sep)))
+            .min_by_key(|(name, _)| name.len())?;
+
+        if name.is_empty()
+            || name.chars().count() > MAX_SPEAKER_NAME_CHARS
+            || name
+                .chars()
+                .any(|c| /*c.is_whitespace() || */SPEAKER_NAME_FORBIDDEN_CHARS.contains(&c))
+        {
+            return None;
+        }
+
+        let leading = line_string.len() - trimmed.len();
+        let prefix_end = leading + name.len() + separator.len();
+        let indent = line_string[0..prefix_end]
+            .chars()
+            .map(|c| self.width_resolver.resolve_width(c))
+            .sum();
+        Some(indent)
     }
 
     /// 論理位置の caret が buffer_char と一致または直後の場合、その物理位置を記録する。
@@ -483,4 +517,15 @@ impl LayoutState {
 const DEFAULT_LIST_INDENT_PATTERN: [&str; 17] = [
     "* ", "* [ ] ", "* [x] ", "- ", "- [ ] ", "- [x] ", "> ", "・", "1. ", "2. ", "3. ", "4. ",
     "5. ", "6. ", "7. ", "8. ", "9. ",
+];
+
+/// 「名前: 」形式の話者名と本文を分ける区切り (半角/全角コロン + 半角/全角空白)。
+const SPEAKER_SEPARATORS: [&str; 6] = [": ", "： ", "：　", ":　", "「", "『"];
+
+/// 話者名とみなす最大文字数 (これを超える場合は発言行として扱わない)。
+const MAX_SPEAKER_NAME_CHARS: usize = 20;
+
+/// 話者名に含まれていてはならない文字 (含まれる場合は発言行として扱わない)。
+const SPEAKER_NAME_FORBIDDEN_CHARS: [char; 12] = [
+    '。', '、', '．', '，', '！', '？', '!', '?', '「', '」', '『', '』',
 ];
