@@ -1,4 +1,6 @@
-use font_rasterizer::{color_theme::ColorTheme, glyph_vertex_buffer::Direction};
+use font_rasterizer::{
+    color_theme::ColorTheme, glyph_vertex_buffer::Direction, rasterizer_renderrer::OutlineFillRule,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::ui_context::{
@@ -37,6 +39,31 @@ impl From<Direction> for EditorDirection {
         match value {
             Direction::Horizontal => EditorDirection::Horizontal,
             Direction::Vertical => EditorDirection::Vertical,
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EditorOutlineFillRule {
+    EvenOdd,
+    #[default]
+    NonZero,
+}
+
+impl From<EditorOutlineFillRule> for OutlineFillRule {
+    fn from(value: EditorOutlineFillRule) -> Self {
+        match value {
+            EditorOutlineFillRule::EvenOdd => OutlineFillRule::EvenOdd,
+            EditorOutlineFillRule::NonZero => OutlineFillRule::NonZero,
+        }
+    }
+}
+
+impl From<OutlineFillRule> for EditorOutlineFillRule {
+    fn from(value: OutlineFillRule) -> Self {
+        match value {
+            OutlineFillRule::EvenOdd => EditorOutlineFillRule::EvenOdd,
+            OutlineFillRule::NonZero => EditorOutlineFillRule::NonZero,
         }
     }
 }
@@ -294,6 +321,7 @@ impl Default for EditorSettingsProfiles {
 pub struct EditorSettings {
     pub color_theme: EditorColorTheme,
     pub global_direction: EditorDirection,
+    pub outline_fill_rule: EditorOutlineFillRule,
     pub base_text_context: EditorTextContextSettings,
     pub profiles: EditorSettingsProfiles,
 }
@@ -307,12 +335,20 @@ impl EditorSettings {
         self.global_direction.into()
     }
 
+    pub fn outline_fill_rule(&self) -> OutlineFillRule {
+        self.outline_fill_rule.into()
+    }
+
     pub fn set_color_theme(&mut self, color_theme: ColorTheme) {
         self.color_theme = color_theme.into();
     }
 
     pub fn set_global_direction(&mut self, direction: Direction) {
         self.global_direction = direction.into();
+    }
+
+    pub fn set_outline_fill_rule(&mut self, outline_fill_rule: OutlineFillRule) {
+        self.outline_fill_rule = outline_fill_rule.into();
     }
 
     pub fn text_context(&self, profile: EditorTextContextProfile) -> TextContext {

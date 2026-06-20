@@ -95,6 +95,7 @@ impl RasterizerPipeline {
         target_texture_format: wgpu::TextureFormat,
         quarity: Quarity,
         bg_color: wgpu::Color,
+        outline_fill_rule: OutlineFillRule,
     ) -> Self {
         let enable_antialiasing = true;
         let (width, height) = match quarity {
@@ -136,7 +137,7 @@ impl RasterizerPipeline {
             height,
             target_texture_format,
             enable_antialiasing,
-            OutlineFillRule::NonZero,
+            outline_fill_rule,
         );
         let rasterizer_renderrer_for_modal = RasterizerRenderrer::new(
             device,
@@ -144,7 +145,7 @@ impl RasterizerPipeline {
             height,
             target_texture_format,
             enable_antialiasing,
-            OutlineFillRule::NonZero,
+            outline_fill_rule,
         );
 
         let outline_texture = ScreenTexture::new_with_format(
