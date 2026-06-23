@@ -1,7 +1,6 @@
 [renderer_option]
 width = 512
 height = 512
-enable_antialiasing = true
 foreground_color = [0.14, 0.18, 0.24]
 background_color = [245, 242, 232, 255]
 

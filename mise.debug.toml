@@ -24,7 +24,7 @@ depends = "build-aasvgtest"
 
 [tasks.build-vector-vertex-to-png]
 description = "Build vector_vertex_to_png example"
-run = "cargo build -p font_rasterizer --example vector_vertex_to_png"
+run = "cargo build -p font_rasterizer --example vector_vertex_to_png --release"
 sources = [
     "Cargo.toml",
     "font_rasterizer/Cargo.toml",
@@ -33,12 +33,12 @@ sources = [
     "font_rasterizer/examples/cases/*.toml",
 ]
 outputs = [
-    "target/debug/examples/vector_vertex_to_png",
-    "target/debug/examples/vector_vertex_to_png.exe",
+    "target/release/examples/vector_vertex_to_png",
+    "target/release/examples/vector_vertex_to_png.exe",
 ]
 
 [tasks.run-vector-vertex-to-png]
 description = "Run vector_vertex_to_png example"
-run = "./target/debug/examples/vector_vertex_to_png"
-run_windows = ".\\target\\debug\\examples\\vector_vertex_to_png.exe"
+run = "./target/release/examples/vector_vertex_to_png"
+run_windows = ".\\target\\release\\examples\\vector_vertex_to_png.exe"
 depends = "build-vector-vertex-to-png"

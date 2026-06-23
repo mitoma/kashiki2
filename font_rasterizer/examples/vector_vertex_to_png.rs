@@ -1,12 +1,12 @@
+use chrono::Local;
 use font_rasterizer::{
     VectorVertexBuilder,
     rasterizer_renderrer::OutlineFillRule,
     vector_vertex_png_renderer::{VectorVertexPngRendererOptions, render_vector_vertex_to_png},
 };
-use chrono::Local;
 use serde::Deserialize;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 #[derive(Deserialize)]
 struct VectorTestCase {
@@ -25,8 +25,6 @@ struct RendererOptions {
     foreground_color: [f32; 3],
     #[serde(default = "default_background_color")]
     background_color: [u8; 4],
-    #[serde(default)]
-    enable_antialiasing: bool,
 }
 
 fn default_width() -> u32 {
@@ -98,7 +96,10 @@ fn parse_svg_path(path_data: &str) -> Result<VectorVertexBuilder, Box<dyn std::e
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::builder().is_test(true).try_init().ok();
-    let result_dir_name = format!("target/test_results_{}", Local::now().format("%Y%m%d_%H%M%S"));
+    let result_dir_name = format!(
+        "target/test_results_{}",
+        Local::now().format("%Y%m%d_%H%M%S")
+    );
 
     let cases_dir = Path::new("font_rasterizer/examples/cases");
     if !cases_dir.exists() {
@@ -128,25 +129,38 @@ fn process_case(path: &Path, result_dir_name: &str) -> Result<(), Box<dyn std::e
     let content = fs::read_to_string(path)?;
     let case: VectorTestCase = toml::from_str(&content)?;
 
-    let builder = parse_svg_path(&case.vertex.path)?;
-    let vertex = builder.build();
-
-    let options = VectorVertexPngRendererOptions {
-        width: case.renderer_option.width,
-        height: case.renderer_option.height,
-        outline_fill_rule: OutlineFillRule::NonZero,
-        enable_antialiasing: case.renderer_option.enable_antialiasing,
-        foreground_color: case.renderer_option.foreground_color,
-        background_color: case.renderer_option.background_color,
-    };
-
     let file_prefix = path
         .file_prefix()
         .and_then(|name| name.to_str())
         .ok_or_else(|| format!("Missing file prefix in case path: {:?}", path))?;
-    let output_path = format!("{}/{}.png", result_dir_name, file_prefix);
-    render_vector_vertex_to_png(vertex, &output_path, options)?;
-    println!("Generated: {}", output_path);
+
+    let render_variants = [
+        (false, OutlineFillRule::NonZero, "nonaa", "nonzero"),
+        (true, OutlineFillRule::NonZero, "aa", "nonzero"),
+        (false, OutlineFillRule::EvenOdd, "nonaa", "evenodd"),
+        (true, OutlineFillRule::EvenOdd, "aa", "evenodd"),
+    ];
+
+    for (enable_antialiasing, outline_fill_rule, aa_label, fill_rule_label) in render_variants {
+        let builder = parse_svg_path(&case.vertex.path)?;
+        let vertex = builder.build();
+
+        let options = VectorVertexPngRendererOptions {
+            width: case.renderer_option.width,
+            height: case.renderer_option.height,
+            outline_fill_rule,
+            enable_antialiasing,
+            foreground_color: case.renderer_option.foreground_color,
+            background_color: case.renderer_option.background_color,
+        };
+
+        let output_path = format!(
+            "{}/{}/{}_{}.png",
+            result_dir_name, file_prefix, aa_label, fill_rule_label
+        );
+        render_vector_vertex_to_png(vertex, &output_path, options)?;
+        println!("Generated: {}", output_path);
+    }
 
     Ok(())
 }
