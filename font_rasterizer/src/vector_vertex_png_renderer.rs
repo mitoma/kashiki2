@@ -223,9 +223,7 @@ pub async fn render_vector_vertex_to_png_async(
         })
         .unwrap();
 
-    let map_result = rx
-        .recv()
-        .unwrap().unwrap();
+    rx.recv().unwrap().unwrap();
 
     let data = output_buffer_slice.get_mapped_range();
     let raw_data = if padded_bytes_per_row == unpadded_bytes_per_row {
@@ -243,6 +241,9 @@ pub async fn render_vector_vertex_to_png_async(
 
     let image = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(options.width, options.height, raw_data)
         .unwrap();
+    if let Some(parent) = output_path.as_ref().parent() {
+        std::fs::create_dir_all(parent).unwrap();
+    }
     image.save(output_path.as_ref()).unwrap();
 
     Ok(())

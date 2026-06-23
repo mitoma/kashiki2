@@ -13,8 +13,15 @@ pub struct VectorVertexBuilder {
     builder_options: VertexBuilderOptions,
 }
 
+impl Default for VectorVertexBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[allow(dead_code)]
 impl VectorVertexBuilder {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             vertex: Vec::new(),
@@ -29,7 +36,8 @@ impl VectorVertexBuilder {
         }
     }
 
-    pub fn with_options(self, builder_options: VertexBuilderOptions) -> Self {
+    #[allow(clippy::should_implement_trait)]
+    pub(crate) fn with_options(self, builder_options: VertexBuilderOptions) -> Self {
         Self {
             vertex: self.vertex,
             index: self.index,
@@ -295,7 +303,6 @@ pub struct VectorVertex {
     pub(crate) vertex: Vec<Vertex>,
     pub(crate) index: Vec<u32>,
 }
-
 impl VectorVertex {
     pub fn vertex_size(&self) -> u64 {
         (self.vertex.len() * std::mem::size_of::<Vertex>()) as u64
