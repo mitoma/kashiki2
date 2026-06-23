@@ -1,0 +1,14 @@
+case_name = "line2"
+
+[renderer_option]
+width = 256
+height = 256
+enable_antialiasing = true
+foreground_color = [0.2, 0.4, 0.8]
+background_color = [255, 255, 255, 255]
+
+[vertex]
+path = """
+M -0.1 -0.5
+L -0.05 0.5
+"""
