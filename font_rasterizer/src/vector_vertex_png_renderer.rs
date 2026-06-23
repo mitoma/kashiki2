@@ -152,30 +152,6 @@ pub async fn render_vector_vertex_to_png_async(
         label: Some("Vector Vertex PNG Render Encoder"),
     });
 
-    {
-        let _clear_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Vector Vertex Clear Pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &render_view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: options.background_color[0] as f64 / 255.0,
-                        g: options.background_color[1] as f64 / 255.0,
-                        b: options.background_color[2] as f64 / 255.0,
-                        a: options.background_color[3] as f64 / 255.0,
-                    }),
-                    store: wgpu::StoreOp::Store,
-                },
-                depth_slice: None,
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-            multiview_mask: None,
-        });
-    }
-
     let vector_instances_refs = [&vector_instances];
     rasterizer.render(
         &mut encoder,
@@ -238,6 +214,24 @@ pub async fn render_vector_vertex_to_png_async(
     };
     drop(data);
     output_buffer.unmap();
+
+    // outline_stage は LoadOp::Clear(TRANSPARENT) で書き込むため、
+    // GPU 側ではバックグラウンドカラーを合成できない。
+    // 読み出し後にソフトウェアでアルファ合成する。
+    let bg = options.background_color;
+    let raw_data: Vec<u8> = raw_data
+        .chunks_exact(4)
+        .flat_map(|pixel| {
+            let a = pixel[3] as f32 / 255.0;
+            let inv = 1.0 - a;
+            [
+                (pixel[0] as f32 * a + bg[0] as f32 * inv) as u8,
+                (pixel[1] as f32 * a + bg[1] as f32 * inv) as u8,
+                (pixel[2] as f32 * a + bg[2] as f32 * inv) as u8,
+                (a * 255.0 + bg[3] as f32 * inv) as u8,
+            ]
+        })
+        .collect();
 
     let image = ImageBuffer::<Rgba<u8>, Vec<u8>>::from_raw(options.width, options.height, raw_data)
         .unwrap();
