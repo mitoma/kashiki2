@@ -1,0 +1,13 @@
+[renderer_option]
+width = 512
+height = 512
+enable_antialiasing = true
+foreground_color = [0.2, 0.8, 0.4]
+background_color = [20, 20, 30, 255]
+
+[vertex]
+path = """
+M 0.6 0.1
+Q 0.0 0.2 -0.6 0.1
+Z
+"""
