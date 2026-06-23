@@ -33,6 +33,9 @@ font_collector = { path = "../font_collector" }
 text_buffer = { path = "../text_buffer" }
 ttf_overlap_remover = { path = "../ttf_overlap_remover" }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+pollster = { workspace = true }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }

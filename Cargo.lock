@@ -1074,6 +1074,7 @@ dependencies = [
  "glob",
  "image",
  "log",
+ "pollster",
  "rand 0.10.1",
  "redb",
  "rustybuzz",

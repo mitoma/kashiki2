@@ -2,7 +2,7 @@ use bezier_converter::CubicBezier;
 use log::debug;
 use rustybuzz::ttf_parser::OutlineBuilder;
 
-pub(crate) struct VectorVertexBuilder {
+pub struct VectorVertexBuilder {
     vertex: Vec<InternalVertex>,
     index: Vec<u32>,
     current_index: u32,
