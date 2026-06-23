@@ -1,5 +1,3 @@
-case_name = "bezier_curve"
-
 [renderer_option]
 width = 512
 height = 512

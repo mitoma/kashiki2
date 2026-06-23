@@ -1,5 +1,3 @@
-case_name = "circle_quad"
-
 [renderer_option]
 width = 512
 height = 512

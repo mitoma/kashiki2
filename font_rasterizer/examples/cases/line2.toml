@@ -1,5 +1,3 @@
-case_name = "line2"
-
 [renderer_option]
 width = 256
 height = 256

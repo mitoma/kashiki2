@@ -10,7 +10,6 @@ use std::fs;
 
 #[derive(Deserialize)]
 struct VectorTestCase {
-    case_name: String,
     #[serde(default)]
     renderer_option: RendererOptions,
     vertex: VertexDef,
@@ -141,7 +140,11 @@ fn process_case(path: &Path, result_dir_name: &str) -> Result<(), Box<dyn std::e
         background_color: case.renderer_option.background_color,
     };
 
-    let output_path = format!("{}/{}.png", result_dir_name, case.case_name);
+    let file_prefix = path
+        .file_prefix()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("Missing file prefix in case path: {:?}", path))?;
+    let output_path = format!("{}/{}.png", result_dir_name, file_prefix);
     render_vector_vertex_to_png(vertex, &output_path, options)?;
     println!("Generated: {}", output_path);
 
