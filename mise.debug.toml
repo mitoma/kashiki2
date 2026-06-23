@@ -21,3 +21,13 @@ description = "Run the aasvgtest"
 run = "./target/debug/examples/aa_svg_test"
 run_windows = ".\\target\\debug\\examples\\aa_svg_test.exe"
 depends = "build-aasvgtest"
+
+[tasks.build-vector-vertex-to-png]
+description = "Build vector_vertex_to_png example"
+run = "cargo build -p font_rasterizer --example vector_vertex_to_png"
+
+[tasks.run-vector-vertex-to-png]
+description = "Run vector_vertex_to_png example"
+run = "./target/debug/examples/vector_vertex_to_png"
+run_windows = ".\\target\\debug\\examples\\vector_vertex_to_png.exe"
+depends = "build-vector-vertex-to-png"
