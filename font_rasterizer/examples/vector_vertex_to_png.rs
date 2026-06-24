@@ -6,6 +6,7 @@ use font_rasterizer::{
 };
 use serde::Deserialize;
 use std::fs;
+use std::io;
 use std::path::Path;
 
 #[derive(Deserialize)]
@@ -96,31 +97,44 @@ fn parse_svg_path(path_data: &str) -> Result<VectorVertexBuilder, Box<dyn std::e
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::builder().is_test(true).try_init().ok();
-    let result_dir_name = format!(
-        "target/test_results_{}",
-        Local::now().format("%Y%m%d_%H%M%S")
-    );
 
-    let cases_dir = Path::new("font_rasterizer/examples/cases");
-    if !cases_dir.exists() {
-        fs::create_dir_all(cases_dir)?;
-    }
+    let loop_mode = std::env::args().any(|arg| arg == "--loop");
 
-    let mut processed = 0;
-    for entry in fs::read_dir(cases_dir)? {
-        let entry = entry?;
-        let path = entry.path();
+    loop {
+        let result_dir_name = format!(
+            "target/test_results_{}",
+            Local::now().format("%Y%m%d_%H%M%S")
+        );
 
-        if path.extension().is_some_and(|ext| ext == "toml") {
-            if let Err(e) = process_case(&path, &result_dir_name) {
-                eprintln!("Error processing {:?}: {}", path, e);
-                continue;
-            }
-            processed += 1;
+        let cases_dir = Path::new("font_rasterizer/examples/cases");
+        if !cases_dir.exists() {
+            fs::create_dir_all(cases_dir)?;
         }
-    }
 
-    println!("Successfully processed {} test case(s)", processed);
+        let mut processed = 0;
+        for entry in fs::read_dir(cases_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.extension().is_some_and(|ext| ext == "toml") {
+                if let Err(e) = process_case(&path, &result_dir_name) {
+                    eprintln!("Error processing {:?}: {}", path, e);
+                    continue;
+                }
+                processed += 1;
+            }
+        }
+
+        println!("Successfully processed {} test case(s)", processed);
+
+        if !loop_mode {
+            break;
+        }
+
+        println!("\nPress Enter to regenerate...");
+        let mut input = String::new();
+        io::stdin().read_line(&mut input)?;
+    }
 
     Ok(())
 }

@@ -1,5 +1,5 @@
 [env]
-#FONT_RASTERIZER_DEBUG = "true"
+FONT_RASTERIZER_DEBUG = "true"
 FONT_RASTERIZER_DEBUG_SHADER = "true"
 
 [tasks.build-aatest]
@@ -41,4 +41,10 @@ outputs = [
 description = "Run vector_vertex_to_png example"
 run = "./target/release/examples/vector_vertex_to_png"
 run_windows = ".\\target\\release\\examples\\vector_vertex_to_png.exe"
+depends = "build-vector-vertex-to-png"
+
+[tasks.run-vector-vertex-to-png-loop]
+description = "Run vector_vertex_to_png example in loop mode"
+run = "./target/release/examples/vector_vertex_to_png --loop"
+run_windows = ".\\target\\release\\examples\\vector_vertex_to_png.exe --loop"
 depends = "build-vector-vertex-to-png"
