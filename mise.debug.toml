@@ -1,5 +1,5 @@
 [env]
-FONT_RASTERIZER_DEBUG = "true"
+#FONT_RASTERIZER_DEBUG = "true"
 FONT_RASTERIZER_DEBUG_SHADER = "true"
 
 [tasks.build-aatest]
