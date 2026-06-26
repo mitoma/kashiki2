@@ -428,7 +428,6 @@ struct FragmentOutput {
 }
 
 const UNIT: f32 = 0.00390625;
-const ALPHA_STEP: f32 = 16f;
 
 const NEAR_ZERO = 1e-6;
 const NEAR_ONE = 1.0 - 1e-6;
@@ -508,7 +507,7 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
                 output.count.r = UNIT * winding_sign;
             }
             if !near_eq_one(bezier_alpha) {
-                output.count.g = bezier_alpha / ALPHA_STEP * winding_sign;
+                output.count.g = bezier_alpha * winding_sign;
                 output.count.b = UNIT;
             }
         }
@@ -522,7 +521,7 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
         if (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
             output.count.r = UNIT * winding_sign;
             if !near_eq_one(liner_alpha) {
-                output.count.g = liner_alpha / ALPHA_STEP * winding_sign;
+                output.count.g = liner_alpha * winding_sign;
                 output.count.b = UNIT;
             }
         }
