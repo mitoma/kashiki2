@@ -24,3 +24,7 @@ pub mod time;
 pub mod vector_instances;
 mod vector_vertex;
 pub mod vector_vertex_buffer;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod vector_vertex_png_renderer;
+
+pub use vector_vertex::{VectorVertex, VectorVertexBuilder};

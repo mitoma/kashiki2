@@ -349,26 +349,34 @@ fn vs_main(
         // 原点B
         out.wait = vec3<f32>(1.0, 0.0, 0.0);
         out.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
+    } else if model.vertex_type == 7u {
+        // ベジエ補助直線 始点
+        out.wait = vec3<f32>(0.0, 1.0, 0.0);
+        out.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
+    } else if model.vertex_type == 8u {
+        // ベジエ補助直線 終点
+        out.wait = vec3<f32>(0.0, 0.0, 1.0);
+        out.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
     } else if model.vertex_type == 1u {
         // 原点L
         out.wait = vec3<f32>(1.0, 0.0, 0.0);
         out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
-    } else if model.vertex_type == 2u {
-        // 始点B
-        out.wait = vec3<f32>(0.0, 1.0, 0.0);
-        out.triangle_type = vec3<f32>(1.0, 1.0, 0.0);
     } else if model.vertex_type == 3u {
         // 始点L
         out.wait = vec3<f32>(0.0, 1.0, 0.0);
         out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
-    } else if model.vertex_type == 4u {
-        // 終点B
-        out.wait = vec3<f32>(0.0, 0.0, 1.0);
-        out.triangle_type = vec3<f32>(1.0, 1.0, 0.0);
     } else if model.vertex_type == 5u {
         // 終点L
         out.wait = vec3<f32>(0.0, 0.0, 1.0);
         out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
+    } else if model.vertex_type == 2u {
+        // 始点B
+        out.wait = vec3<f32>(0.0, 1.0, 0.0);
+        out.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
+    } else if model.vertex_type == 4u {
+        // 終点B
+        out.wait = vec3<f32>(0.0, 0.0, 1.0);
+        out.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
     } else if model.vertex_type == 6u {
         // 制御点
         out.wait = vec3<f32>(1.0, 0.0, 0.0);
@@ -419,8 +427,7 @@ struct FragmentOutput {
     @location(1) count: vec4<f32>,
 }
 
-const UNIT :f32 = 0.00390625;
-const ALPHA_STEP: f32 = 16f;
+const UNIT: f32 = 0.00390625;
 
 const NEAR_ZERO = 1e-6;
 const NEAR_ONE = 1.0 - 1e-6;
@@ -434,7 +441,7 @@ fn near_eq_one(value: f32) -> bool {
 }
 
 fn in_naive_range(value: f32) -> bool {
-    return value >= 0.0 && value <= 1.0;
+    return value > 0.0 && value < 1.0;
 }
 
 fn under_one(value: f32) -> bool {
@@ -452,16 +459,14 @@ fn linerstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 
 fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
     let enable_antialiasing = u_buffer.u_antialiasing != 0u;
-    let is_bezier_pre = near_eq_one(in.triangle_type.x);
-    let is_bezier_line_pre = near_eq_one(in.triangle_type.y);
-    let is_line_pre = near_eq_one(in.triangle_type.z);
 
-    let is_bezier = is_bezier_pre && !is_bezier_line_pre && !is_line_pre;
-    let is_bezier_line = is_bezier_line_pre && !is_bezier_pre && !is_line_pre;
-    let is_line = is_line_pre && !is_bezier_pre && !is_bezier_line_pre;
+    let is_bezier = near_eq_one(in.triangle_type.x);
+    let is_bezier_line = near_eq_one(in.triangle_type.y);
+    let is_line = near_eq_one(in.triangle_type.z);
 
     var output: FragmentOutput;
-    output.color = vec4<f32>(in.color.rgb, 1f);
+    output.color = vec4<f32>(in.color.rgb, 0f);
+    output.count = vec4<f32>(0f, 0f, 0f, 0f);
 
     // 処理の内容的には以降の if 文の中で行えば済む処理だが
     // WebGPU は fwidth は実行パスの分岐先でだけ呼び出されると正しい結果を返せないとエラーを返す実装があるのでここで実行する。
@@ -471,51 +476,47 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
     // 隣接ピクセルの距離との差分
     let bezier_distance_fwidth = fwidth(bezier_distance);
 
+    // linerstep は 0.0->1.0 に変化するので、1.0-linerstep で 1.0->0.0 に反転
+    var bezier_alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
+    if !enable_antialiasing {
+        bezier_alpha = 1.0;
+    }
+
     // 直線のSDF距離計算
     let triangle_distance = in.wait.x;
     // 隣接ピクセルの距離との差分
     let triangle_distance_fwidth = fwidth(triangle_distance);
 
+    // 三角形の場合の処理
+    var liner_alpha = linerstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
+    if !enable_antialiasing {
+        liner_alpha = 1.0;
+    }
+
     if is_bezier {
         // Bezier curveの場合の処理
-        // linerstep は 0.0->1.0 に変化するので、1.0-linerstep で 1.0->0.0 に反転
-        var alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
-        if !enable_antialiasing && !near_eq_zero(alpha) {
-            alpha = 1.0;
-        }
-
-        if alpha > 0.0 {
-            output.count.r = UNIT * winding_sign;
-            if !near_eq_one(alpha) {
-                output.count.g = alpha / ALPHA_STEP * winding_sign;
+        if bezier_alpha > 0.0 {
+            if in.wait.x >= 0.0 {
+                output.count.r = UNIT * winding_sign;
+            }
+            if in_naive_range(bezier_alpha) && ((in.wait.y < 1.0) || (in.wait.z <= 1.0)) {
+                output.count.g = bezier_alpha * winding_sign;
                 output.count.b = UNIT;
             }
-        } else {
-            discard;
         }
-    //} else if true {
-    } else {
-        // 三角形の場合の処理
-        var alpha = linerstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
-        if !enable_antialiasing {
-            alpha = 1.0;
-        }
-
+    } else if is_bezier_line {
         // ベジエの補完的直線
-        if is_bezier_line {
-            if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
-                output.count.r = UNIT * winding_sign;
+        if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
+            output.count.r = UNIT * winding_sign;
+        }
+    } else if is_line {
+        // 直線
+        if (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
+            output.count.r = UNIT * winding_sign;
+            if !near_eq_one(liner_alpha) {
+                output.count.g = liner_alpha * winding_sign;
+                output.count.b = UNIT;
             }
-        } else if is_line {
-            if (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
-                output.count.r = UNIT * winding_sign;
-                if !near_eq_one(alpha) {
-                    output.count.g = alpha / ALPHA_STEP * winding_sign;
-                    output.count.b = UNIT;
-                }
-            }
-        } else {
-            discard;
         }
     }
     return output;
