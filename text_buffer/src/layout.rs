@@ -520,7 +520,7 @@ const DEFAULT_LIST_INDENT_PATTERN: [&str; 17] = [
 ];
 
 /// 「名前: 」形式の話者名と本文を分ける区切り (半角/全角コロン + 半角/全角空白)。
-const SPEAKER_SEPARATORS: [&str; 6] = [": ", "： ", "：　", ":　", "「", "『"];
+const SPEAKER_SEPARATORS: [&str; 4] = [": ", "： ", "：　", ":　"];
 
 /// 話者名とみなす最大文字数 (これを超える場合は発言行として扱わない)。
 const MAX_SPEAKER_NAME_CHARS: usize = 20;
