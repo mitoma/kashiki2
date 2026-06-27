@@ -1,0 +1,11 @@
+[renderer_option]
+width = 512
+height = 512
+foreground_color = [1.0, 1.0, 1.0]
+background_color = [0, 0, 0, 255]
+
+[vertex]
+path = """
+M -0.01 0.51
+L 0.01 0.51
+"""
