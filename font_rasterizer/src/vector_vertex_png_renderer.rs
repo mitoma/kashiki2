@@ -219,17 +219,34 @@ pub async fn render_vector_vertex_to_png_async(
     // GPU 側ではバックグラウンドカラーを合成できない。
     // 読み出し後にソフトウェアでアルファ合成する。
     let bg = options.background_color;
+    let width = options.width;
     let raw_data: Vec<u8> = raw_data
         .chunks_exact(4)
-        .flat_map(|pixel| {
+        .enumerate()
+        .flat_map(|(i, pixel)| {
             let a = pixel[3] as f32 / 255.0;
             let inv = 1.0 - a;
-            [
+            let mut composed = [
                 (pixel[0] as f32 * a + bg[0] as f32 * inv) as u8,
                 (pixel[1] as f32 * a + bg[1] as f32 * inv) as u8,
                 (pixel[2] as f32 * a + bg[2] as f32 * inv) as u8,
                 (a * 255.0 + bg[3] as f32 * inv) as u8,
-            ]
+            ];
+
+            // 10 ピクセルごとに薄いグリッド線を重ねる。
+            let x = i as u32 % width;
+            let y = i as u32 / width;
+            if x % 10 == 0 || y % 10 == 0 {
+                const GRID_ALPHA: f32 = 0.15;
+                const GRID_COLOR: [u8; 3] = [128, 128, 128];
+                for c in 0..3 {
+                    composed[c] = (composed[c] as f32 * (1.0 - GRID_ALPHA)
+                        + GRID_COLOR[c] as f32 * GRID_ALPHA)
+                        as u8;
+                }
+            }
+
+            composed
         })
         .collect();
 

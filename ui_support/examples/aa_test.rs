@@ -204,4 +204,11 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn shutdown(&mut self, _context: &UiContext) {}
+
+    fn initial_editor_settings(&self) -> ui_support::editor_settings::EditorSettings {
+        ui_support::editor_settings::EditorSettings {
+            outline_fill_rule: ui_support::editor_settings::EditorOutlineFillRule::NonZero,
+            ..Default::default()
+        }
+    }
 }
