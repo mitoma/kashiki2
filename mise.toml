@@ -57,6 +57,10 @@ env = { RUST_LOG = "info" }
 description = "Run the kashikishi"
 run = "cargo run --bin kashikishi --release"
 
+[tasks.clear-kashikishi-cache]
+description = "Clear the kashikishi cache"
+run = "cargo run --bin kashikishi --release -- --clear-glyph-cache"
+
 [tasks.install-kashikishi]
 description = "Install the kashikishi"
 run = "cargo install --path kashikishi"

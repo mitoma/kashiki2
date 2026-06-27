@@ -59,12 +59,54 @@ fn fonts_hash(fonts: &[FontData]) -> u64 {
     hash
 }
 
-fn cache_db_path(fonts: &[FontData]) -> PathBuf {
-    let hash = fonts_hash(fonts);
+fn cache_dir() -> PathBuf {
     dirs::cache_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("kashikishi")
-        .join(format!("glyph_cache_{hash:016x}.redb"))
+}
+
+fn cache_db_path(fonts: &[FontData]) -> PathBuf {
+    let hash = fonts_hash(fonts);
+    cache_dir().join(format!("glyph_cache_{hash:016x}.redb"))
+}
+
+/// グリフキャッシュ（`glyph_cache_*.redb`）をすべて削除する。
+/// フォントの組み合わせごとに別ファイルが存在するため、全ファイルを対象とする。
+pub fn clear_glyph_cache() {
+    let dir = cache_dir();
+    let entries = match std::fs::read_dir(&dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            log::info!(
+                "グリフキャッシュディレクトリが存在しません: {}",
+                dir.display()
+            );
+            return;
+        }
+        Err(e) => {
+            log::warn!("グリフキャッシュディレクトリの読み込みに失敗: {e}");
+            return;
+        }
+    };
+
+    let mut removed = 0;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_cache_file = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("glyph_cache_") && name.ends_with(".redb"));
+        if is_cache_file {
+            match std::fs::remove_file(&path) {
+                Ok(()) => {
+                    log::info!("グリフキャッシュを削除しました: {}", path.display());
+                    removed += 1;
+                }
+                Err(e) => log::warn!("グリフキャッシュの削除に失敗 ({}): {e}", path.display()),
+            }
+        }
+    }
+    log::info!("グリフキャッシュを {removed} 件削除しました");
 }
 
 pub(crate) struct GlyphCache {

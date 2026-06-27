@@ -139,6 +139,10 @@ pub struct Args {
     /// font
     #[arg(short, long, default_values = ["UD デジタル 教科書体 N", "UD デジタル 教科書体 N-R"])]
     pub font_names: Vec<String>,
+
+    /// clear glyph cache before startup
+    #[arg(long, default_value = "false")]
+    pub clear_glyph_cache: bool,
 }
 
 struct SystemCommandPalette;
@@ -172,6 +176,12 @@ impl ActionProcessor for SystemCommandPalette {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run(args: Args) {
+    // clear glyph cache if requested
+    #[cfg(not(target_arch = "wasm32"))]
+    if args.clear_glyph_cache {
+        font_rasterizer::clear_glyph_cache();
+    }
+
     // load config
     let config = KashikishiConfig::load();
 

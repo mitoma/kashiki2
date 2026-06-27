@@ -8,6 +8,8 @@ pub mod errors;
 pub mod font_converter;
 #[cfg(all(feature = "cache", not(target_arch = "wasm32")))]
 mod glyph_cache;
+#[cfg(all(feature = "cache", not(target_arch = "wasm32")))]
+pub use glyph_cache::clear_glyph_cache;
 pub mod glyph_instances;
 pub mod glyph_vertex_buffer;
 pub mod motion;
