@@ -83,7 +83,6 @@ fn fs_main_non_zero(in: VertexOutput) -> @location(0) vec4<f32> {
 
     if is_inside {
         if abs(alpha_counts) > WINDING_THRESHOLD {
-            // エッジ付近: アルファで滑らかに
             let alpha = clamp(abs(alpha_accum) / (abs(alpha_counts) / UNIT), 0.0, 1.0);
             return vec4<f32>(color.rgb, alpha);
         } else {
