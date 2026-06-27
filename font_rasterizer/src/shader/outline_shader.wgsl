@@ -92,10 +92,9 @@ fn fs_main_non_zero(in: VertexOutput) -> @location(0) vec4<f32> {
     } else {
         if abs(alpha_counts) > WINDING_THRESHOLD {
             let alpha = 1.0 - clamp(abs(alpha_accum) / (abs(alpha_counts) / UNIT), 0.0, 1.0);
-            if alpha > 0.001 {
-                return vec4<f32>(color.rgb, alpha);
-            }
+            return vec4<f32>(color.rgb, alpha);
+        } else {
+            return vec4<f32>(color.rgb, 0.0);
         }
-        return vec4<f32>(color.rgb, 0.0);
     }
 }

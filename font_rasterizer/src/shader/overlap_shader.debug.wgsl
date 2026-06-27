@@ -475,18 +475,20 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
     let bezier_distance = pow((in.wait.x * 0.5 + in.wait.y), 2.0) - in.wait.y;
     // 隣接ピクセルの距離との差分
     let bezier_distance_fwidth = fwidth(bezier_distance);
-
     // linerstep は 0.0->1.0 に変化するので、1.0-linerstep で 1.0->0.0 に反転
     var bezier_alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
     if !enable_antialiasing {
-        bezier_alpha = 1.0;
+        if bezier_alpha >= 0.5 {
+            bezier_alpha = 1.0;
+        } else {
+            bezier_alpha = 0.0;
+        }
     }
 
     // 直線のSDF距離計算
     let triangle_distance = in.wait.x;
     // 隣接ピクセルの距離との差分
     let triangle_distance_fwidth = fwidth(triangle_distance);
-
     // 三角形の場合の処理
     var liner_alpha = linerstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
     if !enable_antialiasing {
