@@ -236,7 +236,7 @@ pub async fn render_vector_vertex_to_png_async(
             // 10 ピクセルごとに薄いグリッド線を重ねる。
             let x = i as u32 % width;
             let y = i as u32 / width;
-            if x % 10 == 0 || y % 10 == 0 {
+            if x.is_multiple_of(10) || y.is_multiple_of(10) {
                 const GRID_ALPHA: f32 = 0.15;
                 const GRID_COLOR: [u8; 3] = [128, 128, 128];
                 for c in 0..3 {
