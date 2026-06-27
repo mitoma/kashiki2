@@ -495,18 +495,11 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
 
     if is_bezier {
         // Bezier curveの場合の処理
-        //
-        // コンサバティブラスタライズ有効時、ベジエ曲線三角形は弦(chord, wait.x=0)を
-        // 約1px はみ出して描画される。はみ出した領域(wait.x < 0、重心/補助直線側)は
-        // ベジエ補助直線三角形が担当する領域であり、ここで巻き数を加算すると二重計上となり
-        // 端点付近にノイズ(はみ出し・欠け)が発生する。バリセントリック座標で除外する。
-        // 曲線の放物線AAは三角形内部(弦には端点でのみ接する)なので、AAは損なわれない。
-
         if bezier_alpha > 0.0 {
             if in.wait.x >= 0.0 {
                 output.count.r = UNIT * winding_sign;
             }
-            if !near_eq_one(bezier_alpha) {
+            if in_naive_range(bezier_alpha) && ((in.wait.y < 1.0) || (in.wait.z <= 1.0)) {
                 output.count.g = bezier_alpha * winding_sign;
                 output.count.b = UNIT;
             }
