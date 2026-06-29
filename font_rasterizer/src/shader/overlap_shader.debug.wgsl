@@ -501,7 +501,7 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
             if in.wait.x >= 0.0 {
                 output.count.r = UNIT * winding_sign;
             }
-            if in_naive_range(bezier_alpha) && ((in.wait.y < 1.0) || (in.wait.z <= 1.0)) {
+            if in_naive_range(bezier_alpha) {
                 output.count.g = bezier_alpha * winding_sign;
                 output.count.b = UNIT;
             }
