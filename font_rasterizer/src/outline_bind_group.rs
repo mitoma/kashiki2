@@ -6,8 +6,9 @@ use crate::screen_texture::ScreenTexture;
 #[derive(Debug, Default, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Uniforms {
     width: u32,
+    height: u32,
     // padding が必要らしい。正直意味わかんねぇな。
-    padding: [u32; 3],
+    padding: [u32; 2],
 }
 
 /// オーバーラップ用の BindGroup。
@@ -23,6 +24,7 @@ impl OutlineBindGroup {
     pub fn new(
         device: &wgpu::Device,
         width: u32,
+        height: u32,
         overlap_texture: &ScreenTexture,
         overlap_count_texture: &ScreenTexture,
     ) -> Self {
@@ -72,6 +74,7 @@ impl OutlineBindGroup {
 
         let uniforms = Uniforms {
             width,
+            height,
             ..Default::default()
         };
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

@@ -168,8 +168,13 @@ impl RasterizerRenderrer {
             device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR)
         };
 
-        let outline_bind_group =
-            OutlineBindGroup::new(device, width, &overlap_texture, &overlap_count_texture);
+        let outline_bind_group = OutlineBindGroup::new(
+            device,
+            width,
+            height,
+            &overlap_texture,
+            &overlap_count_texture,
+        );
         let outline_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Outline Render Pipeline Layout"),

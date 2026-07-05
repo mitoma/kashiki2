@@ -441,7 +441,15 @@ fn near_eq_one(value: f32) -> bool {
 }
 
 fn in_naive_range(value: f32) -> bool {
-    return value > 0.0 && value < 1.0;
+    return value >= 0.0 && value <= 1.0;
+}
+
+fn in_naive_range_l(value: f32) -> bool {
+    return value >= 0.0 && value < 1.0;
+}
+
+fn in_naive_range_r(value: f32) -> bool {
+    return value > 0.0 && value <= 1.0;
 }
 
 fn under_one(value: f32) -> bool {
@@ -463,6 +471,11 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
     let is_bezier = near_eq_one(in.triangle_type.x);
     let is_bezier_line = near_eq_one(in.triangle_type.y);
     let is_line = near_eq_one(in.triangle_type.z);
+
+    let is_x_edge = (in.wait.x <= 0.0 + abs(fwidth(in.wait.x) / 2.0));
+    let is_y_edge = (in.wait.y >= 1.0 - (fwidth(in.wait.y) / 2.0));
+    let is_z_edge = (in.wait.z >= 1.0 - (fwidth(in.wait.z) / 2.0));
+    let is_edge = (is_y_edge || is_z_edge);
 
     var output: FragmentOutput;
     output.color = vec4<f32>(in.color.rgb, 0f);
@@ -504,6 +517,9 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
             if in_naive_range(bezier_alpha) {
                 output.count.g = bezier_alpha * winding_sign;
                 output.count.b = UNIT;
+                if is_edge {
+                    output.count.a = UNIT;
+                }
             }
         }
     } else if is_bezier_line {
