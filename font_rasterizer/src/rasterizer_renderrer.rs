@@ -98,7 +98,7 @@ impl RasterizerRenderrer {
                 vertex: wgpu::VertexState {
                     module: &overlap_shader,
                     entry_point: Some("vs_main"),
-                    buffers: &[Vertex::desc(), InstanceRaw::desc()],
+                    buffers: &[Some(Vertex::desc()), Some(InstanceRaw::desc())],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -189,7 +189,7 @@ impl RasterizerRenderrer {
                 vertex: wgpu::VertexState {
                     module: &outline_shader,
                     entry_point: Some("vs_main"),
-                    buffers: &[ScreenVertexBuffer::desc()],
+                    buffers: &[Some(ScreenVertexBuffer::desc())],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {

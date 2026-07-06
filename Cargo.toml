@@ -17,7 +17,7 @@ resolver = "2"
 
 [workspace.dependencies]
 thiserror = "2.0.18"
-wgpu = "29.0.3"
+wgpu = "30.0.0"
 # fork元は winit = "0.31.x" ブランチ。いくつかのパッチを当てたものを使っている。
 # patch-1
 #   wasm で ime support が十分でないのでパッチを当てている。
@@ -36,12 +36,12 @@ pollster = "0.4.0"
 image = "0.25.10"
 rustybuzz = "0.20.1"
 web-time = { version = "1.1.0" }
-glam = "0.33.1"
+glam = "0.33.2"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 bitflags = "2.13.0"
-rand = "0.10.1"
+rand = "0.10.2"
 cfg-if = "1.0.4"
-arboard = "3.5.0"
+arboard = "3.6.1"
 dirs = "6.0.0"
 futures = "0.3.32"
 
@@ -66,7 +66,7 @@ similar = "3.1.1"
 serde-jsonlines = "0.7.0"
 chrono = "0.4.45"
 clap = "4.6.1"
-tree-sitter = "0.26.9"
+tree-sitter = "0.26.10"
 tree-sitter-rust = "0.24.2"
 tree-sitter-java = "0.23.5"
 tree-sitter-go = "0.25.0"
@@ -74,7 +74,7 @@ tree-sitter-md = "0.5.3"
 tree-sitter-json = "0.24.8"
 tree-sitter-bash = "0.25.1"
 tree-sitter-toml-ng = "0.7.0"
-html-to-markdown-rs = "3.7.2"
+html-to-markdown-rs = "3.8.2"
 
 redb = "4.1.0"
 rayon = "1.12.0"

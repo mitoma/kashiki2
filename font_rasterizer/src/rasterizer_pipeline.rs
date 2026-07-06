@@ -179,7 +179,7 @@ impl RasterizerPipeline {
                 vertex: wgpu::VertexState {
                     module: &background_image_shader,
                     entry_point: Some("vs_main"),
-                    buffers: &[ScreenVertexBuffer::desc()],
+                    buffers: &[Some(ScreenVertexBuffer::desc())],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -235,7 +235,7 @@ impl RasterizerPipeline {
                 vertex: wgpu::VertexState {
                     module: &screen_shader,
                     entry_point: Some("vs_main"),
-                    buffers: &[ScreenVertexBuffer::desc()],
+                    buffers: &[Some(ScreenVertexBuffer::desc())],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -281,7 +281,7 @@ impl RasterizerPipeline {
                 vertex: wgpu::VertexState {
                     module: &screen_shader,
                     entry_point: Some("vs_main"),
-                    buffers: &[ScreenVertexBuffer::desc()],
+                    buffers: &[Some(ScreenVertexBuffer::desc())],
                     compilation_options: Default::default(),
                 },
                 fragment: Some(wgpu::FragmentState {

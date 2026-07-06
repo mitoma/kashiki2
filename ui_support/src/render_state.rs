@@ -175,7 +175,7 @@ impl RenderTarget {
                 config,
                 needs_reconfigure_after_present,
             } => {
-                surface_texture.take().unwrap().present();
+                context.queue().present(surface_texture.take().unwrap());
                 if *needs_reconfigure_after_present {
                     surface.configure(context.device(), config);
                     *needs_reconfigure_after_present = false;
@@ -214,7 +214,7 @@ impl RenderTarget {
                     rx.await.unwrap().unwrap();
 
                     let buffer_slice = output_buffer.slice(..);
-                    let data = buffer_slice.get_mapped_range();
+                    let data = buffer_slice.get_mapped_range().unwrap();
 
                     // パディングを除去して実際の画像データのみを抽出
                     let raw_data = if padded_bytes_per_row == unpadded_bytes_per_row {
@@ -305,6 +305,7 @@ impl RenderState {
                 },
                 compatible_surface: surface.as_ref(),
                 force_fallback_adapter: false,
+                apply_limit_buckets: false,
             })
             .await
             .unwrap();
@@ -365,6 +366,7 @@ impl RenderState {
                     alpha_mode: wgpu::CompositeAlphaMode::Opaque,
                     view_formats: vec![],
                     desired_maximum_frame_latency: 2,
+                    color_space: wgpu::SurfaceColorSpace::Auto,
                 };
                 RenderTarget::Window {
                     surface,

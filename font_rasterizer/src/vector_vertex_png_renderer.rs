@@ -201,7 +201,7 @@ pub async fn render_vector_vertex_to_png_async(
 
     rx.recv().unwrap().unwrap();
 
-    let data = output_buffer_slice.get_mapped_range();
+    let data = output_buffer_slice.get_mapped_range().unwrap();
     let raw_data = if padded_bytes_per_row == unpadded_bytes_per_row {
         data.to_vec()
     } else {
