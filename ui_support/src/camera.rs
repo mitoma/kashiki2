@@ -1,5 +1,11 @@
 use font_rasterizer::context::WindowSize;
-use glam::{Mat4, Quat, Vec3};
+use glam::{
+    Mat4, Quat, Vec3,
+    camera::rh::{
+        proj::directx::{orthographic, perspective},
+        view::look_at_mat4,
+    },
+};
 
 use crate::{easing_value::EasingPointN, layout_engine::Model};
 
@@ -59,7 +65,7 @@ impl Camera {
     }
 
     pub fn build_view_projection_matrix(&self) -> Mat4 {
-        let view = Mat4::look_at_rh(
+        let view = look_at_mat4(
             self.eye.current().into(),
             self.target.current().into(),
             self.up.current().into(),
@@ -70,16 +76,14 @@ impl Camera {
             view
         };
 
-        let proj = Mat4::perspective_rh(self.fovy.to_radians(), self.aspect, self.znear, self.zfar);
+        let proj = perspective(self.fovy.to_radians(), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
 
     // カメラの位置に依存しない平行投影を作る
     pub fn build_default_view_projection_matrix(&self) -> Mat4 {
-        let default_view =
-            Mat4::look_at_rh((0.0, 0.0, 1.0).into(), (0.0, 0.0, 0.0).into(), Vec3::Y);
-        let proj =
-            Mat4::orthographic_rh(-self.aspect, self.aspect, -1.0, 1.0, self.znear, self.zfar);
+        let default_view = look_at_mat4((0.0, 0.0, 1.0).into(), (0.0, 0.0, 0.0).into(), Vec3::Y);
+        let proj = orthographic(-self.aspect, self.aspect, -1.0, 1.0, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * default_view
     }
 
