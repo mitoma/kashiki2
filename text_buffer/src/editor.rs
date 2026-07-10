@@ -208,6 +208,14 @@ mod tests {
         }
     }
 
+    struct AsciiWideXResolver;
+
+    impl CharWidthResolver for AsciiWideXResolver {
+        fn resolve_width(&self, c: char) -> usize {
+            if c == 'X' { 2 } else { 1 }
+        }
+    }
+
     #[test]
     fn test_calc_phisical_layout() {
         struct TestCase {
@@ -358,6 +366,45 @@ mod tests {
             );
             assert_eq!(layout.to_string(), case.output);
         }
+    }
+
+    #[test]
+    fn test_wrap_defers_inside_unbreakable_word_when_wide_char_overflows() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender.clone());
+        editor.operation(&EditorOperation::InsertString("abcXdef".to_string()));
+        let _ = receiver.try_iter().collect::<Vec<_>>();
+
+        let layout = editor.calc_phisical_layout(
+            4,
+            &LineBoundaryProhibitedChars::new(vec![], vec![]),
+            Arc::new(AsciiWideXResolver),
+            None,
+        );
+
+        assert_eq!(layout.to_string(), "abcX\ndef");
+    }
+
+    #[test]
+    fn test_wrap_english_sentence_on_word_boundaries() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender.clone());
+        editor.operation(&EditorOperation::InsertString(
+            "tiny elephant runs over a bridge slowly".to_string(),
+        ));
+        let _ = receiver.try_iter().collect::<Vec<_>>();
+
+        let layout = editor.calc_phisical_layout(
+            10,
+            &LineBoundaryProhibitedChars::new(vec![], vec![]),
+            Arc::new(TestWidthResolver),
+            None,
+        );
+
+        assert_eq!(
+            layout.to_string(),
+            "tiny \nelephant \nruns over \na bridge \nslowly"
+        );
     }
 
     #[test]
