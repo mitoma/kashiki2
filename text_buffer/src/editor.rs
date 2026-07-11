@@ -330,7 +330,7 @@ mod tests {
                 input: vec![EditorOperation::InsertString(
                     "Hello, World! And you.".to_string(),
                 )],
-                output: "Hello, World!\n And you.".to_string(),
+                output: "Hello, World!\nAnd you.".to_string(),
                 prohibited_chars: LineBoundaryProhibitedChars::default(),
                 max_width: 12,
             },
@@ -405,6 +405,24 @@ mod tests {
             layout.to_string(),
             "tiny \nelephant \nruns over \na bridge \nslowly"
         );
+    }
+
+    #[test]
+    fn test_soft_wrap_trims_wrapped_line_head_space() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender.clone());
+        editor.operation(&EditorOperation::InsertString(
+            "Hello, World! And you.".to_string(),
+        ));
+        let _ = receiver.try_iter().collect::<Vec<_>>();
+
+        let layout = editor.calc_phisical_layout(
+            12,
+            &LineBoundaryProhibitedChars::default(),
+            Arc::new(TestWidthResolver),
+            None,
+        );
+        assert_eq!(layout.to_string(), "Hello, World!\nAnd you.");
     }
 
     #[test]

@@ -113,6 +113,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             state.phisical_col = 0;
             state.current_row_char_start_index = state.chars.len();
             state.last_break_candidate = None;
+            state.is_soft_wrapped_row = false;
             let is_caret_row = self.main_caret.position.row == line.row_num;
             let line_string = line.to_line_string();
             let break_before_chars = self.collect_break_before_chars(&line_string);
@@ -271,13 +272,22 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         if state.phisical_row != before_apply_row {
             state.current_row_char_start_index = state.chars.len();
             state.last_break_candidate = None;
+            state.is_soft_wrapped_row = true;
         }
+
+        let should_trim_soft_wrapped_line_head_whitespace = state.is_soft_wrapped_row
+            && state.phisical_col == indent
+            && buffer_char.c.is_whitespace();
+        let drawn_char_width = if should_trim_soft_wrapped_line_head_whitespace {
+            0
+        } else {
+            char_width
+        };
 
         let phisical_position = PhysicalPosition {
             row: state.phisical_row,
             col: state.phisical_col,
         };
-        state.chars.push((*buffer_char, phisical_position));
 
         self.update_caret_position(
             &mut state.main_caret_pos,
@@ -285,7 +295,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             buffer_char,
             state.phisical_row,
             state.phisical_col,
-            char_width,
+            drawn_char_width,
         );
         if let Some(mark) = state.mark_pos.as_mut()
             && let Some(mark_caret) = self.mark
@@ -296,11 +306,17 @@ impl<'a> PhysicalLayoutCalculator<'a> {
                 buffer_char,
                 state.phisical_row,
                 state.phisical_col,
-                char_width,
+                drawn_char_width,
             );
         }
 
-        state.phisical_col += char_width;
+        if should_trim_soft_wrapped_line_head_whitespace {
+            return;
+        }
+
+        state.chars.push((*buffer_char, phisical_position));
+
+        state.phisical_col += drawn_char_width;
     }
 
     fn try_backtrack_wrap(
@@ -365,6 +381,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         state.phisical_col = indent + state.phisical_col.saturating_sub(split_col);
         state.current_row_char_start_index = candidate.char_index;
         state.last_break_candidate = None;
+        state.is_soft_wrapped_row = true;
     }
 
     fn shift_position_after_backtrack(
@@ -636,6 +653,7 @@ struct LayoutState {
     preedit_injected: bool,
     current_row_char_start_index: usize,
     last_break_candidate: Option<RowBreakCandidate>,
+    is_soft_wrapped_row: bool,
 }
 
 impl LayoutState {
@@ -650,6 +668,7 @@ impl LayoutState {
             preedit_injected: false,
             current_row_char_start_index: 0,
             last_break_candidate: None,
+            is_soft_wrapped_row: false,
         }
     }
 
