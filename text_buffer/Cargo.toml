@@ -5,6 +5,7 @@ authors = ["mitoma <mutetheradio@gmail.com>"]
 edition = "2024"
 
 [dependencies]
+icu_segmenter = { workspace = true }
 
 [dev-dependencies]
 indoc = { workspace = true }

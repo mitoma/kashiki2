@@ -1,3 +1,5 @@
+use icu_segmenter::LineSegmenter;
+use icu_segmenter::options::LineBreakOptions;
 use std::fmt::Display;
 use std::sync::Arc;
 
@@ -109,13 +111,18 @@ impl<'a> PhysicalLayoutCalculator<'a> {
 
         for line in &self.buffer.lines {
             state.phisical_col = 0;
+            state.current_row_char_start_index = state.chars.len();
+            state.last_break_candidate = None;
+            state.is_soft_wrapped_row = false;
             let is_caret_row = self.main_caret.position.row == line.row_num;
+            let line_string = line.to_line_string();
+            let break_before_chars = self.collect_break_before_chars(&line_string);
 
             if line.chars.is_empty() {
                 self.handle_empty_line(&mut state, line.row_num, is_caret_row, preedit_opt);
             }
 
-            let indent = self.calc_indent(&line.to_line_string());
+            let indent = self.calc_indent(&line_string);
 
             for buffer_char in &line.chars {
                 self.try_insert_preedit_before_char(
@@ -127,7 +134,11 @@ impl<'a> PhysicalLayoutCalculator<'a> {
                     preedit_opt,
                 );
 
-                self.push_buffer_char(&mut state, buffer_char, indent);
+                let can_break_before = break_before_chars
+                    .get(buffer_char.position.col)
+                    .copied()
+                    .unwrap_or(false);
+                self.push_buffer_char(&mut state, buffer_char, indent, can_break_before);
             }
 
             self.try_insert_preedit_at_line_end(
@@ -223,23 +234,60 @@ impl<'a> PhysicalLayoutCalculator<'a> {
     ///
     /// 禁則文字を考慮した改行判定、主caret と mark の位置追跡を行った上で、
     /// 文字を物理レイアウト出力に追加する。
-    fn push_buffer_char(&self, state: &mut LayoutState, buffer_char: &BufferChar, indent: usize) {
+    fn push_buffer_char(
+        &self,
+        state: &mut LayoutState,
+        buffer_char: &BufferChar,
+        indent: usize,
+        can_break_before: bool,
+    ) {
         let char_width = self.width_resolver.resolve_width(buffer_char.c);
         let is_line_head = buffer_char.position.col == 0;
+        let can_break_before_current = can_break_before
+            && !self
+                .line_boundary_prohibited_chars
+                .start
+                .contains(&buffer_char.c);
+
+        if can_break_before_current {
+            state.last_break_candidate = Some(RowBreakCandidate {
+                row: state.phisical_row,
+                col: state.phisical_col,
+                char_index: state.chars.len(),
+            });
+        }
+
+        self.try_backtrack_wrap(state, char_width, indent, buffer_char.c);
+
+        let before_apply_row = state.phisical_row;
         self.apply_line_break_rules(
             buffer_char.c,
             char_width,
             is_line_head,
+            can_break_before,
             &mut state.phisical_row,
             &mut state.phisical_col,
             indent,
         );
+        if state.phisical_row != before_apply_row {
+            state.current_row_char_start_index = state.chars.len();
+            state.last_break_candidate = None;
+            state.is_soft_wrapped_row = true;
+        }
+
+        let should_trim_soft_wrapped_line_head_whitespace = state.is_soft_wrapped_row
+            && state.phisical_col == indent
+            && buffer_char.c.is_whitespace();
+        let drawn_char_width = if should_trim_soft_wrapped_line_head_whitespace {
+            0
+        } else {
+            char_width
+        };
 
         let phisical_position = PhysicalPosition {
             row: state.phisical_row,
             col: state.phisical_col,
         };
-        state.chars.push((*buffer_char, phisical_position));
 
         self.update_caret_position(
             &mut state.main_caret_pos,
@@ -247,7 +295,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             buffer_char,
             state.phisical_row,
             state.phisical_col,
-            char_width,
+            drawn_char_width,
         );
         if let Some(mark) = state.mark_pos.as_mut()
             && let Some(mark_caret) = self.mark
@@ -258,11 +306,95 @@ impl<'a> PhysicalLayoutCalculator<'a> {
                 buffer_char,
                 state.phisical_row,
                 state.phisical_col,
-                char_width,
+                drawn_char_width,
             );
         }
 
-        state.phisical_col += char_width;
+        if should_trim_soft_wrapped_line_head_whitespace {
+            return;
+        }
+
+        state.chars.push((*buffer_char, phisical_position));
+
+        state.phisical_col += drawn_char_width;
+    }
+
+    fn try_backtrack_wrap(
+        &self,
+        state: &mut LayoutState,
+        char_width: usize,
+        indent: usize,
+        c: char,
+    ) {
+        if state.phisical_col + char_width <= self.max_line_width {
+            return;
+        }
+        if c.is_whitespace() {
+            return;
+        }
+        if self.line_boundary_prohibited_chars.start.contains(&c) {
+            return;
+        }
+
+        let Some(candidate) = state.last_break_candidate else {
+            return;
+        };
+        if candidate.row != state.phisical_row {
+            return;
+        }
+        if candidate.char_index <= state.current_row_char_start_index {
+            return;
+        }
+        if candidate.col <= indent {
+            return;
+        }
+
+        let old_row = state.phisical_row;
+        let new_row = old_row + 1;
+        let split_col = candidate.col;
+
+        for (_, pos) in state.chars.iter_mut().skip(candidate.char_index) {
+            let rel_col = pos.col.saturating_sub(split_col);
+            pos.row = new_row;
+            pos.col = indent + rel_col;
+        }
+        for (_, pos) in state.preedit_chars.iter_mut() {
+            if pos.row == old_row && pos.col >= split_col {
+                let rel_col = pos.col.saturating_sub(split_col);
+                pos.row = new_row;
+                pos.col = indent + rel_col;
+            }
+        }
+
+        Self::shift_position_after_backtrack(
+            &mut state.main_caret_pos,
+            old_row,
+            split_col,
+            new_row,
+            indent,
+        );
+        if let Some(mark_pos) = state.mark_pos.as_mut() {
+            Self::shift_position_after_backtrack(mark_pos, old_row, split_col, new_row, indent);
+        }
+
+        state.phisical_row = new_row;
+        state.phisical_col = indent + state.phisical_col.saturating_sub(split_col);
+        state.current_row_char_start_index = candidate.char_index;
+        state.last_break_candidate = None;
+        state.is_soft_wrapped_row = true;
+    }
+
+    fn shift_position_after_backtrack(
+        pos: &mut PhysicalPosition,
+        old_row: usize,
+        split_col: usize,
+        new_row: usize,
+        indent: usize,
+    ) {
+        if pos.row == old_row && pos.col >= split_col {
+            pos.row = new_row;
+            pos.col = indent + pos.col.saturating_sub(split_col);
+        }
     }
 
     /// caret が論理行末 (行の文字数以上の位置) にある場合、行末に preedit を挿入する。
@@ -386,16 +518,29 @@ impl<'a> PhysicalLayoutCalculator<'a> {
     /// max_line_width を超える場合、以下の条件で改行を決定する：
     /// - 行末禁則文字が max_line_width 直前なら、その前で改行
     /// - 行頭禁則文字なら超過を許容
+    #[allow(clippy::too_many_arguments)]
     fn apply_line_break_rules(
         &self,
         c: char,
         char_width: usize,
         is_line_head: bool,
+        can_break_before: bool,
         phisical_row: &mut usize,
         phisical_col: &mut usize,
         indent: usize,
     ) {
         if is_line_head {
+            return;
+        }
+
+        // Unicode 改行機会があり、現在行がすでに上限に達している場合は
+        // オーバーフローを増やす前に境界で改行する。
+        if can_break_before
+            && !self.line_boundary_prohibited_chars.start.contains(&c)
+            && *phisical_col >= self.max_line_width
+        {
+            *phisical_row += 1;
+            *phisical_col = indent;
             return;
         }
 
@@ -417,7 +562,8 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
 
         // 幅を超える場合の判定
-        let should_break = !self.line_boundary_prohibited_chars.start.contains(&c)
+        let should_break = (!self.line_boundary_prohibited_chars.start.contains(&c)
+            && (can_break_before || self.max_line_width <= *phisical_col))
             || self.max_line_width < *phisical_col;
 
         if should_break {
@@ -441,15 +587,18 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         let mut prev_row = state.phisical_row;
         let mut logical_line = line_row_num;
         let mut logical_col = caret_col;
+        let preedit_break_before_chars = self.collect_break_before_chars(preedit);
 
         for (i, c) in preedit.chars().enumerate() {
             let char_width = self.width_resolver.resolve_width(c);
             let is_line_head = (caret_col == 0 && i == 0) || (state.phisical_row > prev_row);
+            let can_break_before = preedit_break_before_chars.get(i).copied().unwrap_or(false);
 
             self.apply_line_break_rules(
                 c,
                 char_width,
                 is_line_head,
+                can_break_before,
                 &mut state.phisical_row,
                 &mut state.phisical_col,
                 indent,
@@ -479,6 +628,19 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             prev_row = state.phisical_row;
         }
     }
+
+    fn collect_break_before_chars(&self, text: &str) -> Vec<bool> {
+        let char_len = text.chars().count();
+        let mut break_before_chars = vec![false; char_len + 1];
+        let segmenter = LineSegmenter::new_auto(LineBreakOptions::default());
+        for byte_idx in segmenter.segment_str(text) {
+            let char_idx = text[..byte_idx].chars().count();
+            if char_idx <= char_len {
+                break_before_chars[char_idx] = true;
+            }
+        }
+        break_before_chars
+    }
 }
 
 struct LayoutState {
@@ -489,6 +651,9 @@ struct LayoutState {
     main_caret_pos: PhysicalPosition,
     mark_pos: Option<PhysicalPosition>,
     preedit_injected: bool,
+    current_row_char_start_index: usize,
+    last_break_candidate: Option<RowBreakCandidate>,
+    is_soft_wrapped_row: bool,
 }
 
 impl LayoutState {
@@ -501,6 +666,9 @@ impl LayoutState {
             main_caret_pos: PhysicalPosition { row: 0, col: 0 },
             mark_pos: mark.map(|_| PhysicalPosition { row: 0, col: 0 }),
             preedit_injected: false,
+            current_row_char_start_index: 0,
+            last_break_candidate: None,
+            is_soft_wrapped_row: false,
         }
     }
 
@@ -512,6 +680,13 @@ impl LayoutState {
             mark_pos: self.mark_pos,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct RowBreakCandidate {
+    row: usize,
+    col: usize,
+    char_index: usize,
 }
 
 const DEFAULT_LIST_INDENT_PATTERN: [&str; 17] = [

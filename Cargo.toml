@@ -87,6 +87,7 @@ winresource = "0.1.31"
 
 regex = "1.12.4"
 png = "0.18.1"
+icu_segmenter = "2.2.0"
 
 [profile.release-optimized]
 inherits = "release"
