@@ -3,8 +3,9 @@ use icu_segmenter::options::LineBreakOptions;
 use std::fmt::Display;
 use std::sync::Arc;
 
-use crate::buffer::{Buffer, BufferChar};
-use crate::caret::Caret;
+use text_buffer::buffer::{BufferChar, CellPosition};
+use text_buffer::caret::Caret;
+use text_buffer::editor::Editor;
 
 // 画面表示の都合の折り返しや禁則文字を考慮した文字列のレイアウトを表す構造体
 #[derive(Debug)]
@@ -67,9 +68,32 @@ pub trait CharWidthResolver {
     fn resolve_width(&self, char: char) -> usize;
 }
 
-pub(super) struct PhysicalLayoutCalculator<'a> {
-    buffer: &'a Buffer,
-    main_caret: &'a Caret,
+#[allow(clippy::too_many_arguments)]
+pub fn calc_phisical_layout(
+    editor: &Editor,
+    max_line_width: usize,
+    line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
+    width_resolver: Arc<dyn CharWidthResolver>,
+    preedit_string: Option<String>,
+) -> PhysicalLayout {
+    let lines = editor.buffer_chars();
+    let main_caret = editor.main_caret();
+    let mark = editor.mark_caret();
+    PhysicalLayoutCalculator::new(
+        &lines,
+        main_caret,
+        mark,
+        max_line_width,
+        line_boundary_prohibited_chars,
+        width_resolver,
+        preedit_string,
+    )
+    .calc()
+}
+
+struct PhysicalLayoutCalculator<'a> {
+    lines: &'a [Vec<BufferChar>],
+    main_caret: Caret,
     mark: Option<Caret>,
     max_line_width: usize,
     line_boundary_prohibited_chars: &'a LineBoundaryProhibitedChars,
@@ -79,9 +103,9 @@ pub(super) struct PhysicalLayoutCalculator<'a> {
 
 impl<'a> PhysicalLayoutCalculator<'a> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        buffer: &'a Buffer,
-        main_caret: &'a Caret,
+    fn new(
+        lines: &'a [Vec<BufferChar>],
+        main_caret: Caret,
         mark: Option<Caret>,
         max_line_width: usize,
         line_boundary_prohibited_chars: &'a LineBoundaryProhibitedChars,
@@ -89,7 +113,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         preedit_string: Option<String>,
     ) -> Self {
         Self {
-            buffer,
+            lines,
             main_caret,
             mark,
             max_line_width,
@@ -99,36 +123,30 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
-    /// バッファ内のすべての行に対して物理レイアウトを計算する。
-    ///
-    /// 論理行 (buffer) を物理行 (display) にマッピングし、以下を処理する：
-    /// - 折り返しと禁則文字ルール
-    /// - caret と mark の物理位置
-    /// - preedit 文字列の挿入位置
-    pub fn calc(&self) -> PhysicalLayout {
+    fn calc(&self) -> PhysicalLayout {
         let mut state = LayoutState::new(self.mark);
         let preedit_opt = self.preedit_string.as_deref();
 
-        for line in &self.buffer.lines {
+        for (row_num, line_chars) in self.lines.iter().enumerate() {
             state.phisical_col = 0;
             state.current_row_char_start_index = state.chars.len();
             state.last_break_candidate = None;
             state.is_soft_wrapped_row = false;
-            let is_caret_row = self.main_caret.position.row == line.row_num;
-            let line_string = line.to_line_string();
+            let is_caret_row = self.main_caret.position.row == row_num;
+            let line_string: String = line_chars.iter().map(|c| c.c).collect();
             let break_before_chars = self.collect_break_before_chars(&line_string);
 
-            if line.chars.is_empty() {
-                self.handle_empty_line(&mut state, line.row_num, is_caret_row, preedit_opt);
+            if line_chars.is_empty() {
+                self.handle_empty_line(&mut state, row_num, is_caret_row, preedit_opt);
             }
 
             let indent = self.calc_indent(&line_string);
 
-            for buffer_char in &line.chars {
+            for buffer_char in line_chars {
                 self.try_insert_preedit_before_char(
                     &mut state,
                     buffer_char,
-                    line.row_num,
+                    row_num,
                     indent,
                     is_caret_row,
                     preedit_opt,
@@ -143,8 +161,8 @@ impl<'a> PhysicalLayoutCalculator<'a> {
 
             self.try_insert_preedit_at_line_end(
                 &mut state,
-                line.row_num,
-                line.chars.len(),
+                row_num,
+                line_chars.len(),
                 indent,
                 is_caret_row,
                 preedit_opt,
@@ -156,9 +174,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         state.into_layout()
     }
 
-    /// 空行 (文字なし) でのレイアウト処理。
-    ///
-    /// isEmpty な行でも caret/mark 位置を記録し、必要に応じて preedit を挿入する。
     fn handle_empty_line(
         &self,
         state: &mut LayoutState,
@@ -196,9 +211,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
-    /// caret が buffer_char の位置にある場合、その直前に preedit を挿入する。
-    ///
-    /// 入力中テキスト (preedit) は caret 位置から始まり、main caret は preedit の末尾直後に置く。
     fn try_insert_preedit_before_char(
         &self,
         state: &mut LayoutState,
@@ -230,10 +242,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
-    /// buffer_char を物理位置に配置し、caret/mark 位置と折り返し規則を適用する。
-    ///
-    /// 禁則文字を考慮した改行判定、主caret と mark の位置追跡を行った上で、
-    /// 文字を物理レイアウト出力に追加する。
     fn push_buffer_char(
         &self,
         state: &mut LayoutState,
@@ -291,7 +299,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
 
         self.update_caret_position(
             &mut state.main_caret_pos,
-            self.main_caret,
+            &self.main_caret,
             buffer_char,
             state.phisical_row,
             state.phisical_col,
@@ -397,9 +405,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
-    /// caret が論理行末 (行の文字数以上の位置) にある場合、行末に preedit を挿入する。
-    ///
-    /// 行の全文字走査後、caret が行末にある場合のみこの処理が実行される。
     fn try_insert_preedit_at_line_end(
         &self,
         state: &mut LayoutState,
@@ -429,10 +434,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
-    /// 行の先頭パターン ("- ", "* [ ] " など) に基づいて、折り返し時のインデント幅を計算する。
-    ///
-    /// 箇条書き行では折り返し後に同じインデントレベルの位置から再開する。
-    /// パターンは長い順で評価し、より具体的なマッチを優先する。
     fn calc_indent(&self, line_string: &str) -> usize {
         let mut list_indent_pattern = DEFAULT_LIST_INDENT_PATTERN.to_vec();
         list_indent_pattern.sort_by(|l, r| l.len().cmp(&r.len()).reverse());
@@ -456,14 +457,9 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         0
     }
 
-    /// 「名前: 」形式 (行頭の話者名 + コロン + 空白) を検出し、折り返し用のインデント幅を返す。
-    ///
-    /// 発言行では、折り返し後の本文を話者名の右側 (コロンの後) にそろえてインデントする。
-    /// 名前が空・空白を含む・長すぎる・文末記号を含む場合は発言行とみなさない。
     fn calc_speaker_indent(&self, line_string: &str) -> Option<usize> {
         let trimmed = line_string.trim_start();
 
-        // 行頭の話者名と本文を分ける区切りを探す (最も手前のコロンを採用)
         let (name, separator) = SPEAKER_SEPARATORS
             .iter()
             .filter_map(|sep| trimmed.split_once(sep).map(|(name, _)| (name, *sep)))
@@ -473,7 +469,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             || name.chars().count() > MAX_SPEAKER_NAME_CHARS
             || name
                 .chars()
-                .any(|c| /*c.is_whitespace() || */SPEAKER_NAME_FORBIDDEN_CHARS.contains(&c))
+                .any(|c| SPEAKER_NAME_FORBIDDEN_CHARS.contains(&c))
         {
             return None;
         }
@@ -487,10 +483,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         Some(indent)
     }
 
-    /// 論理位置の caret が buffer_char と一致または直後の場合、その物理位置を記録する。
-    ///
-    /// caret.col == buffer_char.col: caret は文字の直前
-    /// caret.col == buffer_char.col + 1: caret は文字の直後
     fn update_caret_position(
         &self,
         caret_pos: &mut PhysicalPosition,
@@ -513,11 +505,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
-    /// 禁則文字ルール (行頭禁則、行末禁則) を考慮して改行判定を行う。
-    ///
-    /// max_line_width を超える場合、以下の条件で改行を決定する：
-    /// - 行末禁則文字が max_line_width 直前なら、その前で改行
-    /// - 行頭禁則文字なら超過を許容
     #[allow(clippy::too_many_arguments)]
     fn apply_line_break_rules(
         &self,
@@ -533,8 +520,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             return;
         }
 
-        // Unicode 改行機会があり、現在行がすでに上限に達している場合は
-        // オーバーフローを増やす前に境界で改行する。
         if can_break_before
             && !self.line_boundary_prohibited_chars.start.contains(&c)
             && *phisical_col >= self.max_line_width
@@ -547,21 +532,18 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         let is_line_end_prohibited = self.line_boundary_prohibited_chars.end.contains(&c);
         let new_col = *phisical_col + char_width;
 
-        // 幅内に完全に収まり、かつ行末禁則でない場合はスキップ
         if new_col < self.max_line_width
             || (new_col <= self.max_line_width && !is_line_end_prohibited)
         {
             return;
         }
 
-        // 行末禁則文字が max_line_width ちょうどに来る場合は改行
         if is_line_end_prohibited && new_col == self.max_line_width {
             *phisical_row += 1;
             *phisical_col = indent;
             return;
         }
 
-        // 幅を超える場合の判定
         let should_break = (!self.line_boundary_prohibited_chars.start.contains(&c)
             && (can_break_before || self.max_line_width <= *phisical_col))
             || self.max_line_width < *phisical_col;
@@ -572,10 +554,6 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         }
     }
 
-    /// preedit 文字列を物理レイアウトに挿入し、折り返しと論理位置を管理する。
-    ///
-    /// preedit は複数行にまたがることがあり、その場合も論理行と物理行を正しく対応付ける。
-    /// インデントも折り返し後に継承される。
     fn insert_preedit_chars(
         &self,
         preedit: &str,
@@ -614,7 +592,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
                 logical_col = indent;
             }
 
-            let logical_pos = [logical_line, logical_col].into();
+            let logical_pos = CellPosition::new(logical_line, logical_col);
             state.preedit_chars.push((
                 BufferChar {
                     position: logical_pos,
@@ -694,13 +672,92 @@ const DEFAULT_LIST_INDENT_PATTERN: [&str; 17] = [
     "5. ", "6. ", "7. ", "8. ", "9. ",
 ];
 
-/// 「名前: 」形式の話者名と本文を分ける区切り (半角/全角コロン + 半角/全角空白)。
 const SPEAKER_SEPARATORS: [&str; 4] = [": ", "： ", "：　", ":　"];
 
-/// 話者名とみなす最大文字数 (これを超える場合は発言行として扱わない)。
 const MAX_SPEAKER_NAME_CHARS: usize = 20;
 
-/// 話者名に含まれていてはならない文字 (含まれる場合は発言行として扱わない)。
 const SPEAKER_NAME_FORBIDDEN_CHARS: [char; 12] = [
     '。', '、', '．', '，', '！', '？', '!', '?', '「', '」', '『', '』',
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use text_buffer::action::EditorOperation;
+    use text_buffer::editor::Editor;
+
+    struct TestWidthResolver;
+
+    impl CharWidthResolver for TestWidthResolver {
+        fn resolve_width(&self, c: char) -> usize {
+            if c.is_ascii() { 1 } else { 2 }
+        }
+    }
+
+    #[test]
+    fn wraps_ascii_text() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender.clone());
+        editor.operation(&EditorOperation::InsertString("ABCDE".to_string()));
+        let _ = receiver.try_iter().collect::<Vec<_>>();
+
+        let layout = calc_phisical_layout(
+            &editor,
+            4,
+            &LineBoundaryProhibitedChars::new(vec![], vec![]),
+            Arc::new(TestWidthResolver),
+            None,
+        );
+
+        assert_eq!(layout.to_string(), "ABCD\nE");
+        assert_eq!(layout.main_caret_pos, PhysicalPosition { row: 1, col: 1 });
+    }
+
+    #[test]
+    fn keeps_line_boundary_prohibited_rules() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender.clone());
+        editor.operation(&EditorOperation::InsertString(
+            "Hello, World! And you.".to_string(),
+        ));
+        let _ = receiver.try_iter().collect::<Vec<_>>();
+
+        let layout = calc_phisical_layout(
+            &editor,
+            12,
+            &LineBoundaryProhibitedChars::default(),
+            Arc::new(TestWidthResolver),
+            None,
+        );
+
+        assert_eq!(layout.to_string(), "Hello, World!\nAnd you.");
+    }
+
+    #[test]
+    fn tracks_preedit_and_main_caret() {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let mut editor = Editor::new(sender.clone());
+        editor.operation(&EditorOperation::InsertString("inline".to_string()));
+        let _ = receiver.try_iter().collect::<Vec<_>>();
+
+        let layout = calc_phisical_layout(
+            &editor,
+            10,
+            &LineBoundaryProhibitedChars::default(),
+            Arc::new(TestWidthResolver),
+            Some("ダダダダ".to_string()),
+        );
+
+        assert_eq!(layout.to_string(), "inline");
+        assert_eq!(layout.preedit_chars.len(), 4);
+        let (last, pos) = layout.preedit_chars.last().unwrap();
+        assert_eq!(
+            layout.main_caret_pos,
+            PhysicalPosition {
+                row: pos.row,
+                col: pos.col + TestWidthResolver.resolve_width(last.c),
+            }
+        );
+    }
+}

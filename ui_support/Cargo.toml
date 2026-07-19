@@ -22,6 +22,7 @@ font_rasterizer = { path = "../font_rasterizer" }
 font_collector = { path = "../font_collector" }
 stroke_parser = { path = "../stroke_parser" }
 text_buffer = { path = "../text_buffer" }
+phisical_layouter = { path = "../phisical_layouter" }
 serde-jsonlines = { workspace = true }
 
 similar = { workspace = true }
