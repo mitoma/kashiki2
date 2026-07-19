@@ -50,6 +50,15 @@ related_pages:
 ---
 ```
 
+外部 URL を source とする要約ページでは、必要に応じて以下を追加してよい。
+
+```yaml
+source_url: https://example.com/article
+retrieved_at: 2026-07-19
+raw_capture: none | private | public
+license_note: public repo へ本文転載しない
+```
+
 ## status の意味
 
 - `production`: 現行実装・現行運用に対応している
@@ -63,6 +72,14 @@ related_pages:
 3. `index.md` のページ一覧と backlog を更新する
 4. `log.md` に ingest / query / lint を追記する
 5. `production` と `draft` を同じページ内で曖昧に混ぜない
+
+## 外部 URL source の扱い
+
+- public repository では、第三者コンテンツの本文や PDF 本体を無断転載しない
+- 外部記事や論文は、原則として `sources/` に要約ページだけを置き、`source_url` に原文 URL を記録する
+- `raw_capture: none` は「repo に raw を置かず、要約と URL だけを保持する」ことを意味する
+- 再配布許可が明示されている資料だけ `raw_capture: public` を検討する
+- 再配布可否が不明な資料の全文保存が必要な場合は、public repo 外または private 管理に分離する
 
 ## 記述ルール
 

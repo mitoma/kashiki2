@@ -36,6 +36,12 @@
 - `ModalWorld` と代表 world 実装を整理した world-scene-architecture concept と source を追加
 - `index.md` の Tier 3 backlog を完了扱いに更新
 
+## [2026-07-19] ingest | 外部 URL source の運用を追加
+
+- raw を置かない URL source 取り込みのルールを `schema.md` と workflow に追加
+- Evan Wallace の `Easy Scalable Text Rendering on the GPU` を source summary として追加
+- text rendering pipeline に外部由来の基礎アルゴリズム参照を追加
+
 ## ルール
 
 - 見出しは `## [YYYY-MM-DD] kind | title` 形式にする

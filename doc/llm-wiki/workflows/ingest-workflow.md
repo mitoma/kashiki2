@@ -20,6 +20,20 @@ related_pages:
 4. `index.md` にページ追加と backlog 更新を反映する
 5. `log.md` に ingest エントリを追記する
 
+## URL source の標準手順
+
+1. URL、著者、公開日、参照日を確認する
+2. public repo に本文転載してよいライセンスか確認する
+3. 許可が不明または転載不可なら raw を置かず、`sources/` に要約ページだけを作る
+4. 要約ページには `source_url`, `retrieved_at`, `raw_capture`, `license_note` を入れる
+5. 関連する `concepts/`、`components/`、`decisions/` を更新する
+
+## URL source の注意点
+
+- URL は source への参照であって source 本文そのものではない
+- 要約は自分の言葉で書き、引用は必要最小限にとどめる
+- 記事が消える可能性があるため、どの主張を取り込んだかを source summary 側で明示する
+
 ## 更新が必要になる条件
 
 - レンダリング結果が変わった

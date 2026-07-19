@@ -11,6 +11,7 @@ source_refs:
   - ../../font_rasterizer/src/vector_vertex.rs
   - ../../font_rasterizer/src/shader/overlap_shader.wgsl
   - ../../font_rasterizer/src/shader/outline_shader.wgsl
+  - https://medium.com/@evanwallace/easy-scalable-text-rendering-on-the-gpu-c3f4d782c5ac
 related_pages:
   - ../decisions/anti-aliasing-strategy.md
   - ../decisions/overlap-removal-strategy.md
@@ -27,6 +28,7 @@ related_pages:
   - ../sources/source-outline-shader.md
   - ../sources/source-overlap-remover-code.md
   - ../sources/source-shader-art-system.md
+  - ../sources/source-evan-wallace-gpu-text-rendering.md
 ---
 
 # Text Rendering Pipeline
@@ -47,6 +49,7 @@ related_pages:
 - `font_rasterizer` は GPU ベースのフォント描画を担当する中核クレートである
 - AA は `smoothstep` と `fwidth` を使う analytical anti-aliasing を採用している
 - グリフには char 対応、glyph id、direction、width の軸があり、縦横レイアウトや幅解決と接続する
+- 現行の三段パイプライン構成は Evan Wallace の GPU text rendering 記事と強い対応がある
 - `RasterizerPipeline` は overlap/outline を実行する `RasterizerRenderrer` と、screen/background/shader-art の最終表示段を束ねる
 - `Quarity` は oversampling と GPU 上限考慮を持つ解像度ポリシーである
 - `VectorVertexBuilder` は `OutlineBuilder` 実装として move/line/quad/cubic/close を GPU 向け三角形列へ変換する

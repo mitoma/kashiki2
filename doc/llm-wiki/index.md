@@ -33,6 +33,7 @@
 ## Workflows
 
 - [workflows/ingest-workflow.md](workflows/ingest-workflow.md) 新 source の取り込み手順
+- [workflows/url-source-ingest.md](workflows/url-source-ingest.md) raw を置かない URL source の取り込み手順
 
 ## Sources
 
@@ -53,6 +54,7 @@
 - [sources/source-overlap-remover-code.md](sources/source-overlap-remover-code.md) overlap remover 実装の要約
 - [sources/source-shader-art-system.md](sources/source-shader-art-system.md) shader art 実装と利用経路の要約
 - [sources/source-modal-worlds.md](sources/source-modal-worlds.md) kashikishi の World / scene 構成の要約
+- [sources/source-evan-wallace-gpu-text-rendering.md](sources/source-evan-wallace-gpu-text-rendering.md) Evan Wallace の GPU text rendering 記事の要約
 
 ## Backlog
 
