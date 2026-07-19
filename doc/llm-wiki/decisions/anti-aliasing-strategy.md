@@ -9,6 +9,7 @@ source_refs:
   - ../../../memories/repo/font_overlap_artifact_notes.md
 related_pages:
   - ../concepts/text-rendering-pipeline.md
+  - ./overlap-removal-strategy.md
   - ../sources/source-anti-aliasing.md
   - ../sources/source-vector-vertex-aa-analysis.md
   - ../sources/source-font-overlap-artifact-notes.md
@@ -39,6 +40,11 @@ related_pages:
 - ただし debug での改善の一部は production 未反映で、fill rule や blend state への影響評価が残っている
 - 現行コードでは `overlap_shader.wgsl` に even-odd 用と non-zero 用 entrypoint が分かれており、non-zero は `front_facing` による符号付き winding を使う
 - `outline_shader.wgsl` は overlap count texture をサンプルして final alpha を決める resolve 段である
+
+## overlap remover との関係
+
+- even-odd ベースの経路では、font 側で重複除去して見た目を揃える戦略が併用されてきた
+- non-zero / `front_facing` の経路が十分安定すれば overlap remover を不要化できる可能性があるが、現時点では移行途中として扱う
 
 ## 保留中の論点
 

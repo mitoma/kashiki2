@@ -29,6 +29,13 @@
 - text rendering pipeline と anti-aliasing strategy を更新
 - `index.md` の Tier 2 backlog を完了扱いに更新
 
+## [2026-07-19] ingest | Tier 3 の構造拡張を反映
+
+- shader art system の component / source を追加
+- overlap remover の component / decision / source を追加
+- `ModalWorld` と代表 world 実装を整理した world-scene-architecture concept と source を追加
+- `index.md` の Tier 3 backlog を完了扱いに更新
+
 ## ルール
 
 - 見出しは `## [YYYY-MM-DD] kind | title` 形式にする

@@ -14,17 +14,21 @@
 - [concepts/layout-engine.md](concepts/layout-engine.md) 折り返し、幅計算、preedit を含むレイアウト概念
 - [concepts/editor-buffer-model.md](concepts/editor-buffer-model.md) Editor / Buffer / Caret / undo / ChangeEvent の構成
 - [concepts/action-system.md](concepts/action-system.md) EditorOperation と reverse action の実行系
+- [concepts/world-scene-architecture.md](concepts/world-scene-architecture.md) ModalWorld と World 切り替えの構成
 
 ## Components
 
 - [components/glyph-model.md](components/glyph-model.md) char / glyph / direction / width の最小モデル
 - [components/vector-vertex-builder.md](components/vector-vertex-builder.md) OutlineBuilder から GPU 頂点へ落とす変換器
+- [components/overlap-remover.md](components/overlap-remover.md) even-odd 向けにパス重複を除去する幾何処理
+- [components/shader-art-system.md](components/shader-art-system.md) 組み込み背景シェーダーと実行経路
 
 ## Decisions
 
 - [decisions/anti-aliasing-strategy.md](decisions/anti-aliasing-strategy.md) 現行 AA と保留案
 - [decisions/unicode-segmentation.md](decisions/unicode-segmentation.md) ICU4X 導入方針
 - [decisions/preedit-source-of-truth.md](decisions/preedit-source-of-truth.md) preedit 配置の唯一の正
+- [decisions/overlap-removal-strategy.md](decisions/overlap-removal-strategy.md) overlap remover と non-zero 移行の位置づけ
 
 ## Workflows
 
@@ -46,6 +50,9 @@
 - [sources/source-vector-vertex-builder.md](sources/source-vector-vertex-builder.md) vector vertex 生成実装の要約
 - [sources/source-overlap-shader.md](sources/source-overlap-shader.md) overlap shader 実装の要約
 - [sources/source-outline-shader.md](sources/source-outline-shader.md) outline shader 実装の要約
+- [sources/source-overlap-remover-code.md](sources/source-overlap-remover-code.md) overlap remover 実装の要約
+- [sources/source-shader-art-system.md](sources/source-shader-art-system.md) shader art 実装と利用経路の要約
+- [sources/source-modal-worlds.md](sources/source-modal-worlds.md) kashikishi の World / scene 構成の要約
 
 ## Backlog
 
@@ -68,9 +75,9 @@
 
 ### Tier 3
 
-- shader art 系ページの追加
-- overlap remover の component / decision 化
-- World / scene 構成の concepts 化
+- 完了: shader art 系ページの追加
+- 完了: overlap remover の component / decision 化
+- 完了: World / scene 構成の concepts 化
 
 ## 運用メモ
 

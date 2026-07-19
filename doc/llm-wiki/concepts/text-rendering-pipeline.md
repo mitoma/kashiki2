@@ -13,8 +13,11 @@ source_refs:
   - ../../font_rasterizer/src/shader/outline_shader.wgsl
 related_pages:
   - ../decisions/anti-aliasing-strategy.md
+  - ../decisions/overlap-removal-strategy.md
   - ../components/glyph-model.md
   - ../components/vector-vertex-builder.md
+  - ../components/overlap-remover.md
+  - ../components/shader-art-system.md
   - ../sources/source-project-overview.md
   - ../sources/source-anti-aliasing.md
   - ../sources/source-font-glyph-model.md
@@ -22,6 +25,8 @@ related_pages:
   - ../sources/source-vector-vertex-builder.md
   - ../sources/source-overlap-shader.md
   - ../sources/source-outline-shader.md
+  - ../sources/source-overlap-remover-code.md
+  - ../sources/source-shader-art-system.md
 ---
 
 # Text Rendering Pipeline
@@ -47,6 +52,8 @@ related_pages:
 - `VectorVertexBuilder` は `OutlineBuilder` 実装として move/line/quad/cubic/close を GPU 向け三角形列へ変換する
 - `overlap_shader.wgsl` は vertex_type を wait / triangle_type に写像し、multi render target へ winding と edge 情報を積算する
 - `outline_shader.wgsl` は overlap count と outline texture を resolve し、even-odd / non-zero の fill rule ごとに最終 alpha を決める
+- `ttf_overlap_remover` は even-odd 前提の描画で元の non-zero 輪郭を再現するための前処理として存在する
+- shader art は screen 前段の背景描画を差し替える別系統のパイプラインで、文字ラスタライズ本体とは独立している
 
 ## 未整理の論点
 
