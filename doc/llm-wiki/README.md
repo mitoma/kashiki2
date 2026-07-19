@@ -28,6 +28,11 @@
 - [index.md](index.md)
 - [log.md](log.md)
 
+## 参考資料
+
+- [../memo/llm-wiki-base.md](../memo/llm-wiki-base.md) LLM Wiki パターンの元になったベース文書
+- この `doc/llm-wiki/` 配下は、上記の一般的なアイデアを炊紙リポジトリ向けに具体化したもの
+
 ## ディレクトリ
 
 - [concepts/](concepts/) 横断的な概念ページ
