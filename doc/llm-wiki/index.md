@@ -45,7 +45,7 @@
 - [sources/source-vector-vertex-aa-analysis.md](sources/source-vector-vertex-aa-analysis.md) vector vertex AA 試行錯誤の要約
 - [sources/source-font-overlap-artifact-notes.md](sources/source-font-overlap-artifact-notes.md) overlap / AA artifact メモの要約
 - [sources/source-rasterizer-pipeline.md](sources/source-rasterizer-pipeline.md) rasterizer pipeline のコード要約
-- [sources/source-text-buffer-layout-code.md](sources/source-text-buffer-layout-code.md) text_buffer layout 実装の要約
+- [sources/source-text-buffer-layout-code.md](sources/source-text-buffer-layout-code.md) phisical_layouter 実装の要約
 - [sources/source-text-buffer-editor-code.md](sources/source-text-buffer-editor-code.md) text_buffer editor 実装の要約
 - [sources/source-text-buffer-action-code.md](sources/source-text-buffer-action-code.md) text_buffer action 実装の要約
 - [sources/source-vector-vertex-builder.md](sources/source-vector-vertex-builder.md) vector vertex 生成実装の要約
@@ -73,7 +73,7 @@
 - 完了: `font_rasterizer/src/shader/overlap_shader.wgsl` の source 化
 - 完了: `font_rasterizer/src/shader/outline_shader.wgsl` の source 化
 - 完了: `text_buffer/src/editor.rs` の source 化
-- 完了: `text_buffer/src/layout.rs` の source 化
+- 完了: `phisical_layouter/src/lib.rs` の source 化
 - 完了: `text_buffer/src/action.rs` の source 化
 
 ### Tier 3
