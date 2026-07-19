@@ -42,6 +42,11 @@
 - Evan Wallace の `Easy Scalable Text Rendering on the GPU` を source summary として追加
 - text rendering pipeline に外部由来の基礎アルゴリズム参照を追加
 
+## [2026-07-19] ingest | analytical anti-aliasing の外部記事を追加
+
+- FrostKiwi の `AAA - Analytical Anti-Aliasing` を raw なし URL source として追加
+- anti-aliasing strategy と既存 AA source summary を更新
+
 ## ルール
 
 - 見出しは `## [YYYY-MM-DD] kind | title` 形式にする

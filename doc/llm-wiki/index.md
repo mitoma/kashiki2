@@ -55,6 +55,7 @@
 - [sources/source-shader-art-system.md](sources/source-shader-art-system.md) shader art 実装と利用経路の要約
 - [sources/source-modal-worlds.md](sources/source-modal-worlds.md) kashikishi の World / scene 構成の要約
 - [sources/source-evan-wallace-gpu-text-rendering.md](sources/source-evan-wallace-gpu-text-rendering.md) Evan Wallace の GPU text rendering 記事の要約
+- [sources/source-frost-analytical-anti-aliasing.md](sources/source-frost-analytical-anti-aliasing.md) FrostKiwi の analytical anti-aliasing 記事の要約
 
 ## Backlog
 

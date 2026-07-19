@@ -7,10 +7,12 @@ source_refs:
   - ../../memo/anti_aliasing.md
   - ../../../memories/repo/vector_vertex_aa_analysis.md
   - ../../../memories/repo/font_overlap_artifact_notes.md
+  - https://blog.frost.kiwi/analytical-anti-aliasing/
 related_pages:
   - ../concepts/text-rendering-pipeline.md
   - ./overlap-removal-strategy.md
   - ../sources/source-anti-aliasing.md
+  - ../sources/source-frost-analytical-anti-aliasing.md
   - ../sources/source-vector-vertex-aa-analysis.md
   - ../sources/source-font-overlap-artifact-notes.md
   - ../sources/source-vector-vertex-builder.md
@@ -32,6 +34,7 @@ related_pages:
 - GPU 上で文字形状を高精度に扱いたい
 - ベクトル形状と相性が良い
 - conservative rasterization を含む shader 側の改善余地がある
+- analytical anti-aliasing は、shape の数式や SDF を直接使って 1px 境界をフェードさせる発想として、この repo の shader 実装の理解に直結する
 
 ## historical な知見
 
@@ -51,6 +54,7 @@ related_pages:
 - signed coverage 系の全面 rework を採用するか
 - debug shader で試した改善を production にどう移すか
 - overlap remover を不要化できる段階まで non-zero / front_facing 系の方針を進めるか
+- `fwidth()` 近似と `length(dFdx, dFdy)` の精度差、あるいは per-object pixel size 計算をどう評価するか
 
 ## 反映済み source
 
