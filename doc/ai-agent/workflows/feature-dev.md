@@ -22,7 +22,8 @@ git worktree add doc\ai-agent\worktrees\kashiki2-<feature-name> -b feature/<feat
 
 worktree 内で実装を進めます。コミットは**意味的にひとまとまりになる単位**で行ってください。  
 「この変更は何をするものか」が一文で説明できる範囲を1コミットとします。  
-各コミットメッセージはコミット内容を日本語で簡潔に説明します。
+各コミットメッセージはコミット内容を日本語で簡潔に説明します。  
+詳細な規約は [doc/commit-message.md](../../commit-message.md) を参照してください。
 
 ```powershell
 cd doc\ai-agent\worktrees\kashiki2-<feature-name>
