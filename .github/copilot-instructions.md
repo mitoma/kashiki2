@@ -30,3 +30,7 @@
 - wasm32 向けの分岐は `#[cfg(target_arch = "wasm32")]` で記述する
 - 新しい操作を追加する際は `ActionProcessor` トレイトを実装し `ActionProcessorStore::add_processor` で登録する
 - 新しい画面（シーン）を追加する際は `World` トレイトを実装し `ModalWorld` で切り替える
+
+## コミットメッセージ規約
+
+[`doc/commit-message.md`](doc/commit-message.md) を参照してください。
