@@ -68,7 +68,6 @@ pub trait CharWidthResolver {
     fn resolve_width(&self, char: char) -> usize;
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn calc_phisical_layout(
     editor: &Editor,
     max_line_width: usize,
@@ -361,6 +360,8 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         let new_row = old_row + 1;
         let split_col = candidate.col;
 
+        // backtrack 時は chars / preedit / caret / mark を同時に移動する。
+        // この同期が崩れると preedit 表示位置と caret 位置の整合が壊れる。
         for (_, pos) in state.chars.iter_mut().skip(candidate.char_index) {
             let rel_col = pos.col.saturating_sub(split_col);
             pos.row = new_row;
@@ -460,6 +461,8 @@ impl<'a> PhysicalLayoutCalculator<'a> {
     fn calc_speaker_indent(&self, line_string: &str) -> Option<usize> {
         let trimmed = line_string.trim_start();
 
+        // 「名前: 」形式は最も手前の区切りを採用し、
+        // 空名・長過ぎる名前・句読点を含む名前を除外する。
         let (name, separator) = SPEAKER_SEPARATORS
             .iter()
             .filter_map(|sep| trimmed.split_once(sep).map(|(name, _)| (name, *sep)))
@@ -520,6 +523,10 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             return;
         }
 
+        // 改行優先順位:
+        // 1) Unicode 改行機会 + 既に上限到達なら境界で改行
+        // 2) 行末禁則を維持するための改行
+        // 3) 幅超過時の通常改行（行頭禁則は先頭配置回避を優先）
         if can_break_before
             && !self.line_boundary_prohibited_chars.start.contains(&c)
             && *phisical_col >= self.max_line_width
@@ -567,6 +574,8 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         let mut logical_col = caret_col;
         let preedit_break_before_chars = self.collect_break_before_chars(preedit);
 
+        // preedit は通常文字と同じ折り返し経路で配置しつつ、
+        // logical/physical の両座標を追跡して UI 側再計算を不要にする。
         for (i, c) in preedit.chars().enumerate() {
             let char_width = self.width_resolver.resolve_width(c);
             let is_line_head = (caret_col == 0 && i == 0) || (state.phisical_row > prev_row);
