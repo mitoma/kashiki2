@@ -1080,12 +1080,12 @@ dependencies = [
  "glob",
  "image",
  "log",
+ "phisical_layouter",
  "pollster",
  "rand 0.10.2",
  "redb",
  "rustybuzz",
  "serde",
- "text_buffer",
  "thiserror 2.0.18",
  "toml",
  "ttf_overlap_remover",
@@ -2506,6 +2506,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "phisical_layouter"
+version = "0.1.0"
+dependencies = [
+ "icu_segmenter",
+ "text_buffer",
+]
+
+[[package]]
 name = "pico-args"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3442,7 +3450,6 @@ dependencies = [
 name = "text_buffer"
 version = "0.1.0"
 dependencies = [
- "icu_segmenter",
  "indoc",
 ]
 
@@ -3785,6 +3792,7 @@ dependencies = [
  "image",
  "log",
  "nenobi",
+ "phisical_layouter",
  "pollster",
  "rand 0.10.2",
  "rayon",

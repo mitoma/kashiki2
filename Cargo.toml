@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "text_buffer",
+    "phisical_layouter",
     "stroke_parser",
     "markdown_heading_splitter",
     "font_collector",

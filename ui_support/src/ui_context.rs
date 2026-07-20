@@ -12,8 +12,8 @@ use font_rasterizer::{
     motion::{CameraDetail, EasingFuncType, MotionDetail, MotionFlags, MotionTarget, MotionType},
 };
 use glam::Vec2;
+use phisical_layouter::LineBoundaryProhibitedChars;
 use stroke_parser::Action;
-use text_buffer::layout::LineBoundaryProhibitedChars;
 
 use crate::editor_settings::{EditorSettings, EditorTextContextProfile};
 

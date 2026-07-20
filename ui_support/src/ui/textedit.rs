@@ -7,12 +7,14 @@ use std::{
 };
 
 use glam::{Quat, Vec3};
+use phisical_layouter::{
+    CharWidthResolver, PhysicalLayout, calc_phisical_layout as calc_editor_layout,
+};
 use text_buffer::{
     action::EditorOperation,
     buffer::{BufferChar, CellPosition},
     caret::{Caret, CaretType},
     editor::{ChangeEvent, Editor},
-    layout::{CharWidthResolver, PhysicalLayout},
 };
 
 use font_rasterizer::{
@@ -302,14 +304,14 @@ impl Model for TextEdit {
             }
             ModelOperation::CopyDisplayString(width_resolver, result_callback) => {
                 result_callback(
-                    self.editor
-                        .calc_phisical_layout(
-                            self.max_display_width(),
-                            &self.config.line_prohibited_chars,
-                            width_resolver.clone(),
-                            self.preedit.as_ref().map(|p| p.preedit_string()),
-                        )
-                        .to_string(),
+                    calc_editor_layout(
+                        &self.editor,
+                        self.max_display_width(),
+                        &self.config.line_prohibited_chars,
+                        width_resolver.clone(),
+                        self.preedit.as_ref().map(|p| p.preedit_string()),
+                    )
+                    .to_string(),
                 );
                 ModelOperationResult::NoCare
             }
@@ -522,7 +524,8 @@ impl TextEdit {
         move_operation: PhysicalMoveOperation,
         width_resolver: Arc<dyn CharWidthResolver>,
     ) {
-        let layout = self.editor.calc_phisical_layout(
+        let layout = calc_editor_layout(
+            &self.editor,
             self.max_display_width(),
             &self.config.line_prohibited_chars,
             width_resolver.clone(),
@@ -759,7 +762,8 @@ impl TextEdit {
         &mut self,
         char_width_calcurator: Arc<dyn CharWidthResolver>,
     ) -> PhysicalLayout {
-        self.editor.calc_phisical_layout(
+        calc_editor_layout(
+            &self.editor,
             self.max_display_width(),
             &self.config.line_prohibited_chars,
             char_width_calcurator,
