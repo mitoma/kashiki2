@@ -472,7 +472,7 @@ impl CharStates {
                 }
             }
         } else {
-            for (_, i) in self.chars.iter_mut() {
+            for i in self.chars.values_mut() {
                 i.motion_gain.update([0.0]);
                 i.base_color = ThemedColor::Text;
                 i.color
