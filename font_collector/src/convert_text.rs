@@ -1,5 +1,5 @@
-use harfrust::FontRef;
 use read_fonts::TableProvider;
+use skrifa::FontRef;
 
 // Platform IDs (OpenType spec values)
 const PLATFORM_UNICODE: u16 = 0;
