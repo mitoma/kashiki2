@@ -4,7 +4,10 @@ use cached::cached;
 use font_collector::FontData;
 use log::debug;
 use phisical_layouter::CharWidthResolver;
-use rustybuzz::Face;
+use skrifa::{
+    FontRef, MetadataProvider,
+    instance::{LocationRef, Size},
+};
 use unicode_width::UnicodeWidthChar;
 
 pub struct CharWidthCalculator {
@@ -50,11 +53,11 @@ fn inner_get_width(faces: &[FontData], c: char) -> CharWidth {
         debug!("reson:ascii");
         return CharWidth::Regular;
     }
-    for face in faces
+    for font in faces
         .iter()
-        .flat_map(|f| Face::from_slice(&f.binary, f.index))
+        .flat_map(|f| FontRef::from_index(&f.binary, f.index).ok())
     {
-        if let Some(width) = calc_width(c, &face) {
+        if let Some(width) = calc_width(c, &font) {
             debug!("reson:calc_width");
             return width;
         }
@@ -67,12 +70,15 @@ fn inner_get_width(faces: &[FontData], c: char) -> CharWidth {
     }
 }
 
-fn calc_width(c: char, face: &Face) -> Option<CharWidth> {
-    if let Some(glyph_id) = face.glyph_index(c)
-        && let Some(rect) = face.glyph_bounding_box(glyph_id)
-    {
-        // rect の横幅が face の高さの半分を超える場合は Wide とする
-        if face.height() < rect.width() * 2 {
+fn calc_width(c: char, font: &FontRef) -> Option<CharWidth> {
+    let glyph_id = font.charmap().map(c)?;
+    let metrics = font.metrics(Size::unscaled(), LocationRef::default());
+    let glyph_metrics = font.glyph_metrics(Size::unscaled(), LocationRef::default());
+    if let Some(bounds) = glyph_metrics.bounds(glyph_id) {
+        // バウンディングボックスの横幅がフォント高さの半分を超える場合は Wide とする
+        let height = metrics.ascent - metrics.descent;
+        let width = bounds.x_max - bounds.x_min;
+        if height < width * 2.0 {
             return Some(CharWidth::Wide);
         }
     }

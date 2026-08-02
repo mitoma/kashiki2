@@ -1,6 +1,6 @@
 use bezier_converter::CubicBezier;
 use log::debug;
-use rustybuzz::ttf_parser::OutlineBuilder;
+use skrifa::outline::OutlinePen;
 
 pub struct VectorVertexBuilder {
     vertex: Vec<InternalVertex>,
@@ -253,7 +253,7 @@ impl VectorVertexBuilder {
     }
 }
 
-impl OutlineBuilder for VectorVertexBuilder {
+impl OutlinePen for VectorVertexBuilder {
     fn move_to(&mut self, x: f32, y: f32) {
         self.move_to(x, y);
     }
@@ -262,12 +262,12 @@ impl OutlineBuilder for VectorVertexBuilder {
         self.line_to(x, y);
     }
 
-    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-        self.quad_to(x1, y1, x, y);
+    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
+        self.quad_to(cx0, cy0, x, y);
     }
 
-    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-        self.curve_to(x1, y1, x2, y2, x, y);
+    fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
+        self.curve_to(cx0, cy0, cx1, cy1, x, y);
     }
 
     fn close(&mut self) {
