@@ -1,11 +1,10 @@
-use encoding_rs::{DecoderResult, MACINTOSH, UTF_16BE};
-use rustybuzz::{
-    Face,
-    ttf_parser::{
-        PlatformId, fonts_in_collection,
-        name::{Name, Names},
-    },
-};
+use harfrust::FontRef;
+use read_fonts::TableProvider;
+
+// Platform IDs (OpenType spec values)
+const PLATFORM_UNICODE: u16 = 0;
+const PLATFORM_MACINTOSH: u16 = 1;
+const PLATFORM_WINDOWS: u16 = 3;
 
 #[derive(Debug, Clone, Copy)]
 pub enum PreferredLanguage {
@@ -85,110 +84,79 @@ impl PreferredLanguage {
 }
 
 pub fn font_name(data: &[u8], preferred_language: Option<PreferredLanguage>) -> Vec<String> {
-    match fonts_in_collection(data) {
-        Some(count) => (0..count).collect(),
-        None => vec![0],
-    }
-    .into_iter()
-    .flat_map(|index| {
-        Face::from_slice(data, index)
-            .map(|face| get_font_name(&face.names(), NameId::FullFontName, preferred_language))
-    })
-    .flatten()
-    .collect()
+    FontRef::fonts(data)
+        .flat_map(|font_result| {
+            font_result
+                .ok()
+                .and_then(|font| get_font_name(&font, NameId::FullFontName, preferred_language))
+        })
+        .collect()
 }
 
 pub fn get_font_name(
-    names: &Names,
+    font: &FontRef,
     name_id: NameId,
     preferred_language: Option<PreferredLanguage>,
 ) -> Option<String> {
-    let target_record = names
-        .into_iter()
-        .filter(|name| name.name_id == name_id.into())
-        .flat_map(|name| {
-            score_encoding(&name, preferred_language)
-                .map(|(score, encoding)| (score, encoding, name))
+    let name_table = font.name().ok()?;
+    let string_data = name_table.string_data();
+    let target_name_id: u16 = name_id.into();
+
+    let target_record = name_table
+        .name_record()
+        .iter()
+        .filter(|record| record.name_id().to_u16() == target_name_id)
+        .flat_map(|record| {
+            score_name_record(record, preferred_language).map(|score| (score, record))
         })
-        .max_by(|l, r| l.0.cmp(&r.0));
-    if let Some((_, encoding, record)) = target_record {
-        decode_name(encoding, record.name)
-    } else {
-        None
-    }
+        .max_by_key(|(score, _)| *score);
+
+    target_record.and_then(|(_, record)| record.string(string_data).ok().map(|ns| ns.to_string()))
 }
 
-#[derive(Debug)]
-enum NameEncoding {
-    Utf16Be,
-    AppleRoman,
-}
-
-fn score_encoding(
-    name: &Name,
+fn score_name_record(
+    record: &read_fonts::tables::name::NameRecord,
     preferred_language: Option<PreferredLanguage>,
-) -> Option<(usize, NameEncoding)> {
+) -> Option<usize> {
     fn match_language_id(language_id: u16, preferred_language: Option<PreferredLanguage>) -> bool {
         preferred_language.is_some_and(|lang| lang.windows_lang_id() == language_id)
     }
-    let platform_id = name.platform_id;
-    let encoding_id = name.encoding_id;
-    let language_id = name.language_id;
+    let platform_id = record.platform_id();
+    let encoding_id = record.encoding_id();
+    let language_id = record.language_id();
     match (platform_id, encoding_id, language_id) {
         // Windows; Unicode full repertoire
-        (PlatformId::Windows, 10, _) => Some((1000, NameEncoding::Utf16Be)),
+        (PLATFORM_WINDOWS, 10, _) => Some(1000),
 
         // Unicode; Unicode full repertoire
-        (PlatformId::Unicode, 6, 0) => Some((900, NameEncoding::Utf16Be)),
+        (PLATFORM_UNICODE, 6, 0) => Some(900),
 
         // Unicode; Unicode 2.0 and onwards semantics, Unicode full repertoire
-        (PlatformId::Unicode, 4, 0) => Some((800, NameEncoding::Utf16Be)),
+        (PLATFORM_UNICODE, 4, 0) => Some(800),
 
-        // Windows; Unicode BMP
-        (PlatformId::Windows, 1, lang) if match_language_id(lang, preferred_language) => {
-            Some((1000, NameEncoding::Utf16Be))
-        }
-        (PlatformId::Windows, 1, 0x409) => Some((750, NameEncoding::Utf16Be)),
-        (PlatformId::Windows, 1, lang) if lang != 0x409 => Some((700, NameEncoding::Utf16Be)),
+        // Windows; Unicode BMP (preferred language match)
+        (PLATFORM_WINDOWS, 1, lang) if match_language_id(lang, preferred_language) => Some(1000),
+        (PLATFORM_WINDOWS, 1, 0x409) => Some(750),
+        (PLATFORM_WINDOWS, 1, lang) if lang != 0x409 => Some(700),
 
         // Unicode; Unicode 2.0 and onwards semantics, Unicode BMP only
-        (PlatformId::Unicode, 3, 0) => Some((600, NameEncoding::Utf16Be)),
+        (PLATFORM_UNICODE, 3, 0) => Some(600),
 
         // Unicode; ISO/IEC 10646 semantics
-        (PlatformId::Unicode, 2, 0) => Some((500, NameEncoding::Utf16Be)),
+        (PLATFORM_UNICODE, 2, 0) => Some(500),
 
         // Unicode; Unicode 1.1 semantics
-        (PlatformId::Unicode, 1, 0) => Some((400, NameEncoding::Utf16Be)),
+        (PLATFORM_UNICODE, 1, 0) => Some(400),
 
         // Unicode; Unicode 1.0 semantics
-        (PlatformId::Unicode, 0, 0) => Some((300, NameEncoding::Utf16Be)),
+        (PLATFORM_UNICODE, 0, 0) => Some(300),
 
         // Windows, Symbol
-        (PlatformId::Windows, 0, _) => Some((200, NameEncoding::Utf16Be)),
+        (PLATFORM_WINDOWS, 0, _) => Some(200),
 
         // Apple Roman
-        (PlatformId::Macintosh, 0, 0) => Some((150, NameEncoding::AppleRoman)),
-        (PlatformId::Macintosh, 0, lang) if lang != 0 => Some((100, NameEncoding::AppleRoman)),
+        (PLATFORM_MACINTOSH, 0, 0) => Some(150),
+        (PLATFORM_MACINTOSH, 0, lang) if lang != 0 => Some(100),
         _ => None,
-    }
-}
-
-fn decode_name(encoding: NameEncoding, data: &[u8]) -> Option<String> {
-    //convert_u8_to_string(data);
-
-    let mut decoder = match encoding {
-        NameEncoding::Utf16Be => UTF_16BE.new_decoder(),
-        NameEncoding::AppleRoman => MACINTOSH.new_decoder(),
-    };
-    if let Some(size) = decoder.max_utf8_buffer_length(data.len()) {
-        let mut s = String::with_capacity(size);
-        let (res, _read) = decoder.decode_to_string_without_replacement(data, &mut s, true);
-        match res {
-            DecoderResult::InputEmpty => Some(s),
-            DecoderResult::OutputFull => None, // should not happen
-            DecoderResult::Malformed(_, _) => None,
-        }
-    } else {
-        None
     }
 }

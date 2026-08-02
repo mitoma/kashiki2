@@ -748,7 +748,11 @@ impl PointKey {
 
 #[cfg(test)]
 mod tests {
-    use rustybuzz::{Face, ttf_parser::OutlineBuilder};
+    use skrifa::{
+        FontRef, MetadataProvider,
+        instance::{LocationRef, Size},
+        outline::{DrawSettings, OutlinePen},
+    };
     use tiny_skia_path::{Path, PathBuilder, Point};
 
     use crate::{
@@ -909,10 +913,18 @@ mod tests {
     #[test]
     fn test_turtle_emoji() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-        let face = Face::from_slice(font_file, 0).unwrap();
-        let glyph_id = face.glyph_index('🐢').unwrap();
+        let font = FontRef::new(font_file).unwrap();
+        let outlines = font.outline_glyphs();
+        let glyph_id = font.charmap().map('🐢').unwrap();
         let mut builder = OverlapRemoveOutlineBuilder::default();
-        face.outline_glyph(glyph_id, &mut builder).unwrap();
+        outlines
+            .get(glyph_id)
+            .unwrap()
+            .draw(
+                DrawSettings::unhinted(Size::unscaled(), LocationRef::default()),
+                &mut builder,
+            )
+            .unwrap();
         let removed = builder.removed_paths();
         assert!(!removed.is_empty());
     }
@@ -920,10 +932,18 @@ mod tests {
     #[test]
     fn test_pig_emoji() {
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-        let face = Face::from_slice(font_file, 0).unwrap();
-        let glyph_id = face.glyph_index('🐖').unwrap();
+        let font = FontRef::new(font_file).unwrap();
+        let outlines = font.outline_glyphs();
+        let glyph_id = font.charmap().map('🐖').unwrap();
         let mut builder = OverlapRemoveOutlineBuilder::default();
-        face.outline_glyph(glyph_id, &mut builder).unwrap();
+        outlines
+            .get(glyph_id)
+            .unwrap()
+            .draw(
+                DrawSettings::unhinted(Size::unscaled(), LocationRef::default()),
+                &mut builder,
+            )
+            .unwrap();
         let removed = builder.removed_paths();
         assert!(!removed.is_empty());
     }
@@ -938,10 +958,18 @@ mod tests {
         use tiny_skia::{Color, Paint, Pixmap, Transform};
 
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-        let face = Face::from_slice(font_file, 0).unwrap();
-        let glyph_id = face.glyph_index(c).unwrap();
+        let font = FontRef::new(font_file).unwrap();
+        let outlines = font.outline_glyphs();
+        let glyph_id = font.charmap().map(c).unwrap();
         let mut builder = OverlapRemoveOutlineBuilder::default();
-        face.outline_glyph(glyph_id, &mut builder).unwrap();
+        outlines
+            .get(glyph_id)
+            .unwrap()
+            .draw(
+                DrawSettings::unhinted(Size::unscaled(), LocationRef::default()),
+                &mut builder,
+            )
+            .unwrap();
 
         let original_paths = builder.paths();
         let removed_paths = builder.removed_paths();
@@ -1048,7 +1076,8 @@ mod tests {
         use tiny_skia::{Color, Paint, Pixmap, Transform};
 
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-        let face = Face::from_slice(font_file, 0).unwrap();
+        let font = FontRef::new(font_file).unwrap();
+        let outlines = font.outline_glyphs();
 
         let canvas_size = 200u32;
         let scale = canvas_size as f32 / 1100.0;
@@ -1064,11 +1093,17 @@ mod tests {
         let mut needs_removal = Vec::new();
 
         for c in test_chars {
-            let Some(glyph_id) = face.glyph_index(c) else {
+            let Some(glyph_id) = font.charmap().map(c) else {
                 continue;
             };
             let mut builder = OverlapRemoveOutlineBuilder::default();
-            if face.outline_glyph(glyph_id, &mut builder).is_none() {
+            if outlines.get(glyph_id).is_none_or(|g| {
+                g.draw(
+                    DrawSettings::unhinted(Size::unscaled(), LocationRef::default()),
+                    &mut builder,
+                )
+                .is_err()
+            }) {
                 continue;
             }
             let paths = builder.paths();
@@ -1129,7 +1164,8 @@ mod tests {
         use tiny_skia::{Color, Paint, Pixmap, Transform};
 
         let font_file = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
-        let face = Face::from_slice(font_file, 0).unwrap();
+        let font = FontRef::new(font_file).unwrap();
+        let outlines = font.outline_glyphs();
 
         let canvas_size = 500u32;
         let scale = canvas_size as f32 / 1100.0;
@@ -1150,11 +1186,17 @@ mod tests {
                 break;
             }
 
-            let Some(glyph_id) = face.glyph_index(target_char) else {
+            let Some(glyph_id) = font.charmap().map(target_char) else {
                 continue;
             };
             let mut builder = OverlapRemoveOutlineBuilder::default();
-            if face.outline_glyph(glyph_id, &mut builder).is_none() {
+            if outlines.get(glyph_id).is_none_or(|g| {
+                g.draw(
+                    DrawSettings::unhinted(Size::unscaled(), LocationRef::default()),
+                    &mut builder,
+                )
+                .is_err()
+            }) {
                 continue;
             }
             glyph_count += 1;

@@ -20,7 +20,8 @@ rand = { workspace = true }
 image = { workspace = true }
 chrono = { workspace = true }
 
-rustybuzz.workspace = true
+harfrust.workspace = true
+skrifa.workspace = true
 glam.workspace = true
 bytemuck.workspace = true
 

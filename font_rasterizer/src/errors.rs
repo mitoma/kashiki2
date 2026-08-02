@@ -1,4 +1,4 @@
-use rustybuzz::ttf_parser::GlyphId;
+use skrifa::GlyphId;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

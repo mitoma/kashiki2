@@ -1,11 +1,11 @@
-use rustybuzz::ttf_parser::OutlineBuilder;
+use skrifa::outline::OutlinePen;
 use tiny_skia_path::{Path, PathBuilder};
 
 use crate::remove_path_overlap;
 
-/// オーバーラップ除去機能付き OutlineBuilder。
+/// オーバーラップ除去機能付き OutlinePen。
 ///
-/// `rustybuzz::Face::outline_glyph()` に渡して使用する。
+/// skrifa の `OutlineGlyph::draw()` に渡して使用する。
 /// グリフのアウトラインを内部に蓄積し、`removed_paths()` で重複除去後のパスを取得できる。
 #[derive(Debug)]
 pub struct OverlapRemoveOutlineBuilder {
@@ -37,10 +37,10 @@ impl OverlapRemoveOutlineBuilder {
         remove_path_overlap(self.paths.clone())
     }
 
-    /// 重複除去後のパスを OutlineBuilder にフィードバックする
+    /// 重複除去後のパスを OutlinePen にフィードバックする
     pub fn outline<T>(&self, builder: &mut T)
     where
-        T: OutlineBuilder,
+        T: OutlinePen,
     {
         let removed = self.removed_paths();
         for path in &removed {
@@ -73,7 +73,7 @@ impl OverlapRemoveOutlineBuilder {
     }
 }
 
-impl OutlineBuilder for OverlapRemoveOutlineBuilder {
+impl OutlinePen for OverlapRemoveOutlineBuilder {
     fn move_to(&mut self, x: f32, y: f32) {
         self.builder.as_mut().unwrap().move_to(x, y);
     }
@@ -82,15 +82,15 @@ impl OutlineBuilder for OverlapRemoveOutlineBuilder {
         self.builder.as_mut().unwrap().line_to(x, y);
     }
 
-    fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-        self.builder.as_mut().unwrap().quad_to(x1, y1, x, y);
+    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
+        self.builder.as_mut().unwrap().quad_to(cx0, cy0, x, y);
     }
 
-    fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
+    fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
         self.builder
             .as_mut()
             .unwrap()
-            .cubic_to(x1, y1, x2, y2, x, y);
+            .cubic_to(cx0, cy0, cx1, cy1, x, y);
     }
 
     fn close(&mut self) {

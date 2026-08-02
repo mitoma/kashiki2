@@ -7,6 +7,7 @@ edition = "2024"
 
 [dependencies]
 log = { workspace = true }
-rustybuzz = { workspace = true }
+harfrust = { workspace = true }
+read-fonts = { workspace = true }
 dirs = { workspace = true }
 encoding_rs = { workspace = true }

@@ -35,7 +35,9 @@ env_logger = "0.11.11"
 log = "0.4.33"
 pollster = "1.0.1"
 image = "0.25.10"
-rustybuzz = "0.20.1"
+harfrust = "0.12.0"
+skrifa = "0.45.1"
+read-fonts = { version = "0.41.0", features = ["experimental_font_api"] }
 web-time = { version = "1.1.0" }
 glam = "0.33.2"
 bytemuck = { version = "1.25.0", features = ["derive"] }

@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 log = { workspace = true }
-rustybuzz = { workspace = true }
+skrifa = { workspace = true }
 tiny-skia-path = { workspace = true }
 
 [dev-dependencies]
