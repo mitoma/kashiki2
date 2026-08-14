@@ -51,9 +51,9 @@ struct HeadingNode {
 }
 
 pub fn split_headings(markdown: &str) -> Vec<(Heading, String)> {
-    let mut parser = tree_sitter::Parser::new();
+    let mut parser = arborium::tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_md::LANGUAGE.into())
+        .set_language(&arborium::lang_markdown::language().into())
         .expect("failed to set markdown language");
 
     let Some(tree) = parser.parse(markdown, None) else {
@@ -87,7 +87,11 @@ pub fn sprint_headings(markdown: &str) -> Vec<(Heading, String)> {
     split_headings(markdown)
 }
 
-fn collect_heading_nodes(markdown: &str, node: tree_sitter::Node<'_>, out: &mut Vec<HeadingNode>) {
+fn collect_heading_nodes(
+    markdown: &str,
+    node: arborium::tree_sitter::Node<'_>,
+    out: &mut Vec<HeadingNode>,
+) {
     let kind = node.kind();
 
     if (kind == "atx_heading" || kind == "setext_heading")
@@ -106,7 +110,7 @@ fn collect_heading_nodes(markdown: &str, node: tree_sitter::Node<'_>, out: &mut 
     }
 }
 
-fn parse_heading(markdown: &str, node: tree_sitter::Node<'_>) -> Option<(usize, String)> {
+fn parse_heading(markdown: &str, node: arborium::tree_sitter::Node<'_>) -> Option<(usize, String)> {
     let text = node.utf8_text(markdown.as_bytes()).ok()?;
 
     match node.kind() {

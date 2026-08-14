@@ -3,11 +3,12 @@ use std::sync::{LazyLock, Mutex, mpsc::Sender};
 use font_collector::FontRepository;
 use stroke_parser::{Action, ActionStore, action_store_parser::parse_setting};
 use text_buffer::action::EditorOperation;
+use ui_support::layout_engine::ModelOperation;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 use font_rasterizer::{color_theme::ColorTheme, context::WindowSize, rasterizer_pipeline::Quarity};
-use ui_support::ui_context::UiContext;
+use ui_support::ui_context::{HighlightMode, UiContext};
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     action::ActionProcessorStore,
@@ -132,6 +133,7 @@ impl SingleCharCallback {
         textedit.editor_operation(&EditorOperation::InsertString(
             include_str!("../asset/initial.txt").to_string(),
         ));
+        textedit.model_operation(&ModelOperation::SetHighlightMode(HighlightMode::Markdown));
         world.add(Box::new(textedit));
         world.look_current(CameraAdjustment::FitBothAndCentering);
         let ime = ImeInput::new();

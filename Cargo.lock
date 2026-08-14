@@ -232,6 +232,198 @@ dependencies = [
 ]
 
 [[package]]
+name = "arborium"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-bash",
+ "arborium-go",
+ "arborium-highlight",
+ "arborium-java",
+ "arborium-json",
+ "arborium-markdown",
+ "arborium-markdown-inline",
+ "arborium-rust",
+ "arborium-theme",
+ "arborium-toml",
+ "arborium-tree-sitter",
+ "dlmalloc",
+]
+
+[[package]]
+name = "arborium-bash"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-css"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-go"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-highlight"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-theme",
+ "arborium-tree-sitter",
+ "streaming-iterator",
+]
+
+[[package]]
+name = "arborium-html"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-css",
+ "arborium-javascript",
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-java"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-javascript"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-jsdoc",
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-jsdoc"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-json"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-markdown"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-html",
+ "arborium-sysroot",
+ "arborium-toml",
+ "arborium-yaml",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-markdown-inline"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-rust"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-sysroot"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "cc",
+ "dlmalloc",
+]
+
+[[package]]
+name = "arborium-theme"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+
+[[package]]
+name = "arborium-toml"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-tree-sitter"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "regex",
+ "regex-syntax",
+ "streaming-iterator",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-yaml"
+version = "0.0.0"
+source = "git+https://github.com/mitoma/arborium?branch=support_markdown_inline_dist#aa49b46edbbdecfc0b44519d603563df8df34ac7"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "arg_enum_proc_macro"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -915,6 +1107,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dlmalloc"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad5208a115eaba24916f7456929832e310a81518c641f93fee4f89aa93aa3675"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "document-features"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1484,16 +1687,9 @@ dependencies = [
 name = "highlighter"
 version = "0.1.0"
 dependencies = [
+ "arborium",
  "serde",
  "serde_json",
- "tree-sitter",
- "tree-sitter-bash",
- "tree-sitter-go",
- "tree-sitter-java",
- "tree-sitter-json",
- "tree-sitter-md",
- "tree-sitter-rust",
- "tree-sitter-toml-ng",
 ]
 
 [[package]]
@@ -2048,8 +2244,7 @@ dependencies = [
 name = "markdown_heading_splitter"
 version = "0.1.0"
 dependencies = [
- "tree-sitter",
- "tree-sitter-md",
+ "arborium",
 ]
 
 [[package]]
@@ -3305,7 +3500,6 @@ version = "1.0.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
 dependencies = [
- "indexmap",
  "itoa",
  "memchr",
  "serde",
@@ -3820,94 +4014,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "tree-sitter"
-version = "0.26.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af1c71c1c4cc0920b20d6b0f6572e7682cd07a6a2faec71067a31fa394c586df"
-dependencies = [
- "cc",
- "regex",
- "regex-syntax",
- "serde_json",
- "streaming-iterator",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-bash"
-version = "0.25.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e5ec769279cc91b561d3df0d8a5deb26b0ad40d183127f409494d6d8fc53062"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-go"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8560a4d2f835cc0d4d2c2e03cbd0dde2f6114b43bc491164238d333e28b16ea"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-java"
-version = "0.23.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0aa6cbcdc8c679b214e616fd3300da67da0e492e066df01bcf5a5921a71e90d6"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-json"
-version = "0.24.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d727acca406c0020cffc6cf35516764f36c8e3dc4408e5ebe2cb35a947ec471"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
 name = "tree-sitter-language"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "009994f150cc0cd50ff54917d5bc8bffe8cad10ca10d81c34da2ec421ae61782"
-
-[[package]]
-name = "tree-sitter-md"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2efd398be546456c814598ee56c0f51769a77241511b4a58077815d120afa882"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-rust"
-version = "0.24.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "439e577dbe07423ec2582ac62c7531120dbfccfa6e5f92406f93dd271a120e45"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-toml-ng"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9adc2c898ae49730e857d75be403da3f92bb81d8e37a2f918a08dd10de5ebb1"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
 
 [[package]]
 name = "ttf-parser"

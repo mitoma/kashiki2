@@ -69,14 +69,16 @@ similar = "3.1.1"
 serde-jsonlines = "0.7.0"
 chrono = "0.4.45"
 clap = "4.6.1"
-tree-sitter = "0.26.10"
-tree-sitter-rust = "0.24.2"
-tree-sitter-java = "0.23.5"
-tree-sitter-go = "0.25.0"
-tree-sitter-md = "0.5.3"
-tree-sitter-json = "0.24.8"
-tree-sitter-bash = "0.25.1"
-tree-sitter-toml-ng = "0.7.0"
+arborium = { git = "https://github.com/mitoma/arborium", branch = "support_markdown_inline_dist", default-features = false, features = [
+	"lang-markdown",
+    "lang-markdown-inline",
+	"lang-rust",
+	"lang-java",
+	"lang-go",
+	"lang-json",
+	"lang-bash",
+	"lang-toml",
+] }
 html-to-markdown-rs = "3.8.2"
 
 redb = "4.1.0"

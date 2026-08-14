@@ -1014,10 +1014,6 @@ impl TextEdit {
         self.world_scale = world_scale;
     }
 
-    #[cfg(target_arch = "wasm32")]
-    fn highlight(&mut self) {}
-
-    #[cfg(not(target_arch = "wasm32"))]
     #[inline]
     fn highlight(&mut self) {
         use crate::ui_context::HighlightMode;
