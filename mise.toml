@@ -1,10 +1,10 @@
 [tools]
 
 # sites 用に必要なツールのインストール
-"aqua:WebAssembly/binaryen" = "latest"
-"aqua:mdbook" = "0.5.1"
-"github:wasm-bindgen/wasm-bindgen" = "0.2.126"
-"cargo:cargo-bloat" = "latest"
+"aqua:WebAssembly/binaryen" = "132"
+"aqua:mdbook" = "0.5.4"
+"github:wasm-bindgen/wasm-bindgen" = "0.2.127"
+"cargo:cargo-bloat" = "0.12.1"
 
 [tasks.apng-build-sites]
 description = "apng 用のプロジェクトをビルドする"
