@@ -1,5 +1,11 @@
 # Log
 
+## [2026-08-14] ingest | Arborium への構文解析基盤移行を反映
+
+- `Cargo.toml`、`highlighter/src/lib.rs`、`markdown_heading_splitter/src/lib.rs` を source として追加
+- Arborium の language feature、Markdown inline / code fence の二段解析、見出し抽出経路を component に整理
+- `index.md` に syntax analysis の component / source を追加
+
 ## [2026-07-19] bootstrap | 初期 schema と seed pages を作成
 
 - `doc/llm-wiki/` を新設

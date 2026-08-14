@@ -53,7 +53,7 @@ Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタ�
 - **パス**: `highlighter/`
 - **役割**: シンタックスハイライト機能
 - **機能**:
-  - Tree-sitterベースの構文解析
+  - Arborium（tree-sitter互換API）ベースの構文解析
   - 複数言語対応（Markdown、Rust、Java、Go、JSON、Bash）
   - 設定可能なハイライトカテゴリ定義
 - **設定ファイル**: `asset/` ディレクトリ内のJSON形式定義ファイル
@@ -63,7 +63,7 @@ Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタ�
 - **パス**: `markdown_heading_splitter/`
 - **役割**: Markdown文書を見出し単位のセクションへ分割
 - **機能**:
-  - `tree-sitter` + `tree-sitter-md` を用いた見出し抽出
+  - Arborium の Markdown grammar を用いた見出し抽出
   - ATX見出し（`#`）とSetext見出し（`===` / `---`）の両対応
   - 見出しレベル（H1〜H6）と本文ペアの返却
 - **主な公開API**:
