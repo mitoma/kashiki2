@@ -80,7 +80,7 @@ struct KindAndRange {
 }
 
 impl KindAndRange {
-    fn new(context: &HighlightContext, node: &tree_sitter::Node) -> Self {
+    fn new(context: &HighlightContext, node: &arborium::tree_sitter::Node) -> Self {
         Self {
             kind: node.kind().to_string(),
             range: byte_to_char_position(
@@ -139,12 +139,12 @@ impl<'a> HighlightContext<'a> {
 
 /// TreeCursorを使って深さ優先探索でノードを走査するイテレーター
 pub struct TreeCursorIterator<'a> {
-    cursor: tree_sitter::TreeCursor<'a>,
+    cursor: arborium::tree_sitter::TreeCursor<'a>,
     first_iteration: bool,
 }
 
 impl<'a> TreeCursorIterator<'a> {
-    pub fn new(cursor: tree_sitter::TreeCursor<'a>) -> Self {
+    pub fn new(cursor: arborium::tree_sitter::TreeCursor<'a>) -> Self {
         Self {
             cursor,
             first_iteration: true,
@@ -153,7 +153,7 @@ impl<'a> TreeCursorIterator<'a> {
 }
 
 impl<'a> Iterator for TreeCursorIterator<'a> {
-    type Item = tree_sitter::Node<'a>;
+    type Item = arborium::tree_sitter::Node<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // 初回は現在位置のノードを返す
@@ -186,7 +186,7 @@ impl<'a> Iterator for TreeCursorIterator<'a> {
 
 fn walk<'a>(
     context: HighlightContext<'a>,
-    cursor: &mut tree_sitter::TreeCursor,
+    cursor: &mut arborium::tree_sitter::TreeCursor,
     callback: &impl Fn(CallbackArguments),
 ) {
     let mut context = context.clone();
@@ -280,66 +280,66 @@ fn walk<'a>(
     }
 }
 
-fn md_parser() -> tree_sitter::Parser {
-    let mut parser = tree_sitter::Parser::new();
+fn md_parser() -> arborium::tree_sitter::Parser {
+    let mut parser = arborium::tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_md::LANGUAGE.into())
+        .set_language(&arborium::lang_markdown::language().into())
         .unwrap();
     parser
 }
 
-fn md_inline_parser() -> tree_sitter::Parser {
-    let mut parser = tree_sitter::Parser::new();
+fn md_inline_parser() -> arborium::tree_sitter::Parser {
+    let mut parser = arborium::tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_md::INLINE_LANGUAGE.into())
+        .set_language(&arborium::lang_markdown_inline::language().into())
         .unwrap();
     parser
 }
 
-fn rust_parser() -> tree_sitter::Parser {
-    let mut parser = tree_sitter::Parser::new();
+fn rust_parser() -> arborium::tree_sitter::Parser {
+    let mut parser = arborium::tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_rust::LANGUAGE.into())
+        .set_language(&arborium::lang_rust::language().into())
         .unwrap();
     parser
 }
 
-fn java_parser() -> tree_sitter::Parser {
-    let mut parser = tree_sitter::Parser::new();
+fn java_parser() -> arborium::tree_sitter::Parser {
+    let mut parser = arborium::tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_java::LANGUAGE.into())
+        .set_language(&arborium::lang_java::language().into())
         .unwrap();
     parser
 }
 
-fn go_parser() -> tree_sitter::Parser {
-    let mut parser = tree_sitter::Parser::new();
+fn go_parser() -> arborium::tree_sitter::Parser {
+    let mut parser = arborium::tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_go::LANGUAGE.into())
+        .set_language(&arborium::lang_go::language().into())
         .unwrap();
     parser
 }
 
-fn json_parser() -> tree_sitter::Parser {
-    let mut parser = tree_sitter::Parser::new();
+fn json_parser() -> arborium::tree_sitter::Parser {
+    let mut parser = arborium::tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_json::LANGUAGE.into())
+        .set_language(&arborium::lang_json::language().into())
         .unwrap();
     parser
 }
 
-fn bash_parser() -> tree_sitter::Parser {
-    let mut parser = tree_sitter::Parser::new();
+fn bash_parser() -> arborium::tree_sitter::Parser {
+    let mut parser = arborium::tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_bash::LANGUAGE.into())
+        .set_language(&arborium::lang_bash::language().into())
         .unwrap();
     parser
 }
 
-fn toml_parser() -> tree_sitter::Parser {
-    let mut parser = tree_sitter::Parser::new();
+fn toml_parser() -> arborium::tree_sitter::Parser {
+    let mut parser = arborium::tree_sitter::Parser::new();
     parser
-        .set_language(&tree_sitter_toml_ng::LANGUAGE.into())
+        .set_language(&arborium::lang_toml::language().into())
         .unwrap();
     parser
 }

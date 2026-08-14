@@ -28,6 +28,9 @@ serde-jsonlines = { workspace = true }
 similar = { workspace = true }
 futures = { workspace = true }
 
+html-to-markdown-rs = { workspace = true }
+highlighter = { path = "../highlighter" }
+
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = { workspace = true }
 console_log = { workspace = true }
@@ -38,8 +41,6 @@ wasm-bindgen-futures = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = { workspace = true }
-html-to-markdown-rs = { workspace = true }
-highlighter = { path = "../highlighter" }
 
 [dev-dependencies]
 apng = { workspace = true }
