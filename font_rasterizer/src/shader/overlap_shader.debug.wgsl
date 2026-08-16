@@ -441,7 +441,7 @@ fn near_eq_one(value: f32) -> bool {
 }
 
 fn in_naive_range(value: f32) -> bool {
-    return value > 0.0 && value < 1.0;
+    return value >= 0.0 && value <= 1.0;
 }
 
 fn under_one(value: f32) -> bool {
@@ -476,7 +476,8 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
     // 隣接ピクセルの距離との差分
     let bezier_distance_fwidth = fwidth(bezier_distance);
     // linerstep は 0.0->1.0 に変化するので、1.0-linerstep で 1.0->0.0 に反転
-    var bezier_alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, bezier_distance);
+    var bezier_alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, abs(bezier_distance));
+    //var bezier_alpha = 1.0 - linerstep(-bezier_distance_fwidth, bezier_distance_fwidth, abs(bezier_distance));
     if !enable_antialiasing {
         if bezier_alpha >= 0.5 {
             bezier_alpha = 1.0;
@@ -490,21 +491,20 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
     // 隣接ピクセルの距離との差分
     let triangle_distance_fwidth = fwidth(triangle_distance);
     // 三角形の場合の処理
-    var liner_alpha = linerstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, triangle_distance);
+    var liner_alpha = 1.0 - linerstep(-triangle_distance_fwidth / 2.0, triangle_distance_fwidth / 2.0, abs(triangle_distance));
+    //var liner_alpha = 1.0 - linerstep(-triangle_distance_fwidth, triangle_distance_fwidth, abs(triangle_distance));
     if !enable_antialiasing {
         liner_alpha = 1.0;
     }
 
     if is_bezier {
         // Bezier curveの場合の処理
-        if bezier_alpha > 0.0 {
-            if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
-                output.count.r = UNIT * winding_sign;
-            }
-            if in_naive_range(bezier_alpha) {
-                output.count.g = bezier_alpha * winding_sign;
-                output.count.b = UNIT;
-            }
+        if bezier_distance < 0.0 && (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
+            output.count.r = UNIT * winding_sign;
+        }
+        if in_naive_range(bezier_alpha) {
+            output.count.g = bezier_alpha * winding_sign;
+            output.count.b = UNIT;
         }
     } else if is_bezier_line {
         // ベジエの補完的直線
