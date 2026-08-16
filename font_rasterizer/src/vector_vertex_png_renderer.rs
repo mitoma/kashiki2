@@ -53,7 +53,13 @@ pub async fn render_vector_vertex_to_png_async(
     output_path: impl AsRef<Path>,
     options: VectorVertexPngRendererOptions,
 ) -> Result<(), FontRasterizerError> {
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+    // headless(サーフェスなし)描画時、Windows の Vulkan ドライバでは overlap ステージの
+    // 描画コマンドがラスタライズされない既知の不具合があるため、Windows では DX12 を強制する。
+    let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
+    if cfg!(target_os = "windows") {
+        instance_descriptor.backends = wgpu::Backends::DX12;
+    }
+    let instance = wgpu::Instance::new(instance_descriptor);
 
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions::default())

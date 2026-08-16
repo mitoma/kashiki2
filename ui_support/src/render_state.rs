@@ -284,8 +284,15 @@ impl RenderState {
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance =
-            wgpu::Instance::new(InstanceDescriptor::new_without_display_handle_from_env());
+        let mut instance_descriptor = InstanceDescriptor::new_without_display_handle_from_env();
+        // サーフェスなし(ウィンドウなし)描画は Windows の Vulkan ドライバで描画コマンドが
+        // ラスタライズされない既知の不具合があるため、Image (headless) 用途では DX12 を強制する。
+        if cfg!(target_os = "windows")
+            && matches!(render_target_request, RenderTargetRequest::Image { .. })
+        {
+            instance_descriptor.backends = wgpu::Backends::DX12;
+        }
+        let instance = wgpu::Instance::new(instance_descriptor);
 
         let surface = match &render_target_request {
             RenderTargetRequest::Window { window } => {
