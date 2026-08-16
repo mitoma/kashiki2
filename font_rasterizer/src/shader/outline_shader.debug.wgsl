@@ -51,20 +51,34 @@ fn fs_main_even_odd(in: VertexOutput) -> @location(0) vec4<f32> {
         alpha = clamp(abs(alpha_accum) / f32(alpha_counts), 0.0, 1.0);
     }
 
+    let is_inside = counts % 2u == 1u;
+    let is_overlap_outside = !is_inside && counts >= 2u;
+    let has_alpha = alpha_counts > 0u;
+
+    if has_alpha {
+        return vec4<f32>(color.rgb, alpha);
+    } else {
+        return vec4<f32>(color.rgb, 0.0);
+    }
+
     // EvenOdd Rule
-    if counts % 2u == 1u {
-        if alpha_counts % 2u == 1u {
+    /*
+    if is_inside {
+        if has_alpha {
             return vec4<f32>(color.rgb, alpha);
         } else {
-            return vec4<f32>(color.rgb, 1f - alpha);
+            return vec4<f32>(color.rgb, 1.0);
         }
     } else {
-        if alpha_counts % 2u == 1u {
-            return vec4<f32>(color.rgb, 1f - alpha);
-        } else {
+        if has_alpha && is_overlap_outside {
+            return vec4<f32>(color.rgb, 1.0 - alpha);
+        } else if has_alpha {
             return vec4<f32>(color.rgb, alpha);
+        } else {
+            return vec4<f32>(color.rgb, 0.0);
         }
     }
+     */
 }
 
 @fragment
@@ -81,19 +95,30 @@ fn fs_main_non_zero(in: VertexOutput) -> @location(0) vec4<f32> {
     // Non-Zero Winding Rule: winding が非ゼロなら内側
     let is_inside = abs(winding) > WINDING_THRESHOLD;
 
-    if is_inside {
-        if abs(alpha_counts) > WINDING_THRESHOLD {
-            let alpha = clamp(abs(alpha_accum) / (abs(alpha_counts) / UNIT), 0.0, 1.0);
-            return vec4<f32>(color.rgb, alpha);
-        } else {
-            return vec4<f32>(color.rgb, 1.0);
+    if !is_inside {
+        if abs(alpha_counts) < WINDING_THRESHOLD {
+            return vec4<f32>(color.rgb, 0.0);
         }
+    }
+
+    if abs(alpha_counts) > WINDING_THRESHOLD {
+        var alpha = clamp(abs(alpha_accum) / (abs(alpha_counts) / UNIT), 0.0, 1.0);
+        if !is_inside {
+            alpha = 1.0 - alpha;
+        }
+        if (u32(abs(alpha_counts) / UNIT)) % 2u == 0u {
+            alpha = 1.0 - alpha;
+        }
+        return vec4<f32>(color.rgb, alpha);
     } else {
+        return vec4<f32>(color.rgb, 1.0);
+    }
+    /*} else {
         if abs(alpha_counts) > WINDING_THRESHOLD {
             let alpha = 1.0 - clamp(abs(alpha_accum) / (abs(alpha_counts) / UNIT), 0.0, 1.0);
             return vec4<f32>(color.rgb, alpha);
         } else {
             return vec4<f32>(color.rgb, 0.0);
         }
-    }
+    } */
 }

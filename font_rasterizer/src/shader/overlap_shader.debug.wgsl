@@ -498,7 +498,7 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
     if is_bezier {
         // Bezier curveの場合の処理
         if bezier_alpha > 0.0 {
-            if in.wait.x >= 0.0 {
+            if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
                 output.count.r = UNIT * winding_sign;
             }
             if in_naive_range(bezier_alpha) {
@@ -513,12 +513,12 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
         }
     } else if is_line {
         // 直線
-        if (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
+        if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
             output.count.r = UNIT * winding_sign;
-            if !near_eq_one(liner_alpha) {
-                output.count.g = liner_alpha * winding_sign;
-                output.count.b = UNIT;
-            }
+        }
+        if in_naive_range(liner_alpha) {
+            output.count.g = liner_alpha * winding_sign;
+            output.count.b = UNIT;
         }
     }
     return output;
