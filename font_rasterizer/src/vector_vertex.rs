@@ -221,9 +221,10 @@ impl VectorVertexBuilder {
             // close されたサブパスごとに重心原点を 2 つ（Bezier/Line）追加する
             // 0/1 は global zero vertex だが、ここでサブパス専用原点へ置換する
             if !self.subpath_points.is_empty() {
-                let n = self.subpath_points.len() as f32;
-                let centroid_x = self.subpath_points.iter().map(|p| p[0]).sum::<f32>() / n;
-                let centroid_y = self.subpath_points.iter().map(|p| p[1]).sum::<f32>() / n;
+                let [centroid_x, centroid_y] = calculate_subpath_center(
+                    &self.subpath_points,
+                    self.builder_options.center_point_algorithm,
+                );
 
                 let bezier_origin_index = self.current_index + 1;
                 let line_origin_index = self.current_index + 2;
@@ -295,6 +296,15 @@ pub(crate) struct VertexBuilderOptions {
     pub(crate) unit_em: f32,
     pub(crate) coordinate_system: CoordinateSystem,
     pub(crate) scale: Option<[f32; 2]>,
+    pub(crate) center_point_algorithm: CenterPointAlgorithm,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum CenterPointAlgorithm {
+    ArithmeticMean,
+    MinimizeMaximumAngle,
+    MaximizeMinimumAngle,
 }
 
 impl Default for VertexBuilderOptions {
@@ -304,6 +314,7 @@ impl Default for VertexBuilderOptions {
             unit_em: 1.0,
             coordinate_system: CoordinateSystem::Font,
             scale: None,
+            center_point_algorithm: CenterPointAlgorithm::MaximizeMinimumAngle,
         }
     }
 }
@@ -320,8 +331,184 @@ impl VertexBuilderOptions {
             unit_em,
             coordinate_system,
             scale,
+            center_point_algorithm: CenterPointAlgorithm::MaximizeMinimumAngle,
         }
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn with_center_point_algorithm(
+        mut self,
+        center_point_algorithm: CenterPointAlgorithm,
+    ) -> Self {
+        self.center_point_algorithm = center_point_algorithm;
+        self
+    }
+}
+
+fn calculate_subpath_center(points: &[[f32; 2]], algorithm: CenterPointAlgorithm) -> [f32; 2] {
+    log::info!("calculate_subpath_center: algorithm = {:?}", algorithm);
+
+    let n = points.len() as f32;
+    let arithmetic_mean = [
+        points.iter().map(|p| p[0]).sum::<f32>() / n,
+        points.iter().map(|p| p[1]).sum::<f32>() / n,
+    ];
+
+    match algorithm {
+        CenterPointAlgorithm::ArithmeticMean => arithmetic_mean,
+        CenterPointAlgorithm::MinimizeMaximumAngle => {
+            minimize_maximum_angle(points, arithmetic_mean)
+        }
+        CenterPointAlgorithm::MaximizeMinimumAngle => {
+            maximize_minimum_angle(points, arithmetic_mean)
+        }
+    }
+}
+
+fn minimize_maximum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
+    log::info!("minimize_maximum_angle: initial = {:?}", initial);
+    if points.len() < 3 {
+        log::info!("minimize_maximum_angle: points.len() < 3, returning initial");
+        return initial;
+    }
+
+    let mut min = points[0];
+    let mut max = points[0];
+    for &[x, y] in &points[1..] {
+        min[0] = min[0].min(x);
+        min[1] = min[1].min(y);
+        max[0] = max[0].max(x);
+        max[1] = max[1].max(y);
+    }
+
+    let mut center = [(min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5];
+    let mut step = (max[0] - min[0]).max(max[1] - min[1]) * 0.5;
+    let mut best_angle = maximum_subpath_angle(points, center);
+    let initial_angle = maximum_subpath_angle(points, initial);
+    if initial_angle < best_angle {
+        center = initial;
+        best_angle = initial_angle;
+    }
+
+    for _ in 0..10 {
+        let previous_center = center;
+        for y in -1..=1 {
+            for x in -1..=1 {
+                let candidate = [
+                    previous_center[0] + x as f32 * step,
+                    previous_center[1] + y as f32 * step,
+                ];
+                let angle = maximum_subpath_angle(points, candidate);
+                if angle < best_angle {
+                    center = candidate;
+                    best_angle = angle;
+                }
+            }
+        }
+        step *= 0.5;
+    }
+
+    log::info!("minimize_maximum_angle: center = {:?}", center);
+    center
+}
+
+fn maximum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
+    points
+        .iter()
+        .zip(points.iter().cycle().skip(1))
+        .filter_map(|(start, end)| {
+            let edge = [end[0] - start[0], end[1] - start[1]];
+            if edge[0] * edge[0] + edge[1] * edge[1] <= f32::EPSILON {
+                return None;
+            }
+            let a = [start[0] - center[0], start[1] - center[1]];
+            let b = [end[0] - center[0], end[1] - center[1]];
+            let cross = a[0] * b[1] - a[1] * b[0];
+            let dot = a[0] * b[0] + a[1] * b[1];
+            Some(cross.abs().atan2(dot))
+        })
+        .fold(0.0, f32::max)
+}
+
+fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
+    if points.len() < 3 {
+        return initial;
+    }
+
+    let mut min = points[0];
+    let mut max = points[0];
+    for &[x, y] in &points[1..] {
+        min[0] = min[0].min(x);
+        min[1] = min[1].min(y);
+        max[0] = max[0].max(x);
+        max[1] = max[1].max(y);
+    }
+
+    let mut center = initial;
+    let mut best_angle = minimum_subpath_angle(points, center);
+    const GRID_SIZE: usize = 17;
+    let span = [max[0] - min[0], max[1] - min[1]];
+
+    // 外接矩形全体を走査して、初期中心付近の局所解に依存しないようにする。
+    for y in 0..GRID_SIZE {
+        for x in 0..GRID_SIZE {
+            let candidate = [
+                min[0] + span[0] * x as f32 / (GRID_SIZE - 1) as f32,
+                min[1] + span[1] * y as f32 / (GRID_SIZE - 1) as f32,
+            ];
+            let angle = minimum_subpath_angle(points, candidate);
+            if angle > best_angle {
+                center = candidate;
+                best_angle = angle;
+            }
+        }
+    }
+
+    let mut step = span[0].max(span[1]) / (GRID_SIZE - 1) as f32;
+    for _ in 0..8 {
+        let previous_center = center;
+        for y in -1..=1 {
+            for x in -1..=1 {
+                let candidate = [
+                    (previous_center[0] + x as f32 * step).clamp(min[0], max[0]),
+                    (previous_center[1] + y as f32 * step).clamp(min[1], max[1]),
+                ];
+                let angle = minimum_subpath_angle(points, candidate);
+                println!(
+                    "candidate: {:?}, angle: {}, best_angle: {}",
+                    candidate, angle, best_angle
+                );
+                if angle > best_angle {
+                    center = candidate;
+                    best_angle = angle;
+                }
+            }
+        }
+        step *= 0.5;
+    }
+
+    center
+}
+
+fn minimum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
+    points
+        .iter()
+        .zip(points.iter().cycle().skip(1))
+        .filter_map(|(start, end)| {
+            let edge = [end[0] - start[0], end[1] - start[1]];
+            if edge[0] * edge[0] + edge[1] * edge[1] <= f32::EPSILON {
+                return None;
+            }
+            let a = [start[0] - center[0], start[1] - center[1]];
+            let b = [end[0] - center[0], end[1] - center[1]];
+            let cross = a[0] * b[1] - a[1] * b[0];
+            let dot = a[0] * b[0] + a[1] * b[1];
+            let angle = cross.abs().atan2(dot);
+            ((a[0] * a[0] + a[1] * a[1] > f32::EPSILON)
+                && (b[0] * b[0] + b[1] * b[1] > f32::EPSILON))
+                .then_some(angle)
+        })
+        .fold(f32::INFINITY, f32::min)
 }
 
 #[derive(Debug)]
@@ -336,6 +523,93 @@ impl VectorVertex {
 
     pub fn index_size(&self) -> u64 {
         (self.index.len() * std::mem::size_of::<u32>()) as u64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn minimize_maximum_angle_keeps_the_worst_angle_small() {
+        let points = [[0.0, 0.0], [10.0, 0.0], [8.0, 1.0], [0.0, 4.0]];
+        let arithmetic_mean =
+            calculate_subpath_center(&points, CenterPointAlgorithm::ArithmeticMean);
+        let optimized =
+            calculate_subpath_center(&points, CenterPointAlgorithm::MinimizeMaximumAngle);
+
+        assert!(
+            maximum_subpath_angle(&points, optimized)
+                <= maximum_subpath_angle(&points, arithmetic_mean)
+        );
+    }
+
+    #[test]
+    fn maximize_minimum_angle_keeps_the_smallest_angle_large() {
+        let points = [[0.0, 0.0], [10.0, 0.0], [8.0, 1.0], [0.0, 4.0]];
+        let arithmetic_mean =
+            calculate_subpath_center(&points, CenterPointAlgorithm::ArithmeticMean);
+        let optimized =
+            calculate_subpath_center(&points, CenterPointAlgorithm::MaximizeMinimumAngle);
+
+        assert!(
+            minimum_subpath_angle(&points, optimized)
+                >= minimum_subpath_angle(&points, arithmetic_mean)
+        );
+    }
+
+    #[test]
+    fn minimum_angle_ignores_duplicate_closing_point() {
+        let closed_points = [
+            [0.0, 0.0],
+            [10.0, 0.0],
+            [10.0, 10.0],
+            [0.0, 10.0],
+            [0.0, 0.0],
+        ];
+
+        assert!(minimum_subpath_angle(&closed_points, [5.0, 5.0]) > 0.0);
+    }
+
+    #[test]
+    fn maximum_angle_ignores_duplicate_closing_point() {
+        let points = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
+        let closed_points = [
+            [0.0, 0.0],
+            [10.0, 0.0],
+            [10.0, 10.0],
+            [0.0, 10.0],
+            [0.0, 0.0],
+        ];
+
+        assert_eq!(
+            maximum_subpath_angle(&points, [5.0, 5.0]),
+            maximum_subpath_angle(&closed_points, [5.0, 5.0])
+        );
+    }
+
+    #[test]
+    fn center_point_algorithm_is_applied_when_closing() {
+        let points = [[0.0, 0.0], [10.0, 0.0], [8.0, 1.0], [0.0, 4.0]];
+        let closed_points = [[0.0, 0.0], [10.0, 0.0], [8.0, 1.0], [0.0, 4.0], [0.0, 0.0]];
+        let mut builder = VectorVertexBuilder::new().with_options(
+            VertexBuilderOptions::default()
+                .with_center_point_algorithm(CenterPointAlgorithm::MinimizeMaximumAngle),
+        );
+        builder.move_to(points[0][0], points[0][1]);
+        for point in &points[1..] {
+            builder.line_to(point[0], point[1]);
+        }
+        builder.close();
+
+        let origin = builder
+            .vertex
+            .iter()
+            .find(|vertex| matches!(vertex.wait, FlipFlop::OriginLine))
+            .unwrap();
+        let expected =
+            calculate_subpath_center(&closed_points, CenterPointAlgorithm::MinimizeMaximumAngle);
+        assert_eq!([origin.x, origin.y], expected);
     }
 }
 
