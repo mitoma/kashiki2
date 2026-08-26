@@ -11,6 +11,11 @@
     },
     {
         "namespace": "system",
+        "name": "rebuild-rasterizer-pipeline",
+        "description": "[debug用途] RasterizerPipeline を作り直す"
+    },
+    {
+        "namespace": "system",
         "name": "change-theme-ui",
         "description": "カラーテーマの変更"
     },

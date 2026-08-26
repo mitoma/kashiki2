@@ -45,6 +45,7 @@ C-Slash edit:undo
 
 # system
 C-X C-C system:exit
+F5      system:rebuild-rasterizer-pipeline
 F11     system:toggle-fullscreen
 C-S-P   system:command-palette
 C-S-C   system:command-palette(kashikishi)

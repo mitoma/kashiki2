@@ -30,6 +30,7 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(SystemExit));
         self.add_processor(Box::new(SystemToggleFullscreen));
         self.add_processor(Box::new(SystemToggleTitlebar));
+        self.add_processor(Box::new(SystemRebuildRasterizerPipeline));
         self.add_processor(Box::new(SystemChangeGlobalDirection));
         self.add_processor(Box::new(SystemChangeThemeUi));
         self.add_processor(Box::new(SystemChangeTheme));

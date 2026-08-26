@@ -79,6 +79,26 @@ impl ActionProcessor for SystemToggleTitlebar {
     }
 }
 
+pub struct SystemRebuildRasterizerPipeline;
+impl ActionProcessor for SystemRebuildRasterizerPipeline {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "rebuild-rasterizer-pipeline".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        context: &UiContext,
+        _world: &mut dyn World,
+    ) -> InputResult {
+        InputResult::ChangeWindowSize(context.window_size())
+    }
+}
+
 pub struct SystemChangeThemeUi;
 impl ActionProcessor for SystemChangeThemeUi {
     fn namespace(&self) -> CommandNamespace {
