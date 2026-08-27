@@ -502,7 +502,8 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
         if bezier_distance < 0.0 && (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
             output.count.r = UNIT * winding_sign;
         }
-        if in_naive_range(bezier_alpha) {
+        // alpha == 0 は AA 帯の外側なので平均の分母(count.b)に含めない
+        if bezier_alpha > 0.0 {
             output.count.g = bezier_alpha * winding_sign;
             output.count.b = UNIT;
         }
@@ -516,7 +517,8 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
         if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
             output.count.r = UNIT * winding_sign;
         }
-        if in_naive_range(liner_alpha) {
+        // alpha == 0 は AA 帯の外側なので平均の分母(count.b)に含めない
+        if liner_alpha > 0.0 {
             output.count.g = liner_alpha * winding_sign;
             output.count.b = UNIT;
         }
