@@ -221,7 +221,9 @@ pub async fn render_vector_vertex_to_png_async(
     let bg = options.background_color;
     let width = options.width;
     let raw_data: Vec<u8> = raw_data
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .enumerate()
         .flat_map(|(i, pixel)| {
             let a = pixel[3] as f32 / 255.0;

@@ -3,7 +3,7 @@
 # sites 用に必要なツールのインストール
 "aqua:WebAssembly/binaryen" = "132"
 "aqua:mdbook" = "0.5.4"
-"github:wasm-bindgen/wasm-bindgen" = "0.2.127"
+"github:wasm-bindgen/wasm-bindgen" = "0.2.128"
 "cargo:cargo-bloat" = "0.12.1"
 
 [tasks.apng-build-sites]
