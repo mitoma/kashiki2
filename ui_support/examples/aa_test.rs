@@ -43,11 +43,33 @@ impl QuarityArg {
     }
 }
 
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+pub enum TargetFont {
+    NotoSansJP,
+    NotoSerifJP,
+    BIZUDMincho,
+    Kyokashotai,
+}
+
+impl TargetFont {
+    pub fn name(&self) -> &str {
+        match self {
+            TargetFont::NotoSansJP => "Noto Sans JP",
+            TargetFont::NotoSerifJP => "Noto Serif JP",
+            TargetFont::BIZUDMincho => "BIZ UDMincho",
+            TargetFont::Kyokashotai => "UD デジタル 教科書体 N",
+        }
+    }
+}
+
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
     /// use high performance mode
     #[arg(short, long, default_value = "あ")]
     pub char_of_test: char,
+
+    #[arg(short, long, default_value = "noto-sans-jp")]
+    pub target_font: TargetFont,
 
     #[arg(short, long, default_value = "middle")]
     pub quarity: QuarityArg,
@@ -70,9 +92,10 @@ pub async fn run(args: Args) {
     //font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N");
     //font_repository.add_fallback_font_from_system("UD デジタル 教科書体 N-R");
     //font_repository.add_fallback_font_from_system("Noto Sans JP");
-    font_repository.add_fallback_font_from_system("Noto Serif JP");
+    font_repository.add_fallback_font_from_system("Noto Sans JP");
     font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
     font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
+    font_repository.set_primary_font(args.target_font.name());
 
     let window_size = WindowSize::new(256, 256);
     let callback = SingleCharCallback::new(window_size, args.char_of_test);
