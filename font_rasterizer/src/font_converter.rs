@@ -14,6 +14,7 @@ use crate::{
     char_width_calcurator::CharWidth,
     debug_mode::DEBUG_FLAGS,
     errors::FontRasterizerError,
+    straighten_outline_builder::StraightenOutlineBuilder,
     vector_vertex::{CoordinateSystem, VectorVertex, VectorVertexBuilder, VertexBuilderOptions},
 };
 
@@ -241,11 +242,15 @@ impl GlyphVertexBuilder {
             outline_glyph
                 .draw(draw_settings, &mut overlap_builder)
                 .map_err(|_| FontRasterizerError::NoOutlineGlyph(glyph_id))?;
-            overlap_builder.outline(&mut builder);
+            let mut straighten_builder = StraightenOutlineBuilder::new();
+            overlap_builder.outline(&mut straighten_builder);
+            straighten_builder.outline(&mut builder);
         } else {
+            let mut straighten_builder = StraightenOutlineBuilder::new();
             outline_glyph
-                .draw(draw_settings, &mut builder)
+                .draw(draw_settings, &mut straighten_builder)
                 .map_err(|_| FontRasterizerError::NoOutlineGlyph(glyph_id))?;
+            straighten_builder.outline(&mut builder);
         }
 
         if DEBUG_FLAGS.show_glyph_outline {
