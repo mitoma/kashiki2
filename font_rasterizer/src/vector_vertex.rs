@@ -1,4 +1,5 @@
 use bezier_converter::CubicBezier;
+use glam::Vec2;
 use log::debug;
 use skrifa::outline::OutlinePen;
 
@@ -11,6 +12,12 @@ pub struct VectorVertexBuilder {
     subpath_points: Vec<[f32; 2]>,
     vertex_swap: FlipFlop,
     builder_options: VertexBuilderOptions,
+    // 現在のサブパスの開始点。直線ラン簡約時の基準点として使う
+    subpath_start: [f32; 2],
+    // 直前にバッファへ積んだ点（未確定の論理上の「現在位置」）
+    last_pending_point: [f32; 2],
+    // move_to 〜 close の間に溜める、簡約前の生コマンド列
+    pending_segments: Vec<PendingSegment>,
 }
 
 impl Default for VectorVertexBuilder {
@@ -33,6 +40,9 @@ impl VectorVertexBuilder {
             subpath_points: Vec::new(),
             vertex_swap: FlipFlop::Flip,
             builder_options: VertexBuilderOptions::default(),
+            subpath_start: [0.0, 0.0],
+            last_pending_point: [0.0, 0.0],
+            pending_segments: Vec::new(),
         }
     }
 
@@ -47,6 +57,9 @@ impl VectorVertexBuilder {
             subpath_points: self.subpath_points,
             vertex_swap: self.vertex_swap,
             builder_options,
+            subpath_start: self.subpath_start,
+            last_pending_point: self.last_pending_point,
+            pending_segments: self.pending_segments,
         }
     }
 
@@ -85,7 +98,8 @@ impl VectorVertexBuilder {
         }
     }
 
-    pub fn move_to(&mut self, x: f32, y: f32) {
+    /// move_to() が呼ばれた実体。頂点を即座に生成する。
+    fn real_move_to(&mut self, x: f32, y: f32) {
         let wait = self.next_wait();
         self.subpath_index_start = self.index.len();
         self.subpath_points.clear();
@@ -100,7 +114,8 @@ impl VectorVertexBuilder {
         self.current_index += 2;
     }
 
-    pub fn line_to(&mut self, x: f32, y: f32) {
+    /// line_to() が呼ばれた実体。頂点を即座に生成する。
+    fn real_line_to(&mut self, x: f32, y: f32) {
         let Some(last) = &self.vertex.last() else {
             return;
         };
@@ -123,7 +138,8 @@ impl VectorVertexBuilder {
         self.current_index += 2;
     }
 
-    pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+    /// quad_to() が呼ばれた実体。頂点を即座に生成する。
+    fn real_quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
         let Some(last) = &self.vertex.last() else {
             return;
         };
@@ -133,6 +149,10 @@ impl VectorVertexBuilder {
         // ベジエ補助直線（フィル）三角形専用頂点のために、直前のオンカーブ点座標を保持する
         let prev_x = last.x;
         let prev_y = last.y;
+
+        if is_nearly_straight_default([prev_x, prev_y].into(), [x1, y1].into(), [x, y].into()) {
+            return self.real_line_to(x, y);
+        }
 
         let wait = self.next_wait();
         self.subpath_points.push([x, y]);
@@ -185,20 +205,20 @@ impl VectorVertexBuilder {
 
     pub fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
         // 3 次ベジエを 2 次ベジエに近似する
-        let last = &self.vertex.last().unwrap();
-        if last.x == x1
-            && last.y == y1
-            && last.x == x2
-            && last.y == y2
-            && last.x == x
-            && last.y == y
+        let [last_x, last_y] = self.last_pending_point;
+        if last_x == x1
+            && last_y == y1
+            && last_x == x2
+            && last_y == y2
+            && last_x == x
+            && last_y == y
         {
             return;
         }
 
         let cb = CubicBezier {
-            x0: last.x,
-            y0: last.y,
+            x0: last_x,
+            y0: last_y,
             x1: x,
             y1: y,
             cx0: x1,
@@ -213,11 +233,74 @@ impl VectorVertexBuilder {
         }
     }
 
-    pub fn close(&mut self) {
-        if let Some(start_index) = self.path_start_index {
-            let start_vertex = &self.vertex[(start_index) as usize];
-            self.line_to(start_vertex.x, start_vertex.y);
+    /// フォントによっては、実質的に直線であるパスを複数のベジエ曲線に分割して
+    /// 表現していることがある。そのため move_to 〜 close の間はコマンドを
+    /// そのままバッファし、close() 時にまとめて直線ランを簡約してから
+    /// 実際の頂点を生成する。
+    pub fn move_to(&mut self, x: f32, y: f32) {
+        if self.path_start_index.is_some() {
+            // close() されずに次の move_to が呼ばれた場合の保険。
+            // バッファを素通しでそのまま実頂点化する。
+            self.flush_pending_segments_raw();
+        }
+        self.real_move_to(x, y);
+        self.subpath_start = [x, y];
+        self.last_pending_point = [x, y];
+        self.pending_segments.clear();
+    }
 
+    pub fn line_to(&mut self, x: f32, y: f32) {
+        let [px, py] = self.last_pending_point;
+        if px == x && py == y {
+            return;
+        }
+        self.pending_segments.push(PendingSegment::Line { x, y });
+        self.last_pending_point = [x, y];
+    }
+
+    pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
+        let [px, py] = self.last_pending_point;
+        if px == x1 && py == y1 && px == x && py == y {
+            return;
+        }
+        self.pending_segments
+            .push(PendingSegment::Quad { x1, y1, x, y });
+        self.last_pending_point = [x, y];
+    }
+
+    fn flush_pending_segments_raw(&mut self) {
+        for seg in std::mem::take(&mut self.pending_segments) {
+            match seg {
+                PendingSegment::Line { x, y } => self.real_line_to(x, y),
+                PendingSegment::Quad { x1, y1, x, y } => self.real_quad_to(x1, y1, x, y),
+            }
+        }
+    }
+
+    pub fn close(&mut self) {
+        if self.path_start_index.is_none() {
+            return;
+        }
+
+        // 終点から始点へ戻る閉じ線も簡約対象に含める
+        let [start_x, start_y] = self.subpath_start;
+        self.line_to(start_x, start_y);
+
+        let segments = std::mem::take(&mut self.pending_segments);
+        let simplified = simplify_straight_runs(self.subpath_start.into(), segments);
+        for seg in simplified {
+            match seg {
+                PendingSegment::Line { x, y } => self.real_line_to(x, y),
+                PendingSegment::Quad { x1, y1, x, y } => self.real_quad_to(x1, y1, x, y),
+            }
+        }
+
+        self.real_close();
+    }
+
+    /// close() が呼ばれた実体。重心原点の追加など、頂点確定後の後処理を行う。
+    fn real_close(&mut self) {
+        if self.path_start_index.is_some() {
             // close されたサブパスごとに重心原点を 2 つ（Bezier/Line）追加する
             // 0/1 は global zero vertex だが、ここでサブパス専用原点へ置換する
             if !self.subpath_points.is_empty() {
@@ -252,6 +335,145 @@ impl VectorVertexBuilder {
             self.path_start_index = None;
         }
     }
+}
+
+const STRAIGHT_THRESHOLD: f32 = 0.0001;
+/// 2次ベジエの1階微分 B'(t)
+fn bezier_derivative(p0: Vec2, p1: Vec2, p2: Vec2, t: f32) -> Vec2 {
+    let a = (p1 - p0) * (2.0 * (1.0 - t));
+    let b = (p2 - p1) * (2.0 * t);
+    a + b
+}
+
+/// 2次ベジエの2階微分 B''(t)（t に依存しない）
+fn bezier_second_derivative(p0: Vec2, p1: Vec2, p2: Vec2) -> Vec2 {
+    (p2 - p1 * 2.0 + p0) * 2.0
+}
+
+/// 曲率 κ(t)
+fn curvature(p0: Vec2, p1: Vec2, p2: Vec2, t: f32) -> f32 {
+    let d1 = bezier_derivative(p0, p1, p2, t);
+    let d2 = bezier_second_derivative(p0, p1, p2);
+
+    // 外積（2D の場合はスカラー）
+    let numerator = (d1.x * d2.y - d1.y * d2.x).abs();
+
+    let denom = (d1.length_squared()).powf(1.5);
+
+    if denom < 1e-6 { 0.0 } else { numerator / denom }
+}
+
+/// ベジエが「ほぼ直線」かどうか判定する
+/// threshold は用途に応じて調整（例: 0.001）
+fn is_nearly_straight(p0: Vec2, p1: Vec2, p2: Vec2, threshold: f32) -> bool {
+    let mut max_k = 0.0;
+
+    // t をサンプリングして最大曲率を取る
+    for i in 0..20 {
+        let t = i as f32 / 19.0;
+        let k = curvature(p0, p1, p2, t);
+        if k > max_k {
+            max_k = k;
+        }
+    }
+
+    max_k < threshold
+}
+
+fn is_nearly_straight_default(p0: Vec2, p1: Vec2, p2: Vec2) -> bool {
+    is_nearly_straight(p0, p1, p2, STRAIGHT_THRESHOLD)
+}
+
+/// move_to 〜 close の間にバッファされる、簡約前の生パスコマンド
+enum PendingSegment {
+    Line { x: f32, y: f32 },
+    Quad { x1: f32, y1: f32, x: f32, y: f32 },
+}
+
+// 直線ランの許容誤差。区間長に対する比率としきい値の下限を組み合わせて判定する。
+const COLLINEAR_RATIO: f32 = 0.001;
+const COLLINEAR_MIN: f32 = 0.01;
+
+/// 点 point と直線 run_start-run_end との距離
+fn distance_from_line(run_start: Vec2, run_end: Vec2, point: Vec2) -> f32 {
+    let dir = run_end - run_start;
+    let len = dir.length();
+    if len < 1e-6 {
+        return (point - run_start).length();
+    }
+    let to_point = point - run_start;
+    (dir.x * to_point.y - dir.y * to_point.x).abs() / len
+}
+
+/// run_start から candidate_end への直線に、points が十分近いか判定する
+fn is_collinear(run_start: Vec2, candidate_end: Vec2, points: &[Vec2]) -> bool {
+    let len = (candidate_end - run_start).length();
+    let threshold = (len * COLLINEAR_RATIO).max(COLLINEAR_MIN);
+    points
+        .iter()
+        .all(|&p| distance_from_line(run_start, candidate_end, p) <= threshold)
+}
+
+/// フォントによっては、実質的に直線であるパスを複数の直線・ベジエ曲線に
+/// 分割して表現していることがある。単発の quad_to だけでは判定できないため、
+/// サブパス単位で溜めたコマンド列を先頭から走査し、連続する「単体でもほぼ直線」な
+/// 区間が全体として直線とみなせる場合はまとめて 1 本の line に簡約する。
+fn simplify_straight_runs(
+    subpath_start: Vec2,
+    segments: Vec<PendingSegment>,
+) -> Vec<PendingSegment> {
+    let mut result = Vec::with_capacity(segments.len());
+    let mut run_start = subpath_start;
+    let mut run_points: Vec<Vec2> = Vec::new();
+    let mut prev = subpath_start;
+
+    for seg in segments {
+        let (end, own_straight) = match seg {
+            PendingSegment::Line { x, y } => (Vec2::new(x, y), true),
+            PendingSegment::Quad { x1, y1, x, y } => {
+                let end = Vec2::new(x, y);
+                let straight = is_nearly_straight_default(prev, Vec2::new(x1, y1), end);
+                (end, straight)
+            }
+        };
+
+        if own_straight {
+            let mut candidate_points = run_points.clone();
+            candidate_points.push(prev);
+            if is_collinear(run_start, end, &candidate_points) {
+                run_points.push(end);
+                prev = end;
+                continue;
+            }
+        }
+
+        // ここまでの直線ランを 1 本の直線として確定する
+        if let Some(&last) = run_points.last() {
+            result.push(PendingSegment::Line {
+                x: last.x,
+                y: last.y,
+            });
+            run_start = last;
+            run_points.clear();
+        }
+
+        if own_straight {
+            run_points.push(end);
+        } else {
+            result.push(seg);
+            run_start = end;
+        }
+        prev = end;
+    }
+
+    if let Some(&last) = run_points.last() {
+        result.push(PendingSegment::Line {
+            x: last.x,
+            y: last.y,
+        });
+    }
+
+    result
 }
 
 impl OutlinePen for VectorVertexBuilder {
@@ -610,6 +832,83 @@ mod tests {
         let expected =
             calculate_subpath_center(&closed_points, CenterPointAlgorithm::MinimizeMaximumAngle);
         assert_eq!([origin.x, origin.y], expected);
+    }
+
+    #[test]
+    fn simplify_straight_runs_merges_collinear_lines() {
+        let segments = vec![
+            PendingSegment::Line { x: 5.0, y: 0.0 },
+            PendingSegment::Line { x: 10.0, y: 0.0 },
+            PendingSegment::Line { x: 10.0, y: 10.0 },
+        ];
+        let simplified = simplify_straight_runs(Vec2::new(0.0, 0.0), segments);
+
+        // 最初の 2 区間（0,0)->(5,0)->(10,0) は同一直線上なので 1 本に簡約される
+        assert_eq!(simplified.len(), 2);
+        match simplified[0] {
+            PendingSegment::Line { x, y } => {
+                assert_eq!((x, y), (10.0, 0.0));
+            }
+            _ => panic!("expected Line"),
+        }
+    }
+
+    #[test]
+    fn simplify_straight_runs_merges_nearly_straight_quads() {
+        // 制御点が両端点を結ぶ直線上にあるため、曲率 0 の「見せかけの曲線」になる
+        let segments = vec![
+            PendingSegment::Quad {
+                x1: 2.5,
+                y1: 0.0,
+                x: 5.0,
+                y: 0.0,
+            },
+            PendingSegment::Quad {
+                x1: 7.5,
+                y1: 0.0,
+                x: 10.0,
+                y: 0.0,
+            },
+        ];
+        let simplified = simplify_straight_runs(Vec2::new(0.0, 0.0), segments);
+
+        assert_eq!(simplified.len(), 1);
+        match simplified[0] {
+            PendingSegment::Line { x, y } => assert_eq!((x, y), (10.0, 0.0)),
+            _ => panic!("expected the two quads to collapse into a single line"),
+        }
+    }
+
+    #[test]
+    fn simplify_straight_runs_keeps_real_curves() {
+        let segments = vec![PendingSegment::Quad {
+            x1: 5.0,
+            y1: 10.0,
+            x: 10.0,
+            y: 0.0,
+        }];
+        let simplified = simplify_straight_runs(Vec2::new(0.0, 0.0), segments);
+
+        assert_eq!(simplified.len(), 1);
+        assert!(matches!(simplified[0], PendingSegment::Quad { .. }));
+    }
+
+    #[test]
+    fn builder_collapses_straight_quad_run_into_single_line_triangle() {
+        let mut builder = VectorVertexBuilder::new();
+        builder.move_to(0.0, 0.0);
+        builder.quad_to(2.5, 0.0, 5.0, 0.0);
+        builder.quad_to(7.5, 0.0, 10.0, 0.0);
+        builder.line_to(10.0, 10.0);
+        builder.close();
+
+        // 直線とみなせる quad_to が連続しているので、ベジエ曲線用の Control 頂点は生成されない
+        assert!(
+            !builder
+                .vertex
+                .iter()
+                .any(|v| matches!(v.wait, FlipFlop::Control))
+        );
     }
 }
 
