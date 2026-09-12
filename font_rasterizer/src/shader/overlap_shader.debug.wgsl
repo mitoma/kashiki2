@@ -425,6 +425,7 @@ fn vs_main_minimum(
 struct FragmentOutput {
     @location(0) color: vec4<f32>,
     @location(1) count: vec4<f32>,
+    @location(2) count_secondary: vec4<f32>,
 }
 
 const UNIT: f32 = 0.00390625;
@@ -442,6 +443,10 @@ fn near_eq_one(value: f32) -> bool {
 
 fn in_naive_range(value: f32) -> bool {
     return value >= 0.0 && value <= 1.0;
+}
+
+fn useful_alpha_range(value: f32) -> bool {
+    return value > 0.001 && value < 0.999;
 }
 
 fn under_one(value: f32) -> bool {
@@ -467,6 +472,7 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
     var output: FragmentOutput;
     output.color = vec4<f32>(in.color.rgb, 0f);
     output.count = vec4<f32>(0f, 0f, 0f, 0f);
+    output.count_secondary = vec4<f32>(0f, 0f, 0f, 0f);
 
     // 処理の内容的には以降の if 文の中で行えば済む処理だが
     // WebGPU は fwidth は実行パスの分岐先でだけ呼び出されると正しい結果を返せないとエラーを返す実装があるのでここで実行する。
@@ -476,8 +482,8 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
     // 隣接ピクセルの距離との差分
     let bezier_distance_fwidth = fwidth(bezier_distance);
     // linerstep は 0.0->1.0 に変化するので、1.0-linerstep で 1.0->0.0 に反転
-    var bezier_alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, abs(bezier_distance));
-    //var bezier_alpha = 1.0 - linerstep(-bezier_distance_fwidth, bezier_distance_fwidth, abs(bezier_distance));
+    //var bezier_alpha = 1.0 - linerstep(-bezier_distance_fwidth / 2.0, bezier_distance_fwidth / 2.0, abs(bezier_distance));
+    var bezier_alpha = 1.0 - linerstep(-bezier_distance_fwidth, bezier_distance_fwidth, abs(bezier_distance));
     if !enable_antialiasing {
         if bezier_alpha >= 0.5 {
             bezier_alpha = 1.0;
@@ -503,14 +509,20 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
             output.count.r = UNIT * winding_sign;
         }
         // alpha == 0 は AA 帯の外側なので平均の分母(count.b)に含めない
-        if bezier_alpha > 0.0 {
+        if useful_alpha_range(bezier_alpha) {
             output.count.g = bezier_alpha * winding_sign;
             output.count.b = UNIT;
         }
+        output.count.a = UNIT;
     } else if is_bezier_line {
         // ベジエの補完的直線
         if (in_naive_range(in.wait.x)) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
             output.count.r = UNIT * winding_sign;
+        }
+        // ベジエがほとんど描画されないケースでの補完的なアルファ値
+        if useful_alpha_range(liner_alpha) && (in_naive_range(in.wait.y)) && (in_naive_range(in.wait.z)) {
+            output.count_secondary.r = liner_alpha * winding_sign;
+            output.count_secondary.g = UNIT;
         }
     } else if is_line {
         // 直線
@@ -518,9 +530,9 @@ fn fs_main_impl(in: VertexOutput, winding_sign: f32) -> FragmentOutput {
             output.count.r = UNIT * winding_sign;
         }
         // alpha == 0 は AA 帯の外側なので平均の分母(count.b)に含めない
-        if liner_alpha > 0.0 {
-            output.count.g = liner_alpha * winding_sign;
-            output.count.b = UNIT;
+        if useful_alpha_range(liner_alpha) {
+            output.count_secondary.b = liner_alpha * winding_sign;
+            output.count_secondary.a = UNIT;
         }
     }
     return output;

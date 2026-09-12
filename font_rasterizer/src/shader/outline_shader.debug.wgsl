@@ -32,6 +32,8 @@ var s_diffuse: sampler;
 var<uniform> u_buffer: Uniforms;
 @group(0) @binding(3)
 var t_overlap_count: texture_2d<f32>;
+@group(0) @binding(4)
+var t_overlap_count_secondary: texture_2d<f32>;
 
 const UNIT: f32 = 0.00390625;
 const WINDING_THRESHOLD: f32 = 0.001;
@@ -42,18 +44,44 @@ fn fs_main_even_odd(in: VertexOutput) -> @location(0) vec4<f32> {
     let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     // 重なり回数テクスチャから値を取得（Rgba16Float: 符号付き浮動小数点）
     let overlap_count = textureSample(t_overlap_count, s_diffuse, in.tex_coords);
+    let overlap_count_secondary = textureSample(t_overlap_count_secondary, s_diffuse, in.tex_coords);
 
     let counts = u32(abs(overlap_count.r) / UNIT);
-    let alpha_accum = overlap_count.g;
-    let alpha_counts = u32(abs(overlap_count.b) / UNIT);
-    var alpha = 0.0;
-    if alpha_counts != 0u {
-        alpha = clamp(abs(alpha_accum) / f32(alpha_counts), 0.0, 1.0);
+
+    let bezier_alpha_accum = overlap_count.g;
+    let bezier_alpha_counts = u32(abs(overlap_count.b) / UNIT);
+    let in_bezier = overlap_count.a > 0.0;
+    let bezier_line_alpha_accum = overlap_count_secondary.r;
+    let bezier_line_alpha_counts = u32(abs(overlap_count_secondary.g) / UNIT);
+    let line_alpha_accum = overlap_count_secondary.b;
+    let line_alpha_counts = u32(abs(overlap_count_secondary.a) / UNIT);
+
+    let has_alpha = bezier_alpha_counts + bezier_line_alpha_counts + line_alpha_counts > 0u;
+    let has_bezier_accum = bezier_alpha_counts > 0u;
+
+    var col = color.rgb;
+    if in_bezier {
+        //col = vec3<f32>(0.0, 1.0, 0.0);
+    }
+    if has_bezier_accum {
+        //col = vec3<f32>(1.0, 0.0, 0.0);
     }
 
-    let is_inside = counts % 2u == 1u;
+    var alpha = 0.0;
+    if has_alpha {
+        if in_bezier {
+            if has_bezier_accum {
+                alpha = clamp(abs(bezier_alpha_accum) / f32(bezier_alpha_counts), 0.0, 1.0);
+            } else {
+                alpha = clamp(abs(bezier_line_alpha_accum) / f32(bezier_line_alpha_counts), 0.0, 1.0);
+            }
+        } else {
+            alpha = clamp(abs(bezier_line_alpha_accum + line_alpha_accum) / f32(bezier_line_alpha_counts + line_alpha_counts), 0.0, 1.0);
+        }
+    }
+
+    let is_inside = counts % 2u == 1u || overlap_count.a > UNIT || overlap_count_secondary.g > UNIT;
     let is_overlap_outside = !is_inside && counts >= 2u;
-    let has_alpha = alpha_counts > 0u;
 
     /*
     if has_alpha {
@@ -66,15 +94,15 @@ fn fs_main_even_odd(in: VertexOutput) -> @location(0) vec4<f32> {
     // EvenOdd Rule
     if is_inside {
         if has_alpha {
-            return vec4<f32>(color.rgb, 1.0 - alpha);
+            return vec4<f32>(col, 1.0 - alpha);
         } else {
-            return vec4<f32>(color.rgb, 1.0);
+            return vec4<f32>(col, 1.0);
         }
     } else {
         if has_alpha {
-            return vec4<f32>(color.rgb, alpha);
+            return vec4<f32>(col, alpha);
         } else {
-            return vec4<f32>(color.rgb, 0.0);
+            return vec4<f32>(col, 0.0);
         }
     }
 }
@@ -85,12 +113,28 @@ fn fs_main_non_zero(in: VertexOutput) -> @location(0) vec4<f32> {
     let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     // 重なり回数テクスチャから値を取得（Rgba16Float: 符号付き浮動小数点）
     let overlap_count = textureSample(t_overlap_count, s_diffuse, in.tex_coords);
+    let overlap_count_secondary = textureSample(t_overlap_count_secondary, s_diffuse, in.tex_coords);
 
     let winding = overlap_count.r;
-    let alpha_accum = overlap_count.g;
-    let alpha_counts = overlap_count.b;
+    let bezier_alpha_accum = overlap_count.g;
+    let bezier_alpha_counts = overlap_count.b;
+    let in_bezier = overlap_count.a > 0.0;
+    let bezier_line_alpha_accum = overlap_count_secondary.r;
+    let bezier_line_alpha_counts = overlap_count_secondary.g;
+    let line_alpha_accum = overlap_count_secondary.b;
+    let line_alpha_counts = overlap_count_secondary.a;
 
-    let has_alpha = alpha_counts > WINDING_THRESHOLD;
+    let has_alpha = bezier_alpha_counts + bezier_line_alpha_counts + line_alpha_counts > WINDING_THRESHOLD;
+    let has_bezier_accum = bezier_alpha_counts > 0.0;
+
+    var alpha = 0.0;
+    if has_alpha {
+        if in_bezier {
+            alpha = clamp(abs(bezier_alpha_accum + line_alpha_accum) / (abs(bezier_alpha_counts + line_alpha_counts) / UNIT), 0.0, 1.0);
+        } else {
+            alpha = clamp(abs(bezier_line_alpha_accum + line_alpha_accum) / (abs(bezier_line_alpha_counts + line_alpha_counts) / UNIT), 0.0, 1.0);
+        }
+    }
 
     /*
     if has_alpha {
@@ -102,7 +146,6 @@ fn fs_main_non_zero(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Non-Zero Winding Rule: winding が非ゼロなら内側
     let is_inside = abs(winding) > WINDING_THRESHOLD;
-    let alpha = clamp(abs(alpha_accum) / (abs(alpha_counts) / UNIT), 0.0, 1.0);
 
     if is_inside {
         if has_alpha {
@@ -117,7 +160,6 @@ fn fs_main_non_zero(in: VertexOutput) -> @location(0) vec4<f32> {
             return vec4<f32>(color.rgb, 0.0);
         }
     }
-
 
     /*
     if !is_inside {

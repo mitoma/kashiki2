@@ -25,6 +25,7 @@ impl OutlineBindGroup {
         width: u32,
         overlap_texture: &ScreenTexture,
         overlap_count_texture: &ScreenTexture,
+        overlap_count_texture_secondary: &ScreenTexture,
     ) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
@@ -66,6 +67,17 @@ impl OutlineBindGroup {
                     },
                     count: None,
                 },
+                // 追加の重なり回数テクスチャ
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: None,
+                },
             ],
             label: Some("Outline Bind Group Layout"),
         });
@@ -99,6 +111,12 @@ impl OutlineBindGroup {
                     binding: 3,
                     resource: wgpu::BindingResource::TextureView(&overlap_count_texture.view),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(
+                        &overlap_count_texture_secondary.view,
+                    ),
+                },
             ],
             label: Some("Outline Bind Group"),
         });
@@ -116,6 +134,7 @@ impl OutlineBindGroup {
         device: &wgpu::Device,
         overlap_texture: &ScreenTexture,
         overlap_count_texture: &ScreenTexture,
+        overlap_count_texture_secondary: &ScreenTexture,
     ) {
         self.bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.layout,
@@ -135,6 +154,12 @@ impl OutlineBindGroup {
                 wgpu::BindGroupEntry {
                     binding: 3,
                     resource: wgpu::BindingResource::TextureView(&overlap_count_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(
+                        &overlap_count_texture_secondary.view,
+                    ),
                 },
             ],
             label: Some("Outline Bind Group"),

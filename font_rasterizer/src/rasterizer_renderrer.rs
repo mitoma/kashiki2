@@ -38,6 +38,8 @@ pub struct RasterizerRenderrer {
     pub(crate) overlap_texture: ScreenTexture,
     // 重なり回数記録用のテクスチャ（マルチターゲット用）
     pub(crate) overlap_count_texture: ScreenTexture,
+    // 追加の重なり回数記録用テクスチャ（マルチターゲット用）
+    pub(crate) overlap_count_texture_secondary: ScreenTexture,
 
     pub(crate) outline_bind_group: OutlineBindGroup,
     pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
@@ -76,6 +78,12 @@ impl RasterizerRenderrer {
             wgpu::TextureFormat::Rgba16Float,
             Some("Overlap Count Texture"),
         );
+        let overlap_count_texture_secondary = ScreenTexture::new_with_format(
+            device,
+            (width, height),
+            wgpu::TextureFormat::Rgba16Float,
+            Some("Overlap Count Secondary Texture"),
+        );
 
         let overlap_bind_group = OverlapBindGroup::new(device, width);
 
@@ -112,6 +120,22 @@ impl RasterizerRenderrer {
                         }),
                         Some(wgpu::ColorTargetState {
                             format: overlap_count_texture.texture_format,
+                            blend: Some(wgpu::BlendState {
+                                color: wgpu::BlendComponent {
+                                    src_factor: wgpu::BlendFactor::One,
+                                    dst_factor: wgpu::BlendFactor::One,
+                                    operation: wgpu::BlendOperation::Add,
+                                },
+                                alpha: wgpu::BlendComponent {
+                                    src_factor: wgpu::BlendFactor::One,
+                                    dst_factor: wgpu::BlendFactor::One,
+                                    operation: wgpu::BlendOperation::Add,
+                                },
+                            }),
+                            write_mask: wgpu::ColorWrites::ALL,
+                        }),
+                        Some(wgpu::ColorTargetState {
+                            format: overlap_count_texture_secondary.texture_format,
                             blend: Some(wgpu::BlendState {
                                 color: wgpu::BlendComponent {
                                     src_factor: wgpu::BlendFactor::One,
@@ -168,8 +192,13 @@ impl RasterizerRenderrer {
             device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR)
         };
 
-        let outline_bind_group =
-            OutlineBindGroup::new(device, width, &overlap_texture, &overlap_count_texture);
+        let outline_bind_group = OutlineBindGroup::new(
+            device,
+            width,
+            &overlap_texture,
+            &overlap_count_texture,
+            &overlap_count_texture_secondary,
+        );
         let outline_render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Outline Render Pipeline Layout"),
@@ -233,6 +262,7 @@ impl RasterizerRenderrer {
             overlap_render_pipeline,
             overlap_texture,
             overlap_count_texture,
+            overlap_count_texture_secondary,
             outline_bind_group,
             outline_render_pipeline,
             outline_vertex_buffer,
@@ -253,6 +283,7 @@ impl RasterizerRenderrer {
             device,
             &self.overlap_texture,
             &self.overlap_count_texture,
+            &self.overlap_count_texture_secondary,
         );
     }
 
@@ -289,6 +320,15 @@ impl RasterizerRenderrer {
                 }),
                 Some(wgpu::RenderPassColorAttachment {
                     view: &self.overlap_count_texture.view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                }),
+                Some(wgpu::RenderPassColorAttachment {
+                    view: &self.overlap_count_texture_secondary.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
