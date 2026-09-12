@@ -46,23 +46,27 @@ fn fs_main_even_odd(in: VertexOutput) -> @location(0) vec4<f32> {
     let counts = u32(abs(overlap_count.r) / UNIT);
     let alpha_accum = overlap_count.g;
     let alpha_counts = u32(abs(overlap_count.b) / UNIT);
+
+    let is_inside = counts % 2u == 1u;
+    let has_alpha = alpha_counts > 0u;
+
     var alpha = 0.0;
     if alpha_counts != 0u {
         alpha = clamp(abs(alpha_accum) / f32(alpha_counts), 0.0, 1.0);
     }
 
     // EvenOdd Rule
-    if counts % 2u == 1u {
-        if alpha_counts % 2u == 1u {
-            return vec4<f32>(color.rgb, alpha);
+    if is_inside {
+        if has_alpha {
+            return vec4<f32>(color.rgb, 1.0 - alpha);
         } else {
-            return vec4<f32>(color.rgb, 1f - alpha);
+            return vec4<f32>(color.rgb, 1.0);
         }
     } else {
-        if alpha_counts % 2u == 1u {
-            return vec4<f32>(color.rgb, 1f - alpha);
-        } else {
+        if has_alpha {
             return vec4<f32>(color.rgb, alpha);
+        } else {
+            return vec4<f32>(color.rgb, 0.0);
         }
     }
 }
@@ -78,20 +82,20 @@ fn fs_main_non_zero(in: VertexOutput) -> @location(0) vec4<f32> {
     let alpha_accum = overlap_count.g;
     let alpha_counts = overlap_count.b;
 
+    let has_alpha = alpha_counts > WINDING_THRESHOLD;
+
     // Non-Zero Winding Rule: winding が非ゼロなら内側
     let is_inside = abs(winding) > WINDING_THRESHOLD;
+    let alpha = clamp(abs(alpha_accum) / (abs(alpha_counts) / UNIT), 0.0, 1.0);
 
     if is_inside {
-        if abs(alpha_counts) > WINDING_THRESHOLD {
-            // エッジ付近: アルファで滑らかに
-            let alpha = clamp(abs(alpha_accum) / (abs(alpha_counts) / UNIT), 0.0, 1.0);
-            return vec4<f32>(color.rgb, alpha);
+        if has_alpha {
+            return vec4<f32>(color.rgb, 1.0 - alpha);
         } else {
             return vec4<f32>(color.rgb, 1.0);
         }
     } else {
-        if abs(alpha_counts) > WINDING_THRESHOLD {
-            let alpha = 1.0 - clamp(abs(alpha_accum) / (abs(alpha_counts) / UNIT), 0.0, 1.0);
+        if has_alpha {
             return vec4<f32>(color.rgb, alpha);
         } else {
             return vec4<f32>(color.rgb, 0.0);
