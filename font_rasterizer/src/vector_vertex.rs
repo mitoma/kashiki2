@@ -2,6 +2,8 @@ use bezier_converter::CubicBezier;
 use log::debug;
 use skrifa::outline::OutlinePen;
 
+use crate::straight_run_simplifier::is_nearly_straight_default;
+
 pub struct VectorVertexBuilder {
     vertex: Vec<InternalVertex>,
     index: Vec<u32>,
@@ -54,6 +56,13 @@ impl VectorVertexBuilder {
     fn next_wait(&mut self) -> FlipFlop {
         self.vertex_swap = self.vertex_swap.next();
         self.vertex_swap
+    }
+
+    #[cfg(test)]
+    pub(crate) fn has_control_vertex_for_test(&self) -> bool {
+        self.vertex
+            .iter()
+            .any(|v| matches!(v.wait, FlipFlop::Control))
     }
 
     pub fn build(self) -> VectorVertex {
@@ -133,6 +142,10 @@ impl VectorVertexBuilder {
         // ベジエ補助直線（フィル）三角形専用頂点のために、直前のオンカーブ点座標を保持する
         let prev_x = last.x;
         let prev_y = last.y;
+
+        if is_nearly_straight_default([prev_x, prev_y].into(), [x1, y1].into(), [x, y].into()) {
+            return self.line_to(x, y);
+        }
 
         let wait = self.next_wait();
         self.subpath_points.push([x, y]);

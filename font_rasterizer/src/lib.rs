@@ -21,6 +21,8 @@ mod screen_bind_group;
 mod screen_texture;
 mod screen_vertex_buffer;
 pub mod shader_art_bind_group;
+mod straight_run_simplifier;
+mod straighten_outline_builder;
 pub mod svg;
 pub mod time;
 pub mod vector_instances;
@@ -29,4 +31,5 @@ pub mod vector_vertex_buffer;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod vector_vertex_png_renderer;
 
+pub use straighten_outline_builder::StraightenOutlineBuilder;
 pub use vector_vertex::{VectorVertex, VectorVertexBuilder};
