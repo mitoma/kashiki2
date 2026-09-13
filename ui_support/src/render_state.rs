@@ -245,6 +245,7 @@ impl RenderTarget {
 
 pub(crate) struct RenderState {
     pub(crate) context: UiContext,
+    pub(crate) profiler: font_rasterizer::profiler::Profiler,
 
     quarity: Quarity,
 
@@ -322,6 +323,17 @@ impl RenderState {
             .contains(wgpu::Features::CONSERVATIVE_RASTERIZATION)
         {
             features |= wgpu::Features::CONSERVATIVE_RASTERIZATION;
+        }
+        if adapter.features().contains(wgpu::Features::TIMESTAMP_QUERY) {
+            log::info!("TIMESTAMP_QUERY feature is supported");
+            features |= wgpu::Features::TIMESTAMP_QUERY;
+        }
+        if adapter
+            .features()
+            .contains(wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES)
+        {
+            log::info!("TIMESTAMP_QUERY_INSIDE_PASSES feature is supported");
+            features |= wgpu::Features::TIMESTAMP_QUERY_INSIDE_PASSES;
         }
 
         let (device, queue) = adapter
@@ -463,6 +475,8 @@ impl RenderState {
         let wgpu::Color { r, g, b, a } = bg_color;
         let background_color = EasingPointN::new([r as f32, g as f32, b as f32, a as f32]);
 
+        let profiler = font_rasterizer::profiler::Profiler::new(&device);
+
         let state_context = StateContext::new(
             device,
             queue,
@@ -486,6 +500,7 @@ impl RenderState {
 
         let mut render_state = Self {
             context,
+            profiler,
             quarity,
 
             render_target,
@@ -797,7 +812,7 @@ impl RenderState {
             }
         };
 
-        self.rasterizer_pipeline.run_all_stage(
+        self.rasterizer_pipeline.run_all_stage_with_profiler(
             &mut encoder,
             self.context.device(),
             self.context.queue(),
@@ -810,13 +825,19 @@ impl RenderState {
             buffers,
             modal_buffers,
             screen_view,
+            Some(&mut self.profiler),
         );
 
         record_start_of_phase("render 5: submit");
 
         self.render_target.pre_submit(&mut encoder, &self.context);
 
+        self.profiler.end_frame();
+
         let submission_index = self.context.queue().submit(Some(encoder.finish()));
+
+        self.profiler
+            .process_finished_frame(self.context.device(), self.context.queue());
 
         let result = self
             .render_target

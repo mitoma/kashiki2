@@ -14,7 +14,7 @@ use log::{debug, info};
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     camera::{Camera, CameraController},
-    generate_image_iter,
+    generate_images_with_profiler,
     ui_context::UiContext,
 };
 use winit::event::WindowEvent;
@@ -73,12 +73,25 @@ pub struct Args {
 
     #[arg(short, long, default_value = "middle")]
     pub quarity: QuarityArg,
+
+    /// number of frames to render for benchmark
+    #[arg(short, long, default_value = "1")]
+    pub bench: u32,
+
+    /// print WGSL / GPU profiling report
+    #[arg(long, default_value_t = false)]
+    pub profile: bool,
+
+    /// write chrometrace json file for profiling (e.g. target/trace.json)
+    #[arg(long)]
+    pub chrometrace: Option<std::path::PathBuf>,
 }
 
 pub fn main() {
     let args = Args::parse();
     env_logger::builder()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_module("font_collector", log::LevelFilter::Warn)
+        .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
     pollster::block_on(run(args));
@@ -114,7 +127,22 @@ pub async fn run(args: Args) {
     };
 
     info!("start generate images");
-    let num_of_frame = 1;
+    let num_of_frame = args.bench.max(1);
+
+    let bench_result =
+        generate_images_with_profiler(support, num_of_frame, Duration::from_millis(20)).await;
+
+    if args.profile || args.bench > 1 {
+        bench_result.profiler.print_summary();
+    }
+
+    if let Some(ref trace_path) = args.chrometrace {
+        if let Err(e) = bench_result.profiler.write_chrometrace(trace_path) {
+            eprintln!("Failed to write chrometrace: {}", e);
+        } else {
+            info!("Chrometrace written to {:?}", trace_path);
+        }
+    }
 
     info!("start apng encode");
 
@@ -132,13 +160,11 @@ pub async fn run(args: Args) {
         ..Default::default()
     };
 
-    let mut image_iter = generate_image_iter(support, num_of_frame, Duration::from_millis(20))
-        .await
-        .map(|(image, index)| {
-            let dynimage = image::DynamicImage::ImageRgba8(image);
-            let png_image = load_dynamic_image(dynimage).unwrap();
-            (png_image, index)
-        });
+    let mut image_iter = bench_result.images.into_iter().map(|(image, index)| {
+        let dynimage = image::DynamicImage::ImageRgba8(image);
+        let png_image = load_dynamic_image(dynimage).unwrap();
+        (png_image, index)
+    });
     let (image, _idx) = image_iter.next().unwrap();
 
     let encoder = ParallelEncoder::new(

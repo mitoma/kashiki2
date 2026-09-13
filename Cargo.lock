@@ -1362,6 +1362,7 @@ dependencies = [
  "web-sys",
  "web-time",
  "wgpu",
+ "wgpu-profiler",
 ]
 
 [[package]]
@@ -4111,6 +4112,7 @@ dependencies = [
  "web-sys",
  "web-time",
  "wgpu",
+ "wgpu-profiler",
  "winit",
 ]
 
@@ -4621,6 +4623,17 @@ checksum = "c9eaac644e5008925c78567d272b9d66ef83da55a53cc17fc7daade7bb6e66e5"
 dependencies = [
  "naga",
  "wgpu-types",
+]
+
+[[package]]
+name = "wgpu-profiler"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a15a635a2a2ec0b9787589f17dbbffaa7960e779bcf0348a67f73c3e7665f9eb"
+dependencies = [
+ "parking_lot",
+ "thiserror 2.0.20",
+ "wgpu",
 ]
 
 [[package]]

@@ -8,6 +8,7 @@ env_logger = { workspace = true }
 log = { workspace = true }
 pollster = { workspace = true }
 wgpu = { workspace = true }
+wgpu-profiler = { workspace = true }
 winit = { workspace = true }
 image = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

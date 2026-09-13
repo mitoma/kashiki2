@@ -667,11 +667,18 @@ pub async fn generate_images<F>(
     }
 }
 
-pub async fn generate_image_iter(
+pub type RenderedImage = (ImageBuffer<Rgba<u8>, Vec<u8>>, u32);
+
+pub struct BenchmarkResult {
+    pub images: Vec<RenderedImage>,
+    pub profiler: font_rasterizer::profiler::Profiler,
+}
+
+pub async fn generate_images_with_profiler(
     support: SimpleStateSupport,
     num_of_frame: u32,
     frame_gain: Duration,
-) -> impl Iterator<Item = (ImageBuffer<Rgba<u8>, Vec<u8>>, u32)> {
+) -> BenchmarkResult {
     set_clock_mode(ClockMode::Fixed);
 
     let mut state = RenderState::new(
@@ -690,15 +697,14 @@ pub async fn generate_image_iter(
     .await;
     state.resize(support.window_size);
 
-    (0..num_of_frame).map(move |frame| {
+    let mut images = Vec::with_capacity(num_of_frame as usize);
+    for frame in 0..num_of_frame {
         while let Ok(action) = state.action_queue_receiver.try_recv() {
             let _ = handle_action_result(state.action(action), &mut state);
         }
 
         state.update();
-        let Ok(RenderTargetResponse::Image(image)) =
-            futures::executor::block_on(async { state.async_render().await })
-        else {
+        let Ok(RenderTargetResponse::Image(image)) = state.async_render().await else {
             panic!("image is not found")
         };
         increment_fixed_clock(frame_gain);
@@ -707,8 +713,26 @@ pub async fn generate_image_iter(
             let _ = handle_action_result(state.action(action), &mut state);
         }
 
-        (image, frame)
-    })
+        images.push((image, frame));
+    }
+
+    state
+        .profiler
+        .flush(state.context.device(), state.context.queue());
+
+    BenchmarkResult {
+        images,
+        profiler: state.profiler,
+    }
+}
+
+pub async fn generate_image_iter(
+    support: SimpleStateSupport,
+    num_of_frame: u32,
+    frame_gain: Duration,
+) -> impl Iterator<Item = (ImageBuffer<Rgba<u8>, Vec<u8>>, u32)> {
+    let result = generate_images_with_profiler(support, num_of_frame, frame_gain).await;
+    result.images.into_iter()
 }
 
 #[inline]

@@ -357,25 +357,80 @@ impl RasterizerPipeline {
         modal_buffers: Buffers,
         screen_view: wgpu::TextureView,
     ) {
+        self.run_all_stage_with_profiler(
+            encoder,
+            device,
+            queue,
+            view_proj,
+            buffers,
+            modal_buffers,
+            screen_view,
+            None,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn run_all_stage_with_profiler(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
+        buffers: Buffers,
+        modal_buffers: Buffers,
+        screen_view: wgpu::TextureView,
+        mut profiler: Option<&mut crate::profiler::Profiler>,
+    ) {
         let has_modal_background =
             modal_buffers.glyph_buffers.is_some() || modal_buffers.vector_buffers.is_some();
 
-        self.rasterizer_renderrer.prepare(device, queue, view_proj);
-        self.rasterizer_renderrer
-            .render(encoder, buffers, &self.outline_texture.view);
-
-        if has_modal_background {
-            self.rasterizer_renderrer_for_modal
-                .prepare(device, queue, view_proj);
-            self.rasterizer_renderrer_for_modal.render(
+        if let Some(ref mut p) = profiler {
+            self.rasterizer_renderrer.prepare(device, queue, view_proj);
+            self.rasterizer_renderrer.render_with_profiler(
                 encoder,
-                modal_buffers,
-                &self.outline_texture_for_modal.view,
+                buffers,
+                &self.outline_texture.view,
+                Some(p),
             );
-        }
 
-        self.screen_background_image_stage(encoder, device, &screen_view);
-        self.screen_stage(encoder, device, screen_view, has_modal_background);
+            if has_modal_background {
+                self.rasterizer_renderrer_for_modal
+                    .prepare(device, queue, view_proj);
+                self.rasterizer_renderrer_for_modal.render_with_profiler(
+                    encoder,
+                    modal_buffers,
+                    &self.outline_texture_for_modal.view,
+                    Some(p),
+                );
+            }
+
+            p.scope_fn("Background Image Stage", encoder, |enc| {
+                self.screen_background_image_stage(enc, device, &screen_view);
+            });
+
+            p.scope_fn("Screen Stage", encoder, |enc| {
+                self.screen_stage(enc, device, screen_view, has_modal_background);
+            });
+
+            p.resolve_queries(encoder);
+        } else {
+            self.rasterizer_renderrer.prepare(device, queue, view_proj);
+            self.rasterizer_renderrer
+                .render(encoder, buffers, &self.outline_texture.view);
+
+            if has_modal_background {
+                self.rasterizer_renderrer_for_modal
+                    .prepare(device, queue, view_proj);
+                self.rasterizer_renderrer_for_modal.render(
+                    encoder,
+                    modal_buffers,
+                    &self.outline_texture_for_modal.view,
+                );
+            }
+
+            self.screen_background_image_stage(encoder, device, &screen_view);
+            self.screen_stage(encoder, device, screen_view, has_modal_background);
+        }
     }
 
     pub(crate) fn screen_stage(

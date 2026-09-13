@@ -268,6 +268,26 @@ impl RasterizerRenderrer {
     }
 
     #[inline]
+    pub fn render_with_profiler(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        buffers: Buffers,
+        target_view: &wgpu::TextureView,
+        profiler: Option<&mut crate::profiler::Profiler>,
+    ) {
+        if let Some(p) = profiler {
+            p.scope_fn("Overlap Stage", encoder, |enc| {
+                self.overlap_stage(enc, buffers.glyph_buffers, buffers.vector_buffers);
+            });
+            p.scope_fn("Outline Stage", encoder, |enc| {
+                self.outline_stage(enc, target_view);
+            });
+        } else {
+            self.render(encoder, buffers, target_view);
+        }
+    }
+
+    #[inline]
     fn overlap_stage(
         &self,
         encoder: &mut wgpu::CommandEncoder,

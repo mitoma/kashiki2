@@ -359,7 +359,7 @@ impl VertexBuilderOptions {
 }
 
 fn calculate_subpath_center(points: &[[f32; 2]], algorithm: CenterPointAlgorithm) -> [f32; 2] {
-    log::info!("calculate_subpath_center: algorithm = {:?}", algorithm);
+    log::debug!("calculate_subpath_center: algorithm = {:?}", algorithm);
 
     let n = points.len() as f32;
     let arithmetic_mean = [
@@ -379,9 +379,9 @@ fn calculate_subpath_center(points: &[[f32; 2]], algorithm: CenterPointAlgorithm
 }
 
 fn minimize_maximum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
-    log::info!("minimize_maximum_angle: initial = {:?}", initial);
+    log::debug!("minimize_maximum_angle: initial = {:?}", initial);
     if points.len() < 3 {
-        log::info!("minimize_maximum_angle: points.len() < 3, returning initial");
+        log::debug!("minimize_maximum_angle: points.len() < 3, returning initial");
         return initial;
     }
 
@@ -487,9 +487,11 @@ fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
                     (previous_center[1] + y as f32 * step).clamp(min[1], max[1]),
                 ];
                 let angle = minimum_subpath_angle(points, candidate);
-                println!(
+                log::debug!(
                     "candidate: {:?}, angle: {}, best_angle: {}",
-                    candidate, angle, best_angle
+                    candidate,
+                    angle,
+                    best_angle
                 );
                 if angle > best_angle {
                     center = candidate;
