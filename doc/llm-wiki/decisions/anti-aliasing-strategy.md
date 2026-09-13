@@ -2,7 +2,7 @@
 title: Anti-Aliasing Strategy
 kind: decision
 status: draft
-updated: 2026-07-19
+updated: 2026-09-13
 source_refs:
   - ../../memo/anti_aliasing.md
   - ../../../memories/repo/vector_vertex_aa_analysis.md
@@ -27,7 +27,9 @@ related_pages:
 - MSAA や SSAA ではなく analytical anti-aliasing を採用する
 - `smoothstep` と `fwidth` による距離場ベースのエッジ解決を行う
 - 直線、ベジェ曲線、ベジェ補助直線を頂点タイプで区別する
-- 現時点のベースラインは `fwidth` ベースを維持しつつ、historical な改善案は source として保持する
+- overlap pass では `count.r` に符号付き winding、`count.g` に符号付き edge coverage の積算、`count.b` に edge 寄与数を加算する
+- outline pass では `abs(count.g) / (abs(count.b) / UNIT)` を edge alpha として復元し、fill rule に応じて inside / outside を解決する
+- 現時点のベースラインはこの signed accumulation と `fwidth` ベースの analytical AA を維持する
 
 ## この判断の理由
 
@@ -39,8 +41,8 @@ related_pages:
 ## historical な知見
 
 - 凸性タグ付けで fill coverage を救済する案は、輪郭間の巻き相殺を壊すため棄却されている
-- ベジエ接続部の AA 漏れに対しては、debug shader で弦クリップと MAX coverage ブレンドの改善が確認されている
-- ただし debug での改善の一部は production 未反映で、fill rule や blend state への影響評価が残っている
+- ベジエ接続部の AA 漏れに対しては、弦側を除外した signed accumulation と edge 寄与数の平均化を production / debug の両方へ反映した
+- 過去に debug shader で試した MAX coverage ブレンドは、現行の平均化と fill rule の構造が異なるため採用しない
 - 現行コードでは `overlap_shader.wgsl` に even-odd 用と non-zero 用 entrypoint が分かれており、non-zero は `front_facing` による符号付き winding を使う
 - `outline_shader.wgsl` は overlap count texture をサンプルして final alpha を決める resolve 段である
 
@@ -51,8 +53,7 @@ related_pages:
 
 ## 保留中の論点
 
-- signed coverage 系の全面 rework を採用するか
-- debug shader で試した改善を production にどう移すか
+- signed coverage の寄与数平均化が conservative rasterization の隣接三角形重複に依存するため、別の rasterization 条件でも品質を維持できるか
 - overlap remover を不要化できる段階まで non-zero / front_facing 系の方針を進めるか
 - `fwidth()` 近似と `length(dFdx, dFdy)` の精度差、あるいは per-object pixel size 計算をどう評価するか
 

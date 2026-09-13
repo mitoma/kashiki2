@@ -1,5 +1,12 @@
 # Log
 
+## [2026-09-13] ingest | テキストラスタライズ品質改善を反映
+
+- `font_rasterizer` の現行 WGSL を再確認し、signed coverage の格納 (`count.r/g/b`) と outline resolve の説明を更新
+- `VectorVertexBuilder` のサブパス中心点探索と、`StraightenOutlineBuilder` / `straight_run_simplifier` によるほぼ直線の簡約を component / source / pipeline に反映
+- debug 専用の MAX coverage 試行は historical な知見として扱い、現行 production の平均化ロジックと区別
+- 残課題は conservative rasterization の条件差に対する signed coverage の品質評価と overlap remover の将来位置づけ
+
 ## [2026-08-14] ingest | Arborium への構文解析基盤移行を反映
 
 - `Cargo.toml`、`highlighter/src/lib.rs`、`markdown_heading_splitter/src/lib.rs` を source として追加

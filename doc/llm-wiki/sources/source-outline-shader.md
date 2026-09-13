@@ -2,7 +2,7 @@
 title: Source Summary - Outline Shader
 kind: source
 status: production
-updated: 2026-07-19
+updated: 2026-09-13
 source_refs:
   - ../../font_rasterizer/src/shader/outline_shader.wgsl
   - ../../../doc/ai-agent/plans/plan-changeRasterizerAlgorithm%20.md
@@ -22,8 +22,8 @@ related_pages:
 ## 要約
 
 - outline shader は outline texture の色と overlap count texture の値を読んで最終 alpha を resolve する
-- `fs_main_even_odd` は count のパリティで inside/outside を決め、AA accum と count から alpha を作る
-- `fs_main_non_zero` は winding が非ゼロかどうかで inside を判定し、符号付き count の絶対値から alpha を作る
+- `fs_main_even_odd` は count のパリティで inside/outside を決め、`abs(count.g) / (abs(count.b) / UNIT)` から edge alpha を作る
+- `fs_main_non_zero` は winding が非ゼロかどうかで inside を判定し、同じ edge alpha を使って inside / outside を解決する
 - 現行 source は even-odd / non-zero を entrypoint で分離し、resolve 段で fill rule を切り替える構造を持つ
 
 ## 現行コードと関連計画の関係

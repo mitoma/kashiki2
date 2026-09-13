@@ -2,7 +2,7 @@
 title: Source Summary - Overlap Shader
 kind: source
 status: production
-updated: 2026-07-19
+updated: 2026-09-13
 source_refs:
   - ../../font_rasterizer/src/shader/overlap_shader.wgsl
   - ../../../doc/ai-agent/plans/plan-changeRasterizerAlgorithm%20.md
@@ -23,9 +23,10 @@ related_pages:
 
 - vertex shader は `vertex_type` を `wait` と `triangle_type` に写像し、instance motion も同時に適用する
 - `triangle_type` は bezier curve / bezier fill line / line を区別するためのフラグである
-- fragment shader は multi render target へ color と count を出力し、`count.r` に winding、`count.g` に AA accum、`count.b` に AA sample count を積算する
+- fragment shader は multi render target へ color と count を出力し、`count.r` に winding、`count.g` に符号付き edge coverage の積算、`count.b` に edge 寄与数を積算する
 - even-odd 用 entrypoint は常に正符号、non-zero 用 entrypoint は `@builtin(front_facing)` から `winding_sign` を決めて符号付きで積算する
 - bezier / bezier_line / line の各ケースで、`wait` に基づく距離や範囲判定を行う
+- 曲線の edge coverage は winding と同じ `wait.x >= 0` の弦クリップを通過した寄与だけを積算する
 
 ## 現行コードと関連計画の関係
 

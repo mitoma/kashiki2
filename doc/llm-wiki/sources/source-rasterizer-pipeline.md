@@ -2,7 +2,7 @@
 title: Source Summary - Rasterizer Pipeline
 kind: source
 status: production
-updated: 2026-07-19
+updated: 2026-09-13
 source_refs:
   - ../../font_rasterizer/src/rasterizer_pipeline.rs
 related_pages:
@@ -23,6 +23,7 @@ related_pages:
 - modal 用に別の `RasterizerRenderrer` と outline texture を持ち、modal background の重ね描きに対応する
 - `run_all_stage` は prepare / render / background / screen の順で各段を実行する
 - `set_shader_art` と `update_buffer` は screen 側の背景表現と時間依存 uniform 更新を担う
+- glyph の outline は `font_converter.rs` で `StraightenOutlineBuilder` を通し、ほぼ直線の曲線ランを簡約してから `VectorVertexBuilder` へ渡す
 
 ## wiki への影響
 
