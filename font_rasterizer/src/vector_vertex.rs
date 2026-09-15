@@ -487,10 +487,6 @@ fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
                     (previous_center[1] + y as f32 * step).clamp(min[1], max[1]),
                 ];
                 let angle = minimum_subpath_angle(points, candidate);
-                println!(
-                    "candidate: {:?}, angle: {}, best_angle: {}",
-                    candidate, angle, best_angle
-                );
                 if angle > best_angle {
                     center = candidate;
                     best_angle = angle;
@@ -504,24 +500,30 @@ fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
 }
 
 fn minimum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
-    points
-        .iter()
-        .zip(points.iter().cycle().skip(1))
-        .filter_map(|(start, end)| {
-            let edge = [end[0] - start[0], end[1] - start[1]];
-            if edge[0] * edge[0] + edge[1] * edge[1] <= f32::EPSILON {
-                return None;
-            }
-            let a = [start[0] - center[0], start[1] - center[1]];
-            let b = [end[0] - center[0], end[1] - center[1]];
-            let cross = a[0] * b[1] - a[1] * b[0];
-            let dot = a[0] * b[0] + a[1] * b[1];
-            let angle = cross.abs().atan2(dot);
-            ((a[0] * a[0] + a[1] * a[1] > f32::EPSILON)
-                && (b[0] * b[0] + b[1] * b[1] > f32::EPSILON))
-                .then_some(angle)
-        })
-        .fold(f32::INFINITY, f32::min)
+    let mut minimum_angle = f32::INFINITY;
+    let mut has_edge = false;
+
+    for (start, end) in points.iter().zip(points.iter().cycle().skip(1)) {
+        let edge = [end[0] - start[0], end[1] - start[1]];
+        if edge[0] * edge[0] + edge[1] * edge[1] <= f32::EPSILON {
+            continue;
+        }
+
+        let a = [start[0] - center[0], start[1] - center[1]];
+        let b = [end[0] - center[0], end[1] - center[1]];
+        if a[0] * a[0] + a[1] * a[1] <= f32::EPSILON || b[0] * b[0] + b[1] * b[1] <= f32::EPSILON {
+            return 0.0;
+        }
+
+        let cross = a[0] * b[1] - a[1] * b[0];
+        let dot = a[0] * b[0] + a[1] * b[1];
+        // 0 度と 180 度はいずれも三角形の面積が 0 となるため同じく不適格とする。
+        let angle = cross.abs().atan2(dot.abs());
+        minimum_angle = minimum_angle.min(angle);
+        has_edge = true;
+    }
+
+    if has_edge { minimum_angle } else { 0.0 }
 }
 
 #[derive(Debug)]
@@ -582,6 +584,74 @@ mod tests {
         ];
 
         assert!(minimum_subpath_angle(&closed_points, [5.0, 5.0]) > 0.0);
+    }
+
+    #[test]
+    fn minimum_angle_rejects_center_on_an_edge() {
+        let points = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
+
+        assert_eq!(minimum_subpath_angle(&points, [5.0, 0.0]), 0.0);
+    }
+
+    #[test]
+    fn minimum_angle_rejects_center_on_a_vertex() {
+        let points = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
+
+        assert_eq!(minimum_subpath_angle(&points, [0.0, 0.0]), 0.0);
+    }
+
+    #[test]
+    fn maximize_minimum_angle_avoids_degenerate_bracket_fan_triangle() {
+        let points = [
+            [-0.063, -0.5365],
+            [-0.063, 0.4255],
+            [0.135, 0.4255],
+            [0.135, 0.3725],
+            [0.005, 0.3725],
+            [0.005, -0.4845],
+            [0.135, -0.4845],
+            [0.135, -0.5365],
+            [-0.063, -0.5365],
+        ];
+        let arithmetic_mean =
+            calculate_subpath_center(&points, CenterPointAlgorithm::ArithmeticMean);
+        let optimized =
+            calculate_subpath_center(&points, CenterPointAlgorithm::MaximizeMinimumAngle);
+
+        assert!(minimum_subpath_angle(&points, optimized) > 0.0);
+        assert_ne!(optimized, arithmetic_mean);
+    }
+
+    #[test]
+    fn closing_bracket_omits_degenerate_fan_triangle() {
+        let points = [
+            [-0.063, -0.5365],
+            [-0.063, 0.4255],
+            [0.135, 0.4255],
+            [0.135, 0.3725],
+            [0.005, 0.3725],
+            [0.005, -0.4845],
+            [0.135, -0.4845],
+            [0.135, -0.5365],
+        ];
+        let mut builder = VectorVertexBuilder::new();
+        builder.move_to(points[0][0], points[0][1]);
+        for point in &points[1..] {
+            builder.line_to(point[0], point[1]);
+        }
+        builder.close();
+
+        let (triangles, remainder) = builder.index.as_chunks::<3>();
+        assert!(remainder.is_empty());
+        for &[first_index, second_index, third_index] in triangles {
+            let first = &builder.vertex[(first_index - 2) as usize];
+            let second = &builder.vertex[(second_index - 2) as usize];
+            let third = &builder.vertex[(third_index - 2) as usize];
+            let twice_area = (second.x - first.x) * (third.y - first.y)
+                - (second.y - first.y) * (third.x - first.x);
+
+            assert!(twice_area.abs() > f32::EPSILON);
+        }
     }
 
     #[test]
