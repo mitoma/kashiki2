@@ -7,8 +7,9 @@ use glam::Quat;
 use web_time::{Duration, SystemTime};
 
 use font_rasterizer::{
-    color_theme::ColorTheme, context::WindowSize, glyph_instances::GlyphInstances,
-    motion::MotionFlags, rasterizer_pipeline::Quarity, vector_instances::InstanceAttributes,
+    clear_glyph_cache, color_theme::ColorTheme, context::WindowSize,
+    glyph_instances::GlyphInstances, motion::MotionFlags, rasterizer_pipeline::Quarity,
+    vector_instances::InstanceAttributes,
 };
 use log::{debug, info};
 use ui_support::{
@@ -78,7 +79,7 @@ pub struct Args {
 pub fn main() {
     let args = Args::parse();
     env_logger::builder()
-        .filter_level(log::LevelFilter::Debug)
+        .filter_level(log::LevelFilter::Info)
         .format_timestamp(Some(env_logger::TimestampPrecision::Millis))
         .init();
     pollster::block_on(run(args));
@@ -86,6 +87,8 @@ pub fn main() {
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run(args: Args) {
+    clear_glyph_cache();
+
     let mut font_collector = FontCollector::default();
     font_collector.add_system_fonts();
     let mut font_repository = FontRepository::new(font_collector);
