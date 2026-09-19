@@ -504,6 +504,10 @@ fn minimum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
     let mut has_edge = false;
 
     for (start, end) in points.iter().zip(points.iter().cycle().skip(1)) {
+        if start == end {
+            log::info!("skip same point");
+            continue;
+        }
         let edge = [end[0] - start[0], end[1] - start[1]];
         if edge[0] * edge[0] + edge[1] * edge[1] <= f32::EPSILON {
             continue;
