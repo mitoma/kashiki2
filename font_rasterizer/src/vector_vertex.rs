@@ -137,6 +137,7 @@ impl VectorVertexBuilder {
             return;
         };
         if last.x == x1 && last.y == y1 && last.x == x && last.y == y {
+            // 制御点と終点がすべて直前の頂点と同じ場合は無視する
             return;
         }
         // ベジエ補助直線（フィル）三角形専用頂点のために、直前のオンカーブ点座標を保持する
