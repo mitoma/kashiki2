@@ -635,7 +635,22 @@ impl VertexPointKind {
 
 #[cfg(test)]
 mod tests {
+    use crate::vector_vertex::angle_between;
+
     use super::*;
+
+    #[test]
+    fn angle_between_test() {
+        let min_angle = angle_between([1.0, 0.0], [0.0, 1.0]);
+        assert_eq!(min_angle, std::f32::consts::FRAC_PI_2);
+        assert_eq!(min_angle.to_degrees(), 90.0);
+    }
+
+    #[test]
+    fn minimum_fan_triangle_angle_test() {
+        let min_angle = minimum_fan_triangle_angle([1.0, 0.0], [0.0, 1.0], [0.0, 0.0]);
+        assert_eq!(min_angle.to_degrees(), 45.0);
+    }
 
     #[test]
     fn minimize_maximum_angle_keeps_the_worst_angle_small() {
