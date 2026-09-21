@@ -419,7 +419,7 @@ fn minimize_maximum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
                 }
             }
         }
-        step *= 0.5;
+        step *= 0.1;
     }
 
     log::info!("minimize_maximum_angle: center = {:?}", center);
@@ -514,21 +514,41 @@ fn minimum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
             continue;
         }
 
-        let a = [start[0] - center[0], start[1] - center[1]];
-        let b = [end[0] - center[0], end[1] - center[1]];
-        if a[0] * a[0] + a[1] * a[1] <= f32::EPSILON || b[0] * b[0] + b[1] * b[1] <= f32::EPSILON {
-            return 0.0;
-        }
-
-        let cross = a[0] * b[1] - a[1] * b[0];
-        let dot = a[0] * b[0] + a[1] * b[1];
-        // 0 度と 180 度はいずれも三角形の面積が 0 となるため同じく不適格とする。
-        let angle = cross.abs().atan2(dot.abs());
+        let angle = minimum_fan_triangle_angle(*start, *end, center);
         minimum_angle = minimum_angle.min(angle);
         has_edge = true;
     }
 
     if has_edge { minimum_angle } else { 0.0 }
+}
+
+fn minimum_fan_triangle_angle(start: [f32; 2], end: [f32; 2], center: [f32; 2]) -> f32 {
+    let center_angle = angle_between(
+        [start[0] - center[0], start[1] - center[1]],
+        [end[0] - center[0], end[1] - center[1]],
+    );
+    let start_angle = angle_between(
+        [center[0] - start[0], center[1] - start[1]],
+        [end[0] - start[0], end[1] - start[1]],
+    );
+    let end_angle = angle_between(
+        [start[0] - end[0], start[1] - end[1]],
+        [center[0] - end[0], center[1] - end[1]],
+    );
+
+    center_angle.min(start_angle).min(end_angle)
+}
+
+fn angle_between(first: [f32; 2], second: [f32; 2]) -> f32 {
+    let first_length_squared = first[0] * first[0] + first[1] * first[1];
+    let second_length_squared = second[0] * second[0] + second[1] * second[1];
+    if first_length_squared <= f32::EPSILON || second_length_squared <= f32::EPSILON {
+        return 0.0;
+    }
+
+    let cross = first[0] * second[1] - first[1] * second[0];
+    let dot = first[0] * second[0] + first[1] * second[1];
+    cross.abs().atan2(dot)
 }
 
 #[derive(Debug)]
@@ -670,6 +690,18 @@ mod tests {
         let points = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
 
         assert_eq!(minimum_subpath_angle(&points, [0.0, 0.0]), 0.0);
+    }
+
+    #[test]
+    fn minimum_fan_triangle_angle_includes_endpoint_angles() {
+        let start = [0.0, 0.0];
+        let end = [4.0, 0.0];
+        let center = [0.5, 2.0];
+
+        let angle = minimum_fan_triangle_angle(start, end, center);
+        let endpoint_angle = 8.0_f32.atan2(14.0);
+
+        assert!((angle - endpoint_angle).abs() < f32::EPSILON);
     }
 
     #[test]
