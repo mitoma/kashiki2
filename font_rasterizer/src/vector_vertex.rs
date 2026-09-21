@@ -435,13 +435,26 @@ fn maximum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
             if edge[0] * edge[0] + edge[1] * edge[1] <= f32::EPSILON {
                 return None;
             }
-            let a = [start[0] - center[0], start[1] - center[1]];
-            let b = [end[0] - center[0], end[1] - center[1]];
-            let cross = a[0] * b[1] - a[1] * b[0];
-            let dot = a[0] * b[0] + a[1] * b[1];
-            Some(cross.abs().atan2(dot))
+            Some(maximum_fan_triangle_angle(*start, *end, center))
         })
         .fold(0.0, f32::max)
+}
+
+fn maximum_fan_triangle_angle(start: [f32; 2], end: [f32; 2], center: [f32; 2]) -> f32 {
+    let center_angle = angle_between(
+        [start[0] - center[0], start[1] - center[1]],
+        [end[0] - center[0], end[1] - center[1]],
+    );
+    let start_angle = angle_between(
+        [center[0] - start[0], center[1] - start[1]],
+        [end[0] - start[0], end[1] - start[1]],
+    );
+    let end_angle = angle_between(
+        [start[0] - end[0], start[1] - end[1]],
+        [center[0] - end[0], center[1] - end[1]],
+    );
+
+    center_angle.max(start_angle).max(end_angle)
 }
 
 fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
@@ -725,6 +738,18 @@ mod tests {
 
         let angle = minimum_fan_triangle_angle(start, end, center);
         let endpoint_angle = 8.0_f32.atan2(14.0);
+
+        assert!((angle - endpoint_angle).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn maximum_fan_triangle_angle_includes_endpoint_angles() {
+        let start = [0.0, 0.0];
+        let end = [4.0, 0.0];
+        let center = [0.5, 2.0];
+
+        let angle = maximum_fan_triangle_angle(start, end, center);
+        let endpoint_angle = 2.0_f32.atan2(0.5);
 
         assert!((angle - endpoint_angle).abs() < f32::EPSILON);
     }
