@@ -45,7 +45,8 @@ impl StackLayout {
         }
     }
 
-    pub fn add_model(&mut self, model: Box<dyn Model>) {
+    pub fn add_model(&mut self, mut model: Box<dyn Model>) {
+        model.model_operation(&ModelOperation::ChangeDirection(Some(self.direction)));
         self.models.push(model);
     }
 
