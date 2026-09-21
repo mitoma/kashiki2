@@ -137,6 +137,7 @@ impl VectorVertexBuilder {
             return;
         };
         if last.x == x1 && last.y == y1 && last.x == x && last.y == y {
+            // 制御点と終点がすべて直前の頂点と同じ場合は無視する
             return;
         }
         // ベジエ補助直線（フィル）三角形専用頂点のために、直前のオンカーブ点座標を保持する
@@ -418,7 +419,7 @@ fn minimize_maximum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
                 }
             }
         }
-        step *= 0.5;
+        step *= 0.1;
     }
 
     log::info!("minimize_maximum_angle: center = {:?}", center);
@@ -434,13 +435,26 @@ fn maximum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
             if edge[0] * edge[0] + edge[1] * edge[1] <= f32::EPSILON {
                 return None;
             }
-            let a = [start[0] - center[0], start[1] - center[1]];
-            let b = [end[0] - center[0], end[1] - center[1]];
-            let cross = a[0] * b[1] - a[1] * b[0];
-            let dot = a[0] * b[0] + a[1] * b[1];
-            Some(cross.abs().atan2(dot))
+            Some(maximum_fan_triangle_angle(*start, *end, center))
         })
         .fold(0.0, f32::max)
+}
+
+fn maximum_fan_triangle_angle(start: [f32; 2], end: [f32; 2], center: [f32; 2]) -> f32 {
+    let center_angle = angle_between(
+        [start[0] - center[0], start[1] - center[1]],
+        [end[0] - center[0], end[1] - center[1]],
+    );
+    let start_angle = angle_between(
+        [center[0] - start[0], center[1] - start[1]],
+        [end[0] - start[0], end[1] - start[1]],
+    );
+    let end_angle = angle_between(
+        [start[0] - end[0], start[1] - end[1]],
+        [center[0] - end[0], center[1] - end[1]],
+    );
+
+    center_angle.max(start_angle).max(end_angle)
 }
 
 fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
@@ -474,6 +488,11 @@ fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
                 center = candidate;
                 best_angle = angle;
             }
+            log::info!(
+                "pre grid search step, center: {:?}, best_angle: {}",
+                center,
+                best_angle.to_degrees()
+            );
         }
     }
 
@@ -491,6 +510,11 @@ fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
                     center = candidate;
                     best_angle = angle;
                 }
+                log::info!(
+                    "after local search step, center: {:?}, best_angle: {}",
+                    center,
+                    best_angle.to_degrees()
+                );
             }
         }
         step *= 0.5;
@@ -513,21 +537,41 @@ fn minimum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
             continue;
         }
 
-        let a = [start[0] - center[0], start[1] - center[1]];
-        let b = [end[0] - center[0], end[1] - center[1]];
-        if a[0] * a[0] + a[1] * a[1] <= f32::EPSILON || b[0] * b[0] + b[1] * b[1] <= f32::EPSILON {
-            return 0.0;
-        }
-
-        let cross = a[0] * b[1] - a[1] * b[0];
-        let dot = a[0] * b[0] + a[1] * b[1];
-        // 0 度と 180 度はいずれも三角形の面積が 0 となるため同じく不適格とする。
-        let angle = cross.abs().atan2(dot.abs());
+        let angle = minimum_fan_triangle_angle(*start, *end, center);
         minimum_angle = minimum_angle.min(angle);
         has_edge = true;
     }
 
     if has_edge { minimum_angle } else { 0.0 }
+}
+
+fn minimum_fan_triangle_angle(start: [f32; 2], end: [f32; 2], center: [f32; 2]) -> f32 {
+    let center_angle = angle_between(
+        [start[0] - center[0], start[1] - center[1]],
+        [end[0] - center[0], end[1] - center[1]],
+    );
+    let start_angle = angle_between(
+        [center[0] - start[0], center[1] - start[1]],
+        [end[0] - start[0], end[1] - start[1]],
+    );
+    let end_angle = angle_between(
+        [start[0] - end[0], start[1] - end[1]],
+        [center[0] - end[0], center[1] - end[1]],
+    );
+
+    center_angle.min(start_angle).min(end_angle)
+}
+
+fn angle_between(first: [f32; 2], second: [f32; 2]) -> f32 {
+    let first_length_squared = first[0] * first[0] + first[1] * first[1];
+    let second_length_squared = second[0] * second[0] + second[1] * second[1];
+    if first_length_squared <= f32::EPSILON || second_length_squared <= f32::EPSILON {
+        return 0.0;
+    }
+
+    let cross = first[0] * second[1] - first[1] * second[0];
+    let dot = first[0] * second[0] + first[1] * second[1];
+    cross.abs().atan2(dot)
 }
 
 #[derive(Debug)]
@@ -543,11 +587,93 @@ impl VectorVertex {
     pub fn index_size(&self) -> u64 {
         (self.index.len() * std::mem::size_of::<u32>()) as u64
     }
+
+    /// デバッグ用途に、各頂点の座標と種別（中心点・制御点・区間始点・区間終点・輪郭点）を取得する
+    pub fn debug_points(&self) -> Vec<([f32; 2], VertexPointKind)> {
+        self.vertex
+            .iter()
+            .map(|v| (v.position, VertexPointKind::from_vertex_type(v.vertex_type)))
+            .collect()
+    }
+
+    /// デバッグ用途に、index バッファが構成する三角形を頂点座標と区間上の役割へ解決する
+    pub fn debug_triangles(&self) -> Vec<[([f32; 2], VertexPointKind); 3]> {
+        let (triangles, _) = self.index.as_chunks::<3>();
+        triangles
+            .iter()
+            .filter_map(|indices| {
+                let [first, second, third] = indices;
+                let debug_point = |index: u32| {
+                    let vertex = self.vertex.get(index.checked_sub(2)? as usize)?;
+                    Some((
+                        vertex.position,
+                        VertexPointKind::from_vertex_type(vertex.vertex_type),
+                    ))
+                };
+                let triangle = [
+                    debug_point(*first)?,
+                    debug_point(*second)?,
+                    debug_point(*third)?,
+                ];
+                match triangle {
+                    [(center, VertexPointKind::Center), (start, _), (end, _)] => Some([
+                        (center, VertexPointKind::Center),
+                        (start, VertexPointKind::SegmentStart),
+                        (end, VertexPointKind::SegmentEnd),
+                    ]),
+                    [(start, _), (control, VertexPointKind::Control), (end, _)] => Some([
+                        (start, VertexPointKind::SegmentStart),
+                        (control, VertexPointKind::Control),
+                        (end, VertexPointKind::SegmentEnd),
+                    ]),
+                    _ => Some(triangle),
+                }
+            })
+            .collect()
+    }
+}
+
+/// デバッグ描画用の頂点種別
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VertexPointKind {
+    Center,
+    Control,
+    SegmentStart,
+    SegmentEnd,
+    OnCurve,
+}
+
+impl VertexPointKind {
+    fn from_vertex_type(vertex_type: u32) -> Self {
+        match vertex_type {
+            0 | 1 => VertexPointKind::Center,
+            6 => VertexPointKind::Control,
+            7 => VertexPointKind::SegmentStart,
+            8 => VertexPointKind::SegmentEnd,
+            // 2-5 はワインディング用の交互フラグであり、始点/終点は三角形内の位置で決まる。
+            _ => VertexPointKind::OnCurve,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::vector_vertex::angle_between;
+
     use super::*;
+
+    #[test]
+    fn angle_between_test() {
+        let min_angle = angle_between([1.0, 0.0], [0.0, 1.0]);
+        assert_eq!(min_angle, std::f32::consts::FRAC_PI_2);
+        assert_eq!(min_angle.to_degrees(), 90.0);
+    }
+
+    #[test]
+    fn minimum_fan_triangle_angle_test() {
+        let min_angle = minimum_fan_triangle_angle([1.0, 0.0], [0.0, 1.0], [0.0, 0.0]);
+        assert_eq!(min_angle.to_degrees(), 45.0);
+    }
 
     #[test]
     fn minimize_maximum_angle_keeps_the_worst_angle_small() {
@@ -602,6 +728,30 @@ mod tests {
         let points = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
 
         assert_eq!(minimum_subpath_angle(&points, [0.0, 0.0]), 0.0);
+    }
+
+    #[test]
+    fn minimum_fan_triangle_angle_includes_endpoint_angles() {
+        let start = [0.0, 0.0];
+        let end = [4.0, 0.0];
+        let center = [0.5, 2.0];
+
+        let angle = minimum_fan_triangle_angle(start, end, center);
+        let endpoint_angle = 8.0_f32.atan2(14.0);
+
+        assert!((angle - endpoint_angle).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn maximum_fan_triangle_angle_includes_endpoint_angles() {
+        let start = [0.0, 0.0];
+        let end = [4.0, 0.0];
+        let center = [0.5, 2.0];
+
+        let angle = maximum_fan_triangle_angle(start, end, center);
+        let endpoint_angle = 2.0_f32.atan2(0.5);
+
+        assert!((angle - endpoint_angle).abs() < f32::EPSILON);
     }
 
     #[test]

@@ -1335,6 +1335,7 @@ dependencies = [
  "cached",
  "cfg-if",
  "chrono",
+ "clap",
  "console_error_panic_hook",
  "console_log",
  "dirs",

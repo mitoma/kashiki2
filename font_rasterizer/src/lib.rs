@@ -32,4 +32,4 @@ pub mod vector_vertex_buffer;
 pub mod vector_vertex_png_renderer;
 
 pub use straighten_outline_builder::StraightenOutlineBuilder;
-pub use vector_vertex::{VectorVertex, VectorVertexBuilder};
+pub use vector_vertex::{VectorVertex, VectorVertexBuilder, VertexPointKind};
