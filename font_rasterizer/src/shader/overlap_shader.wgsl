@@ -233,6 +233,9 @@ fn vs_main(
     var v = 0f;
     var easing_position = u_buffer.u_time - instances.start_time;
     let harf_duration = duration / 2u;
+    if is_loop {
+        easing_position = easing_position % duration;
+    }
     if turn_back {
         if easing_position > duration {
             easing_position = 0u;
@@ -241,11 +244,6 @@ fn vs_main(
         } else {
             easing_position = duration - ((easing_position - harf_duration) * 2u);
         }
-    } else if is_loop {
-        if (easing_position / duration) % 2u == 1u {
-            to_current = !to_current;
-        }
-        easing_position = easing_position % duration;
     }
 
     if easing_position <= 0u {
