@@ -38,6 +38,7 @@ ttf_overlap_remover = { path = "../ttf_overlap_remover" }
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pollster = { workspace = true }

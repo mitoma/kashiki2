@@ -544,6 +544,73 @@ impl VectorVertex {
     pub fn index_size(&self) -> u64 {
         (self.index.len() * std::mem::size_of::<u32>()) as u64
     }
+
+    /// デバッグ用途に、各頂点の座標と種別（中心点・制御点・区間始点・区間終点・輪郭点）を取得する
+    pub fn debug_points(&self) -> Vec<([f32; 2], VertexPointKind)> {
+        self.vertex
+            .iter()
+            .map(|v| (v.position, VertexPointKind::from_vertex_type(v.vertex_type)))
+            .collect()
+    }
+
+    /// デバッグ用途に、index バッファが構成する三角形を頂点座標と区間上の役割へ解決する
+    pub fn debug_triangles(&self) -> Vec<[([f32; 2], VertexPointKind); 3]> {
+        let (triangles, _) = self.index.as_chunks::<3>();
+        triangles
+            .iter()
+            .filter_map(|indices| {
+                let [first, second, third] = indices;
+                let debug_point = |index: u32| {
+                    let vertex = self.vertex.get(index.checked_sub(2)? as usize)?;
+                    Some((
+                        vertex.position,
+                        VertexPointKind::from_vertex_type(vertex.vertex_type),
+                    ))
+                };
+                let triangle = [
+                    debug_point(*first)?,
+                    debug_point(*second)?,
+                    debug_point(*third)?,
+                ];
+                match triangle {
+                    [(center, VertexPointKind::Center), (start, _), (end, _)] => Some([
+                        (center, VertexPointKind::Center),
+                        (start, VertexPointKind::SegmentStart),
+                        (end, VertexPointKind::SegmentEnd),
+                    ]),
+                    [(start, _), (control, VertexPointKind::Control), (end, _)] => Some([
+                        (start, VertexPointKind::SegmentStart),
+                        (control, VertexPointKind::Control),
+                        (end, VertexPointKind::SegmentEnd),
+                    ]),
+                    _ => Some(triangle),
+                }
+            })
+            .collect()
+    }
+}
+
+/// デバッグ描画用の頂点種別
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VertexPointKind {
+    Center,
+    Control,
+    SegmentStart,
+    SegmentEnd,
+    OnCurve,
+}
+
+impl VertexPointKind {
+    fn from_vertex_type(vertex_type: u32) -> Self {
+        match vertex_type {
+            0 | 1 => VertexPointKind::Center,
+            6 => VertexPointKind::Control,
+            7 => VertexPointKind::SegmentStart,
+            8 => VertexPointKind::SegmentEnd,
+            // 2-5 はワインディング用の交互フラグであり、始点/終点は三角形内の位置で決まる。
+            _ => VertexPointKind::OnCurve,
+        }
+    }
 }
 
 #[cfg(test)]

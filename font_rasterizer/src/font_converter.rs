@@ -190,6 +190,19 @@ struct CharGlyphIds {
     vertical_glyph_id: Option<GlyphId>,
 }
 
+/// FontVertexConverter の動作確認用に、指定した文字のグリフを VectorVertex に変換する。
+/// 横書き用の頂点と、縦書きで異なるグリフが使われる場合はその頂点を返す。
+pub fn convert_char_to_vector_vertices(
+    fonts: Arc<Vec<FontData>>,
+    ascii_override_font: Option<FontData>,
+    c: char,
+    width: CharWidth,
+) -> Result<(VectorVertex, Option<VectorVertex>), FontRasterizerError> {
+    let converter = FontVertexConverter::new(fonts, ascii_override_font);
+    let glyph = converter.convert(c, width)?;
+    Ok((glyph.h_vertex, glyph.v_vertex))
+}
+
 #[derive(Debug)]
 pub(crate) struct GlyphVertex {
     pub(crate) c: char,
