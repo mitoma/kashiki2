@@ -475,6 +475,11 @@ fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
                 center = candidate;
                 best_angle = angle;
             }
+            log::info!(
+                "pre grid search step, center: {:?}, best_angle: {}",
+                center,
+                best_angle.to_degrees()
+            );
         }
     }
 
@@ -492,6 +497,11 @@ fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
                     center = candidate;
                     best_angle = angle;
                 }
+                log::info!(
+                    "after local search step, center: {:?}, best_angle: {}",
+                    center,
+                    best_angle.to_degrees()
+                );
             }
         }
         step *= 0.5;
