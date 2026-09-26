@@ -579,6 +579,14 @@ pub struct VectorVertex {
     pub(crate) vertex: Vec<Vertex>,
     pub(crate) index: Vec<u32>,
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct VectorVertexData {
+    pub positions: Vec<[f32; 2]>,
+    pub vertex_types: Vec<u32>,
+    pub indices: Vec<u32>,
+}
+
 impl VectorVertex {
     pub fn vertex_size(&self) -> u64 {
         (self.vertex.len() * std::mem::size_of::<Vertex>()) as u64
@@ -586,6 +594,19 @@ impl VectorVertex {
 
     pub fn index_size(&self) -> u64 {
         (self.index.len() * std::mem::size_of::<u32>()) as u64
+    }
+
+    pub fn into_data(self) -> VectorVertexData {
+        let (positions, vertex_types): (Vec<_>, Vec<_>) = self
+            .vertex
+            .into_iter()
+            .map(|vertex| (vertex.position, vertex.vertex_type))
+            .unzip();
+        VectorVertexData {
+            positions,
+            vertex_types,
+            indices: self.index,
+        }
     }
 
     /// デバッグ用途に、各頂点の座標と種別（中心点・制御点・区間始点・区間終点・輪郭点）を取得する
@@ -667,6 +688,19 @@ mod tests {
         let min_angle = angle_between([1.0, 0.0], [0.0, 1.0]);
         assert_eq!(min_angle, std::f32::consts::FRAC_PI_2);
         assert_eq!(min_angle.to_degrees(), 90.0);
+    }
+
+    #[test]
+    fn into_data_preserves_geometry_buffers() {
+        let mut builder = VectorVertexBuilder::new();
+        builder.move_to(0.0, 0.0);
+        builder.line_to(1.0, 0.0);
+
+        let data = builder.build().into_data();
+
+        assert_eq!(data.positions.len(), data.vertex_types.len());
+        assert!(!data.positions.is_empty());
+        assert!(!data.indices.is_empty());
     }
 
     #[test]
