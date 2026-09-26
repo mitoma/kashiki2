@@ -80,13 +80,20 @@ pub struct VectorTextPlugin;
 
 impl Plugin for VectorTextPlugin {
     fn build(&self, app: &mut App) {
-        let shader = app
-            .world_mut()
-            .resource_mut::<Assets<Shader>>()
-            .add(Shader::from_wgsl(
-                render::bevy_adapter_shader(shader_sources::OVERLAP),
+        let (fullscreen_shader, overlap_shader, outline_shader) = {
+            let mut shader_assets = app.world_mut().resource_mut::<Assets<Shader>>();
+            let fullscreen_shader =
+                shader_assets.add(Shader::from_wgsl(render::bevy_adapter_shader(""), file!()));
+            let overlap_shader = shader_assets.add(Shader::from_wgsl(
+                render::bevy_overlap_shader(shader_sources::OVERLAP),
                 file!(),
             ));
+            let outline_shader = shader_assets.add(Shader::from_wgsl(
+                render::bevy_outline_shader(shader_sources::OUTLINE),
+                file!(),
+            ));
+            (fullscreen_shader, overlap_shader, outline_shader)
+        };
         app.register_type::<VectorText>()
             .init_resource::<VectorTextFillRule>()
             .add_plugins((
@@ -102,7 +109,9 @@ impl Plugin for VectorTextPlugin {
                 .init_resource::<render::ExtractedVectorGeometries>()
                 .init_resource::<render::GpuVectorTextBuffers>()
                 .init_resource::<VectorTextFillRule>()
-                .insert_resource(render::VectorTextShader(shader))
+                .insert_resource(render::VectorTextFullscreenShader(fullscreen_shader))
+                .insert_resource(render::VectorTextOverlapShader(overlap_shader))
+                .insert_resource(render::VectorTextOutlineShader(outline_shader))
                 .add_systems(ExtractSchedule, render::extract_vector_texts)
                 .add_systems(ExtractSchedule, render::extract_vector_geometries)
                 .add_systems(RenderStartup, render::init_vector_text_pipeline)
@@ -113,6 +122,10 @@ impl Plugin for VectorTextPlugin {
                 .add_systems(
                     Render,
                     render::prepare_vector_text_buffers.in_set(RenderSystems::PrepareResources),
+                )
+                .add_systems(
+                    Render,
+                    render::cleanup_vector_text_view_cache.in_set(RenderSystems::Cleanup),
                 )
                 .add_systems(
                     Core2d,

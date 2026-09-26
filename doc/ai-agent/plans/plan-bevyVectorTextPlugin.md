@@ -80,11 +80,29 @@
   - `OverlapUniforms`
   - `InstanceRaw`
 - Bevy adapter が canonical shader source を受け取る接続点を追加
-- 現在の runtime shader は、binding/instance 契約が異なるため既存の Bevy adapter shader を使用中
+- canonical source を overlap / outline pipeline で実行し、fullscreen vertex のみ Bevy adapter shader から再利用
+- overlap adapter で `VectorText.color.a` を引き継ぎ、outline output alpha に適用
+
+### 8. Bevy uniform / instance buffer の準備
+
+- `OverlapUniforms` を uniform buffer に upload し、overlap pass の bind group として接続
+- `InstanceRaw` を geometry ごとの instance buffer として upload
+- canonical shader の location 5〜13 に対応する instance vertex layout を追加
+- overlap pipeline が uniform binding と instance attributes を使用
+
+### 9. canonical overlap / outline pipeline と view cache
+
+- Bevy adapter で canonical overlap / outline source を pipeline に接続し、fill rule ごとの entry point を選択
+- `VectorText.color.a` を geometry attribute から overlap texture、outline output へ引き継ぐ
+- outline fragment を `ViewTarget` に直接描画し、別の outline output texture は作成しない
+- overlap / count texture と outline bind group を view entity ごとに cache
+- extent、MSAA sample count、内部 texture format の変更時に cache を再作成
+- view entity が despawn したら render cache を cleanup
 
 ## 検証済み
 
 - `cargo check -p bevy_vector_text --examples`
+- `cargo test --all`（失敗 0 件、slow test 1 件 ignored）
 - `cargo clippy -p bevy_vector_text --all-targets -- -D warnings`
 - `mise r check`
   - cargo fmt
@@ -92,49 +110,11 @@
   - cargo clippy --tests --examples
 - VS Code diagnostics エラーなし
 - `cargo run -p bevy_vector_text --example basic` を十分な待ち時間で実行
-- runtime の shader validation error がないことを確認
+- canonical overlap / outline pipeline と view cache 有効時に runtime の shader validation error がないことを確認
 
 ## 未完了タスク
 
-### 1. canonical overlap shader の実 pipeline 移植
-
-`font_rasterizer/src/shader/overlap_shader.wgsl` は以下を要求する。
-
-- group 0 / binding 0 の `OverlapUniforms`
-- vertex location 0/1 の geometry
-- instance location 5〜13 の `InstanceRaw`
-- `vs_main`
-- `fs_main_even_odd`
-- `fs_main_non_zero`
-- color/count の MRT
-
-Bevy 側で必要な実装:
-
-- `shader_contract::OverlapUniforms` から uniform buffer を作成
-- bind group layout と bind group を作成
-- `InstanceRaw` を instance vertex buffer として upload
-- location 5〜13 の `VertexBufferLayout` を追加
-- canonical source を `Shader::from_wgsl` へ渡す
-- fragment entry point を fill rule に応じて選択
-
-### 2. canonical outline shader の移植
-
-- `outline_shader.wgsl` を canonical source として使用
-- overlap color/count texture を bind group に接続
-- outline output texture を作成
-- EvenOdd / NonZero entry point を切り替え
-- resolve pass の簡易 count 計算を canonical outline resolve に置換
-
-### 3. pipeline resource lifecycle
-
-現在は draw system 内で中間 texture を毎 frame 作成している。将来的には以下へ変更する。
-
-- view entity ごとの render resource cache
-- size / format / MSAA が変わったときだけ再作成
-- entity despawn 時の resource cleanup
-- multiple camera 対応
-
-### 4. geometry / instance の設計整理
+### 1. geometry / instance の設計整理
 
 現在の `VectorTextGeometry` は文字列全体を一つの geometry として保持する。canonical renderer は glyph geometry と instance buffer を分離するため、次を検討する。
 
@@ -144,7 +124,7 @@ Bevy 側で必要な実装:
 - Bevy `GlobalTransform` と canonical model matrix の接続
 - animation/motion flags の公開 API
 
-### 5. visual regression
+### 2. visual regression
 
 - `basic` example のスクリーンショット比較
 - font_rasterizer PNG example との比較
@@ -155,21 +135,17 @@ Bevy 側で必要な実装:
 - window resize
 - 複数 `VectorText` entity
 
-### 6. ログと性能
+### 3. ログと性能
 
 現在 `font_rasterizer::vector_vertex` の INFO ログが example 実行時に大量に出る。Bevy example では通常 debug logging を抑え、必要時だけ有効化する。
 
-GPU resource は現状毎 frame 再生成しているため、canonical shader 移植後に dirty tracking と cache を導入する。
+GPU geometry buffer は現状毎 frame 再生成しているため、dirty tracking と cache を導入する。
 
 ## 次の実装順
 
-1. `OverlapUniforms` の Bevy uniform buffer / bind group を追加
-2. `InstanceRaw` 用の Bevy instance buffer と layout を追加
-3. canonical `overlap_shader.wgsl` へ pipeline を切り替え、runtime validation を修正
-4. canonical `outline_shader.wgsl` と texture bind group を移植
-5. outline pass と view target resolve を統合
-6. render resource cache と resize lifecycle を整理
-7. visual regression と性能比較を追加
+1. geometry と instance を glyph 単位へ整理し、`GlobalTransform` と接続
+2. visual regression を追加
+3. geometry buffer の dirty tracking と性能比較を追加
 
 ## 既知の制約
 

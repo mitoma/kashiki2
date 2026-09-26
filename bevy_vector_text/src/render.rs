@@ -4,12 +4,13 @@ use bevy::{
     render::{
         Extract,
         render_resource::{
-            BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource,
-            BindingType, BlendState, Buffer, BufferInitDescriptor, BufferUsages,
-            CachedRenderPipelineId, ColorTargetState, ColorWrites, FragmentState, MultisampleState,
-            PipelineCache, PrimitiveState, RenderPipelineDescriptor, Sampler, SamplerBindingType,
-            SamplerDescriptor, ShaderStages, TextureDescriptor, TextureDimension, TextureFormat,
-            TextureSampleType, TextureUsages, TextureViewDimension, VertexAttribute, VertexFormat,
+            BindGroup, BindGroupLayout, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
+            BindingResource, BindingType, BlendState, Buffer, BufferBindingType,
+            BufferInitDescriptor, BufferUsages, CachedRenderPipelineId, ColorTargetState,
+            ColorWrites, FragmentState, MultisampleState, PipelineCache, PrimitiveState,
+            RenderPipelineDescriptor, Sampler, SamplerBindingType, SamplerDescriptor, ShaderStages,
+            Texture, TextureDescriptor, TextureDimension, TextureFormat, TextureSampleType,
+            TextureUsages, TextureView, TextureViewDimension, VertexAttribute, VertexFormat,
             VertexState,
         },
         renderer::{RenderContext, RenderDevice, ViewQuery},
@@ -177,8 +178,51 @@ fn resolve_fragment_non_zero(input: ResolveOutput) -> @location(0) vec4<f32> {
 }
 "#;
 
+const IDENTITY_MATRIX: [[f32; 4]; 4] = [
+    [1.0, 0.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0, 0.0],
+    [0.0, 0.0, 0.0, 1.0],
+];
+
 pub(crate) fn bevy_adapter_shader(_canonical_overlap_shader: &str) -> String {
     VECTOR_TEXT_SHADER.to_owned()
+}
+
+pub(crate) fn bevy_overlap_shader(canonical_shader: &str) -> String {
+    canonical_shader
+        .replace(
+            "    @location(1) vertex_type: u32,",
+            "    @location(1) vertex_type: u32,\n    @location(2) color: vec4<f32>,",
+        )
+        .replace(
+            "    @location(2) triangle_type: vec3<f32>,",
+            "    @location(2) triangle_type: vec3<f32>,\n    @location(3) alpha: f32,",
+        )
+        .replace(
+            "    out.color = instances.color;",
+            "    out.color = instances.color;\n    out.alpha = model.color.a;",
+        )
+        .replace(
+            "    output.color = vec4<f32>(in.color.rgb, 0f);",
+            "    output.color = vec4<f32>(in.color.rgb, in.alpha);",
+        )
+}
+
+pub(crate) fn bevy_outline_shader(canonical_shader: &str) -> String {
+    canonical_shader
+        .replace(
+            "return vec4<f32>(color.rgb, 1.0 - alpha);",
+            "return vec4<f32>(color.rgb, (1.0 - alpha) * color.a);",
+        )
+        .replace(
+            "return vec4<f32>(color.rgb, alpha);",
+            "return vec4<f32>(color.rgb, alpha * color.a);",
+        )
+        .replace(
+            "return vec4<f32>(color.rgb, 1.0);",
+            "return vec4<f32>(color.rgb, color.a);",
+        )
 }
 
 #[allow(dead_code)]
@@ -220,9 +264,17 @@ struct GpuVectorVertex {
     color: [f32; 4],
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+struct GpuOutlineUniforms {
+    width: u32,
+    padding: [u32; 3],
+}
+
 #[allow(dead_code)]
 struct GpuVectorTextBuffer {
     vertex: Buffer,
+    instance: Buffer,
     index: Buffer,
     index_count: u32,
 }
@@ -233,14 +285,206 @@ pub(crate) struct GpuVectorTextBuffers {
 }
 
 #[derive(Resource)]
-pub(crate) struct VectorTextShader(pub(crate) bevy::prelude::Handle<bevy::shader::Shader>);
+pub(crate) struct VectorTextFullscreenShader(
+    pub(crate) bevy::prelude::Handle<bevy::shader::Shader>,
+);
+
+#[derive(Resource)]
+pub(crate) struct VectorTextOverlapShader(pub(crate) bevy::prelude::Handle<bevy::shader::Shader>);
+
+#[derive(Resource)]
+pub(crate) struct VectorTextOutlineShader(pub(crate) bevy::prelude::Handle<bevy::shader::Shader>);
 
 #[derive(Resource)]
 pub(crate) struct VectorTextPipeline {
-    pub(crate) pipeline_ids: HashMap<u32, CachedRenderPipelineId>,
-    pub(crate) resolve_pipeline_ids: HashMap<(u32, bool), CachedRenderPipelineId>,
-    pub(crate) resolve_layout: BindGroupLayout,
-    pub(crate) resolve_sampler: Sampler,
+    pub(crate) overlap_pipeline_ids: HashMap<bool, CachedRenderPipelineId>,
+    pub(crate) outline_pipeline_ids: HashMap<(u32, bool), CachedRenderPipelineId>,
+    pub(crate) overlap_bind_group: bevy::render::render_resource::BindGroup,
+    pub(crate) outline_layout: BindGroupLayout,
+    pub(crate) outline_sampler: Sampler,
+    views: HashMap<Entity, CachedVectorTextView>,
+}
+
+struct CachedVectorTextView {
+    width: u32,
+    height: u32,
+    depth_or_array_layers: u32,
+    sample_count: u32,
+    intermediate_format: TextureFormat,
+    count_format: TextureFormat,
+    _intermediate_texture: Texture,
+    intermediate_view: TextureView,
+    _count_texture: Texture,
+    count_view: TextureView,
+    outline_bind_group: BindGroup,
+}
+
+impl CachedVectorTextView {
+    fn matches(&self, extent: bevy::render::render_resource::Extent3d, sample_count: u32) -> bool {
+        self.width == extent.width
+            && self.height == extent.height
+            && self.depth_or_array_layers == extent.depth_or_array_layers
+            && self.sample_count == sample_count
+            && self.intermediate_format == TextureFormat::Rgba8UnormSrgb
+            && self.count_format == TextureFormat::Rgba16Float
+    }
+}
+
+fn create_cached_vector_text_view(
+    render_device: &RenderDevice,
+    extent: bevy::render::render_resource::Extent3d,
+    sample_count: u32,
+    outline_layout: &BindGroupLayout,
+    outline_sampler: &Sampler,
+) -> CachedVectorTextView {
+    let intermediate_format = TextureFormat::Rgba8UnormSrgb;
+    let count_format = TextureFormat::Rgba16Float;
+    let intermediate_texture = render_device.create_texture(&TextureDescriptor {
+        label: Some("Bevy Vector Text Intermediate Texture"),
+        size: extent,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: intermediate_format,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
+    let intermediate_view = intermediate_texture.create_view(&Default::default());
+    let count_texture = render_device.create_texture(&TextureDescriptor {
+        label: Some("Bevy Vector Text Count Texture"),
+        size: extent,
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: TextureDimension::D2,
+        format: count_format,
+        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
+        view_formats: &[],
+    });
+    let count_view = count_texture.create_view(&Default::default());
+    let outline_uniforms = GpuOutlineUniforms {
+        width: extent.width,
+        padding: [0; 3],
+    };
+    let outline_uniform_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+        label: Some("Bevy Vector Text Outline Uniform Buffer"),
+        contents: cast_slice(&[outline_uniforms]),
+        usage: BufferUsages::UNIFORM,
+    });
+    let outline_bind_group = render_device.create_bind_group(
+        "Bevy Vector Text Canonical Outline Bind Group",
+        outline_layout,
+        &[
+            bevy::render::render_resource::BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::TextureView(&intermediate_view),
+            },
+            bevy::render::render_resource::BindGroupEntry {
+                binding: 1,
+                resource: BindingResource::Sampler(outline_sampler),
+            },
+            bevy::render::render_resource::BindGroupEntry {
+                binding: 2,
+                resource: outline_uniform_buffer.as_entire_binding(),
+            },
+            bevy::render::render_resource::BindGroupEntry {
+                binding: 3,
+                resource: BindingResource::TextureView(&count_view),
+            },
+        ],
+    );
+
+    CachedVectorTextView {
+        width: extent.width,
+        height: extent.height,
+        depth_or_array_layers: extent.depth_or_array_layers,
+        sample_count,
+        intermediate_format,
+        count_format,
+        _intermediate_texture: intermediate_texture,
+        intermediate_view,
+        _count_texture: count_texture,
+        count_view,
+        outline_bind_group,
+    }
+}
+
+fn vector_text_vertex_buffer_layouts() -> Vec<VertexBufferLayout> {
+    vec![
+        VertexBufferLayout {
+            array_stride: std::mem::size_of::<GpuVectorVertex>() as u64,
+            step_mode: bevy::render::render_resource::VertexStepMode::Vertex,
+            attributes: vec![
+                VertexAttribute {
+                    format: VertexFormat::Float32x2,
+                    offset: 0,
+                    shader_location: 0,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Uint32,
+                    offset: std::mem::size_of::<[f32; 2]>() as u64,
+                    shader_location: 1,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: std::mem::size_of::<[f32; 2]>() as u64
+                        + std::mem::size_of::<u32>() as u64,
+                    shader_location: 2,
+                },
+            ],
+        },
+        VertexBufferLayout {
+            array_stride: std::mem::size_of::<font_rasterizer::shader_contract::InstanceRaw>()
+                as u64,
+            step_mode: bevy::render::render_resource::VertexStepMode::Instance,
+            attributes: vec![
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: 0,
+                    shader_location: 5,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: 16,
+                    shader_location: 6,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: 32,
+                    shader_location: 7,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Float32x4,
+                    offset: 48,
+                    shader_location: 8,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Float32x3,
+                    offset: 64,
+                    shader_location: 9,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Uint32,
+                    offset: 76,
+                    shader_location: 10,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Uint32,
+                    offset: 80,
+                    shader_location: 11,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Float32,
+                    offset: 84,
+                    shader_location: 12,
+                },
+                VertexAttribute {
+                    format: VertexFormat::Uint32,
+                    offset: 88,
+                    shader_location: 13,
+                },
+            ],
+        },
+    ]
 }
 
 pub(crate) fn extract_vector_texts(
@@ -311,10 +555,24 @@ pub(crate) fn prepare_vector_text_buffers(
             contents: cast_slice(&geometry.data.indices),
             usage: BufferUsages::INDEX,
         });
+        let instance = font_rasterizer::shader_contract::InstanceRaw {
+            model: IDENTITY_MATRIX,
+            color: [geometry.color.x, geometry.color.y, geometry.color.z],
+            motion: 0,
+            start_time: 0,
+            gain: 0.0,
+            duration: 0,
+        };
+        let instance = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            label: Some("Bevy Vector Text Instance Buffer"),
+            contents: cast_slice(&[instance]),
+            usage: BufferUsages::VERTEX,
+        });
         buffers.values.insert(
             geometry.entity,
             GpuVectorTextBuffer {
                 vertex,
+                instance,
                 index,
                 index_count: geometry.data.indices.len() as u32,
             },
@@ -324,47 +582,80 @@ pub(crate) fn prepare_vector_text_buffers(
 
 pub(crate) fn init_vector_text_pipeline(
     mut commands: bevy::ecs::system::Commands,
-    shader: Res<VectorTextShader>,
+    fullscreen_shader: Res<VectorTextFullscreenShader>,
+    overlap_shader: Res<VectorTextOverlapShader>,
+    outline_shader: Res<VectorTextOutlineShader>,
     render_device: Res<RenderDevice>,
     pipeline_cache: Res<PipelineCache>,
 ) {
-    let pipeline_ids = [1, 2, 4, 8]
+    let overlap_layout_descriptor = BindGroupLayoutDescriptor::new(
+        "Bevy Vector Text Overlap Bind Group Layout",
+        &[BindGroupLayoutEntry {
+            binding: 0,
+            visibility: ShaderStages::VERTEX | ShaderStages::FRAGMENT,
+            ty: BindingType::Buffer {
+                ty: BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }],
+    );
+    let overlap_layout = render_device.create_bind_group_layout(
+        "Bevy Vector Text Overlap Bind Group Layout",
+        &overlap_layout_descriptor.entries,
+    );
+    let overlap_uniforms = font_rasterizer::shader_contract::OverlapUniforms {
+        view_proj: IDENTITY_MATRIX,
+        default_view_proj: IDENTITY_MATRIX,
+        time: 0,
+        width: 0,
+        enable_antialiasing: 1,
+        padding: [0],
+    };
+    let overlap_uniform_buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+        label: Some("Bevy Vector Text Overlap Uniform Buffer"),
+        contents: cast_slice(&[overlap_uniforms]),
+        usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+    });
+    let overlap_bind_group = render_device.create_bind_group(
+        "Bevy Vector Text Overlap Bind Group",
+        &overlap_layout,
+        &[bevy::render::render_resource::BindGroupEntry {
+            binding: 0,
+            resource: overlap_uniform_buffer.as_entire_binding(),
+        }],
+    );
+
+    let overlap_pipeline_ids = [false, true]
         .into_iter()
-        .map(|sample_count| {
+        .map(|even_odd| {
             let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
-                label: Some(format!("Bevy Vector Text Pipeline {sample_count}x MSAA").into()),
-                layout: vec![],
+                label: Some(
+                    format!(
+                        "Bevy Vector Text Canonical Overlap {}",
+                        if even_odd { "EvenOdd" } else { "NonZero" }
+                    )
+                    .into(),
+                ),
+                layout: vec![overlap_layout_descriptor.clone()],
                 vertex: VertexState {
-                    shader: shader.0.clone(),
-                    entry_point: Some("vertex".into()),
-                    buffers: vec![VertexBufferLayout {
-                        array_stride: std::mem::size_of::<GpuVectorVertex>() as u64,
-                        step_mode: bevy::render::render_resource::VertexStepMode::Vertex,
-                        attributes: vec![
-                            VertexAttribute {
-                                format: VertexFormat::Float32x2,
-                                offset: 0,
-                                shader_location: 0,
-                            },
-                            VertexAttribute {
-                                format: VertexFormat::Uint32,
-                                offset: std::mem::size_of::<[f32; 2]>() as u64,
-                                shader_location: 1,
-                            },
-                            VertexAttribute {
-                                format: VertexFormat::Float32x4,
-                                offset: std::mem::size_of::<[f32; 2]>() as u64
-                                    + std::mem::size_of::<u32>() as u64,
-                                shader_location: 2,
-                            },
-                        ],
-                    }],
+                    shader: overlap_shader.0.clone(),
+                    entry_point: Some("vs_main".into()),
+                    buffers: vector_text_vertex_buffer_layouts(),
                     ..Default::default()
                 },
                 fragment: Some(FragmentState {
-                    shader: shader.0.clone(),
+                    shader: overlap_shader.0.clone(),
                     shader_defs: vec![],
-                    entry_point: Some("fragment".into()),
+                    entry_point: Some(
+                        if even_odd {
+                            "fs_main_even_odd"
+                        } else {
+                            "fs_main_non_zero"
+                        }
+                        .into(),
+                    ),
                     targets: vec![
                         Some(ColorTargetState {
                             format: TextureFormat::Rgba8UnormSrgb,
@@ -390,18 +681,15 @@ pub(crate) fn init_vector_text_pipeline(
                     ],
                 }),
                 primitive: PrimitiveState::default(),
-                multisample: MultisampleState {
-                    count: sample_count,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
+                multisample: MultisampleState::default(),
                 ..Default::default()
             });
-            (sample_count, pipeline_id)
+            (even_odd, pipeline_id)
         })
         .collect();
-    let resolve_layout_descriptor = BindGroupLayoutDescriptor::new(
-        "Bevy Vector Text Resolve Bind Group Layout",
+
+    let outline_layout_descriptor = BindGroupLayoutDescriptor::new(
+        "Bevy Vector Text Canonical Outline Bind Group Layout",
         &[
             BindGroupLayoutEntry {
                 binding: 0,
@@ -422,8 +710,18 @@ pub(crate) fn init_vector_text_pipeline(
             BindGroupLayoutEntry {
                 binding: 2,
                 visibility: ShaderStages::FRAGMENT,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+            BindGroupLayoutEntry {
+                binding: 3,
+                visibility: ShaderStages::FRAGMENT,
                 ty: BindingType::Texture {
-                    sample_type: TextureSampleType::Float { filterable: false },
+                    sample_type: TextureSampleType::Float { filterable: true },
                     view_dimension: TextureViewDimension::D2,
                     multisampled: false,
                 },
@@ -431,37 +729,37 @@ pub(crate) fn init_vector_text_pipeline(
             },
         ],
     );
-    let resolve_layout = render_device.create_bind_group_layout(
-        "Bevy Vector Text Resolve Bind Group Layout",
-        &resolve_layout_descriptor.entries,
+    let outline_layout = render_device.create_bind_group_layout(
+        "Bevy Vector Text Canonical Outline Bind Group Layout",
+        &outline_layout_descriptor.entries,
     );
-    let resolve_sampler = render_device.create_sampler(&SamplerDescriptor::default());
-    let mut resolve_pipeline_ids = HashMap::new();
+    let outline_sampler = render_device.create_sampler(&SamplerDescriptor::default());
+    let mut outline_pipeline_ids = HashMap::new();
     for sample_count in [1, 2, 4, 8] {
         for even_odd in [false, true] {
             let pipeline_id = pipeline_cache.queue_render_pipeline(RenderPipelineDescriptor {
                 label: Some(
                     format!(
-                        "Bevy Vector Text Resolve Pipeline {sample_count}x MSAA {}",
+                        "Bevy Vector Text Canonical Outline {sample_count}x MSAA {}",
                         if even_odd { "EvenOdd" } else { "NonZero" }
                     )
                     .into(),
                 ),
-                layout: vec![resolve_layout_descriptor.clone()],
+                layout: vec![outline_layout_descriptor.clone()],
                 vertex: VertexState {
-                    shader: shader.0.clone(),
+                    shader: fullscreen_shader.0.clone(),
                     entry_point: Some("resolve_vertex".into()),
                     buffers: vec![],
                     ..Default::default()
                 },
                 fragment: Some(FragmentState {
-                    shader: shader.0.clone(),
+                    shader: outline_shader.0.clone(),
                     shader_defs: vec![],
                     entry_point: Some(
                         if even_odd {
-                            "resolve_fragment_even_odd"
+                            "fs_main_even_odd"
                         } else {
-                            "resolve_fragment_non_zero"
+                            "fs_main_non_zero"
                         }
                         .into(),
                     ),
@@ -479,44 +777,47 @@ pub(crate) fn init_vector_text_pipeline(
                 },
                 ..Default::default()
             });
-            resolve_pipeline_ids.insert((sample_count, even_odd), pipeline_id);
+            outline_pipeline_ids.insert((sample_count, even_odd), pipeline_id);
         }
     }
     commands.insert_resource(VectorTextPipeline {
-        pipeline_ids,
-        resolve_pipeline_ids,
-        resolve_layout,
-        resolve_sampler,
+        overlap_pipeline_ids,
+        outline_pipeline_ids,
+        overlap_bind_group,
+        outline_layout,
+        outline_sampler,
+        views: HashMap::new(),
     });
 }
 
 pub(crate) fn draw_vector_texts(
     view: ViewQuery<(&ViewTarget, &Msaa)>,
-    pipeline: Option<Res<VectorTextPipeline>>,
+    pipeline: Option<ResMut<VectorTextPipeline>>,
     fill_rule: Res<VectorTextFillRule>,
     pipeline_cache: Res<PipelineCache>,
     render_device: Res<RenderDevice>,
     buffers: Res<GpuVectorTextBuffers>,
     mut context: RenderContext,
 ) {
-    let Some(pipeline) = pipeline else {
+    let Some(mut pipeline) = pipeline else {
         return;
     };
+    let view_entity = view.entity();
     let (target, msaa) = view.into_inner();
-    let Some(pipeline_id) = pipeline.pipeline_ids.get(&1) else {
+    let even_odd = *fill_rule == VectorTextFillRule::EvenOdd;
+    let Some(pipeline_id) = pipeline.overlap_pipeline_ids.get(&even_odd) else {
         return;
     };
     let Some(glyph_pipeline) = pipeline_cache.get_render_pipeline(*pipeline_id) else {
         return;
     };
-    let even_odd = *fill_rule == VectorTextFillRule::EvenOdd;
-    let Some(resolve_pipeline_id) = pipeline
-        .resolve_pipeline_ids
+    let Some(outline_pipeline_id) = pipeline
+        .outline_pipeline_ids
         .get(&(msaa.samples(), even_odd))
     else {
         return;
     };
-    let Some(resolve_pipeline) = pipeline_cache.get_render_pipeline(*resolve_pipeline_id) else {
+    let Some(outline_pipeline) = pipeline_cache.get_render_pipeline(*outline_pipeline_id) else {
         return;
     };
     if buffers.values.is_empty() {
@@ -524,28 +825,25 @@ pub(crate) fn draw_vector_texts(
     }
 
     let extent = target.main_texture().size();
-    let intermediate = render_device.create_texture(&TextureDescriptor {
-        label: Some("Bevy Vector Text Intermediate Texture"),
-        size: extent,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: TextureDimension::D2,
-        format: TextureFormat::Rgba8UnormSrgb,
-        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-        view_formats: &[],
-    });
-    let intermediate_view = intermediate.create_view(&Default::default());
-    let count_texture = render_device.create_texture(&TextureDescriptor {
-        label: Some("Bevy Vector Text Count Texture"),
-        size: extent,
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: TextureDimension::D2,
-        format: TextureFormat::Rgba16Float,
-        usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-        view_formats: &[],
-    });
-    let count_view = count_texture.create_view(&Default::default());
+    let sample_count = msaa.samples();
+    let needs_refresh = pipeline
+        .views
+        .get(&view_entity)
+        .is_none_or(|cached| !cached.matches(extent, sample_count));
+    if needs_refresh {
+        let cached_view = create_cached_vector_text_view(
+            &render_device,
+            extent,
+            sample_count,
+            &pipeline.outline_layout,
+            &pipeline.outline_sampler,
+        );
+        pipeline.views.insert(view_entity, cached_view);
+    }
+    let cached_view = pipeline
+        .views
+        .get(&view_entity)
+        .expect("view resources were created or reused");
 
     {
         let mut render_pass = context.begin_tracked_render_pass(
@@ -553,7 +851,7 @@ pub(crate) fn draw_vector_texts(
                 label: Some("Bevy Vector Text Overlap Pass"),
                 color_attachments: &[
                     Some(bevy::render::render_resource::RenderPassColorAttachment {
-                        view: &intermediate_view,
+                        view: &cached_view.intermediate_view,
                         depth_slice: None,
                         resolve_target: None,
                         ops: bevy::render::render_resource::Operations {
@@ -562,7 +860,7 @@ pub(crate) fn draw_vector_texts(
                         },
                     }),
                     Some(bevy::render::render_resource::RenderPassColorAttachment {
-                        view: &count_view,
+                        view: &cached_view.count_view,
                         depth_slice: None,
                         resolve_target: None,
                         ops: bevy::render::render_resource::Operations {
@@ -578,8 +876,10 @@ pub(crate) fn draw_vector_texts(
             },
         );
         render_pass.set_render_pipeline(glyph_pipeline);
+        render_pass.set_bind_group(0, &pipeline.overlap_bind_group, &[]);
         for buffer in buffers.values.values() {
             render_pass.set_vertex_buffer(0, buffer.vertex.slice(..));
+            render_pass.set_vertex_buffer(1, buffer.instance.slice(..));
             render_pass.set_index_buffer(
                 buffer.index.slice(..),
                 bevy::render::render_resource::IndexFormat::Uint32,
@@ -588,34 +888,43 @@ pub(crate) fn draw_vector_texts(
         }
     }
 
-    let bind_group = render_device.create_bind_group(
-        "Bevy Vector Text Resolve Bind Group",
-        &pipeline.resolve_layout,
-        &[
-            bevy::render::render_resource::BindGroupEntry {
-                binding: 0,
-                resource: BindingResource::TextureView(&intermediate_view),
-            },
-            bevy::render::render_resource::BindGroupEntry {
-                binding: 1,
-                resource: BindingResource::Sampler(&pipeline.resolve_sampler),
-            },
-            bevy::render::render_resource::BindGroupEntry {
-                binding: 2,
-                resource: BindingResource::TextureView(&count_view),
-            },
-        ],
-    );
-    let mut resolve_pass =
+    let mut outline_pass =
         context.begin_tracked_render_pass(bevy::render::render_resource::RenderPassDescriptor {
-            label: Some("Bevy Vector Text Outline Resolve Pass"),
+            label: Some("Bevy Vector Text Canonical Outline Pass"),
             color_attachments: &[Some(target.get_color_attachment())],
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
             multiview_mask: None,
         });
-    resolve_pass.set_render_pipeline(resolve_pipeline);
-    resolve_pass.set_bind_group(0, &bind_group, &[]);
-    resolve_pass.draw(0..3, 0..1);
+    outline_pass.set_render_pipeline(outline_pipeline);
+    outline_pass.set_bind_group(0, &cached_view.outline_bind_group, &[]);
+    outline_pass.draw(0..3, 0..1);
+}
+
+pub(crate) fn cleanup_vector_text_view_cache(
+    mut pipeline: ResMut<VectorTextPipeline>,
+    active_views: Query<Entity, bevy::ecs::query::With<ViewTarget>>,
+) {
+    pipeline
+        .views
+        .retain(|view_entity, _| active_views.get(*view_entity).is_ok());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{bevy_outline_shader, bevy_overlap_shader};
+
+    #[test]
+    fn canonical_shader_adapters_preserve_vector_text_alpha() {
+        let overlap = bevy_overlap_shader(font_rasterizer::shader_sources::OVERLAP);
+        assert!(overlap.contains("@location(2) color: vec4<f32>"));
+        assert!(overlap.contains("out.alpha = model.color.a;"));
+        assert!(overlap.contains("output.color = vec4<f32>(in.color.rgb, in.alpha);"));
+
+        let outline = bevy_outline_shader(font_rasterizer::shader_sources::OUTLINE);
+        assert!(outline.contains("(1.0 - alpha) * color.a"));
+        assert!(outline.contains("alpha * color.a"));
+        assert!(outline.contains("return vec4<f32>(color.rgb, color.a);"));
+    }
 }
