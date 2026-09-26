@@ -99,6 +99,12 @@
 - extent、MSAA sample count、内部 texture format の変更時に cache を再作成
 - view entity が despawn したら render cache を cleanup
 
+### 10. VectorText の描画位置
+
+- `VectorText.position` と `with_position(Vec2)` を追加
+- clip-space 上の文字原点を `InstanceRaw.model` の translation に反映
+- 既定値 `(-0.9, 0.0)` で従来の geometry 初期位置を維持
+
 ## 検証済み
 
 - `cargo check -p bevy_vector_text --examples`
@@ -121,7 +127,7 @@
 - glyph 単位の vertex/index range
 - 文字位置・scale・rotation の instance data
 - `VectorText.font_size` を shader instance scale へ移動
-- Bevy `GlobalTransform` と canonical model matrix の接続
+- Bevy `GlobalTransform` と canonical model matrix の接続（現在の `position` は clip-space）
 - animation/motion flags の公開 API
 
 ### 2. visual regression

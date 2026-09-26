@@ -21,9 +21,12 @@ fn setup(mut commands: Commands) {
     }
      */
     commands.insert_resource(VectorTextFont::from_repository(&repository));
-    commands.spawn(VectorText::new(
-        "炊紙 / Bevy vector text",
-        64.0,
-        Vec4::new(0.95, 0.9, 0.75, 1.0),
-    ));
+    commands.spawn(
+        VectorText::new(
+            "炊紙 / Bevy vector text",
+            64.0,
+            Vec4::new(0.95, 0.9, 0.75, 1.0),
+        )
+        .with_position(Vec2::new(0.0, 0.0)),
+    );
 }

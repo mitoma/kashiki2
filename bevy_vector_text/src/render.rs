@@ -1,6 +1,6 @@
 use bevy::{
     mesh::VertexBufferLayout,
-    prelude::{Entity, Query, Res, ResMut, Resource, Vec4},
+    prelude::{Entity, Query, Res, ResMut, Resource, Vec2, Vec4},
     render::{
         Extract,
         render_resource::{
@@ -54,6 +54,15 @@ const IDENTITY_MATRIX: [[f32; 4]; 4] = [
     [0.0, 0.0, 1.0, 0.0],
     [0.0, 0.0, 0.0, 1.0],
 ];
+
+fn translation_matrix(position: Vec2) -> [[f32; 4]; 4] {
+    [
+        IDENTITY_MATRIX[0],
+        IDENTITY_MATRIX[1],
+        IDENTITY_MATRIX[2],
+        [position.x, position.y, 0.0, 1.0],
+    ]
+}
 
 pub(crate) fn bevy_overlap_shader(canonical_shader: &str) -> String {
     canonical_shader
@@ -115,6 +124,7 @@ pub(crate) struct ExtractedVectorGeometry {
     pub(crate) entity: Entity,
     pub(crate) data: font_rasterizer::VectorVertexData,
     pub(crate) color: Vec4,
+    pub(crate) position: Vec2,
 }
 
 #[derive(Default, Resource)]
@@ -388,6 +398,7 @@ pub(crate) fn extract_vector_geometries(
                 entity,
                 data: geometry.data.clone(),
                 color: text.color,
+                position: text.position,
             }),
     );
 }
@@ -422,7 +433,7 @@ pub(crate) fn prepare_vector_text_buffers(
             usage: BufferUsages::INDEX,
         });
         let instance = font_rasterizer::shader_contract::InstanceRaw {
-            model: IDENTITY_MATRIX,
+            model: translation_matrix(geometry.position),
             color: [geometry.color.x, geometry.color.y, geometry.color.z],
             motion: 0,
             start_time: 0,
@@ -779,7 +790,9 @@ pub(crate) fn cleanup_vector_text_view_cache(
 
 #[cfg(test)]
 mod tests {
-    use super::{bevy_outline_shader, bevy_overlap_shader};
+    use bevy::prelude::Vec2;
+
+    use super::{bevy_outline_shader, bevy_overlap_shader, translation_matrix};
 
     #[test]
     fn canonical_shader_adapters_preserve_vector_text_alpha() {
@@ -792,5 +805,12 @@ mod tests {
         assert!(outline.contains("(1.0 - alpha) * color.a"));
         assert!(outline.contains("alpha * color.a"));
         assert!(outline.contains("return vec4<f32>(color.rgb, color.a);"));
+    }
+
+    #[test]
+    fn text_position_is_written_to_model_translation_column() {
+        let model = translation_matrix(Vec2::new(0.25, -0.5));
+
+        assert_eq!(model[3], [0.25, -0.5, 0.0, 1.0]);
     }
 }

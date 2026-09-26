@@ -24,6 +24,8 @@ pub struct VectorText {
     pub text: String,
     pub font_size: f32,
     pub color: Vec4,
+    /// Text origin in clip-space coordinates.
+    pub position: Vec2,
 }
 
 #[derive(Component, Clone, Debug, ExtractComponent)]
@@ -68,7 +70,13 @@ impl VectorText {
             text: text.into(),
             font_size,
             color,
+            position: Vec2::new(-0.9, 0.0),
         }
+    }
+
+    pub fn with_position(mut self, position: Vec2) -> Self {
+        self.position = position;
+        self
     }
 }
 
@@ -158,7 +166,7 @@ fn update_vector_text_geometry(
 
 fn build_text_geometry(font: &VectorTextFont, text: &VectorText) -> VectorVertexData {
     let scale = text.font_size / 256.0;
-    let mut advance = -0.9;
+    let mut advance = 0.0;
     let mut positions = Vec::new();
     let mut vertex_types = Vec::new();
     let mut indices = Vec::new();
@@ -194,5 +202,21 @@ fn build_text_geometry(font: &VectorTextFont, text: &VectorText) -> VectorVertex
         positions,
         vertex_types,
         indices,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy::prelude::{Vec2, Vec4};
+
+    use super::VectorText;
+
+    #[test]
+    fn vector_text_position_defaults_and_can_be_overridden() {
+        let default = VectorText::new("text", 16.0, Vec4::ONE);
+        assert_eq!(default.position, Vec2::new(-0.9, 0.0));
+
+        let positioned = default.with_position(Vec2::new(0.25, -0.5));
+        assert_eq!(positioned.position, Vec2::new(0.25, -0.5));
     }
 }
