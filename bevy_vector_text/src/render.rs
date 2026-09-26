@@ -77,6 +77,10 @@ struct OverlapOutput {
     @location(1) count: vec4<f32>,
 };
 
+fn linerstep(edge0: f32, edge1: f32, value: f32) -> f32 {
+    return clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
+}
+
 @fragment
 fn fragment(@builtin(front_facing) front_facing: bool, input: VertexOutput) -> OverlapOutput {
     let is_bezier = input.triangle_type.x > 0.5;
@@ -84,9 +88,13 @@ fn fragment(@builtin(front_facing) front_facing: bool, input: VertexOutput) -> O
     let is_line = input.triangle_type.z > 0.5;
     let bezier_distance = pow(input.wait.x * 0.5 + input.wait.y, 2.0) - input.wait.y;
     let bezier_width = max(fwidth(bezier_distance), 0.0001);
-    let bezier_alpha = 1.0 - clamp(abs(bezier_distance) / bezier_width, 0.0, 1.0);
+    let bezier_alpha = 1.0 - linerstep(
+        -bezier_width / 2.0,
+        bezier_width / 2.0,
+        abs(bezier_distance),
+    );
     let line_width = max(fwidth(input.wait.x), 0.0001);
-    let line_alpha = 1.0 - clamp(abs(input.wait.x) / line_width, 0.0, 1.0);
+    let line_alpha = 1.0 - linerstep(-line_width / 2.0, line_width / 2.0, abs(input.wait.x));
     let in_range = all(input.wait >= vec3<f32>(0.0)) && all(input.wait <= vec3<f32>(1.0));
     let winding_sign = select(-1.0, 1.0, front_facing);
     var output: OverlapOutput;
