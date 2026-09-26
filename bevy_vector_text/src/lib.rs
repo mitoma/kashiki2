@@ -30,6 +30,13 @@ pub struct VectorTextGeometry {
     pub data: VectorVertexData,
 }
 
+#[derive(Resource, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum VectorTextFillRule {
+    EvenOdd,
+    #[default]
+    NonZero,
+}
+
 #[derive(Resource)]
 pub struct VectorTextFont {
     fonts: Arc<Vec<FontData>>,
@@ -77,6 +84,7 @@ impl Plugin for VectorTextPlugin {
             .resource_mut::<Assets<Shader>>()
             .add(Shader::from_wgsl(render::VECTOR_TEXT_SHADER, file!()));
         app.register_type::<VectorText>()
+            .init_resource::<VectorTextFillRule>()
             .add_plugins((
                 ExtractComponentPlugin::<VectorText>::default(),
                 ExtractComponentPlugin::<VectorTextGeometry>::default(),
@@ -89,6 +97,7 @@ impl Plugin for VectorTextPlugin {
                 .init_resource::<render::PreparedVectorTexts>()
                 .init_resource::<render::ExtractedVectorGeometries>()
                 .init_resource::<render::GpuVectorTextBuffers>()
+                .init_resource::<VectorTextFillRule>()
                 .insert_resource(render::VectorTextShader(shader))
                 .add_systems(ExtractSchedule, render::extract_vector_texts)
                 .add_systems(ExtractSchedule, render::extract_vector_geometries)
