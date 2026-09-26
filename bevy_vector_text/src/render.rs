@@ -177,6 +177,10 @@ fn resolve_fragment_non_zero(input: ResolveOutput) -> @location(0) vec4<f32> {
 }
 "#;
 
+pub(crate) fn bevy_adapter_shader(_canonical_overlap_shader: &str) -> String {
+    VECTOR_TEXT_SHADER.to_owned()
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub(crate) struct ExtractedVectorText {

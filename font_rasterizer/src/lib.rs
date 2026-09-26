@@ -21,6 +21,8 @@ mod screen_bind_group;
 mod screen_texture;
 mod screen_vertex_buffer;
 pub mod shader_art_bind_group;
+pub mod shader_contract;
+pub mod shader_sources;
 mod straight_run_simplifier;
 mod straighten_outline_builder;
 pub mod svg;

@@ -8,6 +8,7 @@ use bevy::{
     shader::Shader,
 };
 use font_collector::{FontData, FontRepository};
+use font_rasterizer::shader_sources;
 use font_rasterizer::{
     VectorVertexData, char_width_calcurator::CharWidthCalculator,
     font_converter::convert_char_to_vector_vertices,
@@ -82,7 +83,10 @@ impl Plugin for VectorTextPlugin {
         let shader = app
             .world_mut()
             .resource_mut::<Assets<Shader>>()
-            .add(Shader::from_wgsl(render::VECTOR_TEXT_SHADER, file!()));
+            .add(Shader::from_wgsl(
+                render::bevy_adapter_shader(shader_sources::OVERLAP),
+                file!(),
+            ));
         app.register_type::<VectorText>()
             .init_resource::<VectorTextFillRule>()
             .add_plugins((
