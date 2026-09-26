@@ -82,8 +82,10 @@ impl Plugin for VectorTextPlugin {
     fn build(&self, app: &mut App) {
         let (fullscreen_shader, overlap_shader, outline_shader) = {
             let mut shader_assets = app.world_mut().resource_mut::<Assets<Shader>>();
-            let fullscreen_shader =
-                shader_assets.add(Shader::from_wgsl(render::bevy_adapter_shader(""), file!()));
+            let fullscreen_shader = shader_assets.add(Shader::from_wgsl(
+                render::VECTOR_TEXT_FULLSCREEN_SHADER.to_owned(),
+                file!(),
+            ));
             let overlap_shader = shader_assets.add(Shader::from_wgsl(
                 render::bevy_overlap_shader(shader_sources::OVERLAP),
                 file!(),

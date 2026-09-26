@@ -80,7 +80,7 @@
   - `OverlapUniforms`
   - `InstanceRaw`
 - Bevy adapter が canonical shader source を受け取る接続点を追加
-- canonical source を overlap / outline pipeline で実行し、fullscreen vertex のみ Bevy adapter shader から再利用
+- canonical source を overlap / outline pipeline で実行し、outline 用 fullscreen vertex shader は専用 source として定義
 - overlap adapter で `VectorText.color.a` を引き継ぎ、outline output alpha に適用
 
 ### 8. Bevy uniform / instance buffer の準備

@@ -23,111 +23,7 @@ use std::collections::HashMap;
 
 use crate::{VectorText, VectorTextFillRule, VectorTextGeometry};
 
-pub(crate) const VECTOR_TEXT_SHADER: &str = r#"
-struct VertexInput {
-    @location(0) position: vec2<f32>,
-    @location(1) vertex_type: u32,
-    @location(2) color: vec4<f32>,
-};
-
-struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) color: vec4<f32>,
-    @location(1) wait: vec3<f32>,
-    @location(2) triangle_type: vec3<f32>,
-};
-
-@vertex
-fn vertex(input: VertexInput) -> VertexOutput {
-    var output: VertexOutput;
-    output.position = vec4<f32>(input.position, 0.0, 1.0);
-    output.color = input.color;
-    if input.vertex_type == 0u {
-        output.wait = vec3<f32>(1.0, 0.0, 0.0);
-        output.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
-    } else if input.vertex_type == 7u {
-        output.wait = vec3<f32>(0.0, 1.0, 0.0);
-        output.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
-    } else if input.vertex_type == 8u {
-        output.wait = vec3<f32>(0.0, 0.0, 1.0);
-        output.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
-    } else if input.vertex_type == 1u {
-        output.wait = vec3<f32>(1.0, 0.0, 0.0);
-        output.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
-    } else if input.vertex_type == 3u {
-        output.wait = vec3<f32>(0.0, 1.0, 0.0);
-        output.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
-    } else if input.vertex_type == 5u {
-        output.wait = vec3<f32>(0.0, 0.0, 1.0);
-        output.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
-    } else if input.vertex_type == 2u {
-        output.wait = vec3<f32>(0.0, 1.0, 0.0);
-        output.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
-    } else if input.vertex_type == 4u {
-        output.wait = vec3<f32>(0.0, 0.0, 1.0);
-        output.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
-    } else {
-        output.wait = vec3<f32>(1.0, 0.0, 0.0);
-        output.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
-    }
-    return output;
-}
-
-struct OverlapOutput {
-    @location(0) color: vec4<f32>,
-    @location(1) count: vec4<f32>,
-};
-
-fn linerstep(edge0: f32, edge1: f32, value: f32) -> f32 {
-    return clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
-}
-
-@fragment
-fn fragment(@builtin(front_facing) front_facing: bool, input: VertexOutput) -> OverlapOutput {
-    let is_bezier = input.triangle_type.x > 0.5;
-    let is_bezier_line = input.triangle_type.y > 0.5;
-    let is_line = input.triangle_type.z > 0.5;
-    let bezier_distance = pow(input.wait.x * 0.5 + input.wait.y, 2.0) - input.wait.y;
-    let bezier_width = max(fwidth(bezier_distance), 0.0001);
-    let bezier_alpha = 1.0 - linerstep(
-        -bezier_width / 2.0,
-        bezier_width / 2.0,
-        abs(bezier_distance),
-    );
-    let line_width = max(fwidth(input.wait.x), 0.0001);
-    let line_alpha = 1.0 - linerstep(-line_width / 2.0, line_width / 2.0, abs(input.wait.x));
-    let in_range = all(input.wait >= vec3<f32>(0.0)) && all(input.wait <= vec3<f32>(1.0));
-    let winding_sign = select(-1.0, 1.0, front_facing);
-    var output: OverlapOutput;
-    output.color = vec4<f32>(input.color.rgb, input.color.a);
-    output.count = vec4<f32>(0.0);
-    if is_bezier && in_range {
-        if bezier_distance < 0.0 {
-            output.count.r = winding_sign;
-        }
-        if bezier_alpha > 0.001 && bezier_alpha < 0.999 {
-            output.count.g = bezier_alpha * winding_sign;
-            output.count.b = 1.0;
-        }
-    } else if is_bezier_line && in_range {
-        output.count.r = winding_sign;
-    } else if is_line && in_range {
-        output.count.r = winding_sign;
-        if line_alpha > 0.001 && line_alpha < 0.999 {
-            output.count.g = line_alpha * winding_sign;
-            output.count.b = 1.0;
-        }
-    }
-    return output;
-}
-
-@group(0) @binding(0)
-var source_texture: texture_2d<f32>;
-@group(0) @binding(1)
-var source_sampler: sampler;
-@group(0) @binding(2)
-var count_texture: texture_2d<f32>;
-
+pub(crate) const VECTOR_TEXT_FULLSCREEN_SHADER: &str = r#"
 struct ResolveOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
@@ -150,32 +46,6 @@ fn resolve_vertex(@builtin(vertex_index) index: u32) -> ResolveOutput {
     output.uv = uvs[index];
     return output;
 }
-
-fn resolve_fragment_impl(uv_input: vec2<f32>, even_odd: bool) -> vec4<f32> {
-    let source = textureSample(source_texture, source_sampler, uv_input);
-    let uv = clamp(uv_input, vec2<f32>(0.0), vec2<f32>(0.999999));
-    let size = vec2<f32>(textureDimensions(count_texture));
-    let counts = textureLoad(count_texture, vec2<i32>(uv * size), 0);
-    let non_zero_coverage = select(
-        clamp(abs(counts.g) / max(counts.b, 1.0), 0.0, 1.0),
-        clamp(abs(counts.r), 0.0, 1.0),
-        counts.b == 0.0,
-    );
-    let crossings = abs(counts.r);
-    let even_odd_coverage = crossings - 2.0 * floor(crossings * 0.5);
-    let coverage = select(non_zero_coverage, even_odd_coverage, even_odd);
-    return vec4<f32>(source.rgb, min(source.a, clamp(coverage, 0.0, 1.0)));
-}
-
-@fragment
-fn resolve_fragment_even_odd(input: ResolveOutput) -> @location(0) vec4<f32> {
-    return resolve_fragment_impl(input.uv, true);
-}
-
-@fragment
-fn resolve_fragment_non_zero(input: ResolveOutput) -> @location(0) vec4<f32> {
-    return resolve_fragment_impl(input.uv, false);
-}
 "#;
 
 const IDENTITY_MATRIX: [[f32; 4]; 4] = [
@@ -184,10 +54,6 @@ const IDENTITY_MATRIX: [[f32; 4]; 4] = [
     [0.0, 0.0, 1.0, 0.0],
     [0.0, 0.0, 0.0, 1.0],
 ];
-
-pub(crate) fn bevy_adapter_shader(_canonical_overlap_shader: &str) -> String {
-    VECTOR_TEXT_SHADER.to_owned()
-}
 
 pub(crate) fn bevy_overlap_shader(canonical_shader: &str) -> String {
     canonical_shader
