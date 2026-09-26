@@ -5,4 +5,6 @@ edition = "2024"
 
 [dependencies]
 bevy = "0.19.1"
+bytemuck = { version = "1.25.0", features = ["derive"] }
+font_collector = { path = "../font_collector" }
 font_rasterizer = { path = "../font_rasterizer" }

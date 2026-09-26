@@ -2140,6 +2140,8 @@ name = "bevy_vector_text"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bytemuck",
+ "font_collector",
  "font_rasterizer",
 ]
 
