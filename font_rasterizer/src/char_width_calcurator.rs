@@ -1,9 +1,9 @@
-use std::sync::{Arc, LazyLock};
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, RwLock};
 
-use cached::cached;
 use font_collector::FontData;
 use log::debug;
-use phisical_layouter::CharWidthResolver;
+use phisical_layouter::{CharWidthResolver, PhysicalLayoutMode};
 use skrifa::{
     FontRef, MetadataProvider,
     instance::{LocationRef, Size},
@@ -12,25 +12,74 @@ use unicode_width::UnicodeWidthChar;
 
 pub struct CharWidthCalculator {
     faces: Arc<Vec<FontData>>,
+    is_proportional_font: bool,
+    widths: RwLock<HashMap<char, CharWidth>>,
 }
 
 impl CharWidthCalculator {
     pub fn new(faces: Arc<Vec<FontData>>) -> Self {
-        Self { faces }
+        let is_proportional_font = detect_proportional_font(&faces);
+        Self {
+            faces,
+            is_proportional_font,
+            widths: RwLock::new(HashMap::new()),
+        }
     }
 
     pub fn get_width(&self, c: char) -> CharWidth {
-        inner_get_width(&self.faces, c)
+        if let Some(width) = self.widths.read().unwrap().get(&c) {
+            return *width;
+        }
+
+        let width = inner_get_width(&self.faces, c, self.is_proportional_font);
+        self.widths.write().unwrap().insert(c, width);
+        width
+    }
+
+    pub fn is_proportional_font(&self) -> bool {
+        self.is_proportional_font
     }
 
     pub fn len(&self, text: &str) -> usize {
         text.chars()
-            .map(|c| match self.get_width(c) {
-                crate::char_width_calcurator::CharWidth::Regular => 1,
-                crate::char_width_calcurator::CharWidth::Wide => 2,
-            })
-            .sum()
+            .map(|c| self.get_width(c).to_f32() * 2.0)
+            .sum::<f32>()
+            .ceil() as usize
     }
+}
+
+fn detect_proportional_font(faces: &[FontData]) -> bool {
+    const PROBE_CHARS: [char; 5] = ['i', 'M', 'W', '0', ' '];
+
+    for face in faces {
+        let Ok(font) = FontRef::from_index(&face.binary, face.index) else {
+            continue;
+        };
+        let glyph_metrics = font.glyph_metrics(Size::unscaled(), LocationRef::default());
+        let advances = PROBE_CHARS
+            .iter()
+            .filter_map(|c| font.charmap().map(*c))
+            .filter_map(|glyph_id| glyph_metrics.advance_width(glyph_id))
+            .collect::<Vec<_>>();
+        if advances.len() != PROBE_CHARS.len() {
+            continue;
+        }
+
+        let units_per_em = font
+            .metrics(Size::unscaled(), LocationRef::default())
+            .units_per_em;
+        return has_proportional_advances(&advances, units_per_em as f32);
+    }
+    false
+}
+
+fn has_proportional_advances(advances: &[f32], units_per_em: f32) -> bool {
+    if advances.is_empty() || !units_per_em.is_finite() || units_per_em <= 0.0 {
+        return false;
+    }
+    let min_advance = advances.iter().copied().fold(f32::INFINITY, f32::min);
+    let max_advance = advances.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    max_advance - min_advance > units_per_em * 0.02
 }
 
 static SPECIAL_WIDE_CHARS: LazyLock<Vec<char>> = LazyLock::new(|| {
@@ -42,12 +91,21 @@ static SPECIAL_WIDE_CHARS: LazyLock<Vec<char>> = LazyLock::new(|| {
     v
 });
 
-#[cached(key = "char", convert = "{ c }")]
-fn inner_get_width(faces: &[FontData], c: char) -> CharWidth {
+fn inner_get_width(faces: &[FontData], c: char, is_proportional_font: bool) -> CharWidth {
     debug!("char:{:?}", c);
     if SPECIAL_WIDE_CHARS.contains(&c) {
         debug!("reson:special_wide_chars");
         return CharWidth::Wide;
+    }
+    if is_proportional_font {
+        for font in faces
+            .iter()
+            .flat_map(|f| FontRef::from_index(&f.binary, f.index).ok())
+        {
+            if let Some(width) = calc_proportional_width(c, &font) {
+                return width;
+            }
+        }
     }
     if c.is_ascii() {
         debug!("reson:ascii");
@@ -70,6 +128,23 @@ fn inner_get_width(faces: &[FontData], c: char) -> CharWidth {
     }
 }
 
+fn calc_proportional_width(c: char, font: &FontRef) -> Option<CharWidth> {
+    let glyph_id = font.charmap().map(c)?;
+    let units_per_em = font
+        .metrics(Size::unscaled(), LocationRef::default())
+        .units_per_em as f32;
+    if units_per_em <= 0.0 {
+        return None;
+    }
+    let advance = font
+        .glyph_metrics(Size::unscaled(), LocationRef::default())
+        .advance_width(glyph_id)?;
+    if !advance.is_finite() || advance < 0.0 {
+        return None;
+    }
+    Some(CharWidth::Proportional(advance / units_per_em))
+}
+
 fn calc_width(c: char, font: &FontRef) -> Option<CharWidth> {
     let glyph_id = font.charmap().map(c)?;
     let metrics = font.metrics(Size::unscaled(), LocationRef::default());
@@ -90,6 +165,7 @@ fn calc_width(c: char, font: &FontRef) -> Option<CharWidth> {
 pub enum CharWidth {
     Regular,
     Wide,
+    Proportional(f32),
 }
 
 impl CharWidth {
@@ -98,6 +174,7 @@ impl CharWidth {
         match self {
             CharWidth::Regular => -0.25,
             CharWidth::Wide => 0.0,
+            CharWidth::Proportional(width) => (width - 1.0) / 2.0,
         }
     }
 
@@ -106,6 +183,7 @@ impl CharWidth {
         match self {
             CharWidth::Regular => 0.75,
             CharWidth::Wide => 1.0,
+            CharWidth::Proportional(width) => (width + 1.0) / 2.0,
         }
     }
 
@@ -114,6 +192,7 @@ impl CharWidth {
         match self {
             CharWidth::Regular => 0.5,
             CharWidth::Wide => 1.0,
+            CharWidth::Proportional(width) => width,
         }
     }
 }
@@ -123,6 +202,19 @@ impl CharWidthResolver for CharWidthCalculator {
         match self.get_width(c) {
             CharWidth::Regular => 1,
             CharWidth::Wide => 2,
+            CharWidth::Proportional(width) => (width * 2.0).round().max(0.0) as usize,
+        }
+    }
+
+    fn resolve_proportional_width(&self, c: char) -> f32 {
+        self.get_width(c).to_f32() * 2.0
+    }
+
+    fn layout_mode(&self) -> PhysicalLayoutMode {
+        if self.is_proportional_font {
+            PhysicalLayoutMode::Proportional
+        } else {
+            PhysicalLayoutMode::Cell
         }
     }
 }
@@ -133,7 +225,7 @@ mod test {
 
     use font_collector::FontCollector;
 
-    use super::{CharWidth, CharWidthCalculator};
+    use super::{CharWidth, CharWidthCalculator, has_proportional_advances};
 
     const FONT_DATA: &[u8] = include_bytes!("../../fonts/BIZUDMincho-Regular.ttf");
     const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf");
@@ -188,5 +280,19 @@ mod test {
             let actual = converter.get_width(c);
             assert_eq!(actual, expected, "char:{}", c);
         }
+    }
+
+    #[test]
+    fn detects_proportional_advances() {
+        assert!(!has_proportional_advances(&[600.0, 600.0, 600.0], 1000.0));
+        assert!(has_proportional_advances(&[300.0, 600.0, 900.0], 1000.0));
+        assert!(!has_proportional_advances(&[], 1000.0));
+    }
+
+    #[test]
+    fn proportional_width_preserves_advance() {
+        let width = CharWidth::Proportional(0.6);
+        assert_eq!(width.to_f32(), 0.6);
+        assert!((width.left() + width.right() - width.to_f32()).abs() < f32::EPSILON);
     }
 }

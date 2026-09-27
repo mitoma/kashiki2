@@ -847,6 +847,10 @@ fn calc_rotation(
             match width {
                 CharWidth::Regular => Some(Quat::from_axis_angle(Vec3::Z, -90.0f32.to_radians())),
                 CharWidth::Wide => None,
+                CharWidth::Proportional(width) if width < 1.0 => {
+                    Some(Quat::from_axis_angle(Vec3::Z, -90.0f32.to_radians()))
+                }
+                CharWidth::Proportional(_) => None,
             }
         }
     }

@@ -59,6 +59,12 @@ impl PhysicalLayoutMode {
     }
 }
 
+impl PhysicalLayout {
+    pub fn column_to_legacy_units(&self, col: usize) -> f32 {
+        col as f32 / self.mode.column_scale() as f32
+    }
+}
+
 /// 禁則文字の定義を持つ enum
 pub struct LineBoundaryProhibitedChars {
     pub start: Vec<char>,
@@ -88,6 +94,10 @@ impl Default for LineBoundaryProhibitedChars {
 pub trait CharWidthResolver {
     fn resolve_width(&self, char: char) -> usize;
 
+    fn layout_mode(&self) -> PhysicalLayoutMode {
+        PhysicalLayoutMode::Cell
+    }
+
     /// 文字幅を従来の列単位で返す。プロポーショナルモードでは小数を指定できる。
     fn resolve_proportional_width(&self, char: char) -> f32 {
         self.resolve_width(char) as f32
@@ -101,13 +111,14 @@ pub fn calc_phisical_layout(
     width_resolver: Arc<dyn CharWidthResolver>,
     preedit_string: Option<String>,
 ) -> PhysicalLayout {
+    let mode = width_resolver.layout_mode();
     calc_phisical_layout_with_mode(
         editor,
         max_line_width,
         line_boundary_prohibited_chars,
         width_resolver,
         preedit_string,
-        PhysicalLayoutMode::Cell,
+        mode,
     )
 }
 
@@ -778,6 +789,10 @@ mod tests {
             1
         }
 
+        fn layout_mode(&self) -> PhysicalLayoutMode {
+            PhysicalLayoutMode::Proportional
+        }
+
         fn resolve_proportional_width(&self, c: char) -> f32 {
             match c {
                 'i' => 0.5,
@@ -880,13 +895,12 @@ mod tests {
     fn proportional_mode_tracks_fractional_character_widths() {
         let editor = run_ops(&[EditorOperation::InsertString("iW".to_string())]);
 
-        let layout = calc_phisical_layout_with_mode(
+        let layout = calc_phisical_layout(
             &editor,
             10,
             &LineBoundaryProhibitedChars::new(vec![], vec![]),
             Arc::new(FractionalWidthResolver),
             None,
-            PhysicalLayoutMode::Proportional,
         );
 
         assert_eq!(layout.mode, PhysicalLayoutMode::Proportional);

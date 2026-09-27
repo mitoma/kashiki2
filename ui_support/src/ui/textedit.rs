@@ -8,7 +8,8 @@ use std::{
 
 use glam::{Quat, Vec3};
 use phisical_layouter::{
-    CharWidthResolver, PhysicalLayout, calc_phisical_layout as calc_editor_layout,
+    CharWidthResolver, PhysicalLayout, PhysicalLayoutMode,
+    calc_phisical_layout as calc_editor_layout,
 };
 use text_buffer::{
     action::EditorOperation,
@@ -585,7 +586,13 @@ impl TextEdit {
                 continue;
             }
             candidates.push((buffer_char.position, pos.col));
-            let char_width = width_resolver.resolve_width(buffer_char.c);
+            let char_width = match layout.mode {
+                PhysicalLayoutMode::Cell => width_resolver.resolve_width(buffer_char.c),
+                PhysicalLayoutMode::Proportional => (width_resolver
+                    .resolve_proportional_width(buffer_char.c)
+                    * layout.mode.column_scale() as f32)
+                    .round() as usize,
+            };
             candidates.push((
                 CellPosition {
                     row: buffer_char.position.row,
@@ -775,14 +782,23 @@ impl TextEdit {
     #[inline]
     fn calc_bound(&mut self, layout: &PhysicalLayout) -> [f32; 2] {
         // update bound
-        let (max_col, max_row) = layout.chars.iter().fold((0, 0), |result, (_, pos)| {
-            (result.0.max(pos.col), result.1.max(pos.row))
-        });
+        let (max_col, max_row) = layout
+            .chars
+            .iter()
+            .fold((0.0f32, 0usize), |result, (_, pos)| {
+                (
+                    result.0.max(layout.column_to_legacy_units(pos.col)),
+                    result.1.max(pos.row),
+                )
+            });
         // 行末にメインキャレットだけある場合に画面外にキャレットがいかないように結果を補正する
-        let (max_col, max_row) = (max_col, max_row.max(layout.main_caret_pos.row));
+        let (max_col, max_row) = (
+            max_col.max(layout.column_to_legacy_units(layout.main_caret_pos.col)),
+            max_row.max(layout.main_caret_pos.row),
+        );
         let (max_col, max_row) = if self.border != ModelBorder::None {
             // border がある場合は border の幅を考慮して bound を大きくする
-            (max_col + 1, max_row + 1)
+            (max_col + 1.0, max_row + 1)
         } else {
             (max_col, max_row)
         };
@@ -791,7 +807,7 @@ impl TextEdit {
             &self.config,
             CharWidth::Wide, /* この指定に深い意図はない */
             [0.0, 0.0],      /* bound の計算時には考慮不要なのでゼロのベクトルを渡す */
-            [max_col, max_row],
+            [max_col, max_row as f32],
         );
         // get_adjusted_position は「最後のセルの基準位置」までしか返さないため、
         // 1セル分の実サイズを加算して外接矩形としての bound を作る。
@@ -821,8 +837,12 @@ impl TextEdit {
         // update char position
         layout.chars.iter().for_each(|(c, pos)| {
             let width = char_width_calcurator.get_width(c.c);
-            let position =
-                Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+            let position = Self::get_adjusted_position(
+                &self.config,
+                width,
+                bound,
+                [layout.column_to_legacy_units(pos.col), pos.row as f32],
+            );
             let position = Self::apply_render_anchor_offset(&self.config, position);
             self.char_states.update_state(
                 c,
@@ -841,8 +861,12 @@ impl TextEdit {
             .zip(preedit_chars.iter())
             .for_each(|((_, pos), c)| {
                 let width = char_width_calcurator.get_width(c.c);
-                let position =
-                    Self::get_adjusted_position(&self.config, width, bound, [pos.col, pos.row]);
+                let position = Self::get_adjusted_position(
+                    &self.config,
+                    width,
+                    bound,
+                    [layout.column_to_legacy_units(pos.col), pos.row as f32],
+                );
                 let position = Self::apply_render_anchor_offset(&self.config, position);
                 self.char_states.update_state(
                     c,
@@ -862,7 +886,10 @@ impl TextEdit {
                 &self.config,
                 caret_width,
                 bound,
-                [layout.main_caret_pos.col, layout.main_caret_pos.row],
+                [
+                    layout.column_to_legacy_units(layout.main_caret_pos.col),
+                    layout.main_caret_pos.row as f32,
+                ],
             );
             let position = Self::apply_render_anchor_offset(&self.config, position);
             self.caret_states.update_state_position_and_scale(
@@ -877,7 +904,10 @@ impl TextEdit {
                 &self.config,
                 caret_width,
                 bound,
-                [mark_pos.col, mark_pos.row],
+                [
+                    layout.column_to_legacy_units(mark_pos.col),
+                    mark_pos.row as f32,
+                ],
             );
             let position = Self::apply_render_anchor_offset(&self.config, position);
             self.caret_states.update_state_position_and_scale(
@@ -898,10 +928,10 @@ impl TextEdit {
         config: &TextContext,
         char_width: CharWidth,
         [bound_x, _bound_y]: [f32; 2],
-        [x, y]: [usize; 2],
+        [x, y]: [f32; 2],
     ) -> [f32; 3] {
-        let x = ((x as f32) / 2.0 + char_width.left()) * config.col_interval;
-        let y = y as f32 * config.row_interval;
+        let x = (x / 2.0 + char_width.left()) * config.col_interval;
+        let y = y * config.row_interval;
         match config.direction {
             Direction::Horizontal => [x, -y, 0.0],
             Direction::Vertical => [bound_x - y, -x, 0.0],
