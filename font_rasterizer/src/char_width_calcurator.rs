@@ -18,11 +18,30 @@ pub struct CharWidthCalculator {
 
 impl CharWidthCalculator {
     pub fn new(faces: Arc<Vec<FontData>>) -> Self {
-        let is_proportional_font = detect_proportional_font(&faces);
+        Self::new_with_ascii_override(faces, None)
+    }
+
+    pub fn new_with_ascii_override(
+        faces: Arc<Vec<FontData>>,
+        ascii_override_font: Option<&FontData>,
+    ) -> Self {
+        let is_proportional_font = detect_proportional_font(&faces)
+            || ascii_override_font
+                .is_some_and(|font| detect_proportional_font(std::slice::from_ref(font)));
+        let mut widths = HashMap::new();
+        if let Some(font) = ascii_override_font
+            && let Ok(font) = FontRef::from_index(&font.binary, font.index)
+        {
+            for c in (0u8..=127).map(char::from) {
+                if let Some(width) = calc_proportional_width(c, &font) {
+                    widths.insert(c, width);
+                }
+            }
+        }
         Self {
             faces,
             is_proportional_font,
-            widths: RwLock::new(HashMap::new()),
+            widths: RwLock::new(widths),
         }
     }
 
@@ -294,5 +313,22 @@ mod test {
         let width = CharWidth::Proportional(0.6);
         assert_eq!(width.to_f32(), 0.6);
         assert!((width.left() + width.right() - width.to_f32()).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn ascii_override_font_supplies_ascii_widths() {
+        let collector = FontCollector::default();
+        let override_font = collector.convert_font(FONT_DATA.to_vec(), None).unwrap();
+        let expected = super::FontRef::from_index(&override_font.binary, override_font.index)
+            .ok()
+            .and_then(|font| super::calc_proportional_width('A', &font))
+            .expect("test font should contain an advance for 'A'");
+
+        let calculator = CharWidthCalculator::new_with_ascii_override(
+            Arc::new(Vec::new()),
+            Some(&override_font),
+        );
+
+        assert_eq!(calculator.get_width('A'), expected);
     }
 }

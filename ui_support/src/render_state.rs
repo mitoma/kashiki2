@@ -446,8 +446,11 @@ impl RenderState {
 
         let font_binaries = font_repository.get_fonts();
         let font_binaries = Arc::new(font_binaries);
-        let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
         let ascii_override_font = font_repository.get_ascii_override_font();
+        let char_width_calcurator = Arc::new(CharWidthCalculator::new_with_ascii_override(
+            font_binaries.clone(),
+            ascii_override_font.as_ref(),
+        ));
         let glyph_vertex_buffer = GlyphVertexBuffer::new(
             font_binaries,
             ascii_override_font,
@@ -869,7 +872,10 @@ impl RenderState {
         let font_binaries = self.context.font_repository().get_fonts();
         let font_binaries = Arc::new(font_binaries);
         let ascii_override_font = self.context.font_repository().get_ascii_override_font();
-        let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
+        let char_width_calcurator = Arc::new(CharWidthCalculator::new_with_ascii_override(
+            font_binaries.clone(),
+            ascii_override_font.as_ref(),
+        ));
 
         let registerd_chars = self.glyph_vertex_buffer.registerd_chars();
         self.glyph_vertex_buffer = GlyphVertexBuffer::new(
