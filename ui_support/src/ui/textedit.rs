@@ -393,6 +393,8 @@ impl Model for TextEdit {
             ModelOperation::SetPreedit(opt) => {
                 self.preedit = opt
                     .clone()
+                    // Mac の IME では preedit が空文字列のときに preedit を消すために SetPreedit("") が送られてくることがある。
+                    .filter(|(v, _range)| !v.is_empty())
                     .map(|(value, selection)| PreeditState { value, selection });
                 // レイアウトに依存するので再レイアウト相当の更新を要求
                 self.buffer_updated = true;

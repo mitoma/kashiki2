@@ -11,7 +11,10 @@ use std::{
     fmt::{Display, Formatter},
     ops::Deref,
 };
-use winit::event::{ElementState, KeyEvent, WindowEvent};
+use winit::{
+    dpi::PhysicalPosition,
+    event::{ElementState, KeyEvent, WindowEvent},
+};
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
 pub(crate) struct InputWithModifier {
@@ -317,9 +320,19 @@ impl ActionStore {
                     };
                     self.get_action_by_mouse(action, Some(ActionArgument::Float(gain)))
                 }
-                winit::event::MouseScrollDelta::PixelDelta(_) => {
-                    // TODO PixelDelta が必要になるシーンは当分先になりそうなので特にまだ対応はしない
-                    None
+                winit::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x, y }) => {
+                    let (action, gain) = if *x > 0.0 {
+                        (MouseAction::WheelRight, x.abs() as f32)
+                    } else if *x < 0.0 {
+                        (MouseAction::WheelLeft, x.abs() as f32)
+                    } else if *y > 0.0 {
+                        (MouseAction::WheelUp, y.abs() as f32)
+                    } else if *y < 0.0 {
+                        (MouseAction::WheelDown, y.abs() as f32)
+                    } else {
+                        return None;
+                    };
+                    self.get_action_by_mouse(action, Some(ActionArgument::Float(gain)))
                 }
             },
             _ => None,

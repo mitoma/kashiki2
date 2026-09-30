@@ -162,7 +162,21 @@ impl ApplicationHandler for App {
                         },
                     );
                     let surface_configured = false;
+                    // macOS では起動直後に resize イベントが発生せずに Surface が初期化できないので強制的に Surface のサイズを設定する
+                    #[cfg(target_os = "macos")]
+                    {
+                        use winit::dpi::Size::Logical;
 
+                        window.request_redraw();
+                        let _ = window.request_surface_size(Logical(LogicalSize {
+                            width: window_size.width as f64 * 0.99,
+                            height: window_size.height as f64 * 0.99,
+                        }));
+                        let _ = window.request_surface_size(Logical(LogicalSize {
+                            width: window_size.width as f64,
+                            height: window_size.height as f64,
+                        }));
+                    }
                     Some(AppAttributes {
                         render_rate_adjuster,
                         surface_configured,
