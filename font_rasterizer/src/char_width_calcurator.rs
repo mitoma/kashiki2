@@ -87,7 +87,9 @@ fn detect_proportional_font(faces: &[FontData]) -> bool {
         let units_per_em = font
             .metrics(Size::unscaled(), LocationRef::default())
             .units_per_em;
-        return has_proportional_advances(&advances, units_per_em as f32);
+        if has_proportional_advances(&advances, units_per_em as f32) {
+            return true;
+        }
     }
     false
 }
