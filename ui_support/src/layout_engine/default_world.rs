@@ -86,6 +86,15 @@ impl DefaultWorld {
             .or_else(|| self.models.get_mut(self.focus))
     }
 
+    fn model_update_range(&mut self, calculator_updated: bool) -> Range<usize> {
+        self.world_updated |= calculator_updated;
+        if self.world_updated {
+            0..self.models.len()
+        } else {
+            self.get_surrounding_model_range()
+        }
+    }
+
     fn get_surrounding_model_range(&self) -> Range<usize> {
         let around = 5;
         let min = self.focus.saturating_sub(around);
@@ -197,11 +206,7 @@ impl World for DefaultWorld {
             self.world_updated = true;
         }
 
-        let range = if self.world_updated {
-            0..self.models.len()
-        } else {
-            self.get_surrounding_model_range()
-        };
+        let range = self.model_update_range(context.calculator_updated());
         for model in self.models[range].iter_mut() {
             model.update(context);
         }
@@ -523,5 +528,30 @@ impl WorldLayout {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod font_change_tests {
+    use super::*;
+
+    #[test]
+    fn font_change_invalidates_world_layout() {
+        let mut world = DefaultWorld::new(WindowSize::new(800, 600));
+        for _ in 0..10 {
+            world.add(Box::new(crate::ui::TextEdit::default()));
+        }
+        world.world_updated = false;
+
+        assert_eq!(world.model_update_range(false), 0..5);
+        assert!(!world.world_updated);
+
+        assert_eq!(world.model_update_range(true), 0..10);
+        assert!(world.world_updated);
+        assert_eq!(world.model_update_range(false), 0..10);
+
+        world.world_updated = false;
+        assert_eq!(world.model_update_range(false), 0..5);
+        assert!(!world.world_updated);
     }
 }

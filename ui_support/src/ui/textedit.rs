@@ -208,7 +208,7 @@ impl Model for TextEdit {
 
         self.sync_editor_events(device, color_theme);
 
-        if self.buffer_updated || self.config_updated {
+        if self.needs_layout_update(context.calculator_updated()) {
             let layout = self.calc_phisical_layout(context.char_width_calcurator().clone());
             let (preedit_chars, has_selection) = self.collect_preedit_chars(&layout);
             let preedit_initial_position = self
@@ -506,6 +506,10 @@ impl TextEdit {
 
     pub fn from_context(context: &UiContext) -> Self {
         Self::new(context.text_context(crate::editor_settings::EditorTextContextProfile::Document))
+    }
+
+    fn needs_layout_update(&self, calculator_updated: bool) -> bool {
+        self.buffer_updated || self.config_updated || calculator_updated
     }
 
     pub(crate) fn text_edit_operation(&mut self, op: TextEditOperation) {
@@ -1160,4 +1164,32 @@ impl TextEdit {
 pub enum TextEditOperation {
     // テーマカラーを Range の範囲で設定する
     SetThemedColor(Range<CellPosition>, ThemedColor),
+}
+
+#[cfg(test)]
+mod font_change_tests {
+    use super::*;
+
+    #[test]
+    fn font_change_invalidates_text_layout_without_editing() {
+        let mut text_edit = TextEdit {
+            buffer_updated: false,
+            text_updated: false,
+            config_updated: false,
+            ..Default::default()
+        };
+
+        assert!(!text_edit.needs_layout_update(false));
+        assert!(text_edit.needs_layout_update(true));
+        assert!(!text_edit.buffer_updated);
+        assert!(!text_edit.text_updated);
+        assert!(!text_edit.config_updated);
+        assert!(!text_edit.needs_layout_update(false));
+
+        text_edit.buffer_updated = true;
+        assert!(text_edit.needs_layout_update(false));
+        text_edit.buffer_updated = false;
+        text_edit.config_updated = true;
+        assert!(text_edit.needs_layout_update(false));
+    }
 }
