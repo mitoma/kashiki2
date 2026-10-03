@@ -2,7 +2,7 @@ use std::{collections::HashSet, fmt::Debug, sync::Arc};
 
 use font_collector::FontData;
 use log::debug;
-use phisical_layouter::CharWidthResolver;
+use phisical_layouter::{CharWidthResolver, PhysicalLayoutMode};
 
 use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
@@ -129,6 +129,19 @@ impl CharWidthResolver for GlyphVertexBuffer {
         match self.width(c) {
             CharWidth::Regular => 1,
             CharWidth::Wide => 2,
+            CharWidth::Proportional(width) => (width * 2.0).round().max(0.0) as usize,
+        }
+    }
+
+    fn resolve_proportional_width(&self, c: char) -> f32 {
+        self.width(c).to_f32() * 2.0
+    }
+
+    fn layout_mode(&self) -> PhysicalLayoutMode {
+        if self.char_width_calculator.is_proportional_font() {
+            PhysicalLayoutMode::Proportional
+        } else {
+            PhysicalLayoutMode::Cell
         }
     }
 }

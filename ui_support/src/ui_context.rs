@@ -866,6 +866,7 @@ pub struct UiContext {
     state_context: StateContext,
     senders: Senders,
     editor_settings: Arc<RwLock<EditorSettings>>,
+    calculator_updated: bool,
 }
 
 impl UiContext {
@@ -879,6 +880,7 @@ impl UiContext {
             state_context,
             senders,
             editor_settings: Arc::new(RwLock::new(editor_settings)),
+            calculator_updated: false,
         }
     }
 
@@ -897,6 +899,20 @@ impl UiContext {
     #[inline]
     pub fn char_width_calcurator(&self) -> &Arc<CharWidthCalculator> {
         &self.state_context.char_width_calcurator
+    }
+
+    #[inline]
+    pub fn calculator_updated(&self) -> bool {
+        self.calculator_updated
+    }
+
+    pub(crate) fn set_char_width_calculator(&mut self, calculator: Arc<CharWidthCalculator>) {
+        self.state_context.char_width_calcurator = calculator;
+        self.calculator_updated = true;
+    }
+
+    pub(crate) fn finish_update(&mut self) {
+        self.calculator_updated = false;
     }
 
     #[inline]

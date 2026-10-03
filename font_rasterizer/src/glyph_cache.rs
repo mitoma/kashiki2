@@ -136,14 +136,12 @@ impl GlyphCache {
     }
 
     fn make_key(c: char, width: CharWidth) -> String {
-        format!(
-            "{}:{}",
-            c as u32,
-            match width {
-                CharWidth::Regular => "R",
-                CharWidth::Wide => "W",
-            }
-        )
+        let width_key = match width {
+            CharWidth::Regular => "R".to_string(),
+            CharWidth::Wide => "W".to_string(),
+            CharWidth::Proportional(width) => format!("P{:08x}", width.to_bits()),
+        };
+        format!("{}:{width_key}", c as u32)
     }
 
     /// キャッシュからグリフ頂点データを取得する。存在しない場合は None を返す。

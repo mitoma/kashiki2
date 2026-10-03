@@ -446,8 +446,11 @@ impl RenderState {
 
         let font_binaries = font_repository.get_fonts();
         let font_binaries = Arc::new(font_binaries);
-        let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
         let ascii_override_font = font_repository.get_ascii_override_font();
+        let char_width_calcurator = Arc::new(CharWidthCalculator::new_with_ascii_override(
+            font_binaries.clone(),
+            ascii_override_font.as_ref(),
+        ));
         let glyph_vertex_buffer = GlyphVertexBuffer::new(
             font_binaries,
             ascii_override_font,
@@ -697,6 +700,7 @@ impl RenderState {
 
     pub(crate) fn update(&mut self) {
         self.simple_state_callback.update(&self.context);
+        self.context.finish_update();
         if self.background_color.in_animation() {
             let [r, g, b, a] = self.background_color.current();
             self.rasterizer_pipeline.bg_color = wgpu::Color {
@@ -869,7 +873,10 @@ impl RenderState {
         let font_binaries = self.context.font_repository().get_fonts();
         let font_binaries = Arc::new(font_binaries);
         let ascii_override_font = self.context.font_repository().get_ascii_override_font();
-        let char_width_calcurator = Arc::new(CharWidthCalculator::new(font_binaries.clone()));
+        let char_width_calcurator = Arc::new(CharWidthCalculator::new_with_ascii_override(
+            font_binaries.clone(),
+            ascii_override_font.as_ref(),
+        ));
 
         let registerd_chars = self.glyph_vertex_buffer.registerd_chars();
         self.glyph_vertex_buffer = GlyphVertexBuffer::new(
@@ -882,7 +889,8 @@ impl RenderState {
             self.context.queue(),
             registerd_chars,
         );
-        self.context.state_context_mut().char_width_calcurator = char_width_calcurator;
+        self.context
+            .set_char_width_calculator(char_width_calcurator);
     }
 
     pub(crate) fn change_quarity(&mut self, quarity: Quarity) {

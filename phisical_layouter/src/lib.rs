@@ -14,6 +14,7 @@ pub struct PhysicalLayout {
     pub preedit_chars: Vec<(BufferChar, PhysicalPosition)>,
     pub main_caret_pos: PhysicalPosition,
     pub mark_pos: Option<PhysicalPosition>,
+    pub mode: PhysicalLayoutMode,
 }
 
 impl Display for PhysicalLayout {
@@ -23,7 +24,7 @@ impl Display for PhysicalLayout {
         for (c, position) in self.chars.iter() {
             while current_row != position.row {
                 result.push('\n');
-                result.push_str(&" ".repeat(position.col));
+                result.push_str(&" ".repeat(position.col / self.mode.column_scale()));
                 current_row += 1;
             }
             result.push(c.c);
@@ -35,7 +36,33 @@ impl Display for PhysicalLayout {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct PhysicalPosition {
     pub row: usize,
+    /// セルモードは従来単位、プロポーショナルモードはスケール済み単位。
     pub col: usize,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum PhysicalLayoutMode {
+    #[default]
+    Cell,
+    Proportional,
+}
+
+impl PhysicalLayoutMode {
+    /// プロポーショナルモードでは、従来の列単位をこの数の内部単位に分割する。
+    pub const PROPORTIONAL_SCALE: usize = 1024;
+
+    pub fn column_scale(self) -> usize {
+        match self {
+            Self::Cell => 1,
+            Self::Proportional => Self::PROPORTIONAL_SCALE,
+        }
+    }
+}
+
+impl PhysicalLayout {
+    pub fn column_to_legacy_units(&self, col: usize) -> f32 {
+        col as f32 / self.mode.column_scale() as f32
+    }
 }
 
 /// 禁則文字の定義を持つ enum
@@ -66,6 +93,15 @@ impl Default for LineBoundaryProhibitedChars {
 /// 文字の幅を解決する trait
 pub trait CharWidthResolver {
     fn resolve_width(&self, char: char) -> usize;
+
+    fn layout_mode(&self) -> PhysicalLayoutMode {
+        PhysicalLayoutMode::Cell
+    }
+
+    /// 文字幅を従来の列単位で返す。プロポーショナルモードでは小数を指定できる。
+    fn resolve_proportional_width(&self, char: char) -> f32 {
+        self.resolve_width(char) as f32
+    }
 }
 
 pub fn calc_phisical_layout(
@@ -74,6 +110,25 @@ pub fn calc_phisical_layout(
     line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
     width_resolver: Arc<dyn CharWidthResolver>,
     preedit_string: Option<String>,
+) -> PhysicalLayout {
+    let mode = width_resolver.layout_mode();
+    calc_phisical_layout_with_mode(
+        editor,
+        max_line_width,
+        line_boundary_prohibited_chars,
+        width_resolver,
+        preedit_string,
+        mode,
+    )
+}
+
+pub fn calc_phisical_layout_with_mode(
+    editor: &Editor,
+    max_line_width: usize,
+    line_boundary_prohibited_chars: &LineBoundaryProhibitedChars,
+    width_resolver: Arc<dyn CharWidthResolver>,
+    preedit_string: Option<String>,
+    mode: PhysicalLayoutMode,
 ) -> PhysicalLayout {
     let lines = editor.buffer_chars();
     let main_caret = editor.main_caret();
@@ -86,6 +141,7 @@ pub fn calc_phisical_layout(
         line_boundary_prohibited_chars,
         width_resolver,
         preedit_string,
+        mode,
     )
     .calc()
 }
@@ -98,6 +154,7 @@ struct PhysicalLayoutCalculator<'a> {
     line_boundary_prohibited_chars: &'a LineBoundaryProhibitedChars,
     width_resolver: Arc<dyn CharWidthResolver>,
     preedit_string: Option<String>,
+    mode: PhysicalLayoutMode,
 }
 
 impl<'a> PhysicalLayoutCalculator<'a> {
@@ -110,15 +167,27 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         line_boundary_prohibited_chars: &'a LineBoundaryProhibitedChars,
         width_resolver: Arc<dyn CharWidthResolver>,
         preedit_string: Option<String>,
+        mode: PhysicalLayoutMode,
     ) -> Self {
         Self {
             lines,
             main_caret,
             mark,
-            max_line_width,
+            max_line_width: max_line_width.saturating_mul(mode.column_scale()),
             line_boundary_prohibited_chars,
             width_resolver,
             preedit_string,
+            mode,
+        }
+    }
+
+    fn resolve_width(&self, c: char) -> usize {
+        match self.mode {
+            PhysicalLayoutMode::Cell => self.width_resolver.resolve_width(c),
+            PhysicalLayoutMode::Proportional => {
+                let width = self.width_resolver.resolve_proportional_width(c);
+                (width * PhysicalLayoutMode::PROPORTIONAL_SCALE as f32).round() as usize
+            }
         }
     }
 
@@ -170,7 +239,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
             state.phisical_row += 1;
         }
 
-        state.into_layout()
+        state.into_layout(self.mode)
     }
 
     fn handle_empty_line(
@@ -248,7 +317,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         indent: usize,
         can_break_before: bool,
     ) {
-        let char_width = self.width_resolver.resolve_width(buffer_char.c);
+        let char_width = self.resolve_width(buffer_char.c);
         let is_line_head = buffer_char.position.col == 0;
         let can_break_before_current = can_break_before
             && !self
@@ -443,11 +512,11 @@ impl<'a> PhysicalLayoutCalculator<'a> {
                 let space_num = line_string.find(pattern).unwrap();
                 let space_size = line_string[0..space_num]
                     .chars()
-                    .map(|c| self.width_resolver.resolve_width(c))
+                    .map(|c| self.resolve_width(c))
                     .sum::<usize>();
                 let pattern_size = pattern
                     .chars()
-                    .map(|c| self.width_resolver.resolve_width(c))
+                    .map(|c| self.resolve_width(c))
                     .sum::<usize>();
                 return space_size + pattern_size;
             }
@@ -481,7 +550,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         let prefix_end = leading + name.len() + separator.len();
         let indent = line_string[0..prefix_end]
             .chars()
-            .map(|c| self.width_resolver.resolve_width(c))
+            .map(|c| self.resolve_width(c))
             .sum();
         Some(indent)
     }
@@ -577,7 +646,7 @@ impl<'a> PhysicalLayoutCalculator<'a> {
         // preedit は通常文字と同じ折り返し経路で配置しつつ、
         // logical/physical の両座標を追跡して UI 側再計算を不要にする。
         for (i, c) in preedit.chars().enumerate() {
-            let char_width = self.width_resolver.resolve_width(c);
+            let char_width = self.resolve_width(c);
             let is_line_head = (caret_col == 0 && i == 0) || (state.phisical_row > prev_row);
             let can_break_before = preedit_break_before_chars.get(i).copied().unwrap_or(false);
 
@@ -659,12 +728,13 @@ impl LayoutState {
         }
     }
 
-    fn into_layout(self) -> PhysicalLayout {
+    fn into_layout(self, mode: PhysicalLayoutMode) -> PhysicalLayout {
         PhysicalLayout {
             chars: self.chars,
             preedit_chars: self.preedit_chars,
             main_caret_pos: self.main_caret_pos,
             mark_pos: self.mark_pos,
+            mode,
         }
     }
 }
@@ -709,6 +779,26 @@ mod tests {
     impl CharWidthResolver for AsciiWideXResolver {
         fn resolve_width(&self, c: char) -> usize {
             if c == 'X' { 2 } else { 1 }
+        }
+    }
+
+    struct FractionalWidthResolver;
+
+    impl CharWidthResolver for FractionalWidthResolver {
+        fn resolve_width(&self, _c: char) -> usize {
+            1
+        }
+
+        fn layout_mode(&self) -> PhysicalLayoutMode {
+            PhysicalLayoutMode::Proportional
+        }
+
+        fn resolve_proportional_width(&self, c: char) -> f32 {
+            match c {
+                'i' => 0.5,
+                'W' => 1.5,
+                _ => 1.0,
+            }
         }
     }
 
@@ -799,6 +889,24 @@ mod tests {
             );
             assert_eq!(layout.mark_pos, case.mark_pos, "case index: {}", idx);
         }
+    }
+
+    #[test]
+    fn proportional_mode_tracks_fractional_character_widths() {
+        let editor = run_ops(&[EditorOperation::InsertString("iW".to_string())]);
+
+        let layout = calc_phisical_layout(
+            &editor,
+            10,
+            &LineBoundaryProhibitedChars::new(vec![], vec![]),
+            Arc::new(FractionalWidthResolver),
+            None,
+        );
+
+        assert_eq!(layout.mode, PhysicalLayoutMode::Proportional);
+        assert_eq!(layout.chars[0].1.col, 0);
+        assert_eq!(layout.chars[1].1.col, 512);
+        assert_eq!(layout.main_caret_pos.col, 2048);
     }
 
     #[test]
