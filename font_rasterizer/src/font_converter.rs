@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use font_collector::FontData;
-use harfrust::{Direction, FontRef as HarfrustFontRef, ShapeOptions, ShaperData, UnicodeBuffer};
+use harfrust::{Buffer, Direction, Font, ShapeOptions, ShaperFont, shape};
 use log::info;
 use skrifa::{
-    FontRef as SkrifaFontRef, GlyphId, MetadataProvider,
+    FontRef, GlyphId, MetadataProvider,
     instance::{LocationRef, Size},
     outline::DrawSettings,
 };
@@ -19,8 +19,8 @@ use crate::{
 };
 
 pub(crate) struct FontFaceData<'a> {
-    harfrust: HarfrustFontRef<'a>,
-    skrifa: SkrifaFontRef<'a>,
+    harfrust: Font,
+    skrifa: FontRef<'a>,
     location: skrifa::instance::Location,
     remove_overlap: bool,
 }
@@ -61,8 +61,8 @@ impl FontVertexConverter {
     }
 
     fn font_data_to_font_face(font_data: &'_ FontData) -> Option<FontFaceData<'_>> {
-        let harfrust = HarfrustFontRef::from_index(&font_data.binary, font_data.index).ok()?;
-        let skrifa = SkrifaFontRef::from_index(&font_data.binary, font_data.index).ok()?;
+        let harfrust = Font::new(font_data.binary.clone(), font_data.index)?;
+        let skrifa = FontRef::from_index(&font_data.binary, font_data.index).ok()?;
 
         // variable font の際に wght を Noto 系の Regular で指定されがちな 400 に指定する
         // なぜなら、デフォルトだと 100 になってしまっておりやたら細くなってしまうからだ
@@ -102,13 +102,13 @@ impl FontVertexConverter {
 
     fn glyph_ids_for_font_face(ff: &FontFaceData, c: char) -> Option<CharGlyphIds> {
         let horizontal_glyph_id = ff.skrifa.charmap().map(c)?;
-        let mut buf = UnicodeBuffer::new();
+        let mut buf = Buffer::new();
         buf.set_direction(Direction::TopToBottom);
-        buf.add(c, 0);
-        let shaper_data = ShaperData::new(&ff.harfrust);
-        let shaper = shaper_data.shaper(&ff.harfrust).build();
-        let vertical_glyph_buffer = shaper.shape(buf, ShapeOptions::default());
-        let vertical_glyph_id = GlyphId::new(vertical_glyph_buffer.glyph_infos()[0].glyph_id);
+        buf.push_str(&c.to_string());
+        let shaper_font = ShaperFont::new(&ff.harfrust);
+        shape(&shaper_font, &mut buf, ShapeOptions::default()).unwrap();
+        //let vertical_glyph_buffer = buf;
+        let vertical_glyph_id = GlyphId::new(buf.glyph_infos()[0].glyph_id);
         let vertical_glyph_id = if horizontal_glyph_id == vertical_glyph_id {
             None
         } else {
