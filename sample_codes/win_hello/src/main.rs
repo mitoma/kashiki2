@@ -7,9 +7,7 @@ fn main() {
 
 #[cfg(target_os = "windows")]
 #[allow(clippy::all, dead_code, nonstandard_style)]
-mod bindings {
-    include!(concat!(env!("OUT_DIR"), "/windows_bindings.rs"));
-}
+mod bindings;
 
 #[cfg(target_os = "windows")]
 mod windows {

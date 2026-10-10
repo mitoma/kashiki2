@@ -3,11 +3,8 @@ fn main() {
         return;
     }
 
-    let out_dir = std::env::var("OUT_DIR").unwrap();
-    let bindings = format!("{out_dir}/windows_bindings.rs");
-
     windows_bindgen::builder()
-        .output(&bindings)
+        .output("src/bindings/mod.rs")
         .filters([
             "Windows.Security.Credentials.KeyCredentialCreationOption",
             "Windows.Security.Credentials.KeyCredentialManager::RequestCreateAsync",
