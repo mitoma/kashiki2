@@ -31,11 +31,6 @@ impl RasterizerRenderrer {
         enable_antialiasing: bool,
         outline_fill_rule: OutlineFillRule,
     ) -> Self {
-        let motion_shader = if DEBUG_FLAGS.debug_shader {
-            fs::read_to_string("font_rasterizer/src/shader/overlap_shader.debug.wgsl").unwrap()
-        } else {
-            include_str!("shader/overlap_shader.wgsl").to_owned()
-        };
         let path_shader = if DEBUG_FLAGS.debug_shader {
             fs::read_to_string("font_rasterizer/src/shader/windfoil.wgsl").unwrap()
         } else {
@@ -43,7 +38,7 @@ impl RasterizerRenderrer {
         };
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Windfoil"),
-            source: wgpu::ShaderSource::Wgsl(format!("{motion_shader}\n{path_shader}").into()),
+            source: wgpu::ShaderSource::Wgsl(path_shader.into()),
         });
         let overlap_bind_group = OverlapBindGroup::new(device, width, height);
         let paths_layout = windfoil::layout(device);
