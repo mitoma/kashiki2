@@ -86,9 +86,14 @@ rayon = "1.12.0"
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
 fs_extra = "1.3.0"
 glob = "0.3.3"
-windows = "0.62.2"
-windows-future = "0.3.2"
 winresource = "0.1.31"
+
+# windows crate の依存。windows_hello の実験用コードにしか使われていない。
+windows-bindgen = "0.100.0"
+windows-core = "0.100.0"
+windows-future = "0.100.0"
+windows-link = "0.100.0"
+windows-time = "0.100.0"
 
 regex = "1.12.4"
 png = "0.18.1"

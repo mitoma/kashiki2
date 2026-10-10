@@ -7,15 +7,11 @@ edition = "2024"
 
 [target.'cfg(windows)'.dependencies]
 winit = { workspace = true }
+windows-core = { workspace = true }
 windows-future = { workspace = true }
+windows-link = { workspace = true }
+windows-time = { workspace = true }
 pollster = { workspace = true }
 
-[target.'cfg(windows)'.dependencies.windows]
-workspace = true
-features = [
-    "Security_Credentials",
-    "Security_Credentials_UI",
-    "Win32_System_WinRT",
-    #"Storage_Streams",
-    "Win32_UI_WindowsAndMessaging",
-]
+[build-dependencies]
+windows-bindgen = { workspace = true }

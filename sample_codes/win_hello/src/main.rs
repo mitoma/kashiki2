@@ -6,20 +6,22 @@ fn main() {
 }
 
 #[cfg(target_os = "windows")]
+#[allow(clippy::all, dead_code, nonstandard_style)]
+mod bindings {
+    include!(concat!(env!("OUT_DIR"), "/windows_bindings.rs"));
+}
+
+#[cfg(target_os = "windows")]
 mod windows {
 
     use std::sync::mpsc::Sender;
 
-    use pollster::FutureExt;
-    use windows::{
+    use crate::bindings::Windows::{
         Security::Credentials::{KeyCredentialCreationOption, KeyCredentialManager, UI::*},
-        Win32::{
-            Foundation::HWND,
-            System::WinRT::IUserConsentVerifierInterop,
-            UI::WindowsAndMessaging::{FindWindowA, SetForegroundWindow},
-        },
-        core::{Result, factory, h, s},
+        Win32::{FindWindowA, HWND, IUserConsentVerifierInterop, SetForegroundWindow},
     };
+    use pollster::FutureExt;
+    use windows_core::{Result, factory, h, s};
     use windows_future::IAsyncOperation;
     use winit::{
         application::ApplicationHandler,
@@ -103,7 +105,8 @@ mod windows {
                             // 100 ms sleep する
                             std::thread::sleep(std::time::Duration::from_millis(100));
                             unsafe {
-                                if let Ok(hello_hwnd) = FindWindowA(class_name, None) {
+                                let hello_hwnd = FindWindowA(class_name, None);
+                                if !hello_hwnd.0.is_null() {
                                     let _ = SetForegroundWindow(hello_hwnd);
                                 }
                             }
