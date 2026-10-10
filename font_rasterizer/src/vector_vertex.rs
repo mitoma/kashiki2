@@ -1,269 +1,155 @@
 use bezier_converter::CubicBezier;
-use log::debug;
 use skrifa::outline::OutlinePen;
 
 use crate::straight_run_simplifier::is_nearly_straight_default;
 
+#[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
+pub struct QuadraticCurve {
+    pub start: [f32; 2],
+    pub control: [f32; 2],
+    pub end: [f32; 2],
+}
+
+impl QuadraticCurve {
+    pub(crate) fn points(self) -> [[f32; 2]; 3] {
+        [self.start, self.control, self.end]
+    }
+}
+
+#[derive(Debug)]
+pub struct VectorVertex {
+    pub(crate) curves: Vec<QuadraticCurve>,
+}
+
+impl VectorVertex {
+    pub fn curves(&self) -> &[QuadraticCurve] {
+        &self.curves
+    }
+}
+
+#[derive(Default)]
 pub struct VectorVertexBuilder {
-    vertex: Vec<InternalVertex>,
-    index: Vec<u32>,
-    current_index: u32,
-    path_start_index: Option<u32>,
-    subpath_index_start: usize,
-    subpath_points: Vec<[f32; 2]>,
-    vertex_swap: FlipFlop,
+    curves: Vec<QuadraticCurve>,
+    current: Option<[f32; 2]>,
+    subpath_start: Option<[f32; 2]>,
     builder_options: VertexBuilderOptions,
 }
 
-impl Default for VectorVertexBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[allow(dead_code)]
 impl VectorVertexBuilder {
-    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self {
-            vertex: Vec::new(),
-            index: Vec::new(),
-            // index 0 は原点B、1 は原点L に予約されているので、2 から開始する
-            current_index: 1,
-            path_start_index: None,
-            subpath_index_start: 0,
-            subpath_points: Vec::new(),
-            vertex_swap: FlipFlop::Flip,
-            builder_options: VertexBuilderOptions::default(),
-        }
+        Self::default()
     }
 
-    #[allow(clippy::should_implement_trait)]
-    pub(crate) fn with_options(self, builder_options: VertexBuilderOptions) -> Self {
-        Self {
-            vertex: self.vertex,
-            index: self.index,
-            current_index: self.current_index,
-            path_start_index: self.path_start_index,
-            subpath_index_start: self.subpath_index_start,
-            subpath_points: self.subpath_points,
-            vertex_swap: self.vertex_swap,
-            builder_options,
-        }
-    }
-
-    #[inline]
-    fn next_wait(&mut self) -> FlipFlop {
-        self.vertex_swap = self.vertex_swap.next();
-        self.vertex_swap
-    }
-
-    #[cfg(test)]
-    pub(crate) fn has_control_vertex_for_test(&self) -> bool {
-        self.vertex
-            .iter()
-            .any(|v| matches!(v.wait, FlipFlop::Control))
+    pub(crate) fn with_options(mut self, builder_options: VertexBuilderOptions) -> Self {
+        self.builder_options = builder_options;
+        self
     }
 
     pub fn build(self) -> VectorVertex {
-        let center: [f32; 2] = self.builder_options.center;
-        let unit_em: f32 = self.builder_options.unit_em;
-        let coordinate_system = self.builder_options.coordinate_system;
-        let scale_option = self.builder_options.scale;
-        let [center_x, center_y] = coordinate_system.transform(center[0], center[1]);
-        let [center_x, center_y] = scale_option.map_or([center_x, center_y], |[width, height]| {
-            [center_x * width, center_y * height]
+        let options = self.builder_options;
+        let center = options
+            .coordinate_system
+            .transform(options.center[0], options.center[1]);
+        let center = options.scale.map_or(center, |scale| {
+            std::array::from_fn(|axis| center[axis] * scale[axis])
         });
-
-        let vertex = self
-            .vertex
-            .iter()
-            .map(|InternalVertex { x, y, wait }| {
-                let [x, y] = coordinate_system.transform(*x, *y);
-                let [x, y] = [(x - center_x) / unit_em, (y - center_y) / unit_em];
-                let [x, y] = scale_option.map_or([x, y], |[width, height]| [x * width, y * height]);
-                Vertex {
-                    position: [x, y],
-                    vertex_type: wait.vertex_type(),
-                }
+        let transform = |point: [f32; 2]| {
+            let point = options.coordinate_system.transform(point[0], point[1]);
+            let point = std::array::from_fn(|axis| (point[axis] - center[axis]) / options.unit_em);
+            options.scale.map_or(point, |scale| {
+                std::array::from_fn(|axis| point[axis] * scale[axis])
             })
-            .collect();
+        };
         VectorVertex {
-            vertex,
-            index: self.index,
+            curves: self
+                .curves
+                .into_iter()
+                .map(|curve| QuadraticCurve {
+                    start: transform(curve.start),
+                    control: transform(curve.control),
+                    end: transform(curve.end),
+                })
+                .collect(),
         }
     }
 
     pub fn move_to(&mut self, x: f32, y: f32) {
-        let wait = self.next_wait();
-        self.subpath_index_start = self.index.len();
-        self.subpath_points.clear();
-        self.subpath_points.push([x, y]);
-        self.vertex.push(InternalVertex { x, y, wait });
-        self.vertex.push(InternalVertex {
-            x,
-            y,
-            wait: wait.for_line(),
-        });
-        self.path_start_index = Some(self.current_index);
-        self.current_index += 2;
+        self.current = Some([x, y]);
+        self.subpath_start = self.current;
     }
 
     pub fn line_to(&mut self, x: f32, y: f32) {
-        let Some(last) = &self.vertex.last() else {
+        let Some(start) = self.current else {
             return;
         };
-        if last.x == x && last.y == y {
-            // 同じ座標への line_to は無視する
+        let end = [x, y];
+        if start == end {
             return;
         }
-        self.subpath_points.push([x, y]);
-
-        let wait = self.next_wait();
-        self.vertex.push(InternalVertex { x, y, wait });
-        self.vertex.push(InternalVertex {
-            x,
-            y,
-            wait: wait.for_line(),
+        self.curves.push(QuadraticCurve {
+            start,
+            control: std::array::from_fn(|axis| (start[axis] + end[axis]) * 0.5),
+            end,
         });
-        self.index.push(1); // 原点L の index
-        self.index.push(self.current_index);
-        self.index.push(self.current_index + 2);
-        self.current_index += 2;
+        self.current = Some(end);
     }
 
-    pub fn quad_to(&mut self, x1: f32, y1: f32, x: f32, y: f32) {
-        let Some(last) = &self.vertex.last() else {
+    pub fn quad_to(&mut self, control_x: f32, control_y: f32, x: f32, y: f32) {
+        let Some(start) = self.current else {
             return;
         };
-        if last.x == x1 && last.y == y1 && last.x == x && last.y == y {
-            // 制御点と終点がすべて直前の頂点と同じ場合は無視する
+        let control = [control_x, control_y];
+        let end = [x, y];
+        if start == control && start == end {
             return;
         }
-        // ベジエ補助直線（フィル）三角形専用頂点のために、直前のオンカーブ点座標を保持する
-        let prev_x = last.x;
-        let prev_y = last.y;
-
-        if is_nearly_straight_default([prev_x, prev_y].into(), [x1, y1].into(), [x, y].into()) {
-            return self.line_to(x, y);
+        if is_nearly_straight_default(start.into(), control.into(), end.into()) {
+            self.line_to(x, y);
+            return;
         }
-
-        let wait = self.next_wait();
-        self.subpath_points.push([x, y]);
-
-        // quad_to 開始時点の current_index。以降 push する頂点の index 値は ci + 1 + k（k は push 順）。
-        let ci = self.current_index;
-
-        // ベジエ曲線・ベジエ補助直線・直線の三種の三角形が頂点を共用すると
-        // シェーダー側で triangle_type が混在して区別できないため、
-        // 補助直線（フィル）三角形には専用頂点を割り当てて頂点を共用しないようにする。
-
-        // k0: 制御点（ベジエ曲線三角形用）
-        self.vertex.push(InternalVertex {
-            x: x1,
-            y: y1,
-            wait: FlipFlop::Control,
+        self.curves.push(QuadraticCurve {
+            start,
+            control,
+            end,
         });
-        // k1: ベジエ補助直線 終点（この区間のオンカーブ終点座標）
-        self.vertex.push(InternalVertex {
-            x,
-            y,
-            wait: FlipFlop::BezierFillEnd,
-        });
-        // k2: ベジエ補助直線 始点（直前のオンカーブ点座標）
-        self.vertex.push(InternalVertex {
-            x: prev_x,
-            y: prev_y,
-            wait: FlipFlop::BezierFillStart,
-        });
-        // k3: 終点B（ベジエ曲線三角形用。次区間の prev endpoint として参照される）
-        self.vertex.push(InternalVertex { x, y, wait });
-        // k4: 終点L（直線三角形用）
-        self.vertex.push(InternalVertex {
-            x,
-            y,
-            wait: wait.for_line(),
-        });
-
-        // ベジエ補助直線（フィル）三角形: [原点B, 補助直線始点(k2), 補助直線終点(k1)]
-        self.index.push(0); // 原点B の index
-        self.index.push(ci + 3); // 補助直線始点 (k2)
-        self.index.push(ci + 2); // 補助直線終点 (k1)
-
-        // ベジエ曲線三角形: [直前の終点B, 制御点(k0), この区間の終点B(k3)]
-        self.index.push(ci - 1); // 直前の終点B
-        self.index.push(ci + 1); // 制御点 (k0)
-        self.index.push(ci + 4); // この区間の終点B (k3)
-        self.current_index += 5;
+        self.current = Some(end);
     }
 
-    pub fn curve_to(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, x: f32, y: f32) {
-        // 3 次ベジエを 2 次ベジエに近似する
-        let last = &self.vertex.last().unwrap();
-        if last.x == x1
-            && last.y == y1
-            && last.x == x2
-            && last.y == y2
-            && last.x == x
-            && last.y == y
+    pub fn curve_to(
+        &mut self,
+        control_x1: f32,
+        control_y1: f32,
+        control_x2: f32,
+        control_y2: f32,
+        x: f32,
+        y: f32,
+    ) {
+        let Some(start) = self.current else {
+            return;
+        };
+        if start == [control_x1, control_y1] && start == [control_x2, control_y2] && start == [x, y]
         {
             return;
         }
-
-        let cb = CubicBezier {
-            x0: last.x,
-            y0: last.y,
+        let cubic = CubicBezier {
+            x0: start[0],
+            y0: start[1],
             x1: x,
             y1: y,
-            cx0: x1,
-            cy0: y1,
-            cx1: x2,
-            cy1: y2,
+            cx0: control_x1,
+            cy0: control_y1,
+            cx1: control_x2,
+            cy1: control_y2,
         };
-        let qbs = cb.to_quadratic();
-        debug!("cubic to quadratic: 1 -> {}", qbs.len());
-        for qb in qbs.iter() {
-            self.quad_to(qb.cx0, qb.cy0, qb.x1, qb.y1)
+        for curve in cubic.to_quadratic() {
+            self.quad_to(curve.cx0, curve.cy0, curve.x1, curve.y1);
         }
     }
 
     pub fn close(&mut self) {
-        if let Some(start_index) = self.path_start_index {
-            let start_vertex = &self.vertex[(start_index) as usize];
-            self.line_to(start_vertex.x, start_vertex.y);
-
-            // close されたサブパスごとに重心原点を 2 つ（Bezier/Line）追加する
-            // 0/1 は global zero vertex だが、ここでサブパス専用原点へ置換する
-            if !self.subpath_points.is_empty() {
-                let [centroid_x, centroid_y] = calculate_subpath_center(
-                    &self.subpath_points,
-                    self.builder_options.center_point_algorithm,
-                );
-
-                let bezier_origin_index = self.current_index + 1;
-                let line_origin_index = self.current_index + 2;
-                self.vertex.push(InternalVertex {
-                    x: centroid_x,
-                    y: centroid_y,
-                    wait: FlipFlop::OriginBezier,
-                });
-                self.vertex.push(InternalVertex {
-                    x: centroid_x,
-                    y: centroid_y,
-                    wait: FlipFlop::OriginLine,
-                });
-                self.current_index += 2;
-
-                for idx in &mut self.index[self.subpath_index_start..] {
-                    if *idx == 0 {
-                        *idx = bezier_origin_index;
-                    } else if *idx == 1 {
-                        *idx = line_origin_index;
-                    }
-                }
-            }
-
-            self.path_start_index = None;
+        if let Some(start) = self.subpath_start.take() {
+            self.line_to(start[0], start[1]);
         }
     }
 }
@@ -272,35 +158,38 @@ impl OutlinePen for VectorVertexBuilder {
     fn move_to(&mut self, x: f32, y: f32) {
         self.move_to(x, y);
     }
-
     fn line_to(&mut self, x: f32, y: f32) {
         self.line_to(x, y);
     }
-
-    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
-        self.quad_to(cx0, cy0, x, y);
+    fn quad_to(&mut self, control_x: f32, control_y: f32, x: f32, y: f32) {
+        self.quad_to(control_x, control_y, x, y);
     }
-
-    fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
-        self.curve_to(cx0, cy0, cx1, cy1, x, y);
+    fn curve_to(
+        &mut self,
+        control_x1: f32,
+        control_y1: f32,
+        control_x2: f32,
+        control_y2: f32,
+        x: f32,
+        y: f32,
+    ) {
+        self.curve_to(control_x1, control_y1, control_x2, control_y2, x, y);
     }
-
     fn close(&mut self) {
         self.close();
     }
 }
 
 pub enum CoordinateSystem {
-    Svg,  // SVGの座標系 (左上原点, Y軸が下方向)
-    Font, // フォント座標系 (ベースライン原点, Y軸が上方向)
+    Svg,
+    Font,
 }
 
 impl CoordinateSystem {
-    #[inline]
     pub(crate) fn transform(&self, x: f32, y: f32) -> [f32; 2] {
         match self {
-            CoordinateSystem::Svg => [x, -y],
-            CoordinateSystem::Font => [x, y],
+            Self::Svg => [x, -y],
+            Self::Font => [x, y],
         }
     }
 }
@@ -310,25 +199,15 @@ pub(crate) struct VertexBuilderOptions {
     pub(crate) unit_em: f32,
     pub(crate) coordinate_system: CoordinateSystem,
     pub(crate) scale: Option<[f32; 2]>,
-    pub(crate) center_point_algorithm: CenterPointAlgorithm,
-}
-
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum CenterPointAlgorithm {
-    ArithmeticMean,
-    MinimizeMaximumAngle,
-    MaximizeMinimumAngle,
 }
 
 impl Default for VertexBuilderOptions {
     fn default() -> Self {
         Self {
-            center: [0.0, 0.0],
+            center: [0.0; 2],
             unit_em: 1.0,
             coordinate_system: CoordinateSystem::Font,
             scale: None,
-            center_point_algorithm: CenterPointAlgorithm::MaximizeMinimumAngle,
         }
     }
 }
@@ -345,580 +224,129 @@ impl VertexBuilderOptions {
             unit_em,
             coordinate_system,
             scale,
-            center_point_algorithm: CenterPointAlgorithm::MaximizeMinimumAngle,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn with_center_point_algorithm(
-        mut self,
-        center_point_algorithm: CenterPointAlgorithm,
-    ) -> Self {
-        self.center_point_algorithm = center_point_algorithm;
-        self
-    }
-}
-
-fn calculate_subpath_center(points: &[[f32; 2]], algorithm: CenterPointAlgorithm) -> [f32; 2] {
-    log::info!("calculate_subpath_center: algorithm = {:?}", algorithm);
-
-    let n = points.len() as f32;
-    let arithmetic_mean = [
-        points.iter().map(|p| p[0]).sum::<f32>() / n,
-        points.iter().map(|p| p[1]).sum::<f32>() / n,
-    ];
-
-    match algorithm {
-        CenterPointAlgorithm::ArithmeticMean => arithmetic_mean,
-        CenterPointAlgorithm::MinimizeMaximumAngle => {
-            minimize_maximum_angle(points, arithmetic_mean)
-        }
-        CenterPointAlgorithm::MaximizeMinimumAngle => {
-            maximize_minimum_angle(points, arithmetic_mean)
-        }
-    }
-}
-
-fn minimize_maximum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
-    log::info!("minimize_maximum_angle: initial = {:?}", initial);
-    if points.len() < 3 {
-        log::info!("minimize_maximum_angle: points.len() < 3, returning initial");
-        return initial;
-    }
-
-    let mut min = points[0];
-    let mut max = points[0];
-    for &[x, y] in &points[1..] {
-        min[0] = min[0].min(x);
-        min[1] = min[1].min(y);
-        max[0] = max[0].max(x);
-        max[1] = max[1].max(y);
-    }
-
-    let mut center = [(min[0] + max[0]) * 0.5, (min[1] + max[1]) * 0.5];
-    let mut step = (max[0] - min[0]).max(max[1] - min[1]) * 0.5;
-    let mut best_angle = maximum_subpath_angle(points, center);
-    let initial_angle = maximum_subpath_angle(points, initial);
-    if initial_angle < best_angle {
-        center = initial;
-        best_angle = initial_angle;
-    }
-
-    for _ in 0..10 {
-        let previous_center = center;
-        for y in -1..=1 {
-            for x in -1..=1 {
-                let candidate = [
-                    previous_center[0] + x as f32 * step,
-                    previous_center[1] + y as f32 * step,
-                ];
-                let angle = maximum_subpath_angle(points, candidate);
-                if angle < best_angle {
-                    center = candidate;
-                    best_angle = angle;
-                }
-            }
-        }
-        step *= 0.1;
-    }
-
-    log::info!("minimize_maximum_angle: center = {:?}", center);
-    center
-}
-
-fn maximum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
-    points
-        .iter()
-        .zip(points.iter().cycle().skip(1))
-        .filter_map(|(start, end)| {
-            let edge = [end[0] - start[0], end[1] - start[1]];
-            if edge[0] * edge[0] + edge[1] * edge[1] <= f32::EPSILON {
-                return None;
-            }
-            Some(maximum_fan_triangle_angle(*start, *end, center))
-        })
-        .fold(0.0, f32::max)
-}
-
-fn maximum_fan_triangle_angle(start: [f32; 2], end: [f32; 2], center: [f32; 2]) -> f32 {
-    let center_angle = angle_between(
-        [start[0] - center[0], start[1] - center[1]],
-        [end[0] - center[0], end[1] - center[1]],
-    );
-    let start_angle = angle_between(
-        [center[0] - start[0], center[1] - start[1]],
-        [end[0] - start[0], end[1] - start[1]],
-    );
-    let end_angle = angle_between(
-        [start[0] - end[0], start[1] - end[1]],
-        [center[0] - end[0], center[1] - end[1]],
-    );
-
-    center_angle.max(start_angle).max(end_angle)
-}
-
-fn maximize_minimum_angle(points: &[[f32; 2]], initial: [f32; 2]) -> [f32; 2] {
-    if points.len() < 3 {
-        return initial;
-    }
-
-    let mut min = points[0];
-    let mut max = points[0];
-    for &[x, y] in &points[1..] {
-        min[0] = min[0].min(x);
-        min[1] = min[1].min(y);
-        max[0] = max[0].max(x);
-        max[1] = max[1].max(y);
-    }
-
-    let mut center = initial;
-    let mut best_angle = minimum_subpath_angle(points, center);
-    const GRID_SIZE: usize = 17;
-    let span = [max[0] - min[0], max[1] - min[1]];
-
-    // 外接矩形全体を走査して、初期中心付近の局所解に依存しないようにする。
-    for y in 0..GRID_SIZE {
-        for x in 0..GRID_SIZE {
-            let candidate = [
-                min[0] + span[0] * x as f32 / (GRID_SIZE - 1) as f32,
-                min[1] + span[1] * y as f32 / (GRID_SIZE - 1) as f32,
-            ];
-            let angle = minimum_subpath_angle(points, candidate);
-            if angle > best_angle {
-                center = candidate;
-                best_angle = angle;
-            }
-            log::info!(
-                "pre grid search step, center: {:?}, best_angle: {}",
-                center,
-                best_angle.to_degrees()
-            );
-        }
-    }
-
-    let mut step = span[0].max(span[1]) / (GRID_SIZE - 1) as f32;
-    for _ in 0..8 {
-        let previous_center = center;
-        for y in -1..=1 {
-            for x in -1..=1 {
-                let candidate = [
-                    (previous_center[0] + x as f32 * step).clamp(min[0], max[0]),
-                    (previous_center[1] + y as f32 * step).clamp(min[1], max[1]),
-                ];
-                let angle = minimum_subpath_angle(points, candidate);
-                if angle > best_angle {
-                    center = candidate;
-                    best_angle = angle;
-                }
-                log::info!(
-                    "after local search step, center: {:?}, best_angle: {}",
-                    center,
-                    best_angle.to_degrees()
-                );
-            }
-        }
-        step *= 0.5;
-    }
-
-    center
-}
-
-fn minimum_subpath_angle(points: &[[f32; 2]], center: [f32; 2]) -> f32 {
-    let mut minimum_angle = f32::INFINITY;
-    let mut has_edge = false;
-
-    for (start, end) in points.iter().zip(points.iter().cycle().skip(1)) {
-        if start == end {
-            log::info!("skip same point");
-            continue;
-        }
-        let edge = [end[0] - start[0], end[1] - start[1]];
-        if edge[0] * edge[0] + edge[1] * edge[1] <= f32::EPSILON {
-            continue;
-        }
-
-        let angle = minimum_fan_triangle_angle(*start, *end, center);
-        minimum_angle = minimum_angle.min(angle);
-        has_edge = true;
-    }
-
-    if has_edge { minimum_angle } else { 0.0 }
-}
-
-fn minimum_fan_triangle_angle(start: [f32; 2], end: [f32; 2], center: [f32; 2]) -> f32 {
-    let center_angle = angle_between(
-        [start[0] - center[0], start[1] - center[1]],
-        [end[0] - center[0], end[1] - center[1]],
-    );
-    let start_angle = angle_between(
-        [center[0] - start[0], center[1] - start[1]],
-        [end[0] - start[0], end[1] - start[1]],
-    );
-    let end_angle = angle_between(
-        [start[0] - end[0], start[1] - end[1]],
-        [center[0] - end[0], center[1] - end[1]],
-    );
-
-    center_angle.min(start_angle).min(end_angle)
-}
-
-fn angle_between(first: [f32; 2], second: [f32; 2]) -> f32 {
-    let first_length_squared = first[0] * first[0] + first[1] * first[1];
-    let second_length_squared = second[0] * second[0] + second[1] * second[1];
-    if first_length_squared <= f32::EPSILON || second_length_squared <= f32::EPSILON {
-        return 0.0;
-    }
-
-    let cross = first[0] * second[1] - first[1] * second[0];
-    let dot = first[0] * second[0] + first[1] * second[1];
-    cross.abs().atan2(dot)
-}
-
-#[derive(Debug)]
-pub struct VectorVertex {
-    pub(crate) vertex: Vec<Vertex>,
-    pub(crate) index: Vec<u32>,
-}
-impl VectorVertex {
-    pub fn vertex_size(&self) -> u64 {
-        (self.vertex.len() * std::mem::size_of::<Vertex>()) as u64
-    }
-
-    pub fn index_size(&self) -> u64 {
-        (self.index.len() * std::mem::size_of::<u32>()) as u64
-    }
-
-    /// デバッグ用途に、各頂点の座標と種別（中心点・制御点・区間始点・区間終点・輪郭点）を取得する
-    pub fn debug_points(&self) -> Vec<([f32; 2], VertexPointKind)> {
-        self.vertex
-            .iter()
-            .map(|v| (v.position, VertexPointKind::from_vertex_type(v.vertex_type)))
-            .collect()
-    }
-
-    /// デバッグ用途に、index バッファが構成する三角形を頂点座標と区間上の役割へ解決する
-    pub fn debug_triangles(&self) -> Vec<[([f32; 2], VertexPointKind); 3]> {
-        let (triangles, _) = self.index.as_chunks::<3>();
-        triangles
-            .iter()
-            .filter_map(|indices| {
-                let [first, second, third] = indices;
-                let debug_point = |index: u32| {
-                    let vertex = self.vertex.get(index.checked_sub(2)? as usize)?;
-                    Some((
-                        vertex.position,
-                        VertexPointKind::from_vertex_type(vertex.vertex_type),
-                    ))
-                };
-                let triangle = [
-                    debug_point(*first)?,
-                    debug_point(*second)?,
-                    debug_point(*third)?,
-                ];
-                match triangle {
-                    [(center, VertexPointKind::Center), (start, _), (end, _)] => Some([
-                        (center, VertexPointKind::Center),
-                        (start, VertexPointKind::SegmentStart),
-                        (end, VertexPointKind::SegmentEnd),
-                    ]),
-                    [(start, _), (control, VertexPointKind::Control), (end, _)] => Some([
-                        (start, VertexPointKind::SegmentStart),
-                        (control, VertexPointKind::Control),
-                        (end, VertexPointKind::SegmentEnd),
-                    ]),
-                    _ => Some(triangle),
-                }
-            })
-            .collect()
-    }
-}
-
-/// デバッグ描画用の頂点種別
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VertexPointKind {
-    Center,
-    Control,
-    SegmentStart,
-    SegmentEnd,
-    OnCurve,
-}
-
-impl VertexPointKind {
-    fn from_vertex_type(vertex_type: u32) -> Self {
-        match vertex_type {
-            0 | 1 => VertexPointKind::Center,
-            6 => VertexPointKind::Control,
-            7 => VertexPointKind::SegmentStart,
-            8 => VertexPointKind::SegmentEnd,
-            // 2-5 はワインディング用の交互フラグであり、始点/終点は三角形内の位置で決まる。
-            _ => VertexPointKind::OnCurve,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::vector_vertex::angle_between;
-
     use super::*;
 
     #[test]
-    fn angle_between_test() {
-        let min_angle = angle_between([1.0, 0.0], [0.0, 1.0]);
-        assert_eq!(min_angle, std::f32::consts::FRAC_PI_2);
-        assert_eq!(min_angle.to_degrees(), 90.0);
-    }
-
-    #[test]
-    fn minimum_fan_triangle_angle_test() {
-        let min_angle = minimum_fan_triangle_angle([1.0, 0.0], [0.0, 1.0], [0.0, 0.0]);
-        assert_eq!(min_angle.to_degrees(), 45.0);
-    }
-
-    #[test]
-    fn minimize_maximum_angle_keeps_the_worst_angle_small() {
-        let points = [[0.0, 0.0], [10.0, 0.0], [8.0, 1.0], [0.0, 4.0]];
-        let arithmetic_mean =
-            calculate_subpath_center(&points, CenterPointAlgorithm::ArithmeticMean);
-        let optimized =
-            calculate_subpath_center(&points, CenterPointAlgorithm::MinimizeMaximumAngle);
-
-        assert!(
-            maximum_subpath_angle(&points, optimized)
-                <= maximum_subpath_angle(&points, arithmetic_mean)
-        );
-    }
-
-    #[test]
-    fn maximize_minimum_angle_keeps_the_smallest_angle_large() {
-        let points = [[0.0, 0.0], [10.0, 0.0], [8.0, 1.0], [0.0, 4.0]];
-        let arithmetic_mean =
-            calculate_subpath_center(&points, CenterPointAlgorithm::ArithmeticMean);
-        let optimized =
-            calculate_subpath_center(&points, CenterPointAlgorithm::MaximizeMinimumAngle);
-
-        assert!(
-            minimum_subpath_angle(&points, optimized)
-                >= minimum_subpath_angle(&points, arithmetic_mean)
-        );
-    }
-
-    #[test]
-    fn minimum_angle_ignores_duplicate_closing_point() {
-        let closed_points = [
-            [0.0, 0.0],
-            [10.0, 0.0],
-            [10.0, 10.0],
-            [0.0, 10.0],
-            [0.0, 0.0],
-        ];
-
-        assert!(minimum_subpath_angle(&closed_points, [5.0, 5.0]) > 0.0);
-    }
-
-    #[test]
-    fn minimum_angle_rejects_center_on_an_edge() {
-        let points = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
-
-        assert_eq!(minimum_subpath_angle(&points, [5.0, 0.0]), 0.0);
-    }
-
-    #[test]
-    fn minimum_angle_rejects_center_on_a_vertex() {
-        let points = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
-
-        assert_eq!(minimum_subpath_angle(&points, [0.0, 0.0]), 0.0);
-    }
-
-    #[test]
-    fn minimum_fan_triangle_angle_includes_endpoint_angles() {
-        let start = [0.0, 0.0];
-        let end = [4.0, 0.0];
-        let center = [0.5, 2.0];
-
-        let angle = minimum_fan_triangle_angle(start, end, center);
-        let endpoint_angle = 8.0_f32.atan2(14.0);
-
-        assert!((angle - endpoint_angle).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn maximum_fan_triangle_angle_includes_endpoint_angles() {
-        let start = [0.0, 0.0];
-        let end = [4.0, 0.0];
-        let center = [0.5, 2.0];
-
-        let angle = maximum_fan_triangle_angle(start, end, center);
-        let endpoint_angle = 2.0_f32.atan2(0.5);
-
-        assert!((angle - endpoint_angle).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn maximize_minimum_angle_avoids_degenerate_bracket_fan_triangle() {
-        let points = [
-            [-0.063, -0.5365],
-            [-0.063, 0.4255],
-            [0.135, 0.4255],
-            [0.135, 0.3725],
-            [0.005, 0.3725],
-            [0.005, -0.4845],
-            [0.135, -0.4845],
-            [0.135, -0.5365],
-            [-0.063, -0.5365],
-        ];
-        let arithmetic_mean =
-            calculate_subpath_center(&points, CenterPointAlgorithm::ArithmeticMean);
-        let optimized =
-            calculate_subpath_center(&points, CenterPointAlgorithm::MaximizeMinimumAngle);
-
-        assert!(minimum_subpath_angle(&points, optimized) > 0.0);
-        assert_ne!(optimized, arithmetic_mean);
-    }
-
-    #[test]
-    fn closing_bracket_omits_degenerate_fan_triangle() {
-        let points = [
-            [-0.063, -0.5365],
-            [-0.063, 0.4255],
-            [0.135, 0.4255],
-            [0.135, 0.3725],
-            [0.005, 0.3725],
-            [0.005, -0.4845],
-            [0.135, -0.4845],
-            [0.135, -0.5365],
-        ];
+    fn stores_directed_curves_without_auxiliary_geometry() {
         let mut builder = VectorVertexBuilder::new();
-        builder.move_to(points[0][0], points[0][1]);
-        for point in &points[1..] {
-            builder.line_to(point[0], point[1]);
-        }
+        builder.move_to(0.0, 0.0);
+        builder.line_to(4.0, 0.0);
+        builder.quad_to(6.0, 3.0, 4.0, 4.0);
         builder.close();
-
-        let (triangles, remainder) = builder.index.as_chunks::<3>();
-        assert!(remainder.is_empty());
-        for &[first_index, second_index, third_index] in triangles {
-            let first = &builder.vertex[(first_index - 2) as usize];
-            let second = &builder.vertex[(second_index - 2) as usize];
-            let third = &builder.vertex[(third_index - 2) as usize];
-            let twice_area = (second.x - first.x) * (third.y - first.y)
-                - (second.y - first.y) * (third.x - first.x);
-
-            assert!(twice_area.abs() > f32::EPSILON);
-        }
-    }
-
-    #[test]
-    fn maximum_angle_ignores_duplicate_closing_point() {
-        let points = [[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]];
-        let closed_points = [
-            [0.0, 0.0],
-            [10.0, 0.0],
-            [10.0, 10.0],
-            [0.0, 10.0],
-            [0.0, 0.0],
-        ];
-
+        let path = builder.build();
         assert_eq!(
-            maximum_subpath_angle(&points, [5.0, 5.0]),
-            maximum_subpath_angle(&closed_points, [5.0, 5.0])
+            path.curves(),
+            &[
+                QuadraticCurve {
+                    start: [0.0, 0.0],
+                    control: [2.0, 0.0],
+                    end: [4.0, 0.0]
+                },
+                QuadraticCurve {
+                    start: [4.0, 0.0],
+                    control: [6.0, 3.0],
+                    end: [4.0, 4.0]
+                },
+                QuadraticCurve {
+                    start: [4.0, 4.0],
+                    control: [2.0, 2.0],
+                    end: [0.0, 0.0]
+                },
+            ]
         );
     }
 
     #[test]
-    fn center_point_algorithm_is_applied_when_closing() {
-        let points = [[0.0, 0.0], [10.0, 0.0], [8.0, 1.0], [0.0, 4.0]];
-        let closed_points = [[0.0, 0.0], [10.0, 0.0], [8.0, 1.0], [0.0, 4.0], [0.0, 0.0]];
-        let mut builder = VectorVertexBuilder::new().with_options(
-            VertexBuilderOptions::default()
-                .with_center_point_algorithm(CenterPointAlgorithm::MinimizeMaximumAngle),
+    fn separate_contours_preserve_direction_without_connecting_edges() {
+        let mut builder = VectorVertexBuilder::new();
+        for points in [
+            [[0.0, 0.0], [4.0, 0.0], [4.0, 4.0]],
+            [[1.0, 1.0], [1.0, 2.0], [2.0, 1.0]],
+        ] {
+            builder.move_to(points[0][0], points[0][1]);
+            for point in &points[1..] {
+                builder.line_to(point[0], point[1]);
+            }
+            builder.close();
+            builder.close();
+        }
+        let path = builder.build();
+        assert_eq!(path.curves().len(), 6);
+        assert_eq!(path.curves()[2].end, [0.0, 0.0]);
+        assert_eq!(path.curves()[3].start, [1.0, 1.0]);
+        assert_eq!(path.curves()[5].end, [1.0, 1.0]);
+    }
+
+    #[test]
+    fn transforms_all_curve_points() {
+        let mut builder = VectorVertexBuilder::new().with_options(VertexBuilderOptions::new(
+            [2.0, 4.0],
+            2.0,
+            CoordinateSystem::Svg,
+            None,
+        ));
+        builder.move_to(2.0, 4.0);
+        builder.quad_to(4.0, 2.0, 6.0, 4.0);
+        assert_eq!(
+            builder.build().curves()[0],
+            QuadraticCurve {
+                start: [0.0, 0.0],
+                control: [1.0, 1.0],
+                end: [2.0, 0.0]
+            }
         );
-        builder.move_to(points[0][0], points[0][1]);
-        for point in &points[1..] {
-            builder.line_to(point[0], point[1]);
-        }
+
+        let mut builder = VectorVertexBuilder::new().with_options(VertexBuilderOptions::new(
+            [0.0; 2],
+            2.0,
+            CoordinateSystem::Font,
+            Some([2.0, 3.0]),
+        ));
+        builder.move_to(2.0, 4.0);
+        builder.quad_to(4.0, 2.0, 6.0, 4.0);
+        assert_eq!(
+            builder.build().curves()[0],
+            QuadraticCurve {
+                start: [2.0, 6.0],
+                control: [4.0, 3.0],
+                end: [6.0, 6.0]
+            }
+        );
+    }
+
+    #[test]
+    fn cubic_approximation_preserves_endpoints_and_continuity() {
+        let mut builder = VectorVertexBuilder::new();
+        builder.move_to(0.0, 0.0);
+        builder.curve_to(0.0, 4.0, 4.0, 4.0, 4.0, 0.0);
         builder.close();
-
-        let origin = builder
-            .vertex
-            .iter()
-            .find(|vertex| matches!(vertex.wait, FlipFlop::OriginLine))
-            .unwrap();
-        let expected =
-            calculate_subpath_center(&closed_points, CenterPointAlgorithm::MinimizeMaximumAngle);
-        assert_eq!([origin.x, origin.y], expected);
-    }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub(crate) struct Vertex {
-    pub(crate) position: [f32; 2],
-    pub(crate) vertex_type: u32,
-}
-
-#[derive(Clone, Copy)]
-pub(crate) enum FlipFlop {
-    Flip,
-    Flop,
-    Control,
-    FlipForLine,
-    FlopForLine,
-    OriginBezier,
-    OriginLine,
-    // ベジエ補助直線（フィル）三角形専用の頂点。ベジエ曲線三角形と頂点を共用しない。
-    BezierFillStart,
-    BezierFillEnd,
-}
-
-impl FlipFlop {
-    #[inline]
-    pub(crate) fn next(&self) -> Self {
-        match self {
-            FlipFlop::Flip => FlipFlop::Flop,
-            FlipFlop::Flop => FlipFlop::Flip,
-            FlipFlop::Control => FlipFlop::Control,
-            FlipFlop::FlipForLine => FlipFlop::FlipForLine,
-            FlipFlop::FlopForLine => FlipFlop::FlopForLine,
-            FlipFlop::OriginBezier => FlipFlop::OriginBezier,
-            FlipFlop::OriginLine => FlipFlop::OriginLine,
-            FlipFlop::BezierFillStart => FlipFlop::BezierFillStart,
-            FlipFlop::BezierFillEnd => FlipFlop::BezierFillEnd,
+        let path = builder.build();
+        assert!(path.curves().len() >= 2);
+        assert_eq!(path.curves()[0].start, [0.0, 0.0]);
+        assert_eq!(path.curves()[path.curves().len() - 2].end, [4.0, 0.0]);
+        assert_eq!(path.curves().last().unwrap().end, [0.0, 0.0]);
+        for adjacent in path.curves().windows(2) {
+            assert_eq!(adjacent[0].end, adjacent[1].start);
         }
     }
 
-    pub(crate) fn for_line(&self) -> Self {
-        match self {
-            FlipFlop::Flip => FlipFlop::FlopForLine,
-            FlipFlop::Flop => FlipFlop::FlipForLine,
-            FlipFlop::Control => FlipFlop::Control,
-            FlipFlop::FlipForLine => FlipFlop::FlipForLine,
-            FlipFlop::FlopForLine => FlipFlop::FlopForLine,
-            FlipFlop::OriginBezier => FlipFlop::OriginBezier,
-            FlipFlop::OriginLine => FlipFlop::OriginLine,
-            FlipFlop::BezierFillStart => FlipFlop::BezierFillStart,
-            FlipFlop::BezierFillEnd => FlipFlop::BezierFillEnd,
-        }
+    #[test]
+    fn degenerate_commands_do_not_create_segments() {
+        let mut builder = VectorVertexBuilder::new();
+        builder.line_to(1.0, 1.0);
+        builder.quad_to(0.0, 1.0, 1.0, 1.0);
+        builder.curve_to(0.0, 1.0, 1.0, 0.0, 1.0, 1.0);
+        builder.close();
+        builder.move_to(1.0, 1.0);
+        builder.line_to(1.0, 1.0);
+        builder.quad_to(1.0, 1.0, 1.0, 1.0);
+        builder.close();
+        assert!(builder.build().curves().is_empty());
     }
-
-    #[inline]
-    pub(crate) fn vertex_type(&self) -> u32 {
-        match self {
-            FlipFlop::Flip => 2,
-            FlipFlop::FlipForLine => 3,
-            FlipFlop::Flop => 4,
-            FlipFlop::FlopForLine => 5,
-            FlipFlop::Control => 6,
-            FlipFlop::OriginBezier => 0,
-            FlipFlop::OriginLine => 1,
-            FlipFlop::BezierFillStart => 7,
-            FlipFlop::BezierFillEnd => 8,
-        }
-    }
-}
-
-pub(crate) struct InternalVertex {
-    pub(crate) x: f32,
-    pub(crate) y: f32,
-    pub(crate) wait: FlipFlop,
 }

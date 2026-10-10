@@ -1,4 +1,7 @@
-use crate::{errors::FontRasterizerError, vector_vertex::VectorVertex};
+use crate::{
+    errors::FontRasterizerError,
+    vector_vertex::{QuadraticCurve as Curve, VectorVertex},
+};
 use wgpu::util::DeviceExt;
 
 #[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
@@ -17,7 +20,7 @@ struct Header {
 fn bands(pieces: &[Curve]) -> (Header, Vec<Curve>, Vec<[u32; 2]>) {
     let mut bounds = [f32::MAX, f32::MAX, -f32::MAX, -f32::MAX];
     for piece in pieces {
-        for point in piece.points {
+        for point in piece.points() {
             for axis in 0..2 {
                 bounds[axis] = bounds[axis].min(point[axis]);
                 bounds[axis + 2] = bounds[axis + 2].max(point[axis]);
@@ -41,8 +44,8 @@ fn bands(pieces: &[Curve]) -> (Header, Vec<Curve>, Vec<[u32; 2]>) {
     };
     let mut buckets = vec![Vec::new(); band_count as usize];
     for piece in pieces {
-        let first = piece.points[0][1].min(piece.points[2][1]);
-        let last = piece.points[0][1].max(piece.points[2][1]);
+        let first = piece.start[1].min(piece.end[1]);
+        let last = piece.start[1].max(piece.end[1]);
         if first == last {
             continue;
         }
@@ -58,7 +61,7 @@ fn bands(pieces: &[Curve]) -> (Header, Vec<Curve>, Vec<[u32; 2]>) {
     let mut rows = Vec::new();
     for mut bucket in buckets {
         bucket.sort_by(|first, second| {
-            let maximum = |curve: &Curve| curve.points[0][0].max(curve.points[2][0]);
+            let maximum = |curve: &Curve| curve.start[0].max(curve.end[0]);
             maximum(second).total_cmp(&maximum(first))
         });
         rows.push([atlas.len() as u32, bucket.len() as u32]);
@@ -104,18 +107,20 @@ pub(crate) fn upload(
     device: &wgpu::Device,
     vector: &VectorVertex,
 ) -> Result<wgpu::BindGroup, FontRasterizerError> {
-    let raw = raw_curves(vector);
+    let raw = vector.curves();
     let mut pieces = Vec::new();
-    for curve in &raw {
+    for curve in raw {
         curve.monotone(&mut pieces);
     }
     let (mut header, mut atlas, rows) = bands(&pieces);
     header.raw_start = atlas.len() as u32;
     header.raw_count = raw.len() as u32;
-    atlas.extend(raw);
+    atlas.extend_from_slice(raw);
     if atlas.is_empty() {
         atlas.push(Curve {
-            points: [[0.0; 2]; 3],
+            start: [0.0; 2],
+            control: [0.0; 2],
+            end: [0.0; 2],
         });
     }
     let limit = device
@@ -175,26 +180,24 @@ pub(crate) fn upload(
     }))
 }
 
-#[derive(Clone, Copy, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-#[repr(C)]
-pub(crate) struct Curve {
-    pub points: [[f32; 2]; 3],
-}
-
 impl Curve {
     fn split(self, parameter: f32) -> (Self, Self) {
         let interpolate = |start: [f32; 2], end: [f32; 2]| {
             std::array::from_fn(|axis| start[axis] + (end[axis] - start[axis]) * parameter)
         };
-        let first = interpolate(self.points[0], self.points[1]);
-        let second = interpolate(self.points[1], self.points[2]);
+        let first = interpolate(self.start, self.control);
+        let second = interpolate(self.control, self.end);
         let middle = interpolate(first, second);
         (
             Self {
-                points: [self.points[0], first, middle],
+                start: self.start,
+                control: first,
+                end: middle,
             },
             Self {
-                points: [middle, second, self.points[2]],
+                start: middle,
+                control: second,
+                end: self.end,
             },
         )
     }
@@ -202,7 +205,7 @@ impl Curve {
     fn monotone(self, output: &mut Vec<Self>) {
         let mut extrema = Vec::new();
         for axis in 0..2 {
-            let [start, control, end] = self.points.map(|point| f64::from(point[axis]));
+            let [start, control, end] = self.points().map(|point| f64::from(point[axis]));
             let denominator = start - 2.0 * control + end;
             if denominator != 0.0 {
                 let parameter = (start - control) / denominator;
@@ -225,45 +228,10 @@ impl Curve {
     }
 }
 
-fn raw_curves(vector: &VectorVertex) -> Vec<Curve> {
-    let mut output = Vec::new();
-    for triangle in vector.index.as_chunks::<3>().0 {
-        let Some(middle) = triangle[1]
-            .checked_sub(2)
-            .and_then(|index| vector.vertex.get(index as usize))
-        else {
-            continue;
-        };
-        let Some(end) = triangle[2]
-            .checked_sub(2)
-            .and_then(|index| vector.vertex.get(index as usize))
-        else {
-            continue;
-        };
-        if middle.vertex_type == 6 {
-            let start = vector.vertex[(triangle[0] - 2) as usize].position;
-            output.push(Curve {
-                points: [start, middle.position, end.position],
-            });
-        } else if matches!(middle.vertex_type, 3 | 5) && matches!(end.vertex_type, 3 | 5) {
-            let start = middle.position;
-            let end = end.position;
-            output.push(Curve {
-                points: [
-                    start,
-                    std::array::from_fn(|axis| (start[axis] + end[axis]) * 0.5),
-                    end,
-                ],
-            });
-        }
-    }
-    output
-}
-
 #[cfg(test)]
 fn curves(vector: &VectorVertex) -> Vec<Curve> {
     let mut pieces = Vec::new();
-    for curve in raw_curves(vector) {
+    for curve in vector.curves() {
         curve.monotone(&mut pieces);
     }
     pieces
@@ -275,7 +243,7 @@ mod tests {
     use crate::VectorVertexBuilder;
 
     #[test]
-    fn windfoil_extracts_closed_rectangle_without_fan_origins() {
+    fn windfoil_preserves_closed_rectangle() {
         let mut builder = VectorVertexBuilder::new();
         builder.move_to(1.0, 2.0);
         builder.line_to(3.0, 2.0);
@@ -285,31 +253,35 @@ mod tests {
         let pieces = curves(&builder.build());
         assert_eq!(pieces.len(), 4);
         for index in 0..pieces.len() {
-            assert_eq!(
-                pieces[index].points[2],
-                pieces[(index + 1) % pieces.len()].points[0]
-            );
+            assert_eq!(pieces[index].end, pieces[(index + 1) % pieces.len()].start);
         }
     }
 
     #[test]
     fn windfoil_splits_both_extrema_and_preserves_endpoints() {
         let curve = Curve {
-            points: [[0.0, 0.0], [2.0, 3.0], [1.0, 1.0]],
+            start: [0.0, 0.0],
+            control: [2.0, 3.0],
+            end: [1.0, 1.0],
         };
+        assert_eq!(std::mem::size_of::<Curve>(), 24);
+        assert_eq!(
+            bytemuck::cast_slice::<Curve, f32>(&[curve]),
+            &[0.0, 0.0, 2.0, 3.0, 1.0, 1.0]
+        );
         let mut pieces = Vec::new();
         curve.monotone(&mut pieces);
         assert_eq!(pieces.len(), 3);
-        assert_eq!(pieces[0].points[0], curve.points[0]);
-        assert_eq!(pieces[2].points[2], curve.points[2]);
+        assert_eq!(pieces[0].start, curve.start);
+        assert_eq!(pieces[2].end, curve.end);
         for piece in &pieces {
             for axis in 0..2 {
-                let [start, control, end] = piece.points.map(|point| point[axis]);
+                let [start, control, end] = piece.points().map(|point| point[axis]);
                 assert!(control >= start.min(end) - 1e-6);
                 assert!(control <= start.max(end) + 1e-6);
             }
         }
-        assert_eq!(pieces[0].points[2], pieces[1].points[0]);
-        assert_eq!(pieces[1].points[2], pieces[2].points[0]);
+        assert_eq!(pieces[0].end, pieces[1].start);
+        assert_eq!(pieces[1].end, pieces[2].start);
     }
 }

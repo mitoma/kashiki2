@@ -137,21 +137,6 @@ struct Uniforms {
 @group(0) @binding(0)
 var<uniform> u_buffer: Uniforms;
 
-struct VertexInput {
-    @builtin(instance_index) instance_index: u32,
-    @location(0) position: vec2<f32>,
-    // 座標の種別
-    //
-    // 原点B  : 0
-    // 始点B  : 2
-    // 終点B  : 4
-    // 原点L  : 1
-    // 始点L  : 3
-    // 終点L  : 5
-    // 制御点 : 6
-    @location(1) vertex_type: u32,
-};
-
 struct InstancesInput {
     @location(5) model_matrix_0: vec4<f32>,
     @location(6) model_matrix_1: vec4<f32>,
@@ -164,44 +149,10 @@ struct InstancesInput {
     @location(13) duration: u32,
 };
 
-struct VertexOutput {
-    @builtin(position) clip_position: vec4<f32>,
-    // フラグメントシェーダーで3つの各頂点からほかの頂点に向かって減衰するウエイト値を保持する
-    // x は原点または制御点からのウエイト、y と z は始点または終点からのウエイトとなる
-    // 
-    // 原点B  (1.0, 0.0, 0.0)
-    // 始点B  (0.0, 1.0, 0.0)
-    // 終点B  (0.0, 0.0, 1.0)
-    // 原点L  (1.0, 0.0, 0.0)
-    // 始点L  (0.0, 1.0, 0.0)
-    // 終点L  (0.0, 0.0, 1.0)
-    // 制御点 (1.0, 0.0, 0.0)
-    @location(0) color: vec3<f32>,
-    @location(1) wait: vec3<f32>,
-    // フラグメントシェーダーで三角形の種別を判定するために使う。
-    // 
-    // 座標はベジエ曲線部、ベジエ補助直線、直線で共用されるため、フラグメントシェーダー内での判定に個のアトリビュートが必要となる。
-    // 
-    // フラグメントシェーダ内で X が 1 の場合はベジエ曲線部、Y が 1 の場合はベジエ補助直線、Z が 1 の場合は直線として扱う。
-    // ベジエ曲線部:   (1.0, 0.0, 0.0)
-    // ベジエ補助直線: (0.0, 1.0, 0.0)
-    // 直線:           (0.0, 0.0, 1.0)
-    // 
-    // triangle_type に従って以下の値になる。
-    // 原点B  (0.0, 1.0, 0.0)
-    // 始点B  (1.0, 1.0, 0.0)
-    // 終点B  (1.0, 1.0, 0.0)
-    // 原点L  (0.0, 0.0, 1.0)
-    // 始点L  (0.0, 0.0, 1.0)
-    // 終点L  (0.0, 0.0, 1.0)
-    // 制御点 (1.0, 0.0, 0.0)
-    @location(2) triangle_type: vec3<f32>,
-};
-
-fn transform_vertex(
-    model: VertexInput,
+fn transform_point(
+    position: vec2<f32>,
     instances: InstancesInput,
-) -> VertexOutput {
+) -> vec4<f32> {
     let instance_matrix = mat4x4<f32>(
         instances.model_matrix_0,
         instances.model_matrix_1,
@@ -226,9 +177,9 @@ fn transform_vertex(
     let easing_type = bit_range(motion, 19u, 16u);
     let duration = instances.duration;
     let gain = instances.gain;
-    let x_distance = model.position.x;
-    let y_distance = model.position.y;
-    let xy_distance = distance(model.position.xy, vec2<f32>(0f, 0f));
+    let x_distance = position.x;
+    let y_distance = position.y;
+    let xy_distance = distance(position, vec2<f32>(0f, 0f));
 
     var v = 0f;
     var easing_position = u_buffer.u_time - instances.start_time;
@@ -331,8 +282,8 @@ fn transform_vertex(
     }
 
     var moved = vec4<f32>(
-        (model.position.x * strech_x) + x_gain,
-        (model.position.y * strech_y) + y_gain,
+        (position.x * strech_x) + x_gain,
+        (position.y * strech_y) + y_gain,
         0.0 + z_gain,
         1.0
     );
@@ -341,53 +292,10 @@ fn transform_vertex(
         moved = vec4<f32>(rotate(moved.xyz, calced_gain * DOUBLE_PI, vec3<f32>(x_rotate, y_rotate, z_rotate)), 1.0);
     }
 
-    var out: VertexOutput;
-
-    if model.vertex_type == 0u {
-        // 原点B
-        out.wait = vec3<f32>(1.0, 0.0, 0.0);
-        out.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
-    } else if model.vertex_type == 7u {
-        // ベジエ補助直線 始点
-        out.wait = vec3<f32>(0.0, 1.0, 0.0);
-        out.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
-    } else if model.vertex_type == 8u {
-        // ベジエ補助直線 終点
-        out.wait = vec3<f32>(0.0, 0.0, 1.0);
-        out.triangle_type = vec3<f32>(0.0, 1.0, 0.0);
-    } else if model.vertex_type == 1u {
-        // 原点L
-        out.wait = vec3<f32>(1.0, 0.0, 0.0);
-        out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
-    } else if model.vertex_type == 3u {
-        // 始点L
-        out.wait = vec3<f32>(0.0, 1.0, 0.0);
-        out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
-    } else if model.vertex_type == 5u {
-        // 終点L
-        out.wait = vec3<f32>(0.0, 0.0, 1.0);
-        out.triangle_type = vec3<f32>(0.0, 0.0, 1.0);
-    } else if model.vertex_type == 2u {
-        // 始点B
-        out.wait = vec3<f32>(0.0, 1.0, 0.0);
-        out.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
-    } else if model.vertex_type == 4u {
-        // 終点B
-        out.wait = vec3<f32>(0.0, 0.0, 1.0);
-        out.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
-    } else if model.vertex_type == 6u {
-        // 制御点
-        out.wait = vec3<f32>(1.0, 0.0, 0.0);
-        out.triangle_type = vec3<f32>(1.0, 0.0, 0.0);
-    }
-
-    out.color = instances.color;
     if ignore_camera {
-        out.clip_position = u_buffer.u_default_view_proj * instance_matrix * moved;
-    } else {
-        out.clip_position = u_buffer.u_view_proj * instance_matrix * moved;
+        return u_buffer.u_default_view_proj * instance_matrix * moved;
     }
-    return out;
+    return u_buffer.u_view_proj * instance_matrix * moved;
 }
 
 struct WindfoilHeader {
@@ -421,7 +329,7 @@ struct WindfoilOutput {
 };
 
 fn project_local(point: vec2<f32>, instances: InstancesInput) -> vec4<f32> {
-    return transform_vertex(VertexInput(0u, point, 2u), instances).clip_position;
+    return transform_point(point, instances);
 }
 
 @vertex

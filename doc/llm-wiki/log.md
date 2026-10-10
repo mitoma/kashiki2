@@ -1,5 +1,13 @@
 # Log
 
+## [2026-10-11] ingest | Windfoil の曲線中心モデルへの移行
+
+- Builder と Windfoil は同じ `QuadraticCurve { start, control, end }` を使用し、旧三角形からの再抽出を廃止
+- 頂点種別・補助三角形・三角形インデックス・重心探索・旧デバッグ API を除去し、曲線の閉じ方と連続性をテストへ反映
+- グリフキャッシュを版番号付きの曲線形式へ分離し、横書き・縦書きの往復と旧版・不正データの拒否を検証
+- source / component / pipeline / AA decision を更新し、signed accumulation は過去の方式として区別
+- GPU 被覆率回帰テストで矩形解析解、細線、独立曲線サンプル、バンド境界、塗り規則、座標依存モーションを確認
+
 ## [2026-09-13] ingest | テキストラスタライズ品質改善を反映
 
 - `font_rasterizer` の現行 WGSL を再確認し、signed coverage の格納 (`count.r/g/b`) と outline resolve の説明を更新

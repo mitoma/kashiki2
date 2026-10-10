@@ -161,7 +161,10 @@ mod tests {
         let mut builder = VectorVertexBuilder::new();
         straighten.outline(&mut builder);
 
-        // 2 つの quad_to が 1 本の直線に簡約されるので、ベジエ曲線用の Control 頂点は生成されない
-        assert!(!builder.has_control_vertex_for_test());
+        let path = builder.build();
+        assert_eq!(path.curves().len(), 3);
+        assert_eq!(path.curves()[0].start, [0.0, 0.0]);
+        assert_eq!(path.curves()[0].control, [5.0, 0.0]);
+        assert_eq!(path.curves()[0].end, [10.0, 0.0]);
     }
 }

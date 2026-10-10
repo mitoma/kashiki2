@@ -32,4 +32,4 @@ pub mod vector_vertex_png_renderer;
 mod windfoil;
 
 pub use straighten_outline_builder::StraightenOutlineBuilder;
-pub use vector_vertex::{VectorVertex, VectorVertexBuilder, VertexPointKind};
+pub use vector_vertex::{QuadraticCurve, VectorVertex, VectorVertexBuilder};
