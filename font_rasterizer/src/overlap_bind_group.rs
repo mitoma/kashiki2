@@ -10,8 +10,7 @@ pub struct Uniforms {
     time: u32,
     width: u32,
     enable_antialiasing: u32,
-    // padding が必要らしい。正直意味わかんねぇな。
-    padding: [u32; 1],
+    height: u32,
 }
 
 /// オーバーラップ用の BindGroup。
@@ -31,13 +30,13 @@ impl Default for Uniforms {
             time: now_millis(),
             width: 0,
             enable_antialiasing: 1,
-            padding: [0; 1],
+            height: 0,
         }
     }
 }
 
 impl OverlapBindGroup {
-    pub fn new(device: &wgpu::Device, width: u32) -> Self {
+    pub fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[
                 // Uniforms
@@ -57,6 +56,7 @@ impl OverlapBindGroup {
 
         let uniforms = Uniforms {
             width,
+            height,
             ..Default::default()
         };
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {

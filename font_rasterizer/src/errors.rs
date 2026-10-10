@@ -17,6 +17,9 @@ pub enum FontRasterizerError {
 
     #[error("invalid svg format")]
     SvgParseError,
+
+    #[error("path storage buffer is too large: {bytes} bytes exceeds {limit} bytes")]
+    PathBufferTooLarge { bytes: u64, limit: u64 },
 }
 
 #[derive(Debug)]

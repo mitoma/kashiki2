@@ -53,6 +53,30 @@ pub async fn render_vector_vertex_to_png_async(
     output_path: impl AsRef<Path>,
     options: VectorVertexPngRendererOptions,
 ) -> Result<(), FontRasterizerError> {
+    let attributes = InstanceAttributes {
+        position: Vec3::ZERO,
+        rotation: Quat::IDENTITY,
+        color: options.foreground_color,
+        start_time: 0,
+        ..Default::default()
+    };
+    render_with_transform(
+        vector_vertex,
+        output_path,
+        options,
+        attributes,
+        Mat4::IDENTITY,
+    )
+    .await
+}
+
+async fn render_with_transform(
+    vector_vertex: VectorVertex,
+    output_path: impl AsRef<Path>,
+    options: VectorVertexPngRendererOptions,
+    attributes: InstanceAttributes,
+    view_proj: Mat4,
+) -> Result<(), FontRasterizerError> {
     // headless(サーフェスなし)描画時、Windows の Vulkan ドライバでは overlap ステージの
     // 描画コマンドがラスタライズされない既知の不具合があるため、Windows では DX12 を強制する。
     let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
@@ -66,19 +90,10 @@ pub async fn render_vector_vertex_to_png_async(
         .await
         .unwrap();
 
-    let mut features = wgpu::Features::empty();
-    if options.enable_antialiasing
-        && adapter
-            .features()
-            .contains(wgpu::Features::CONSERVATIVE_RASTERIZATION)
-    {
-        features |= wgpu::Features::CONSERVATIVE_RASTERIZATION;
-    }
-
     let (device, queue) = adapter
         .request_device(&wgpu::DeviceDescriptor {
             label: Some("Vector Vertex PNG Renderer Device"),
-            required_features: features,
+            required_features: wgpu::Features::empty(),
             required_limits: wgpu::Limits::default(),
             memory_hints: wgpu::MemoryHints::Performance,
             trace: wgpu::Trace::default(),
@@ -123,17 +138,7 @@ pub async fn render_vector_vertex_to_png_async(
     vector_vertex_buffer.append(&device, &queue, "test".to_string(), vector_vertex)?;
 
     let mut vector_instances = VectorInstances::new("test".to_string(), &device);
-    vector_instances.push(InstanceAttributes {
-        position: Vec3::new(0.0, 0.0, 0.0),
-        rotation: Quat::IDENTITY,
-        world_scale: [1.0, 1.0],
-        instance_scale: [1.0, 1.0],
-        color: options.foreground_color,
-        motion: crate::motion::MotionFlags::ZERO_MOTION,
-        start_time: 0,
-        gain: 0.0,
-        duration: web_time::Duration::ZERO,
-    });
+    vector_instances.push(attributes);
     vector_instances.update_buffer(&device, &queue);
 
     let mut rasterizer = RasterizerRenderrer::new(
@@ -149,7 +154,7 @@ pub async fn render_vector_vertex_to_png_async(
         &device,
         &queue,
         (
-            Mat4::IDENTITY.to_cols_array_2d(),
+            view_proj.to_cols_array_2d(),
             Mat4::IDENTITY.to_cols_array_2d(),
         ),
     );
@@ -266,4 +271,218 @@ pub async fn render_vector_vertex_to_png_async(
     image.save(output_path.as_ref()).unwrap();
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        VectorVertexBuilder,
+        motion::{CameraDetail, MotionDetail, MotionFlags, MotionTarget, MotionType},
+    };
+
+    fn local(pixel: f32) -> f32 {
+        pixel / 32.0 - 1.0
+    }
+
+    fn rectangle(builder: &mut VectorVertexBuilder, bounds: [f32; 4], reverse: bool) {
+        let [left, top, right, bottom] = bounds;
+        let points = if reverse {
+            [[left, top], [left, bottom], [right, bottom], [right, top]]
+        } else {
+            [[left, top], [right, top], [right, bottom], [left, bottom]]
+        };
+        builder.move_to(local(points[0][0]), -local(points[0][1]));
+        for point in &points[1..] {
+            builder.line_to(local(point[0]), -local(point[1]));
+        }
+        builder.close();
+    }
+
+    fn render(
+        builder: VectorVertexBuilder,
+        rule: OutlineFillRule,
+        antialiasing: bool,
+        attributes: InstanceAttributes,
+        view: Mat4,
+    ) -> image::RgbaImage {
+        let path =
+            std::env::temp_dir().join(format!("kashiki-windfoil-{}.png", std::process::id()));
+        pollster::block_on(render_with_transform(
+            builder.build(),
+            &path,
+            VectorVertexPngRendererOptions {
+                width: 64,
+                height: 64,
+                foreground_color: attributes.color,
+                background_color: [0; 4],
+                outline_fill_rule: rule,
+                enable_antialiasing: antialiasing,
+            },
+            attributes,
+            view,
+        ))
+        .unwrap();
+        let image = image::open(&path).unwrap().to_rgba8();
+        std::fs::remove_file(path).unwrap();
+        image
+    }
+
+    fn overlap(pixel: u32, low: f32, high: f32) -> f32 {
+        ((pixel as f32 + 1.0).min(high) - (pixel as f32).max(low)).max(0.0)
+    }
+
+    fn assert_rectangle(image: &image::RgbaImage, bounds: [f32; 4]) {
+        for (horizontal, vertical, pixel) in image.enumerate_pixels() {
+            let expected =
+                overlap(horizontal, bounds[0], bounds[2]) * overlap(vertical, bounds[1], bounds[3]);
+            let actual = pixel[3] as f32 / 255.0;
+            assert!(
+                (actual - expected).abs() <= 1.1 / 255.0,
+                "pixel ({horizontal}, {vertical}): {actual} != {expected}"
+            );
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a WebGPU adapter"]
+    fn windfoil_gpu_coverage_regressions() {
+        let attributes = InstanceAttributes {
+            position: Vec3::ZERO,
+            start_time: 0,
+            color: [0.25, 0.5, 0.75],
+            ..Default::default()
+        };
+        for bounds in [[17.25, 18.75, 44.75, 45.25], [17.25, 18.75, 17.5, 45.25]] {
+            let mut builder = VectorVertexBuilder::new();
+            rectangle(&mut builder, bounds, false);
+            assert_rectangle(
+                &render(
+                    builder,
+                    OutlineFillRule::NonZero,
+                    true,
+                    attributes,
+                    Mat4::IDENTITY,
+                ),
+                bounds,
+            );
+        }
+
+        for rule in [OutlineFillRule::NonZero, OutlineFillRule::EvenOdd] {
+            for reverse in [false, true] {
+                let mut builder = VectorVertexBuilder::new();
+                rectangle(&mut builder, [8.0, 8.0, 56.0, 56.0], false);
+                rectangle(&mut builder, [24.0, 24.0, 40.0, 40.0], reverse);
+                let image = render(builder, rule, true, attributes, Mat4::IDENTITY);
+                assert_eq!(image.get_pixel(16, 16)[3], 255);
+                assert_eq!(
+                    image.get_pixel(32, 32)[3],
+                    if reverse || rule == OutlineFillRule::EvenOdd {
+                        0
+                    } else {
+                        255
+                    }
+                );
+                assert_eq!(image.get_pixel(0, 0)[3], 0);
+            }
+        }
+
+        let mut builder = VectorVertexBuilder::new();
+        for stripe in 0..20 {
+            let top = 2.25 + stripe as f32 * 3.0;
+            rectangle(&mut builder, [11.25, top, 52.75, top + 0.5], false);
+        }
+        let image = render(
+            builder,
+            OutlineFillRule::NonZero,
+            true,
+            attributes,
+            Mat4::IDENTITY,
+        );
+        for (horizontal, vertical, pixel) in image.enumerate_pixels() {
+            let expected: f32 = (0..20)
+                .map(|stripe| {
+                    let top = 2.25 + stripe as f32 * 3.0;
+                    overlap(horizontal, 11.25, 52.75) * overlap(vertical, top, top + 0.5)
+                })
+                .sum();
+            assert!((pixel[3] as f32 / 255.0 - expected).abs() <= 1.1 / 255.0);
+        }
+
+        let mut builder = VectorVertexBuilder::new();
+        builder.move_to(local(16.0), -local(32.0));
+        builder.quad_to(local(32.0), -local(0.0), local(48.0), -local(32.0));
+        builder.line_to(local(48.0), -local(48.0));
+        builder.line_to(local(16.0), -local(48.0));
+        builder.close();
+        let image = render(
+            builder,
+            OutlineFillRule::NonZero,
+            true,
+            attributes,
+            Mat4::IDENTITY,
+        );
+        for (horizontal, vertical, pixel) in image.enumerate_pixels() {
+            let mut inside = 0u32;
+            for sample_y in 0..64 {
+                for sample_x in 0..64 {
+                    let sample_x = horizontal as f64 + (sample_x as f64 + 0.5) / 64.0;
+                    let sample_y = vertical as f64 + (sample_y as f64 + 0.5) / 64.0;
+                    let top = 16.0 + (sample_x - 32.0).powi(2) / 16.0;
+                    inside += u32::from(
+                        (16.0..48.0).contains(&sample_x) && sample_y >= top && sample_y < 48.0,
+                    );
+                }
+            }
+            let expected = inside as f32 / 4096.0;
+            assert!(
+                (pixel[3] as f32 / 255.0 - expected).abs() < 0.005,
+                "quadratic ({horizontal}, {vertical})"
+            );
+        }
+
+        let mut builder = VectorVertexBuilder::new();
+        rectangle(&mut builder, [24.25, 24.25, 39.75, 39.75], false);
+        let motion = MotionFlags::new(
+            MotionType::None,
+            MotionDetail::USE_X_DISTANCE,
+            MotionTarget::MOVE_X_PLUS,
+            CameraDetail::empty(),
+        );
+        let transformed = InstanceAttributes {
+            motion,
+            gain: 0.5,
+            ..attributes
+        };
+        assert_rectangle(
+            &render(
+                builder,
+                OutlineFillRule::NonZero,
+                true,
+                transformed,
+                Mat4::IDENTITY,
+            ),
+            [20.375, 24.25, 43.625, 39.75],
+        );
+
+        let mut builder = VectorVertexBuilder::new();
+        rectangle(&mut builder, [17.25, 18.75, 44.75, 45.25], false);
+        let image = render(
+            builder,
+            OutlineFillRule::NonZero,
+            false,
+            attributes,
+            Mat4::IDENTITY,
+        );
+        assert!(image.pixels().all(|pixel| pixel[3] == 0 || pixel[3] == 255));
+
+        let image = render(
+            VectorVertexBuilder::new(),
+            OutlineFillRule::NonZero,
+            true,
+            attributes,
+            Mat4::IDENTITY,
+        );
+        assert!(image.pixels().all(|pixel| pixel[3] == 0));
+    }
 }

@@ -13,7 +13,6 @@ pub use glyph_cache::clear_glyph_cache;
 pub mod glyph_instances;
 pub mod glyph_vertex_buffer;
 pub mod motion;
-mod outline_bind_group;
 mod overlap_bind_group;
 pub mod rasterizer_pipeline;
 pub mod rasterizer_renderrer;
@@ -30,6 +29,7 @@ mod vector_vertex;
 pub mod vector_vertex_buffer;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod vector_vertex_png_renderer;
+mod windfoil;
 
 pub use straighten_outline_builder::StraightenOutlineBuilder;
 pub use vector_vertex::{VectorVertex, VectorVertexBuilder, VertexPointKind};

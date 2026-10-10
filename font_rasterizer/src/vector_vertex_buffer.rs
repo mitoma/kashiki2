@@ -1,268 +1,50 @@
-use std::{collections::BTreeMap, fmt::Debug, ops::Range};
+use std::{collections::BTreeMap, fmt::Debug};
 
-use log::debug;
-use wgpu::BufferUsages;
-
-use crate::{
-    errors::{BufferKind, FontRasterizerError},
-    vector_vertex::{VectorVertex, Vertex},
-};
-
-// バッファに登録された文字のインデックス情報
-struct BufferIndex {
-    vertex_buffer_index: usize,
-    index_buffer_index: usize,
-    index_buffer_range: Range<u32>,
-}
-
-// バッファを 1M ずつ確保する
-const BUFFER_SIZE: u64 = 1_048_576;
-
-const ZERO_VERTEX_FOR_BEZIER: Vertex = Vertex {
-    position: [0.0, 0.0],
-    vertex_type: 0,
-};
-
-const ZERO_VERTEX_FOR_LINE: Vertex = Vertex {
-    position: [0.0, 0.0],
-    vertex_type: 1,
-};
-
-struct VertexBuffer {
-    wgpu_buffer: wgpu::Buffer,
-    offset: u64,
-}
-
-impl VertexBuffer {
-    fn capacity(&self) -> u64 {
-        BUFFER_SIZE - self.offset
-    }
-
-    fn new(device: &wgpu::Device, queue: &wgpu::Queue, label: String) -> Self {
-        let wgpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some(&label),
-            size: BUFFER_SIZE,
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        // バッファの最初には常に原点Bと原点Lの座標を入れておく
-        queue.write_buffer(
-            &wgpu_buffer,
-            0,
-            bytemuck::cast_slice(&[ZERO_VERTEX_FOR_BEZIER, ZERO_VERTEX_FOR_LINE]),
-        );
-        Self {
-            offset: std::mem::size_of::<Vertex>() as u64 * 2,
-            wgpu_buffer,
-        }
-    }
-
-    fn next_index_position(&self) -> u64 {
-        // buffer の最初には常に原点の座標が入っているので index の分ずらす必要がある
-        self.offset / std::mem::size_of::<Vertex>() as u64 - 2
-    }
-}
-
-struct IndexBuffer {
-    wgpu_buffer: wgpu::Buffer,
-    offset: u64,
-}
-
-impl IndexBuffer {
-    fn capacity(&self) -> u64 {
-        BUFFER_SIZE - self.offset
-    }
-
-    fn new(device: &wgpu::Device, label: String) -> Self {
-        let wgpu_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some(&label),
-            size: BUFFER_SIZE,
-            usage: BufferUsages::INDEX | BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        Self {
-            offset: 0,
-            wgpu_buffer,
-        }
-    }
-
-    fn next_range_position(&self) -> u32 {
-        (self.offset / std::mem::size_of::<u32>() as u64) as u32
-    }
-}
+use crate::{errors::FontRasterizerError, vector_vertex::VectorVertex, windfoil};
 
 #[derive(Debug)]
 pub(crate) struct DrawInfo<'a> {
-    pub(crate) vertex: &'a wgpu::Buffer,
-    pub(crate) index: &'a wgpu::Buffer,
-    pub(crate) index_range: &'a Range<u32>,
+    pub(crate) windfoil: &'a wgpu::BindGroup,
 }
 
 pub struct VectorVertexBuffer<T> {
-    buffer_index: BTreeMap<T, BufferIndex>,
-    vertex_buffers: Vec<VertexBuffer>,
-    index_buffers: Vec<IndexBuffer>,
+    paths: BTreeMap<T, wgpu::BindGroup>,
 }
 
-impl<T> Default for VectorVertexBuffer<T>
-where
-    T: Ord + Debug,
-{
+impl<T: Ord + Debug> Default for VectorVertexBuffer<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> VectorVertexBuffer<T>
-where
-    T: Ord + Debug,
-{
+impl<T: Ord + Debug> VectorVertexBuffer<T> {
     pub(crate) fn new() -> Self {
         Self {
-            buffer_index: BTreeMap::default(),
-            vertex_buffers: Vec::new(),
-            index_buffers: Vec::new(),
+            paths: BTreeMap::new(),
         }
     }
 
-    pub(crate) fn draw_info(&'_ self, key: &T) -> Result<DrawInfo<'_>, FontRasterizerError> {
-        let index = self
-            .buffer_index
+    pub(crate) fn draw_info(&self, key: &T) -> Result<DrawInfo<'_>, FontRasterizerError> {
+        let windfoil = self
+            .paths
             .get(key)
             .ok_or(FontRasterizerError::VectorIndexNotFound)?;
-
-        let vertex_buffer = &self.vertex_buffers[index.vertex_buffer_index];
-        let index_buffer = &self.index_buffers[index.index_buffer_index];
-        let draw_info = DrawInfo {
-            vertex: &vertex_buffer.wgpu_buffer,
-            index: &index_buffer.wgpu_buffer,
-            index_range: &index.index_buffer_range,
-        };
-        Ok(draw_info)
+        Ok(DrawInfo { windfoil })
     }
 
     pub fn has_key(&self, key: &T) -> bool {
-        self.buffer_index.contains_key(key)
+        self.paths.contains_key(key)
     }
 
     pub fn append(
         &mut self,
         device: &wgpu::Device,
-        queue: &wgpu::Queue,
+        _queue: &wgpu::Queue,
         key: T,
         glyph_data: VectorVertex,
     ) -> Result<(), FontRasterizerError> {
-        self.ensure_buffer_capacity(device, queue, &glyph_data);
-
-        let vertex_buffer_index = self
-            .appendable_vertex_buffer_index(glyph_data.vertex_size())
-            .ok_or(FontRasterizerError::EnsureBufferCapacityFailed(
-                BufferKind::Vertex,
-            ))?;
-
-        let index_buffer_index = self
-            .appendable_index_buffer_index(glyph_data.index_size())
-            .ok_or(FontRasterizerError::EnsureBufferCapacityFailed(
-                BufferKind::Index,
-            ))?;
-
-        // buffer に書き込むキューを登録する
-        let vertex_buffer = self.vertex_buffers.get_mut(vertex_buffer_index).unwrap();
-        let next_index_position = vertex_buffer.next_index_position();
-        debug!("pre vertex offset:{}", vertex_buffer.offset);
-        queue.write_buffer(
-            &vertex_buffer.wgpu_buffer,
-            vertex_buffer.offset,
-            bytemuck::cast_slice(&glyph_data.vertex),
-        );
-        vertex_buffer.offset += glyph_data.vertex_size();
-        debug!("post vertex offset:{}", vertex_buffer.offset);
-        debug!("next_index_position :{}", next_index_position);
-
-        let index_buffer = self.index_buffers.get_mut(index_buffer_index).unwrap();
-        let range_start = index_buffer.next_range_position();
-        // vertex buffer に既に入っている座標の分だけ index をずらす
-        let data = glyph_data
-            .index
-            .iter()
-            .map(|idx| {
-                if *idx > 1 {
-                    idx + next_index_position as u32
-                } else {
-                    *idx
-                }
-            })
-            .collect::<Vec<u32>>();
-        queue.write_buffer(
-            &index_buffer.wgpu_buffer,
-            index_buffer.offset,
-            bytemuck::cast_slice(&data),
-        );
-        index_buffer.offset += glyph_data.index_size();
-        let range_end = index_buffer.next_range_position();
-
-        debug!(
-            "key:{:?},  vertex_len:{}, vertex:{:?}, data_len: {}, data: {:?}, range:{}..{}",
-            key,
-            glyph_data.vertex.len(),
-            glyph_data.vertex,
-            data.len(),
-            data,
-            range_start,
-            range_end
-        );
-
-        self.buffer_index.insert(
-            key,
-            BufferIndex {
-                vertex_buffer_index,
-                index_buffer_index,
-                index_buffer_range: range_start..range_end,
-            },
-        );
-
+        self.paths
+            .insert(key, windfoil::upload(device, &glyph_data)?);
         Ok(())
-    }
-
-    // 空いている vertex, index バッファを探し、無ければバッファを作る
-    fn ensure_buffer_capacity(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        glyph: &VectorVertex,
-    ) {
-        let vertex_size = glyph.vertex_size();
-        let index_size = glyph.index_size();
-
-        if self.appendable_vertex_buffer_index(vertex_size).is_none() {
-            self.vertex_buffers.push(VertexBuffer::new(
-                device,
-                queue,
-                format!("glyph vertex buffer #{}", self.vertex_buffers.len()),
-            ));
-        }
-
-        if self.appendable_index_buffer_index(index_size).is_none() {
-            self.index_buffers.push(IndexBuffer::new(
-                device,
-                format!("glyph index buffer #{}", self.index_buffers.len()),
-            ));
-        }
-    }
-
-    fn appendable_vertex_buffer_index(&self, size: u64) -> Option<usize> {
-        self.vertex_buffers
-            .iter()
-            .enumerate()
-            .find(|(_, b)| b.capacity() >= size)
-            .map(|r| r.0)
-    }
-
-    fn appendable_index_buffer_index(&self, size: u64) -> Option<usize> {
-        self.index_buffers
-            .iter()
-            .enumerate()
-            .find(|(_, b)| b.capacity() >= size)
-            .map(|r| r.0)
     }
 }

@@ -19,8 +19,36 @@ Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタ�
 ### font_rasterizer（フォントレンダリング）
 - **パス**: `font_rasterizer/`
 - **役割**: フォントのラスタライゼーションとレンダリング処理
-- **特徴**: WebGPU(wgpu)を使用したGPUベースのフォント描画
+- **特徴**: WebGPU(wgpu)と Windfoil の解析的な曲線積分を使用したフォント描画
 - **ライブラリタイプ**: `cdylib`、`rlib`（WebAssemblyにも対応）
+
+#### Windfoil 描画
+
+[Windfoil](https://github.com/texel-org/windfoil-algorithm) の
+[アルゴリズム仕様](https://github.com/texel-org/windfoil-algorithm/blob/main/docs/ALGORITHM.md)
+に基づいて実装している。元の実装のコピーではなく、このプロジェクトの座標系・モーション・合成方式へ組み込んだ実装。
+
+- `font_rasterizer/src/windfoil.rs` は既存パスから有向の直線・二次曲線を取り出し、x/y の極値で単調分割する。1〜64 の水平バンドに分類し、右端の降順で曲線を並べる。
+- `font_rasterizer/src/shader/windfoil.wgsl` は文字・SVG ごとの矩形を描画し、storage buffer の曲線からピクセル内の巻き数積分を解析的に求める。バンド境界をまたぐピクセルは各バンドの交差範囲だけを積分する。
+- non-zero は積分の絶対値を 1 に制限し、even-odd は周期 2 の三角波で被覆率を求める。AA 無効時は中心点で巻き数を評価する。
+- 座標に依存しないモーション・カメラ変換では局所座標と画面微分を使う。座標依存モーションは元の制御点を変形し、画面座標で再分割・積分する。この経路は行バンドによる枝刈りを使わないため重い。
+- パス・巻き数をテクスチャへ焼き込まない。描画色の合成と従来の straight-alpha 出力のためのテクスチャは残し、画質設定・モーダル・背景・PNG 出力の API を維持している。
+- WebAssembly でも WebGPU の storage buffer が必要。WebGL2 のフォールバックは使用できない。conservative rasterization は不要。
+
+精度の制約として、複数の巻き数レベルをまたぐ重複・交差部分では、巻き数積分の折り畳みは真の塗り面積と一致しない場合がある。
+通常経路の回転・せん断では `fwidth` による軸平行な局所ボックスを使用する。
+透視変換後の曲線は一般に有理曲線なので、座標依存モーション経路での制御点投影は近似となる。
+既存の三次曲線から二次曲線への近似と、ほぼ直線な曲線の簡略化は維持している。f32 の座標精度の制限も残る。
+提案元の小サイズ用 ink-profile 近似や点サンプル exact mode は導入せず、AA 有効時は解析積分を使う。実性能の改善は保証しない。
+
+GPU 回帰テスト（WebGPU 対応 GPU が必要）:
+
+```powershell
+cargo test -p font_rasterizer windfoil_gpu_coverage_regressions --lib -- --ignored
+```
+
+サブピクセル矩形・細線・曲線の独立サンプル比較・バンド境界・塗り規則・座標依存モーション・AA 無効・空パスを検証する。
+`FONT_RASTERIZER_DEBUG_SHADER` 有効時は、既存の `overlap_shader.debug.wgsl` のモーション計算と `windfoil.wgsl` をディスクから読む。
 
 ### text_buffer（テキスト管理）
 - **パス**: `text_buffer/`
