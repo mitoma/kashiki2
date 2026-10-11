@@ -88,7 +88,7 @@ pub(crate) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         label: Some("Windfoil paths layout"),
         entries: &std::array::from_fn::<_, 3, _>(|binding| wgpu::BindGroupLayoutEntry {
             binding: binding as u32,
-            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+            visibility: wgpu::ShaderStages::VERTEX_FRAGMENT | wgpu::ShaderStages::COMPUTE,
             ty: wgpu::BindingType::Buffer {
                 ty: if binding == 2 {
                     wgpu::BufferBindingType::Uniform

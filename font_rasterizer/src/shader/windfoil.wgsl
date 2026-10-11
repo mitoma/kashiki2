@@ -313,6 +313,10 @@ struct WindfoilHeader {
 @group(1) @binding(1) var<storage, read> path_rows: array<vec2<u32>>;
 @group(1) @binding(2) var<uniform> path_header: WindfoilHeader;
 
+@group(2) @binding(0) var<storage, read> instance_words: array<u32>;
+@group(2) @binding(1) var<storage, read> projected_points: array<vec4<f32>>;
+@group(2) @binding(2) var<uniform> projection_settings: vec4<u32>;
+
 struct WindfoilOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) local_position: vec2<f32>,
@@ -329,17 +333,45 @@ struct WindfoilOutput {
     @location(11) @interpolate(flat) inverse_0: vec3<f32>,
     @location(12) @interpolate(flat) inverse_1: vec3<f32>,
     @location(13) @interpolate(flat) inverse_2: vec3<f32>,
+    @location(14) @interpolate(flat) instance: u32,
 };
 
 fn project_local(point: vec2<f32>, instances: InstancesInput) -> vec4<f32> {
     return transform_point(point, instances);
 }
 
+struct ProjectedBounds {
+    lower: vec2<f32>,
+    upper: vec2<f32>,
+};
+
+fn clipped_edge_bounds(first: vec4<f32>, last: vec4<f32>, previous: ProjectedBounds) -> ProjectedBounds {
+    var bounds = previous;
+    if first.w > 0.0 && first.z >= 0.0 && first.z <= first.w {
+        bounds.lower = min(bounds.lower, first.xy / first.w);
+        bounds.upper = max(bounds.upper, first.xy / first.w);
+    }
+    let distances_first = vec2<f32>(first.z, first.w - first.z);
+    let distances_last = vec2<f32>(last.z, last.w - last.z);
+    for (var plane = 0u; plane < 2u; plane += 1u) {
+        if (distances_first[plane] < 0.0) == (distances_last[plane] < 0.0) { continue; }
+        let parameter = distances_first[plane] / (distances_first[plane] - distances_last[plane]);
+        let clipped = mix(first, last, parameter);
+        let other_distance = mix(distances_first[1u - plane], distances_last[1u - plane], parameter);
+        if clipped.w > 0.0 && other_distance >= 0.0 {
+            bounds.lower = min(bounds.lower, clipped.xy / clipped.w);
+            bounds.upper = max(bounds.upper, clipped.xy / clipped.w);
+        }
+    }
+    return bounds;
+}
+
 @vertex
-fn vs_windfoil(@builtin(vertex_index) vertex: u32, instances: InstancesInput) -> WindfoilOutput {
+fn vs_windfoil(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32, instances: InstancesInput) -> WindfoilOutput {
     let corner = vec2<f32>(f32(vertex & 1u), f32(vertex >> 1u));
     var output: WindfoilOutput;
     output.color = instances.color;
+    output.instance = instance;
     output.matrix_0 = instances.model_matrix_0;
     output.matrix_1 = instances.model_matrix_1;
     output.matrix_2 = instances.model_matrix_2;
@@ -349,19 +381,23 @@ fn vs_windfoil(@builtin(vertex_index) vertex: u32, instances: InstancesInput) ->
     output.gain = instances.gain;
     output.duration = instances.duration;
     output.projected = select(0u, 1u, (instances.motion & (7u << 23u)) != 0u && instances.gain != 0.0);
+    output.position = vec4<f32>(2.0, 2.0, 0.0, 1.0);
     if output.projected != 0u {
-        var lower = vec2<f32>(1e30);
-        var upper = vec2<f32>(-1e30);
-        var depth = 0.0;
-        for (var index = 0u; index < path_header.raw_count * 3u; index += 1u) {
-            let projected = project_local(path_points[path_header.raw_start * 3u + index], instances);
-            let position = projected.xy / projected.w;
-            lower = min(lower, position);
-            upper = max(upper, position);
-            depth = projected.z / projected.w;
+        var bounds = ProjectedBounds(vec2<f32>(1e30), vec2<f32>(-1e30));
+        for (var index = 0u; index < path_header.raw_count; index += 1u) {
+            let base = (path_header.raw_start + index) * 3u;
+            let start = projected_clip(base, instance, instances);
+            let control = projected_clip(base + 1u, instance, instances);
+            let end = projected_clip(base + 2u, instance, instances);
+            bounds = clipped_edge_bounds(start, control, bounds);
+            bounds = clipped_edge_bounds(control, end, bounds);
+            bounds = clipped_edge_bounds(end, start, bounds);
         }
         let padding = 2.0 / vec2<f32>(f32(u_buffer.u_width), f32(u_buffer.u_height));
-        output.position = vec4<f32>(mix(lower - padding, upper + padding, corner), depth, 1.0);
+        let lower = max(bounds.lower - padding, vec2<f32>(-1.0) - padding);
+        let upper = min(bounds.upper + padding, vec2<f32>(1.0) + padding);
+        if any(upper < lower) { return output; }
+        output.position = vec4<f32>(mix(lower, upper, corner), 0.0, 1.0);
         output.local_position = vec2<f32>(0.0);
         return output;
     }
@@ -410,8 +446,15 @@ fn vs_windfoil(@builtin(vertex_index) vertex: u32, instances: InstancesInput) ->
     return output;
 }
 
-fn screen_point(point: vec2<f32>, instances: InstancesInput) -> vec2<f32> {
-    let clip = project_local(point, instances);
+fn projected_clip(base: u32, instance: u32, instances: InstancesInput) -> vec4<f32> {
+    if projection_settings.z != 0u {
+        return projected_points[instance * path_header.raw_count * 3u + base - path_header.raw_start * 3u];
+    }
+    return project_local(path_points[base], instances);
+}
+
+fn screen_point(base: u32, instance: u32, instances: InstancesInput) -> vec2<f32> {
+    let clip = projected_clip(base, instance, instances);
     let normalized = clip.xy / clip.w;
     return (normalized * vec2<f32>(0.5, -0.5) + 0.5) * vec2<f32>(f32(u_buffer.u_width), f32(u_buffer.u_height));
 }
@@ -442,9 +485,9 @@ fn projected_integral(input: WindfoilOutput) -> f32 {
     var area = 0.0;
     for (var index = 0u; index < path_header.raw_count; index += 1u) {
         let base = (path_header.raw_start + index) * 3u;
-        let start = screen_point(path_points[base], instances) - input.position.xy;
-        let control = screen_point(path_points[base + 1u], instances) - input.position.xy;
-        let end = screen_point(path_points[base + 2u], instances) - input.position.xy;
+        let start = screen_point(base, input.instance, instances) - input.position.xy;
+        let control = screen_point(base + 1u, input.instance, instances) - input.position.xy;
+        let end = screen_point(base + 2u, input.instance, instances) - input.position.xy;
         let denominator = start - 2.0 * control + end;
         let extrema = vec2<f32>(interior_extremum(start.x - control.x, denominator.x),
             interior_extremum(start.y - control.y, denominator.y));

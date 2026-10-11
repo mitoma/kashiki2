@@ -14,6 +14,7 @@ pub mod glyph_instances;
 pub mod glyph_vertex_buffer;
 pub mod motion;
 mod overlap_bind_group;
+mod projected_curves;
 pub mod rasterizer_pipeline;
 pub mod rasterizer_renderrer;
 mod screen_bind_group;

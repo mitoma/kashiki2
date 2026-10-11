@@ -220,7 +220,9 @@ where
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some(&format!("Instances Buffer. key:{}", key)),
             size: std::mem::size_of::<InstanceRaw>() as u64 * buffer_size * DEFAULT_BUFFER_UNIT,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::VERTEX
+                | wgpu::BufferUsages::STORAGE
+                | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         Self {
@@ -248,6 +250,12 @@ where
 
     pub fn is_empty(&self) -> bool {
         self.values.is_empty()
+    }
+
+    pub(crate) fn needs_curve_projection(&self) -> bool {
+        self.values.values().any(|attributes| {
+            u32::from(attributes.motion) & (7 << 23) != 0 && attributes.gain != 0.0
+        })
     }
 
     pub fn push(&mut self, instance: InstanceAttributes) {
@@ -291,7 +299,9 @@ where
                     size: std::mem::size_of::<InstanceRaw>() as u64
                         * buffer_size
                         * DEFAULT_BUFFER_UNIT,
-                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                    usage: wgpu::BufferUsages::VERTEX
+                        | wgpu::BufferUsages::STORAGE
+                        | wgpu::BufferUsages::COPY_DST,
                     mapped_at_creation: false,
                 });
             }

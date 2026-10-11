@@ -5,10 +5,11 @@ use crate::{errors::FontRasterizerError, vector_vertex::VectorVertex, windfoil};
 #[derive(Debug)]
 pub(crate) struct DrawInfo<'a> {
     pub(crate) windfoil: &'a wgpu::BindGroup,
+    pub(crate) curve_count: u32,
 }
 
 pub struct VectorVertexBuffer<T> {
-    paths: BTreeMap<T, wgpu::BindGroup>,
+    paths: BTreeMap<T, (wgpu::BindGroup, u32)>,
 }
 
 impl<T: Ord + Debug> Default for VectorVertexBuffer<T> {
@@ -25,11 +26,14 @@ impl<T: Ord + Debug> VectorVertexBuffer<T> {
     }
 
     pub(crate) fn draw_info(&self, key: &T) -> Result<DrawInfo<'_>, FontRasterizerError> {
-        let windfoil = self
+        let (windfoil, curve_count) = self
             .paths
             .get(key)
             .ok_or(FontRasterizerError::VectorIndexNotFound)?;
-        Ok(DrawInfo { windfoil })
+        Ok(DrawInfo {
+            windfoil,
+            curve_count: *curve_count,
+        })
     }
 
     pub fn has_key(&self, key: &T) -> bool {
@@ -43,8 +47,9 @@ impl<T: Ord + Debug> VectorVertexBuffer<T> {
         key: T,
         glyph_data: VectorVertex,
     ) -> Result<(), FontRasterizerError> {
+        let count = glyph_data.curves().len() as u32;
         self.paths
-            .insert(key, windfoil::upload(device, &glyph_data)?);
+            .insert(key, (windfoil::upload(device, &glyph_data)?, count));
         Ok(())
     }
 }

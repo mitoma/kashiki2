@@ -66,6 +66,7 @@ pub async fn render_vector_vertex_to_png_async(
         options,
         attributes,
         Mat4::IDENTITY,
+        true,
     )
     .await
 }
@@ -76,6 +77,7 @@ async fn render_with_transform(
     options: VectorVertexPngRendererOptions,
     attributes: InstanceAttributes,
     view_proj: Mat4,
+    preproject_curves: bool,
 ) -> Result<(), FontRasterizerError> {
     // headless(サーフェスなし)描画時、Windows の Vulkan ドライバでは overlap ステージの
     // 描画コマンドがラスタライズされない既知の不具合があるため、Windows では DX12 を強制する。
@@ -141,13 +143,14 @@ async fn render_with_transform(
     vector_instances.push(attributes);
     vector_instances.update_buffer(&device, &queue);
 
-    let mut rasterizer = RasterizerRenderrer::new(
+    let mut rasterizer = RasterizerRenderrer::new_with_curve_projection(
         &device,
         options.width,
         options.height,
         wgpu::TextureFormat::Rgba8UnormSrgb,
         options.enable_antialiasing,
         options.outline_fill_rule,
+        preproject_curves,
     );
 
     rasterizer.prepare(
@@ -306,8 +309,23 @@ mod tests {
         attributes: InstanceAttributes,
         view: Mat4,
     ) -> image::RgbaImage {
-        let path =
-            std::env::temp_dir().join(format!("kashiki-windfoil-{}.png", std::process::id()));
+        render_configured(builder, rule, antialiasing, attributes, view, true)
+    }
+
+    fn render_configured(
+        builder: VectorVertexBuilder,
+        rule: OutlineFillRule,
+        antialiasing: bool,
+        attributes: InstanceAttributes,
+        view: Mat4,
+        preproject_curves: bool,
+    ) -> image::RgbaImage {
+        static NEXT_IMAGE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let image_index = NEXT_IMAGE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "kashiki-windfoil-{}-{image_index}.png",
+            std::process::id()
+        ));
         pollster::block_on(render_with_transform(
             builder.build(),
             &path,
@@ -321,6 +339,7 @@ mod tests {
             },
             attributes,
             view,
+            preproject_curves,
         ))
         .unwrap();
         let image = image::open(&path).unwrap().to_rgba8();
@@ -341,6 +360,53 @@ mod tests {
                 (actual - expected).abs() <= 1.1 / 255.0,
                 "pixel ({horizontal}, {vertical}): {actual} != {expected}"
             );
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a WebGPU adapter"]
+    fn windfoil_preprojection_matches_direct_deformation() {
+        use crate::motion::EasingFuncType;
+        for detail in [
+            MotionDetail::USE_X_DISTANCE,
+            MotionDetail::USE_Y_DISTANCE,
+            MotionDetail::USE_XY_DISTANCE,
+        ] {
+            let detail_bits = detail.bits();
+            let attributes = InstanceAttributes {
+                position: Vec3::ZERO,
+                start_time: 0,
+                motion: MotionFlags::new(
+                    MotionType::EaseInOut(EasingFuncType::Sin, false),
+                    detail,
+                    MotionTarget::ROTATE_Z_PLUS
+                        | MotionTarget::STRETCH_X_PLUS
+                        | MotionTarget::MOVE_Y_PLUS,
+                    CameraDetail::empty(),
+                ),
+                gain: 0.2,
+                duration: web_time::Duration::ZERO,
+                color: [0.25, 0.5, 0.75],
+                ..Default::default()
+            };
+            for rule in [OutlineFillRule::NonZero, OutlineFillRule::EvenOdd] {
+                let shape = || {
+                    let mut builder = VectorVertexBuilder::new();
+                    builder.move_to(-0.5, -0.5);
+                    builder.quad_to(0.7, -0.3, 0.5, 0.5);
+                    builder.quad_to(-0.7, 0.3, -0.5, -0.5);
+                    builder.close();
+                    builder
+                };
+                let reference =
+                    render_configured(shape(), rule, true, attributes, Mat4::IDENTITY, false);
+                let projected =
+                    render_configured(shape(), rule, true, attributes, Mat4::IDENTITY, true);
+                assert!(projected.pixels().any(|pixel| pixel[3] != 0));
+                for (expected, actual) in reference.pixels().zip(projected.pixels()) {
+                    assert!(expected[3].abs_diff(actual[3]) <= 1, "detail={detail_bits}");
+                }
+            }
         }
     }
 

@@ -1,9 +1,15 @@
-use std::fs;
+use std::{fs, sync::Mutex};
 
 use crate::{
-    debug_mode::DEBUG_FLAGS, overlap_bind_group::OverlapBindGroup, rasterizer_pipeline::Buffers,
-    screen_bind_group::ScreenBindGroup, screen_texture::ScreenTexture,
-    screen_vertex_buffer::ScreenVertexBuffer, vector_instances::InstanceRaw, windfoil,
+    debug_mode::DEBUG_FLAGS,
+    overlap_bind_group::OverlapBindGroup,
+    projected_curves::{self, ProjectionCache},
+    rasterizer_pipeline::Buffers,
+    screen_bind_group::ScreenBindGroup,
+    screen_texture::ScreenTexture,
+    screen_vertex_buffer::ScreenVertexBuffer,
+    vector_instances::InstanceRaw,
+    windfoil,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,6 +19,10 @@ pub enum OutlineFillRule {
 }
 
 pub struct RasterizerRenderrer {
+    preproject_curves: bool,
+    device: wgpu::Device,
+    projection_pipeline: wgpu::ComputePipeline,
+    projection_cache: Mutex<ProjectionCache>,
     enable_antialiasing: bool,
     pub(crate) overlap_bind_group: OverlapBindGroup,
     path_pipeline: wgpu::RenderPipeline,
@@ -31,6 +41,26 @@ impl RasterizerRenderrer {
         enable_antialiasing: bool,
         outline_fill_rule: OutlineFillRule,
     ) -> Self {
+        Self::new_with_curve_projection(
+            device,
+            width,
+            height,
+            target_texture_format,
+            enable_antialiasing,
+            outline_fill_rule,
+            true,
+        )
+    }
+
+    pub fn new_with_curve_projection(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        target_texture_format: wgpu::TextureFormat,
+        enable_antialiasing: bool,
+        outline_fill_rule: OutlineFillRule,
+        preproject_curves: bool,
+    ) -> Self {
         let path_shader = if DEBUG_FLAGS.debug_shader {
             fs::read_to_string("font_rasterizer/src/shader/windfoil.wgsl").unwrap()
         } else {
@@ -38,15 +68,52 @@ impl RasterizerRenderrer {
         };
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Windfoil"),
-            source: wgpu::ShaderSource::Wgsl(path_shader.into()),
+            source: wgpu::ShaderSource::Wgsl(path_shader.as_str().into()),
         });
         let overlap_bind_group = OverlapBindGroup::new(device, width, height);
         let paths_layout = windfoil::layout(device);
+        let projected_layout = projected_curves::layout(device, false);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Windfoil pipeline layout"),
-            bind_group_layouts: &[Some(&overlap_bind_group.layout), Some(&paths_layout)],
+            bind_group_layouts: &[
+                Some(&overlap_bind_group.layout),
+                Some(&paths_layout),
+                Some(&projected_layout),
+            ],
             immediate_size: 0,
         });
+        let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Windfoil curve projection"),
+            source: wgpu::ShaderSource::Wgsl(
+                format!(
+                    "{}\n{}",
+                    path_shader.replace(
+                        "var<storage, read> projected_points",
+                        "var<storage, read_write> projected_points"
+                    ),
+                    projected_curves::COMPUTE_SOURCE
+                )
+                .into(),
+            ),
+        });
+        let compute_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Curve projection pipeline layout"),
+            bind_group_layouts: &[
+                Some(&overlap_bind_group.layout),
+                Some(&paths_layout),
+                Some(&projected_curves::layout(device, true)),
+            ],
+            immediate_size: 0,
+        });
+        let projection_pipeline =
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("Project glyph control points"),
+                layout: Some(&compute_layout),
+                module: &compute_shader,
+                entry_point: Some("project_curves"),
+                compilation_options: Default::default(),
+                cache: None,
+            });
         let color_texture = ScreenTexture::new_with_format(
             device,
             (width, height),
@@ -133,6 +200,10 @@ impl RasterizerRenderrer {
             cache: None,
         });
         Self {
+            preproject_curves,
+            device: device.clone(),
+            projection_pipeline,
+            projection_cache: Mutex::new(ProjectionCache::default()),
             enable_antialiasing,
             overlap_bind_group,
             path_pipeline,
@@ -160,6 +231,63 @@ impl RasterizerRenderrer {
         buffers: Buffers,
         target_view: &wgpu::TextureView,
     ) {
+        let mut draws = Vec::new();
+        if let Some((vertices, instances)) = buffers.vector_buffers {
+            for instance in instances {
+                if let Ok(info) = vertices.draw_info(&instance.key) {
+                    draws.push((
+                        info.windfoil,
+                        info.curve_count,
+                        instance.to_wgpu_buffer(),
+                        instance.len() as u32,
+                        instance.needs_curve_projection(),
+                    ));
+                }
+            }
+        }
+        if let Some((vertices, instances)) = buffers.glyph_buffers {
+            for instance in instances {
+                if let Ok(info) = vertices.draw_info(&instance.c, &instance.direction) {
+                    draws.push((
+                        info.windfoil,
+                        info.curve_count,
+                        instance.to_wgpu_buffer(),
+                        instance.len() as u32,
+                        instance.needs_curve_projection(),
+                    ));
+                }
+            }
+        }
+        let mut cache = self.projection_cache.lock().unwrap();
+        cache.begin_frame();
+        let projections: Vec<_> = draws
+            .iter()
+            .map(|(_, curves, source, count, requested)| {
+                cache.get(
+                    &self.device,
+                    source,
+                    *curves,
+                    *count,
+                    *requested && self.preproject_curves,
+                )
+            })
+            .collect();
+        cache.end_frame();
+        drop(cache);
+        for ((paths, curves, _, count, _), projection) in draws.iter().zip(&projections) {
+            if !projection.enabled || *count == 0 {
+                continue;
+            }
+            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("Glyph curve projection"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.projection_pipeline);
+            pass.set_bind_group(0, &self.overlap_bind_group.bind_group, &[]);
+            pass.set_bind_group(1, *paths, &[]);
+            pass.set_bind_group(2, &projection.compute, &[]);
+            pass.dispatch_workgroups((*curves * 3).div_ceil(64), *count, 1);
+        }
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Windfoil paths"),
@@ -179,23 +307,11 @@ impl RasterizerRenderrer {
             });
             pass.set_pipeline(&self.path_pipeline);
             pass.set_bind_group(0, &self.overlap_bind_group.bind_group, &[]);
-            if let Some((vertices, instances)) = buffers.vector_buffers {
-                for instance in instances {
-                    if let Ok(info) = vertices.draw_info(&instance.key) {
-                        pass.set_bind_group(1, info.windfoil, &[]);
-                        pass.set_vertex_buffer(0, instance.to_wgpu_buffer().slice(..));
-                        pass.draw(0..4, 0..instance.len() as u32);
-                    }
-                }
-            }
-            if let Some((vertices, instances)) = buffers.glyph_buffers {
-                for instance in instances {
-                    if let Ok(info) = vertices.draw_info(&instance.c, &instance.direction) {
-                        pass.set_bind_group(1, info.windfoil, &[]);
-                        pass.set_vertex_buffer(0, instance.to_wgpu_buffer().slice(..));
-                        pass.draw(0..4, 0..instance.len() as u32);
-                    }
-                }
+            for ((paths, _, source, count, _), projection) in draws.iter().zip(&projections) {
+                pass.set_bind_group(1, *paths, &[]);
+                pass.set_bind_group(2, &projection.render, &[]);
+                pass.set_vertex_buffer(0, source.slice(..));
+                pass.draw(0..4, 0..*count);
             }
         }
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

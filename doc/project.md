@@ -33,6 +33,9 @@ Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタ�
 - `font_rasterizer/src/shader/windfoil.wgsl` は文字・SVG ごとの矩形を描画し、storage buffer の曲線からピクセル内の巻き数積分を解析的に求める。バンド境界をまたぐピクセルは各バンドの交差範囲だけを積分する。
 - non-zero は積分の絶対値を 1 に制限し、even-odd は周期 2 の三角波で被覆率を求める。AA 無効時は中心点で巻き数を評価する。
 - 座標に依存しないモーション・カメラ変換では局所座標と画面微分を使う。座標依存モーションは元の制御点を変形し、画面座標で再分割・積分する。この経路は行バンドによる枝刈りを使わないため重い。
+- 距離依存変形を含むインスタンス群は、compute 前処理で制御点を一度だけ投影し、頂点とフラグメントで共有する。投影結果の GPU バッファは再利用し、使用されなくなった群のキャッシュは解放する。静止群は compute を dispatch しない。
+- GPU の投影バッファ容量・dispatch 上限を超える場合は直接投影へ fallback する。`RasterizerRenderrer::new_with_curve_projection` の最後の引数を `false` にすると比較用に直接投影を指定できる。
+- 座標依存変形でも制御点の投影範囲を near/far と画面範囲で制限する。変形した制御点が視点近傍へ来たときの矩形の暴走を避ける。
 - 通常経路の描画矩形は輪郭の投影範囲を near/far でクリップし、画面座標で1pxだけ拡張する。局所座標を逆投影して余白を拡張する旧処理は、真横付近で特異になり透視投影が暴走するため使用しない。
 - 局所座標は平面の逆射影から復元する。投影の片軸が1px未満に潰れた輪郭は、限定された画面矩形内で画面座標の曲線積分へ切り替える。厳密に退化した平面や near/far 外の輪郭は描画しない。
 - パス・巻き数をテクスチャへ焼き込まない。描画色の合成と従来の straight-alpha 出力のためのテクスチャは残し、画質設定・モーダル・背景・PNG 出力の API を維持している。
@@ -51,10 +54,23 @@ GPU 回帰テスト（WebGPU 対応 GPU が必要）:
 ```powershell
 cargo test -p font_rasterizer windfoil_gpu_coverage_regressions --lib -- --ignored
 cargo test -p font_rasterizer windfoil_grazing_view_stays_within_projected_bounds --lib -- --ignored
+cargo test -p font_rasterizer windfoil_preprojection_matches_direct_deformation --lib -- --ignored
 ```
 
 サブピクセル矩形・細線・曲線の独立サンプル比較・バンド境界・塗り規則・座標依存モーション・AA 無効・空パスを検証する。
 斜視テストは左右・上下の89度付近、89.99度、真横、背面、near/far 外の表示範囲を確認する。GPU 時間の改善率を保証するテストではない。
+前投影の一致テストはX/Y/XY距離依存の回転・伸縮を組み合わせ、non-zero / even-odd のアルファを直接投影と比較する。
+
+変形性能の A/B 計測（GPU timestamp 対応アダプターが必要）:
+
+```powershell
+cargo run -p font_rasterizer --release --example deformation_benchmark
+cargo run -p font_rasterizer --release --example deformation_benchmark -- --direct
+```
+
+固定の日本語字形300インスタンスを距離依存で変形し、ウォームアップ後60フレームの GPU 時間を測る。画像読み戻しは測定区間外で行い、画素数と checksum を記録する。
+AMD Radeon(TM) Graphics / DX12 で3回の予備比較は、直接投影8.62〜10.31ms、前投影2.97〜2.99ms。各回の最終画像checksumは一致した。実エディタ全体のFPSや他GPUで同じ改善率を保証する値ではない。
+曲線の単調分割・積分は依然フラグメントで行う。次の改善候補は投影後の単調分割・空間索引も前処理へ移すこと。
 `FONT_RASTERIZER_DEBUG_SHADER` 有効時は `windfoil.wgsl` をディスクから読む。モーション変換もこのファイル内の座標のみを受け取る関数で行う。
 
 ### text_buffer（テキスト管理）
