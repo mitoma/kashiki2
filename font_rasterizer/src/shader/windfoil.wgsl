@@ -326,6 +326,9 @@ struct WindfoilOutput {
     @location(8) @interpolate(flat) gain: f32,
     @location(9) @interpolate(flat) duration: u32,
     @location(10) @interpolate(flat) projected: u32,
+    @location(11) @interpolate(flat) inverse_0: vec3<f32>,
+    @location(12) @interpolate(flat) inverse_1: vec3<f32>,
+    @location(13) @interpolate(flat) inverse_2: vec3<f32>,
 };
 
 fn project_local(point: vec2<f32>, instances: InstancesInput) -> vec4<f32> {
@@ -362,18 +365,48 @@ fn vs_windfoil(@builtin(vertex_index) vertex: u32, instances: InstancesInput) ->
         output.local_position = vec2<f32>(0.0);
         return output;
     }
-    let point = mix(path_header.bounds.xy, path_header.bounds.zw, corner);
-    let center = project_local(point, instances);
-    let horizontal = project_local(point + vec2<f32>(1.0, 0.0), instances);
-    let vertical = project_local(point + vec2<f32>(0.0, 1.0), instances);
-    let dimensions = vec2<f32>(f32(u_buffer.u_width), f32(u_buffer.u_height)) * 0.5;
-    let dx = (horizontal.xy / horizontal.w - center.xy / center.w) * dimensions;
-    let dy = (vertical.xy / vertical.w - center.xy / center.w) * dimensions;
-    let determinant = max(abs(dx.x * dy.y - dx.y * dy.x), 1e-12);
-    let padding = vec2<f32>(abs(dy.x) + abs(dy.y), abs(dx.x) + abs(dx.y)) / determinant;
-    let local = point + (corner * 2.0 - 1.0) * padding;
-    output.position = project_local(local, instances);
-    output.local_position = local;
+    let origin = project_local(vec2<f32>(0.0), instances);
+    let horizontal = project_local(vec2<f32>(1.0, 0.0), instances) - origin;
+    let vertical = project_local(vec2<f32>(0.0, 1.0), instances) - origin;
+    output.inverse_0 = cross(vertical.xyw, origin.xyw);
+    output.inverse_1 = cross(origin.xyw, horizontal.xyw);
+    output.inverse_2 = cross(horizontal.xyw, vertical.xyw);
+    let determinant = dot(horizontal.xyw, output.inverse_0);
+    output.position = vec4<f32>(2.0, 2.0, 0.0, 1.0);
+    output.local_position = vec2<f32>(0.0);
+    if abs(determinant) <= 1e-12 { return output; }
+
+    let bounds = path_header.bounds;
+    let corners = array<vec2<f32>, 4>(bounds.xy, vec2<f32>(bounds.z, bounds.y), bounds.zw, vec2<f32>(bounds.x, bounds.w));
+    var lower = vec2<f32>(1e30);
+    var upper = vec2<f32>(-1e30);
+    for (var index = 0u; index < 4u; index += 1u) {
+        let first = origin + horizontal * corners[index].x + vertical * corners[index].y;
+        let last = origin + horizontal * corners[(index + 1u) % 4u].x + vertical * corners[(index + 1u) % 4u].y;
+        if first.w > 0.0 && first.z >= 0.0 && first.z <= first.w {
+            lower = min(lower, first.xy / first.w);
+            upper = max(upper, first.xy / first.w);
+        }
+        let distances_first = vec2<f32>(first.z, first.w - first.z);
+        let distances_last = vec2<f32>(last.z, last.w - last.z);
+        for (var plane = 0u; plane < 2u; plane += 1u) {
+            if (distances_first[plane] < 0.0) == (distances_last[plane] < 0.0) { continue; }
+            let parameter = distances_first[plane] / (distances_first[plane] - distances_last[plane]);
+            let clipped = mix(first, last, parameter);
+            let other_distance = mix(distances_first[1u - plane], distances_last[1u - plane], parameter);
+            if clipped.w > 0.0 && other_distance >= 0.0 {
+                lower = min(lower, clipped.xy / clipped.w);
+                upper = max(upper, clipped.xy / clipped.w);
+            }
+        }
+    }
+    if any(upper < lower) { return output; }
+    let padding = 2.0 / vec2<f32>(f32(u_buffer.u_width), f32(u_buffer.u_height));
+    if any(upper - lower < padding) { output.projected = 1u; }
+    lower = max(lower - padding, vec2<f32>(-1.0) - padding);
+    upper = min(upper + padding, vec2<f32>(1.0) + padding);
+    if any(upper < lower) { return output; }
+    output.position = vec4<f32>(mix(lower, upper, corner), 0.0, 1.0);
     return output;
 }
 
@@ -541,14 +574,20 @@ fn winding_sample(center: vec2<f32>) -> f32 {
 }
 
 fn windfoil_color(input: WindfoilOutput, even_odd: bool) -> vec4<f32> {
-    let footprint = max(fwidth(input.local_position), vec2<f32>(1e-9));
+    let dimensions = vec2<f32>(f32(u_buffer.u_width), f32(u_buffer.u_height));
+    let normalized = input.position.xy / dimensions * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0);
+    let homogeneous = vec3<f32>(normalized, 1.0);
+    let local_homogeneous = vec3<f32>(dot(input.inverse_0, homogeneous), dot(input.inverse_1, homogeneous), dot(input.inverse_2, homogeneous));
+    let denominator = select(1.0, local_homogeneous.z, local_homogeneous.z != 0.0);
+    let local = local_homogeneous.xy / denominator;
+    let footprint = max(fwidth(local), vec2<f32>(1e-9));
     var winding = 0.0;
     if input.projected != 0u {
         winding = projected_integral(input);
     } else if u_buffer.u_antialiasing == 0u {
-        winding = winding_sample(input.local_position);
+        winding = winding_sample(local);
     } else {
-        winding = winding_integral(input.local_position, footprint);
+        winding = winding_integral(local, footprint);
     }
     let magnitude = abs(winding);
     let parity = magnitude - 2.0 * floor(magnitude * 0.5);

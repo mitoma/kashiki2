@@ -346,6 +346,89 @@ mod tests {
 
     #[test]
     #[ignore = "requires a WebGPU adapter"]
+    fn windfoil_grazing_view_stays_within_projected_bounds() {
+        let attributes = InstanceAttributes {
+            position: Vec3::ZERO,
+            start_time: 0,
+            color: [1.0; 3],
+            ..Default::default()
+        };
+        for (angle, transpose) in [
+            (0.0_f32, false),
+            (80.0, false),
+            (89.0, false),
+            (89.9, false),
+            (89.99, false),
+            (90.0, false),
+            (100.0, false),
+            (180.0, false),
+            (89.0, true),
+            (89.99, true),
+        ] {
+            let (sine, cosine) = angle.to_radians().sin_cos();
+            let mut view = Mat4::from_cols_array_2d(&[
+                [cosine, 0.0, -sine, -sine],
+                [0.0, 1.0, 0.0, 0.0],
+                [sine, 0.0, cosine, cosine],
+                [0.0, 0.0, 2.9, 3.0],
+            ]);
+            if transpose {
+                let swap = Mat4::from_cols_array_2d(&[
+                    [0.0, 1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]);
+                view = swap * view * swap;
+            }
+            let mut builder = VectorVertexBuilder::new();
+            rectangle(&mut builder, [16.0, 16.0, 48.0, 48.0], false);
+            let image = render(builder, OutlineFillRule::NonZero, true, attributes, view);
+            let corners = [[-0.5, -0.5], [-0.5, 0.5], [0.5, -0.5], [0.5, 0.5]];
+            let mut minimum = [f32::MAX; 2];
+            let mut maximum = [-f32::MAX; 2];
+            for [horizontal, vertical] in corners {
+                let clip = view * glam::Vec4::new(horizontal, vertical, 0.0, 1.0);
+                let pixel = [
+                    (clip.x / clip.w + 1.0) * 32.0,
+                    (1.0 - clip.y / clip.w) * 32.0,
+                ];
+                for axis in 0..2 {
+                    minimum[axis] = minimum[axis].min(pixel[axis]);
+                    maximum[axis] = maximum[axis].max(pixel[axis]);
+                }
+            }
+            for (horizontal, vertical, pixel) in image.enumerate_pixels() {
+                if pixel[3] == 0 {
+                    continue;
+                }
+                assert!(
+                    horizontal as f32 >= minimum[0] - 2.0
+                        && horizontal as f32 <= maximum[0] + 2.0
+                        && vertical as f32 >= minimum[1] - 2.0
+                        && vertical as f32 <= maximum[1] + 2.0,
+                    "angle={angle}, unexpected covered pixel ({horizontal}, {vertical})"
+                );
+            }
+            if angle <= 89.0 {
+                assert!(
+                    image.pixels().any(|pixel| pixel[3] > 0),
+                    "blank at angle={angle}"
+                );
+            }
+        }
+
+        for depth in [-1.0, 2.0] {
+            let mut builder = VectorVertexBuilder::new();
+            rectangle(&mut builder, [16.0, 16.0, 48.0, 48.0], false);
+            let view = Mat4::from_translation(Vec3::new(0.0, 0.0, depth));
+            let image = render(builder, OutlineFillRule::NonZero, true, attributes, view);
+            assert!(image.pixels().all(|pixel| pixel[3] == 0), "depth={depth}");
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a WebGPU adapter"]
     fn windfoil_gpu_coverage_regressions() {
         let attributes = InstanceAttributes {
             position: Vec3::ZERO,
