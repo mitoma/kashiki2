@@ -6,10 +6,11 @@ use redb::{Database, ReadableDatabase, TableDefinition, TypeName, Value};
 use crate::{
     char_width_calcurator::CharWidth,
     font_converter::GlyphVertex,
-    vector_vertex::{VectorVertex, Vertex},
+    vector_vertex::{QuadraticCurve, VectorVertex},
 };
 
 const GLYPH_TABLE: TableDefinition<&str, GlyphVertex> = TableDefinition::new("glyphs");
+const CACHE_FORMAT_VERSION: u32 = 2;
 
 impl Value for GlyphVertex {
     type SelfType<'a>
@@ -41,7 +42,7 @@ impl Value for GlyphVertex {
     }
 
     fn type_name() -> redb::TypeName {
-        TypeName::new("GlyphVertex")
+        TypeName::new("GlyphCurvesV2")
     }
 }
 
@@ -67,7 +68,9 @@ fn cache_dir() -> PathBuf {
 
 fn cache_db_path(fonts: &[FontData]) -> PathBuf {
     let hash = fonts_hash(fonts);
-    cache_dir().join(format!("glyph_cache_{hash:016x}.redb"))
+    cache_dir().join(format!(
+        "glyph_cache_v{CACHE_FORMAT_VERSION}_{hash:016x}.redb"
+    ))
 }
 
 /// グリフキャッシュ（`glyph_cache_*.redb`）をすべて削除する。
@@ -180,48 +183,44 @@ impl GlyphCache {
 // ---- シリアライズ / デシリアライズ ----
 
 fn serialize_vector_vertex(v: &VectorVertex, buf: &mut Vec<u8>) {
-    // Vertex は bytemuck::Pod なのでそのままバイト列に変換できる
-    let vertex_bytes: &[u8] = bytemuck::cast_slice(&v.vertex);
-    buf.extend_from_slice(&(v.vertex.len() as u32).to_le_bytes());
-    buf.extend_from_slice(vertex_bytes);
-    buf.extend_from_slice(&(v.index.len() as u32).to_le_bytes());
-    for &i in &v.index {
-        buf.extend_from_slice(&i.to_le_bytes());
+    buf.extend_from_slice(&(v.curves().len() as u32).to_le_bytes());
+    for curve in v.curves() {
+        for point in curve.points() {
+            for coordinate in point {
+                buf.extend_from_slice(&coordinate.to_le_bytes());
+            }
+        }
     }
 }
 
 fn deserialize_vector_vertex(data: &[u8], pos: &mut usize) -> Option<VectorVertex> {
-    let vertex_len = u32::from_le_bytes(data.get(*pos..*pos + 4)?.try_into().ok()?) as usize;
+    let curve_count =
+        u32::from_le_bytes(data.get(*pos..pos.checked_add(4)?)?.try_into().ok()?) as usize;
     *pos += 4;
-    // bytemuck::cast_slice はアライメントを要求するため、フィールドを個別に読み出す
-    let mut vertex = Vec::with_capacity(vertex_len);
-    for _ in 0..vertex_len {
-        let x = f32::from_le_bytes(data.get(*pos..*pos + 4)?.try_into().ok()?);
-        *pos += 4;
-        let y = f32::from_le_bytes(data.get(*pos..*pos + 4)?.try_into().ok()?);
-        *pos += 4;
-        let vertex_type = u32::from_le_bytes(data.get(*pos..*pos + 4)?.try_into().ok()?);
-        *pos += 4;
-        vertex.push(Vertex {
-            position: [x, y],
-            vertex_type,
-        });
-    }
-
-    let index_len = u32::from_le_bytes(data.get(*pos..*pos + 4)?.try_into().ok()?) as usize;
-    *pos += 4;
-    let mut index = Vec::with_capacity(index_len);
-    for _ in 0..index_len {
-        index.push(u32::from_le_bytes(
-            data.get(*pos..*pos + 4)?.try_into().ok()?,
-        ));
-        *pos += 4;
-    }
-    Some(VectorVertex { vertex, index })
+    let byte_count = curve_count.checked_mul(std::mem::size_of::<QuadraticCurve>())?;
+    let end = pos.checked_add(byte_count)?;
+    let bytes = data.get(*pos..end)?;
+    *pos = end;
+    let curves = bytes
+        .as_chunks::<24>()
+        .0
+        .iter()
+        .map(|bytes| {
+            let coordinate =
+                |offset| f32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap());
+            QuadraticCurve {
+                start: [coordinate(0), coordinate(4)],
+                control: [coordinate(8), coordinate(12)],
+                end: [coordinate(16), coordinate(20)],
+            }
+        })
+        .collect();
+    Some(VectorVertex { curves })
 }
 
 fn serialize_glyph_vertex(g: &GlyphVertex) -> Vec<u8> {
     let mut buf = Vec::new();
+    buf.extend_from_slice(&CACHE_FORMAT_VERSION.to_le_bytes());
     buf.extend_from_slice(&(g.c as u32).to_le_bytes());
     serialize_vector_vertex(&g.h_vertex, &mut buf);
     match &g.v_vertex {
@@ -235,19 +234,107 @@ fn serialize_glyph_vertex(g: &GlyphVertex) -> Vec<u8> {
 }
 
 fn deserialize_glyph_vertex(data: &[u8]) -> Option<GlyphVertex> {
-    let mut pos = 0;
+    let version = u32::from_le_bytes(data.get(..4)?.try_into().ok()?);
+    if version != CACHE_FORMAT_VERSION {
+        return None;
+    }
+    let mut pos = 4;
     let c = char::from_u32(u32::from_le_bytes(data.get(pos..pos + 4)?.try_into().ok()?))?;
     pos += 4;
     let h_vertex = deserialize_vector_vertex(data, &mut pos)?;
-    let v_vertex = if *data.get(pos)? == 1 {
-        pos += 1;
-        Some(deserialize_vector_vertex(data, &mut pos)?)
-    } else {
-        None
+    let tag = *data.get(pos)?;
+    pos += 1;
+    let v_vertex = match tag {
+        1 => Some(deserialize_vector_vertex(data, &mut pos)?),
+        0 => None,
+        _ => return None,
     };
+    if pos != data.len() {
+        return None;
+    }
     Some(GlyphVertex {
         c,
         h_vertex,
         v_vertex,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::VectorVertexBuilder;
+
+    #[test]
+    fn directed_curves_round_trip_with_vertical_variant() {
+        let mut builder = VectorVertexBuilder::new();
+        builder.move_to(1.0, 2.0);
+        builder.line_to(3.0, 2.0);
+        builder.quad_to(4.0, 3.0, 3.0, 4.0);
+        builder.close();
+        let glyph = GlyphVertex {
+            c: 'あ',
+            h_vertex: builder.build(),
+            v_vertex: Some(VectorVertex {
+                curves: vec![QuadraticCurve {
+                    start: [-1.0, 2.0],
+                    control: [0.0, 4.0],
+                    end: [1.0, 2.0],
+                }],
+            }),
+        };
+        let bytes = serialize_glyph_vertex(&glyph);
+        let decoded = deserialize_glyph_vertex(&bytes).unwrap();
+        assert_eq!(decoded.c, glyph.c);
+        assert_eq!(decoded.h_vertex.curves(), glyph.h_vertex.curves());
+        assert_eq!(
+            decoded.v_vertex.unwrap().curves(),
+            glyph.v_vertex.unwrap().curves()
+        );
+        assert!(
+            cache_db_path(&[])
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("glyph_cache_v2_")
+        );
+    }
+
+    #[test]
+    fn empty_glyph_round_trips_without_vertical_variant() {
+        let glyph = GlyphVertex {
+            c: ' ',
+            h_vertex: VectorVertexBuilder::new().build(),
+            v_vertex: None,
+        };
+        let decoded = deserialize_glyph_vertex(&serialize_glyph_vertex(&glyph)).unwrap();
+        assert_eq!(decoded.c, ' ');
+        assert!(decoded.h_vertex.curves().is_empty());
+        assert!(decoded.v_vertex.is_none());
+    }
+
+    #[test]
+    fn rejects_legacy_truncated_and_invalid_payloads() {
+        let glyph = GlyphVertex {
+            c: 'A',
+            h_vertex: VectorVertexBuilder::new().build(),
+            v_vertex: None,
+        };
+        let bytes = serialize_glyph_vertex(&glyph);
+        for length in 0..bytes.len() {
+            assert!(deserialize_glyph_vertex(&bytes[..length]).is_none());
+        }
+        let mut legacy = bytes.clone();
+        legacy[..4].copy_from_slice(&1u32.to_le_bytes());
+        assert!(deserialize_glyph_vertex(&legacy).is_none());
+        let mut invalid_count = bytes.clone();
+        invalid_count[8..12].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(deserialize_glyph_vertex(&invalid_count).is_none());
+        let mut invalid_tag = bytes.clone();
+        *invalid_tag.last_mut().unwrap() = 2;
+        assert!(deserialize_glyph_vertex(&invalid_tag).is_none());
+        let mut trailing = bytes;
+        trailing.push(0);
+        assert!(deserialize_glyph_vertex(&trailing).is_none());
+    }
 }

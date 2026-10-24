@@ -19,8 +19,59 @@ Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタ�
 ### font_rasterizer（フォントレンダリング）
 - **パス**: `font_rasterizer/`
 - **役割**: フォントのラスタライゼーションとレンダリング処理
-- **特徴**: WebGPU(wgpu)を使用したGPUベースのフォント描画
+- **特徴**: WebGPU(wgpu)と Windfoil の解析的な曲線積分を使用したフォント描画
 - **ライブラリタイプ**: `cdylib`、`rlib`（WebAssemblyにも対応）
+
+#### Windfoil 描画
+
+[Windfoil](https://github.com/texel-org/windfoil-algorithm) の
+[アルゴリズム仕様](https://github.com/texel-org/windfoil-algorithm/blob/main/docs/ALGORITHM.md)
+に基づいて実装している。元の実装のコピーではなく、このプロジェクトの座標系・モーション・合成方式へ組み込んだ実装。
+
+- `VectorVertexBuilder` は有向の `QuadraticCurve { start, control, end }` を直接生成する。直線も制御点が中点の二次曲線として保持し、頂点種別・補助三角形・重心探索・三角形インデックスは使用しない。既存の型名 `VectorVertex` / `VectorVertexBuilder` は維持し、`curves()` で曲線列を参照できる。
+- `font_rasterizer/src/windfoil.rs` は同じ曲線型を使い、x/y の極値で単調分割する。1〜64 の水平バンドに分類し、右端の降順で曲線を並べる。
+- `font_rasterizer/src/shader/windfoil.wgsl` は文字・SVG ごとの矩形を描画し、storage buffer の曲線からピクセル内の巻き数積分を解析的に求める。バンド境界をまたぐピクセルは各バンドの交差範囲だけを積分する。
+- non-zero は積分の絶対値を 1 に制限し、even-odd は周期 2 の三角波で被覆率を求める。AA 無効時は中心点で巻き数を評価する。
+- 座標に依存しないモーション・カメラ変換では局所座標と画面微分を使う。座標依存モーションは元の制御点を変形し、画面座標で再分割・積分する。この経路は行バンドによる枝刈りを使わないため重い。
+- 距離依存変形を含むインスタンス群は、compute 前処理で制御点を一度だけ投影し、頂点とフラグメントで共有する。投影結果の GPU バッファは再利用し、使用されなくなった群のキャッシュは解放する。静止群は compute を dispatch しない。
+- GPU の投影バッファ容量・dispatch 上限を超える場合は直接投影へ fallback する。`RasterizerRenderrer::new_with_curve_projection` の最後の引数を `false` にすると比較用に直接投影を指定できる。
+- 座標依存変形でも制御点の投影範囲を near/far と画面範囲で制限する。変形した制御点が視点近傍へ来たときの矩形の暴走を避ける。
+- 通常経路の描画矩形は輪郭の投影範囲を near/far でクリップし、画面座標で1pxだけ拡張する。局所座標を逆投影して余白を拡張する旧処理は、真横付近で特異になり透視投影が暴走するため使用しない。
+- 局所座標は平面の逆射影から復元する。投影の片軸が1px未満に潰れた輪郭は、限定された画面矩形内で画面座標の曲線積分へ切り替える。厳密に退化した平面や near/far 外の輪郭は描画しない。
+- パス・巻き数をテクスチャへ焼き込まない。描画色の合成と従来の straight-alpha 出力のためのテクスチャは残し、画質設定・モーダル・背景・PNG 出力の API を維持している。
+- WebAssembly でも WebGPU の storage buffer が必要。WebGL2 のフォールバックは使用できない。conservative rasterization は不要。
+- グリフキャッシュは版番号付きの曲線形式 (`glyph_cache_v2_*.redb`) を使用する。旧頂点形式のキャッシュは読み込まず、新しい曲線データから生成し直す。
+- デバッグ PNG は曲線と始点・制御点・終点を直接描画する。旧 `VertexPointKind` / `debug_triangles()` / `debug_points()` は廃止した。
+
+精度の制約として、複数の巻き数レベルをまたぐ重複・交差部分では、巻き数積分の折り畳みは真の塗り面積と一致しない場合がある。
+通常経路の回転・せん断では `fwidth` による軸平行な局所ボックスを使用する。
+透視変換後の曲線は一般に有理曲線なので、座標依存モーション経路での制御点投影は近似となる。
+既存の三次曲線から二次曲線への近似と、ほぼ直線な曲線の簡略化は維持している。f32 の座標精度の制限も残る。
+提案元の小サイズ用 ink-profile 近似や点サンプル exact mode は導入せず、AA 有効時は解析積分を使う。実性能の改善は保証しない。
+
+GPU 回帰テスト（WebGPU 対応 GPU が必要）:
+
+```powershell
+cargo test -p font_rasterizer windfoil_gpu_coverage_regressions --lib -- --ignored
+cargo test -p font_rasterizer windfoil_grazing_view_stays_within_projected_bounds --lib -- --ignored
+cargo test -p font_rasterizer windfoil_preprojection_matches_direct_deformation --lib -- --ignored
+```
+
+サブピクセル矩形・細線・曲線の独立サンプル比較・バンド境界・塗り規則・座標依存モーション・AA 無効・空パスを検証する。
+斜視テストは左右・上下の89度付近、89.99度、真横、背面、near/far 外の表示範囲を確認する。GPU 時間の改善率を保証するテストではない。
+前投影の一致テストはX/Y/XY距離依存の回転・伸縮を組み合わせ、non-zero / even-odd のアルファを直接投影と比較する。
+
+変形性能の A/B 計測（GPU timestamp 対応アダプターが必要）:
+
+```powershell
+cargo run -p font_rasterizer --release --example deformation_benchmark
+cargo run -p font_rasterizer --release --example deformation_benchmark -- --direct
+```
+
+固定の日本語字形300インスタンスを距離依存で変形し、ウォームアップ後60フレームの GPU 時間を測る。画像読み戻しは測定区間外で行い、画素数と checksum を記録する。
+AMD Radeon(TM) Graphics / DX12 で3回の予備比較は、直接投影8.62〜10.31ms、前投影2.97〜2.99ms。各回の最終画像checksumは一致した。実エディタ全体のFPSや他GPUで同じ改善率を保証する値ではない。
+曲線の単調分割・積分は依然フラグメントで行う。次の改善候補は投影後の単調分割・空間索引も前処理へ移すこと。
+`FONT_RASTERIZER_DEBUG_SHADER` 有効時は `windfoil.wgsl` をディスクから読む。モーション変換もこのファイル内の座標のみを受け取る関数で行う。
 
 ### text_buffer（テキスト管理）
 - **パス**: `text_buffer/`

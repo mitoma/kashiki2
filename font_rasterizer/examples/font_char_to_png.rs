@@ -1,6 +1,6 @@
 //! FontVertexConverter の動作確認用サンプル。
-//! 指定したフォントと文字のグリフ頂点座標を、GPU を使わず image クレートのみで
-//! 中心点・制御点・区間始点・区間終点・輪郭点を色分けして PNG に書き出す。
+//! 指定したフォントと文字の有向二次曲線を image クレートのみで描画し、
+//! 始点・制御点・終点を色分けして PNG に書き出す。
 
 use std::fs;
 use std::path::PathBuf;
@@ -9,7 +9,7 @@ use std::sync::Arc;
 use clap::Parser;
 use font_collector::{FontCollector, FontData};
 use font_rasterizer::{
-    VectorVertex, VertexPointKind,
+    VectorVertex,
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     font_converter::convert_char_to_vector_vertices,
 };
@@ -51,16 +51,6 @@ struct Args {
     output_dir: PathBuf,
 }
 
-fn point_color(kind: VertexPointKind) -> Rgba<u8> {
-    match kind {
-        VertexPointKind::Center => Rgba([230, 200, 20, 255]), // 黄: 中心点
-        VertexPointKind::Control => Rgba([220, 20, 60, 255]), // 赤: 制御点
-        VertexPointKind::SegmentStart => Rgba([34, 139, 34, 255]), // 緑: 区間始点
-        VertexPointKind::SegmentEnd => Rgba([30, 144, 255, 255]), // 青: 区間終点
-        VertexPointKind::OnCurve => Rgba([255, 140, 0, 255]), // 橙: 輪郭点
-    }
-}
-
 fn draw_line(img: &mut RgbaImage, from: (i32, i32), to: (i32, i32), color: Rgba<u8>) {
     let (mut x, mut y) = from;
     let (target_x, target_y) = to;
@@ -89,21 +79,6 @@ fn draw_line(img: &mut RgbaImage, from: (i32, i32), to: (i32, i32), color: Rgba<
     }
 }
 
-fn relationship_line_color(first: VertexPointKind, second: VertexPointKind) -> Option<Rgba<u8>> {
-    use VertexPointKind::{Center, Control, SegmentEnd, SegmentStart};
-
-    match (first, second) {
-        (Center, SegmentStart | SegmentEnd) | (SegmentStart | SegmentEnd, Center) => {
-            Some(Rgba([128, 0, 128, 255]))
-        }
-        (Control, SegmentStart | SegmentEnd) | (SegmentStart | SegmentEnd, Control) => {
-            Some(Rgba([220, 20, 60, 255]))
-        }
-        (SegmentStart, SegmentEnd) | (SegmentEnd, SegmentStart) => Some(Rgba([0, 128, 128, 255])),
-        _ => None,
-    }
-}
-
 fn draw_filled_circle(img: &mut RgbaImage, cx: i32, cy: i32, radius: i32, color: Rgba<u8>) {
     let (width, height) = (img.width() as i32, img.height() as i32);
     for dy in -radius..=radius {
@@ -119,8 +94,8 @@ fn draw_filled_circle(img: &mut RgbaImage, cx: i32, cy: i32, radius: i32, color:
     }
 }
 
-/// VectorVertex の各頂点座標を、フィルは行わず点として image クレートのみで描画する
-fn render_vector_vertex_debug_points(
+/// 有向二次曲線と制御点を、フィルは行わず image クレートのみで描画する
+fn render_curve_debug(
     vector_vertex: &VectorVertex,
     width: u32,
     height: u32,
@@ -128,17 +103,20 @@ fn render_vector_vertex_debug_points(
 ) -> RgbaImage {
     let mut img = RgbaImage::from_pixel(width, height, Rgba([250, 250, 250, 255]));
 
-    let points = vector_vertex.debug_points();
-    if points.is_empty() {
+    let curves = vector_vertex.curves();
+    if curves.is_empty() {
         return img;
     }
 
     let (mut min_x, mut max_x, mut min_y, mut max_y) = (f32::MAX, f32::MIN, f32::MAX, f32::MIN);
-    for ([x, y], _) in &points {
-        min_x = min_x.min(*x);
-        max_x = max_x.max(*x);
-        min_y = min_y.min(*y);
-        max_y = max_y.max(*y);
+    for [x, y] in curves
+        .iter()
+        .flat_map(|curve| [curve.start, curve.control, curve.end])
+    {
+        min_x = min_x.min(x);
+        max_x = max_x.max(x);
+        min_y = min_y.min(y);
+        max_y = max_y.max(y);
     }
     // 座標が 1 点しかない場合などでも span が 0 にならないようにする
     let span = (max_x - min_x).max(max_y - min_y).max(f32::EPSILON);
@@ -154,24 +132,36 @@ fn render_vector_vertex_debug_points(
         (px.round() as i32, py.round() as i32)
     };
 
-    for triangle in vector_vertex.debug_triangles() {
-        for &(first_index, second_index) in &[(0, 1), (1, 2), (2, 0)] {
-            let (first_pos, first_kind) = triangle[first_index];
-            let (second_pos, second_kind) = triangle[second_index];
-            if let Some(color) = relationship_line_color(first_kind, second_kind) {
-                draw_line(
-                    &mut img,
-                    to_pixel(first_pos[0], first_pos[1]),
-                    to_pixel(second_pos[0], second_pos[1]),
-                    color,
-                );
-            }
+    for curve in curves {
+        let start = to_pixel(curve.start[0], curve.start[1]);
+        let control = to_pixel(curve.control[0], curve.control[1]);
+        let end = to_pixel(curve.end[0], curve.end[1]);
+        draw_line(&mut img, start, control, Rgba([220, 160, 170, 255]));
+        draw_line(&mut img, control, end, Rgba([220, 160, 170, 255]));
+        let mut previous = start;
+        for sample in 1..=64 {
+            let parameter = sample as f32 / 64.0;
+            let complement = 1.0 - parameter;
+            let point: [f32; 2] = std::array::from_fn(|axis| {
+                complement * complement * curve.start[axis]
+                    + 2.0 * complement * parameter * curve.control[axis]
+                    + parameter * parameter * curve.end[axis]
+            });
+            let current = to_pixel(point[0], point[1]);
+            draw_line(&mut img, previous, current, Rgba([0, 128, 128, 255]));
+            previous = current;
         }
     }
 
-    for (pos, kind) in points {
-        let (px, py) = to_pixel(pos[0], pos[1]);
-        draw_filled_circle(&mut img, px, py, point_radius, point_color(kind));
+    for curve in curves {
+        for (point, color) in [
+            (curve.start, Rgba([34, 139, 34, 255])),
+            (curve.control, Rgba([220, 20, 60, 255])),
+            (curve.end, Rgba([30, 144, 255, 255])),
+        ] {
+            let (px, py) = to_pixel(point[0], point[1]);
+            draw_filled_circle(&mut img, px, py, point_radius, color);
+        }
     }
 
     img
@@ -235,19 +225,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             convert_char_to_vector_vertices(fonts.clone(), ascii_override_font.clone(), c, width)?;
 
         let h_path = args.output_dir.join(format!("char_{c}_horizontal.png"));
-        render_vector_vertex_debug_points(&h_vertex, args.width, args.height, args.point_radius)
-            .save(&h_path)?;
+        render_curve_debug(&h_vertex, args.width, args.height, args.point_radius).save(&h_path)?;
         println!("Generated: {:?}", h_path);
 
         if let Some(v_vertex) = v_vertex {
             let v_path = args.output_dir.join(format!("char_{c}_vertical.png"));
-            render_vector_vertex_debug_points(
-                &v_vertex,
-                args.width,
-                args.height,
-                args.point_radius,
-            )
-            .save(&v_path)?;
+            render_curve_debug(&v_vertex, args.width, args.height, args.point_radius)
+                .save(&v_path)?;
             println!("Generated: {:?}", v_path);
         }
     }

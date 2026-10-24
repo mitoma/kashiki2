@@ -20,7 +20,7 @@
 
 - [components/glyph-model.md](components/glyph-model.md) char / glyph / direction / width の最小モデル
 - [components/syntax-analysis.md](components/syntax-analysis.md) Arborium を使った構文解析とシンタックスハイライト
-- [components/vector-vertex-builder.md](components/vector-vertex-builder.md) OutlineBuilder から GPU 頂点へ落とす変換器
+- [components/vector-vertex-builder.md](components/vector-vertex-builder.md) OutlinePen から有向二次曲線へ落とす変換器
 - [components/overlap-remover.md](components/overlap-remover.md) even-odd 向けにパス重複を除去する幾何処理
 - [components/shader-art-system.md](components/shader-art-system.md) 組み込み背景シェーダーと実行経路
 
@@ -49,7 +49,7 @@
 - [sources/source-text-buffer-layout-code.md](sources/source-text-buffer-layout-code.md) phisical_layouter 実装の要約
 - [sources/source-text-buffer-editor-code.md](sources/source-text-buffer-editor-code.md) text_buffer editor 実装の要約
 - [sources/source-text-buffer-action-code.md](sources/source-text-buffer-action-code.md) text_buffer action 実装の要約
-- [sources/source-vector-vertex-builder.md](sources/source-vector-vertex-builder.md) vector vertex 生成実装の要約
+- [sources/source-vector-vertex-builder.md](sources/source-vector-vertex-builder.md) 直接曲線生成・Windfoil 接続・曲線キャッシュの要約
 - [sources/source-overlap-shader.md](sources/source-overlap-shader.md) overlap shader 実装の要約
 - [sources/source-outline-shader.md](sources/source-outline-shader.md) outline shader 実装の要約
 - [sources/source-overlap-remover-code.md](sources/source-overlap-remover-code.md) overlap remover 実装の要約

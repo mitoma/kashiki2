@@ -131,6 +131,7 @@ struct Uniforms {
     u_time: u32,
     u_width: u32,
     u_antialiasing: u32,
+    u_height: u32,
 };
 
 @group(0) @binding(0)
@@ -197,8 +198,7 @@ struct VertexOutput {
     @location(2) triangle_type: vec3<f32>,
 };
 
-@vertex
-fn vs_main(
+fn transform_vertex(
     model: VertexInput,
     instances: InstancesInput,
 ) -> VertexOutput {
@@ -391,6 +391,11 @@ fn vs_main(
 }
 
 // 最小限の Vertex Shader
+@vertex
+fn vs_main(model: VertexInput, instances: InstancesInput) -> VertexOutput {
+    return transform_vertex(model, instances);
+}
+
 // ただし vs_main と比べてもさほどパフォーマンス改善には寄与しなさそう
 @vertex
 fn vs_main_minimum(

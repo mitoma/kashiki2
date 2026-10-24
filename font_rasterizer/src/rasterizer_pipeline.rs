@@ -48,16 +48,9 @@ pub struct Buffers<'a> {
 
 /// フォントをラスタライズするためのパイプラインを提供する。
 ///
-/// このブログの記事の内容を元に実装されている。
-/// https://medium.com/@evanwallace/easy-scalable-text-rendering-on-the-gpu-c3f4d782c5ac
-///
-/// このパイプラインは 3 つのステージがある。
-///
-/// 1 つめはフォントを構成するポリゴンを重ねていく処理
-/// 2 つめはポリゴンの重ねた結果からフォントの輪郭を抽出する処理
-/// 3 つめは輪郭を抽出したテクスチャをスクリーンに描画する処理
-///   2 が 3 よりも解像度が高ければオーバーサンプリングでクオリティが高くなり
-///   その逆であればドット絵の品質になるよう調整
+/// Windfoil の曲線積分で被覆率を求め、色を合成してスクリーンに描画する。
+/// パスは storage buffer から参照し、巻き数の加算テクスチャは使用しない。
+/// Quarity は従来どおり画面合成テクスチャの解像度を制御する。
 pub struct RasterizerPipeline {
     pub(crate) rasterizer_renderrer: RasterizerRenderrer,
     pub(crate) rasterizer_renderrer_for_modal: RasterizerRenderrer,
