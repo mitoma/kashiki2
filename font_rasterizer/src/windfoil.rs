@@ -181,6 +181,7 @@ pub(crate) fn upload(
 }
 
 impl Curve {
+    /// curve を指定されたパラメータで分割する。
     fn split(self, parameter: f32) -> (Self, Self) {
         let interpolate = |start: [f32; 2], end: [f32; 2]| {
             std::array::from_fn(|axis| start[axis] + (end[axis] - start[axis]) * parameter)
@@ -202,6 +203,8 @@ impl Curve {
         )
     }
 
+    /// curve を単調部分に分割する。単調部分に分割するとは各軸に対して増加または減少が単調になるように分割することを意味する。
+    /// 一つの2次ベジェ曲線は最大で各軸に対して一つの極値を持つため、最大で2回分割される可能性がある。
     fn monotone(self, output: &mut Vec<Self>) {
         let mut extrema = Vec::new();
         for axis in 0..2 {
