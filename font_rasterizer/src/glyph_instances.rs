@@ -61,4 +61,8 @@ impl GlyphInstances {
     pub fn to_wgpu_buffer(&self) -> &wgpu::Buffer {
         self.instances.to_wgpu_buffer()
     }
+
+    pub(crate) fn needs_curve_projection(&self) -> bool {
+        self.instances.needs_curve_projection()
+    }
 }

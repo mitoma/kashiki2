@@ -51,6 +51,11 @@
     },
     {
         "namespace": "system",
+        "name": "change-rendering-backend-ui",
+        "description": "描画方式の変更"
+    },
+    {
+        "namespace": "system",
         "name": "change-window-size-ui",
         "description": "画面サイズの変更"
     },

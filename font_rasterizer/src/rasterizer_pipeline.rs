@@ -5,7 +5,7 @@ use crate::{
     background_bind_group::BackgroundImageBindGroup,
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::GlyphVertexBuffer,
-    rasterizer_renderrer::{OutlineFillRule, RasterizerRenderrer},
+    rasterizer_renderrer::{OutlineFillRule, RasterizerRenderrer, RenderingBackend},
     screen_bind_group::ScreenBindGroup,
     screen_texture::{BackgroundImageTexture, ScreenTexture},
     screen_vertex_buffer::ScreenVertexBuffer,
@@ -97,6 +97,29 @@ impl RasterizerPipeline {
         bg_color: wgpu::Color,
         outline_fill_rule: OutlineFillRule,
     ) -> Self {
+        Self::new_with_backend(
+            device,
+            width,
+            height,
+            target_texture_format,
+            quarity,
+            bg_color,
+            outline_fill_rule,
+            RenderingBackend::Legacy,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with_backend(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        target_texture_format: wgpu::TextureFormat,
+        quarity: Quarity,
+        bg_color: wgpu::Color,
+        outline_fill_rule: OutlineFillRule,
+        backend: RenderingBackend,
+    ) -> Self {
         let enable_antialiasing = true;
         let (width, height) = match quarity {
             Quarity::VeryHigh => (width * 2, height * 2),
@@ -131,21 +154,23 @@ impl RasterizerPipeline {
             (width, height)
         };
 
-        let rasterizer_renderrer = RasterizerRenderrer::new(
+        let rasterizer_renderrer = RasterizerRenderrer::new_with_backend(
             device,
             width,
             height,
             target_texture_format,
             enable_antialiasing,
             outline_fill_rule,
+            backend,
         );
-        let rasterizer_renderrer_for_modal = RasterizerRenderrer::new(
+        let rasterizer_renderrer_for_modal = RasterizerRenderrer::new_with_backend(
             device,
             width,
             height,
             target_texture_format,
             enable_antialiasing,
             outline_fill_rule,
+            backend,
         );
 
         let outline_texture = ScreenTexture::new_with_format(
@@ -572,7 +597,7 @@ impl RasterizerPipeline {
     #[inline]
     pub fn update_buffer(&mut self, queue: &wgpu::Queue) {
         self.rasterizer_renderrer
-            .overlap_bind_group
+            .overlap_bind_group()
             .update_buffer(queue);
 
         // シェーダーアートのユニフォームを更新

@@ -36,6 +36,8 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(SystemChangeTheme));
         self.add_processor(Box::new(SystemChangeOutlineFillRuleUi));
         self.add_processor(Box::new(SystemChangeOutlineFillRule));
+        self.add_processor(Box::new(SystemChangeRenderingBackendUi));
+        self.add_processor(Box::new(SystemChangeRenderingBackend));
         self.add_processor(Box::new(SystemChangeFontUi));
         self.add_processor(Box::new(SystemChangeFont));
         self.add_processor(Box::new(SystemChangeAsciiFontUi));

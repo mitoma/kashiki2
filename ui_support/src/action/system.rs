@@ -279,6 +279,77 @@ impl ActionProcessor for SystemChangeOutlineFillRule {
     }
 }
 
+pub struct SystemChangeRenderingBackendUi;
+impl ActionProcessor for SystemChangeRenderingBackendUi {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-rendering-backend-ui".into()
+    }
+
+    fn process(
+        &self,
+        _arg: &ActionArgument,
+        context: &UiContext,
+        world: &mut dyn World,
+    ) -> InputResult {
+        let options = vec![
+            SelectOption::new(
+                "Legacy".to_string(),
+                Action::new_command_with_argument("system", "change-rendering-backend", "legacy"),
+            ),
+            SelectOption::new(
+                "Windfoil".to_string(),
+                Action::new_command_with_argument("system", "change-rendering-backend", "windfoil"),
+            ),
+        ];
+        let model = SelectBox::new_without_action_name(
+            context,
+            "描画方式を選択してください".to_string(),
+            options,
+            None,
+        );
+        context.register_string(model.to_string());
+        world.add_modal(Box::new(model));
+        world.re_layout();
+        world.look_modal(CameraAdjustment::FitBoth);
+        InputResult::InputConsumed
+    }
+}
+
+pub struct SystemChangeRenderingBackend;
+impl ActionProcessor for SystemChangeRenderingBackend {
+    fn namespace(&self) -> CommandNamespace {
+        "system".into()
+    }
+
+    fn name(&self) -> CommandName {
+        "change-rendering-backend".into()
+    }
+
+    fn process(
+        &self,
+        arg: &ActionArgument,
+        _context: &UiContext,
+        _world: &mut dyn World,
+    ) -> InputResult {
+        match arg {
+            ActionArgument::String(value) => match value.as_str() {
+                "legacy" => {
+                    InputResult::ChangeRenderingBackend(font_rasterizer::RenderingBackend::Legacy)
+                }
+                "windfoil" => {
+                    InputResult::ChangeRenderingBackend(font_rasterizer::RenderingBackend::Windfoil)
+                }
+                _ => InputResult::Noop,
+            },
+            _ => InputResult::Noop,
+        }
+    }
+}
+
 pub struct SystemChangeGlobalDirection;
 impl ActionProcessor for SystemChangeGlobalDirection {
     fn namespace(&self) -> CommandNamespace {
