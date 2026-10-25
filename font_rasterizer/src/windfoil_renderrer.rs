@@ -78,20 +78,6 @@ impl RasterizerRenderrer {
             ],
             immediate_size: 0,
         });
-        let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Windfoil curve projection"),
-            source: wgpu::ShaderSource::Wgsl(
-                format!(
-                    "{}\n{}",
-                    path_shader.replace(
-                        "var<storage, read> projected_points",
-                        "var<storage, read_write> projected_points"
-                    ),
-                    projected_curves::COMPUTE_SOURCE
-                )
-                .into(),
-            ),
-        });
         let compute_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Curve projection pipeline layout"),
             bind_group_layouts: &[
@@ -105,7 +91,7 @@ impl RasterizerRenderrer {
             device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
                 label: Some("Project glyph control points"),
                 layout: Some(&compute_layout),
-                module: &compute_shader,
+                module: &shader,
                 entry_point: Some("project_curves"),
                 compilation_options: Default::default(),
                 cache: None,

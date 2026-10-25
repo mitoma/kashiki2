@@ -316,6 +316,7 @@ struct WindfoilHeader {
 @group(2) @binding(0) var<storage, read> instance_words: array<u32>;
 @group(2) @binding(1) var<storage, read> projected_points: array<vec4<f32>>;
 @group(2) @binding(2) var<uniform> projection_settings: vec4<u32>;
+@group(2) @binding(3) var<storage, read_write> projected_points_out: array<vec4<f32>>;
 
 struct WindfoilOutput {
     @builtin(position) position: vec4<f32>,
@@ -338,6 +339,25 @@ struct WindfoilOutput {
 
 fn project_local(point: vec2<f32>, instances: InstancesInput) -> vec4<f32> {
     return transform_point(point, instances);
+}
+
+fn instance_vector(base: u32) -> vec4<f32> {
+    return bitcast<vec4<f32>>(vec4<u32>(instance_words[base], instance_words[base + 1u],
+        instance_words[base + 2u], instance_words[base + 3u]));
+}
+
+@compute @workgroup_size(64)
+fn project_curves(@builtin(global_invocation_id) invocation: vec3<u32>) {
+    let instance = invocation.y;
+    let point = invocation.x;
+    if instance >= projection_settings.x || point >= path_header.raw_count * 3u { return; }
+    let base = instance * 23u;
+    let attributes = InstancesInput(instance_vector(base), instance_vector(base + 4u),
+        instance_vector(base + 8u), instance_vector(base + 12u), instance_vector(base + 16u).xyz,
+        instance_words[base + 19u], instance_words[base + 20u], bitcast<f32>(instance_words[base + 21u]),
+        instance_words[base + 22u]);
+    projected_points_out[instance * path_header.raw_count * 3u + point] =
+        project_local(path_points[path_header.raw_start * 3u + point], attributes);
 }
 
 struct ProjectedBounds {

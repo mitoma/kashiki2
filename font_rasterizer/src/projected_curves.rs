@@ -1,27 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use wgpu::util::DeviceExt;
 
-pub(crate) const COMPUTE_SOURCE: &str = r#"
-fn instance_vector(base: u32) -> vec4<f32> {
-    return bitcast<vec4<f32>>(vec4<u32>(instance_words[base], instance_words[base + 1u],
-        instance_words[base + 2u], instance_words[base + 3u]));
-}
-
-@compute @workgroup_size(64)
-fn project_curves(@builtin(global_invocation_id) invocation: vec3<u32>) {
-    let instance = invocation.y;
-    let point = invocation.x;
-    if instance >= projection_settings.x || point >= path_header.raw_count * 3u { return; }
-    let base = instance * 23u;
-    let attributes = InstancesInput(instance_vector(base), instance_vector(base + 4u),
-        instance_vector(base + 8u), instance_vector(base + 12u), instance_vector(base + 16u).xyz,
-        instance_words[base + 19u], instance_words[base + 20u], bitcast<f32>(instance_words[base + 21u]),
-        instance_words[base + 22u]);
-    projected_points[instance * path_header.raw_count * 3u + point] =
-        project_local(path_points[path_header.raw_start * 3u + point], attributes);
-}
-"#;
-
 pub(crate) fn layout(device: &wgpu::Device, compute: bool) -> wgpu::BindGroupLayout {
     let stages = if compute {
         wgpu::ShaderStages::COMPUTE
@@ -46,7 +25,7 @@ pub(crate) fn layout(device: &wgpu::Device, compute: bool) -> wgpu::BindGroupLay
                 count: None,
             },
             wgpu::BindGroupLayoutEntry {
-                binding: 1,
+                binding: if compute { 3 } else { 1 },
                 visibility: stages,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Storage {
@@ -137,7 +116,7 @@ impl ProjectionCache {
                                 resource: source.as_entire_binding(),
                             },
                             wgpu::BindGroupEntry {
-                                binding: 1,
+                                binding: if compute { 3 } else { 1 },
                                 resource: output.as_entire_binding(),
                             },
                             wgpu::BindGroupEntry {
