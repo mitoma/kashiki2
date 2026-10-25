@@ -290,9 +290,11 @@ impl SelectBox {
                 .editor_operation(&EditorOperation::Next);
         }
         self.select_items_text_edit_mut()
+            .editor_operation(&EditorOperation::Last);
+        self.select_items_text_edit_mut()
             .editor_operation(&EditorOperation::Mark);
         self.select_items_text_edit_mut()
-            .editor_operation(&EditorOperation::Last);
+            .editor_operation(&EditorOperation::Head);
     }
 
     #[inline]
