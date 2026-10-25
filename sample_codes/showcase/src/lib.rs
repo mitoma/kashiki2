@@ -35,7 +35,7 @@ pub async fn run() {
         window_title: "Hello".to_string(),
         window_size,
         callback: Box::new(callback),
-        quarity: Quarity::VeryHigh,
+        quarity: Quarity::Middle,
         color_theme: ColorTheme::SolarizedDark,
         flags: Flags::DEFAULT,
         font_repository,
