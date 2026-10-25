@@ -1,7 +1,33 @@
+use font_rasterizer::RenderingBackend;
 use font_rasterizer::{
     color_theme::ColorTheme, glyph_vertex_buffer::Direction, rasterizer_renderrer::OutlineFillRule,
 };
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EditorRenderingBackend {
+    #[default]
+    Legacy,
+    Windfoil,
+}
+
+impl From<EditorRenderingBackend> for RenderingBackend {
+    fn from(value: EditorRenderingBackend) -> Self {
+        match value {
+            EditorRenderingBackend::Legacy => Self::Legacy,
+            EditorRenderingBackend::Windfoil => Self::Windfoil,
+        }
+    }
+}
+
+impl From<RenderingBackend> for EditorRenderingBackend {
+    fn from(value: RenderingBackend) -> Self {
+        match value {
+            RenderingBackend::Legacy => Self::Legacy,
+            RenderingBackend::Windfoil => Self::Windfoil,
+        }
+    }
+}
 
 use crate::ui_context::{
     CharEasings, CharEasingsPreset, GpuEasingConfig, HighlightMode, TextContext,
@@ -319,6 +345,7 @@ impl Default for EditorSettingsProfiles {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct EditorSettings {
+    pub rendering_backend: EditorRenderingBackend,
     pub color_theme: EditorColorTheme,
     pub global_direction: EditorDirection,
     pub outline_fill_rule: EditorOutlineFillRule,
@@ -327,6 +354,14 @@ pub struct EditorSettings {
 }
 
 impl EditorSettings {
+    pub fn rendering_backend(&self) -> RenderingBackend {
+        self.rendering_backend.into()
+    }
+
+    pub fn set_rendering_backend(&mut self, backend: RenderingBackend) {
+        self.rendering_backend = backend.into();
+    }
+
     pub fn color_theme(&self) -> ColorTheme {
         self.color_theme.into()
     }
@@ -377,5 +412,27 @@ impl EditorSettings {
         }
 
         context
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rendering_backend_defaults_to_legacy_for_existing_settings() {
+        let settings: EditorSettings = serde_json::from_str("{}").unwrap();
+        assert_eq!(settings.rendering_backend(), RenderingBackend::Legacy);
+    }
+
+    #[test]
+    fn rendering_backend_setting_round_trips() {
+        let mut settings = EditorSettings::default();
+        settings.set_rendering_backend(RenderingBackend::Windfoil);
+        let serialized = serde_json::to_string(&settings).unwrap();
+        let restored: EditorSettings = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(restored.rendering_backend(), RenderingBackend::Windfoil);
+        settings.set_rendering_backend(RenderingBackend::Legacy);
+        assert_eq!(settings.rendering_backend(), RenderingBackend::Legacy);
     }
 }

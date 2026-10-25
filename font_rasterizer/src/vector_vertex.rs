@@ -579,7 +579,51 @@ pub struct VectorVertex {
     pub(crate) vertex: Vec<Vertex>,
     pub(crate) index: Vec<u32>,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, bytemuck::Pod, bytemuck::Zeroable)]
+#[repr(C)]
+pub struct QuadraticCurve {
+    pub start: [f32; 2],
+    pub control: [f32; 2],
+    pub end: [f32; 2],
+}
+
+impl QuadraticCurve {
+    pub(crate) fn points(self) -> [[f32; 2]; 3] {
+        [self.start, self.control, self.end]
+    }
+}
+
 impl VectorVertex {
+    pub fn curves(&self) -> Vec<QuadraticCurve> {
+        self.index
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .filter_map(|indices| {
+                let vertex = |index: u32| self.vertex.get(index.checked_sub(2)? as usize);
+                let middle = vertex(indices[1])?;
+                let end = vertex(indices[2])?.position;
+                if middle.vertex_type == 6 {
+                    Some(QuadraticCurve {
+                        start: vertex(indices[0])?.position,
+                        control: middle.position,
+                        end,
+                    })
+                } else if matches!(middle.vertex_type, 3 | 5) {
+                    let start = middle.position;
+                    Some(QuadraticCurve {
+                        start,
+                        control: std::array::from_fn(|axis| (start[axis] + end[axis]) * 0.5),
+                        end,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
     pub fn vertex_size(&self) -> u64 {
         (self.vertex.len() * std::mem::size_of::<Vertex>()) as u64
     }
@@ -661,6 +705,26 @@ mod tests {
     use crate::vector_vertex::angle_between;
 
     use super::*;
+
+    #[test]
+    fn curves_recover_closed_contours_without_auxiliary_edges() {
+        let mut builder = VectorVertexBuilder::new();
+        builder.move_to(0.0, 0.0);
+        builder.line_to(4.0, 0.0);
+        builder.quad_to(6.0, 2.0, 4.0, 4.0);
+        builder.close();
+        builder.move_to(1.0, 1.0);
+        builder.line_to(2.0, 1.0);
+        builder.close();
+        let path = builder.build();
+        let curves = path.curves();
+        assert_eq!(curves.len(), 5);
+        assert_eq!(curves[0].points(), [[0.0, 0.0], [2.0, 0.0], [4.0, 0.0]]);
+        assert_eq!(curves[1].points(), [[4.0, 0.0], [6.0, 2.0], [4.0, 4.0]]);
+        assert_eq!(curves[2].end, [0.0, 0.0]);
+        assert_eq!(curves[3].start, [1.0, 1.0]);
+        assert_eq!(curves[4].end, [1.0, 1.0]);
+    }
 
     #[test]
     fn angle_between_test() {

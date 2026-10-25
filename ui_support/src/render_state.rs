@@ -328,13 +328,7 @@ impl RenderState {
             .request_device(&wgpu::DeviceDescriptor {
                 label: None,
                 required_features: features,
-                // WebGL doesn't support all of wgpu's features, so if
-                // we're building for the web we'll have to disable some.
-                required_limits: if cfg!(target_arch = "wasm32") {
-                    wgpu::Limits::downlevel_webgl2_defaults()
-                } else {
-                    wgpu::Limits::default()
-                },
+                required_limits: wgpu::Limits::default(),
                 // memory_hints とか今後の新しい機能はまぁデフォルトで行きましょう。
                 ..Default::default()
             })
@@ -434,7 +428,7 @@ impl RenderState {
             color_theme.background().into()
         };
         let outline_fill_rule = editor_settings.outline_fill_rule();
-        let rasterizer_pipeline = RasterizerPipeline::new(
+        let rasterizer_pipeline = RasterizerPipeline::new_with_backend(
             &device,
             initial_pipeline_size.0,
             initial_pipeline_size.1,
@@ -442,6 +436,7 @@ impl RenderState {
             quarity,
             bg_color,
             outline_fill_rule,
+            editor_settings.rendering_backend(),
         );
 
         let font_binaries = font_repository.get_fonts();
@@ -549,6 +544,15 @@ impl RenderState {
         });
     }
 
+    pub(crate) fn change_rendering_backend(&mut self, backend: font_rasterizer::RenderingBackend) {
+        if self.context.editor_settings().rendering_backend() == backend {
+            return;
+        }
+        self.context
+            .update_editor_settings(|settings| settings.set_rendering_backend(backend));
+        self.change_outline_fill_rule(self.context.editor_settings().outline_fill_rule());
+    }
+
     pub(crate) fn change_outline_fill_rule(
         &mut self,
         outline_fill_rule: font_rasterizer::rasterizer_renderrer::OutlineFillRule,
@@ -559,7 +563,7 @@ impl RenderState {
 
         let bg_color = self.rasterizer_pipeline.bg_color;
         let window_size = self.context.window_size();
-        self.rasterizer_pipeline = RasterizerPipeline::new(
+        self.rasterizer_pipeline = RasterizerPipeline::new_with_backend(
             self.context.device(),
             window_size.width,
             window_size.height,
@@ -567,6 +571,7 @@ impl RenderState {
             self.quarity,
             bg_color,
             outline_fill_rule,
+            self.context.editor_settings().rendering_backend(),
         );
         self.rasterizer_pipeline.set_background_image(
             self.context.device(),
@@ -665,7 +670,7 @@ impl RenderState {
                 self.render_target.format(),
             );
             // サイズ変更時にはパイプラインを作り直す
-            self.rasterizer_pipeline = RasterizerPipeline::new(
+            self.rasterizer_pipeline = RasterizerPipeline::new_with_backend(
                 self.context.device(),
                 new_size.width,
                 new_size.height,
@@ -673,6 +678,7 @@ impl RenderState {
                 self.quarity,
                 bg_color,
                 self.context.editor_settings().outline_fill_rule(),
+                self.context.editor_settings().rendering_backend(),
             );
             self.rasterizer_pipeline.set_background_image(
                 self.context.device(),
@@ -898,7 +904,7 @@ impl RenderState {
             self.quarity = quarity;
             let bg_color = self.rasterizer_pipeline.bg_color;
             let window_size = self.context.window_size();
-            self.rasterizer_pipeline = RasterizerPipeline::new(
+            self.rasterizer_pipeline = RasterizerPipeline::new_with_backend(
                 self.context.device(),
                 window_size.width,
                 window_size.height,
@@ -906,6 +912,7 @@ impl RenderState {
                 self.quarity,
                 bg_color,
                 self.context.editor_settings().outline_fill_rule(),
+                self.context.editor_settings().rendering_backend(),
             );
             self.rasterizer_pipeline.set_background_image(
                 self.context.device(),

@@ -251,3 +251,34 @@ fn deserialize_glyph_vertex(data: &[u8]) -> Option<GlyphVertex> {
         v_vertex,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::VectorVertexBuilder;
+
+    #[test]
+    fn cached_legacy_geometry_preserves_windfoil_curves() {
+        let build = || {
+            let mut builder = VectorVertexBuilder::new();
+            builder.move_to(0.0, 0.0);
+            builder.line_to(2.0, 0.0);
+            builder.quad_to(3.0, 2.0, 0.0, 2.0);
+            builder.close();
+            builder.build()
+        };
+        let glyph = GlyphVertex {
+            c: 'A',
+            h_vertex: build(),
+            v_vertex: Some(build()),
+        };
+        let restored = deserialize_glyph_vertex(&serialize_glyph_vertex(&glyph)).unwrap();
+        assert_eq!(restored.c, glyph.c);
+        assert_eq!(restored.h_vertex.curves(), glyph.h_vertex.curves());
+        assert_eq!(restored.h_vertex.index, glyph.h_vertex.index);
+        assert_eq!(
+            restored.v_vertex.unwrap().curves(),
+            glyph.v_vertex.unwrap().curves()
+        );
+    }
+}

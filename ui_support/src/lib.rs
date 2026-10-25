@@ -324,6 +324,9 @@ impl ApplicationHandler for App {
             InputResult::ChangeOutlineFillRule(outline_fill_rule) => {
                 state.change_outline_fill_rule(outline_fill_rule);
             }
+            InputResult::ChangeRenderingBackend(backend) => {
+                state.change_rendering_backend(backend);
+            }
             InputResult::ChangeWindowSize(window_size) => {
                 state.resize(window_size);
             }
@@ -473,6 +476,9 @@ impl ApplicationHandler for App {
                 InputResult::ChangeOutlineFillRule(outline_fill_rule) => {
                     state.change_outline_fill_rule(outline_fill_rule);
                 }
+                InputResult::ChangeRenderingBackend(backend) => {
+                    state.change_rendering_backend(backend);
+                }
                 InputResult::ChangeWindowSize(window_size) => {
                     state.resize(window_size);
                 }
@@ -575,6 +581,10 @@ fn handle_action_result(input_result: InputResult, state: &mut RenderState) -> O
             state.change_outline_fill_rule(outline_fill_rule);
             None
         }
+        InputResult::ChangeRenderingBackend(backend) => {
+            state.change_rendering_backend(backend);
+            None
+        }
         InputResult::SendExit => Some(input_result),
         InputResult::ToggleFullScreen => Some(input_result),
         InputResult::SetFullScreen(_) => Some(input_result),
@@ -597,6 +607,7 @@ pub enum InputResult {
     ChangeShaderArt(Option<String>),
     ChangeGlobalDirection(Direction),
     ChangeOutlineFillRule(OutlineFillRule),
+    ChangeRenderingBackend(font_rasterizer::RenderingBackend),
     ChangeWindowSize(WindowSize),
     ChangeFont(Option<String>),
     ChangeAsciiOverrideFont(Option<String>),

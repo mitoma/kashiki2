@@ -22,6 +22,41 @@ Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタ�
 - **特徴**: WebGPU(wgpu)を使用したGPUベースのフォント描画
 - **ライブラリタイプ**: `cdylib`、`rlib`（WebAssemblyにも対応）
 
+#### 描画バックエンド
+
+`RenderingBackend` で以下の2方式を選択できます。既定値は `Legacy` です。
+
+- **Legacy**: 従来の三角形ラスタライズ、巻き数テクスチャ、輪郭抽出による描画。対応 GPU では conservative rasterization を使用します。
+- **Windfoil**: 有向二次ベジェ曲線を storage buffer に格納し、水平バンドと解析的な曲線積分で被覆率を計算します。距離依存の変形には曲線の事前投影を使用します。
+
+操作メニューの「描画方式の変更」で、アプリを再起動せずに切り替えられます。
+対応するアクションは `system:change-rendering-backend-ui`、直接指定するアクションは
+`system:change-rendering-backend`（引数 `legacy` / `windfoil`）です。
+選択は `EditorSettings.rendering_backend` に `Legacy` / `Windfoil` として保存されます。
+この項目がない既存の設定ファイルでは `Legacy` が選択されます。
+
+`RasterizerRenderrer` が両バックエンドを仲介し、旧処理は `legacy_renderrer.rs`、
+Windfoil は `windfoil_renderrer.rs` に分離しています。
+字形と SVG は既存の三角形データを共有し、補助三角形を除いた輪郭辺から Windfoil 用の曲線を復元します。
+そのため既存の字形キャッシュ形式は変更せず、Windfoil の GPU 曲線バッファは初回使用時に生成・保持します。
+旧方式の GPU バッファも保持するため、切り替え時のフォント再変換は不要ですが、Windfoil 使用後は両方式のバッファ分のメモリを使用します。
+
+切り替え時には通常画面とモーダルの描画パイプラインを再生成します。
+背景画像とシェーダーアートを引き継ぎ、リサイズ・品質変更・塗り規則変更後もバックエンドの選択を維持します。
+WebAssembly でも storage buffer を使用できる WebGPU の default limits を要求します。
+
+ライブラリ利用時は `RasterizerPipeline::new_with_backend` または
+`RasterizerRenderrer::new_with_backend` で指定します。既存の `new` は `Legacy` を使用します。
+PNG 出力は `render_vector_vertex_to_png_with_backend` とその非同期版で明示的に選択できます。
+
+GPU 回帰テストは通常のテストでは無効化されているため、必要に応じて次を実行します。
+
+```powershell
+cargo test -p font_rasterizer windfoil_ --lib -- --include-ignored
+cargo test -p font_rasterizer rendering_backends_switch_with_shared_buffers --lib -- --ignored
+cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_windfoil_curves --lib
+```
+
 ### text_buffer（テキスト管理）
 - **パス**: `text_buffer/`
 - **役割**: テキストデータの格納と操作を担当

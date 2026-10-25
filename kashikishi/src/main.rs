@@ -402,6 +402,9 @@ impl SimpleStateCallback for KashikishiCallback {
                         .editor_settings
                         .set_outline_fill_rule(*outline_fill_rule);
                 }
+                InputResult::ChangeRenderingBackend(backend) => {
+                    self.config.editor_settings.set_rendering_backend(*backend);
+                }
                 _ => {}
             }
 

@@ -1,25 +1,4 @@
-use std::{collections::BTreeMap, fs};
-
-use wgpu::include_wgsl;
-
-use crate::{
-    debug_mode::DEBUG_FLAGS,
-    glyph_instances::GlyphInstances,
-    glyph_vertex_buffer::GlyphVertexBuffer,
-    outline_bind_group::OutlineBindGroup,
-    overlap_bind_group::OverlapBindGroup,
-    rasterizer_pipeline::Buffers,
-    screen_texture::ScreenTexture,
-    screen_vertex_buffer::ScreenVertexBuffer,
-    vector_instances::{InstanceRaw, VectorInstances},
-    vector_vertex::Vertex,
-    vector_vertex_buffer::VectorVertexBuffer,
-};
-
-const OVERLAP_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
-    include_wgsl!("shader/overlap_shader.wgsl");
-const OUTLINE_SHADER_DESCRIPTOR: wgpu::ShaderModuleDescriptor =
-    include_wgsl!("shader/outline_shader.wgsl");
+use crate::{overlap_bind_group::OverlapBindGroup, rasterizer_pipeline::Buffers};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutlineFillRule {
@@ -27,24 +6,23 @@ pub enum OutlineFillRule {
     NonZero,
 }
 
-pub struct RasterizerRenderrer {
-    enable_antialiasing: bool,
-
-    // 1 ステージ目(overlap)
-    pub(crate) overlap_bind_group: OverlapBindGroup,
-    pub(crate) overlap_render_pipeline: wgpu::RenderPipeline,
-
-    // 1 ステージ目のアウトプット(≒ 2 ステージ目のインプット)
-    pub(crate) overlap_texture: ScreenTexture,
-    // 重なり回数記録用のテクスチャ（マルチターゲット用）
-    pub(crate) overlap_count_texture: ScreenTexture,
-
-    pub(crate) outline_bind_group: OutlineBindGroup,
-    pub(crate) outline_render_pipeline: wgpu::RenderPipeline,
-    pub(crate) outline_vertex_buffer: ScreenVertexBuffer,
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum RenderingBackend {
+    #[default]
+    Legacy,
+    Windfoil,
 }
+
+enum Backend {
+    Legacy(Box<crate::legacy_renderrer::RasterizerRenderrer>),
+    Windfoil(Box<crate::windfoil_renderrer::RasterizerRenderrer>),
+}
+
+pub struct RasterizerRenderrer {
+    backend: Backend,
+}
+
 impl RasterizerRenderrer {
-    /// Create all unchanging resources here.
     pub fn new(
         device: &wgpu::Device,
         width: u32,
@@ -53,353 +31,235 @@ impl RasterizerRenderrer {
         enable_antialiasing: bool,
         outline_fill_rule: OutlineFillRule,
     ) -> Self {
-        // overlap
-        let overlap_shader = if DEBUG_FLAGS.debug_shader {
-            device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("font_rasterizer/src/shader/overlap_shader.debug.wgsl"),
-                source: wgpu::ShaderSource::Wgsl(
-                    fs::read_to_string("font_rasterizer/src/shader/overlap_shader.debug.wgsl")
-                        .unwrap()
-                        .into(),
-                ),
-            })
-        } else {
-            device.create_shader_module(OVERLAP_SHADER_DESCRIPTOR)
-        };
-
-        let overlap_texture = ScreenTexture::new(device, (width, height), Some("Overlap Texture"));
-
-        // 重なり回数記録用のテクスチャ（Rgba16Float フォーマットを使用して符号付き値とブレンドを可能にする）
-        let overlap_count_texture = ScreenTexture::new_with_format(
+        Self::new_with_backend(
             device,
-            (width, height),
-            wgpu::TextureFormat::Rgba16Float,
-            Some("Overlap Count Texture"),
-        );
-
-        let overlap_bind_group = OverlapBindGroup::new(device, width);
-
-        let overlap_render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Overlap Render Pipeline Layout"),
-                bind_group_layouts: &[Some(&overlap_bind_group.layout)],
-                immediate_size: 0,
-            });
-
-        let overlap_fragment_entry = match outline_fill_rule {
-            OutlineFillRule::EvenOdd => "fs_main_even_odd",
-            OutlineFillRule::NonZero => "fs_main_non_zero",
-        };
-
-        let overlap_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Overlap Render Pipeline"),
-                layout: Some(&overlap_render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &overlap_shader,
-                    entry_point: Some("vs_main"),
-                    buffers: &[Some(Vertex::desc()), Some(InstanceRaw::desc())],
-                    compilation_options: Default::default(),
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &overlap_shader,
-                    entry_point: Some(overlap_fragment_entry),
-                    targets: &[
-                        Some(wgpu::ColorTargetState {
-                            format: overlap_texture.texture_format,
-                            blend: Some(wgpu::BlendState::REPLACE),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }),
-                        Some(wgpu::ColorTargetState {
-                            format: overlap_count_texture.texture_format,
-                            blend: Some(wgpu::BlendState {
-                                color: wgpu::BlendComponent {
-                                    src_factor: wgpu::BlendFactor::One,
-                                    dst_factor: wgpu::BlendFactor::One,
-                                    operation: wgpu::BlendOperation::Add,
-                                },
-                                alpha: wgpu::BlendComponent {
-                                    src_factor: wgpu::BlendFactor::One,
-                                    dst_factor: wgpu::BlendFactor::One,
-                                    operation: wgpu::BlendOperation::Add,
-                                },
-                            }),
-                            write_mask: wgpu::ColorWrites::ALL,
-                        }),
-                    ],
-                    compilation_options: Default::default(),
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: None, // 字に表裏はあまり関係ないのでカリングはしない
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: enable_antialiasing
-                        && device
-                            .features()
-                            .contains(wgpu::Features::CONSERVATIVE_RASTERIZATION),
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
-                cache: None,
-                multiview_mask: None,
-            });
-
-        // outline
-        let outline_shader = if DEBUG_FLAGS.debug_shader {
-            device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("font_rasterizer/src/shader/outline_shader_debug.wgsl"),
-                source: wgpu::ShaderSource::Wgsl(
-                    fs::read_to_string("font_rasterizer/src/shader/outline_shader.debug.wgsl")
-                        .unwrap()
-                        .into(),
-                ),
-            })
-        } else {
-            device.create_shader_module(OUTLINE_SHADER_DESCRIPTOR)
-        };
-
-        let outline_bind_group =
-            OutlineBindGroup::new(device, width, &overlap_texture, &overlap_count_texture);
-        let outline_render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Outline Render Pipeline Layout"),
-                bind_group_layouts: &[Some(&outline_bind_group.layout)],
-                immediate_size: 0,
-            });
-
-        let outline_fragment_entry = match outline_fill_rule {
-            OutlineFillRule::EvenOdd => "fs_main_even_odd",
-            OutlineFillRule::NonZero => "fs_main_non_zero",
-        };
-
-        let outline_render_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Outline Render Pipeline"),
-                layout: Some(&outline_render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &outline_shader,
-                    entry_point: Some("vs_main"),
-                    buffers: &[Some(ScreenVertexBuffer::desc())],
-                    compilation_options: Default::default(),
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &outline_shader,
-                    entry_point: Some(outline_fragment_entry),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: target_texture_format,
-                        blend: Some(wgpu::BlendState::REPLACE),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                    compilation_options: Default::default(),
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                    // or Features::POLYGON_MODE_POINT
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
-                cache: None,
-                multiview_mask: None,
-            });
-        let outline_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
-
-        Self {
+            width,
+            height,
+            target_texture_format,
             enable_antialiasing,
-            overlap_bind_group,
-            overlap_render_pipeline,
-            overlap_texture,
-            overlap_count_texture,
-            outline_bind_group,
-            outline_render_pipeline,
-            outline_vertex_buffer,
+            outline_fill_rule,
+            RenderingBackend::Legacy,
+        )
+    }
+
+    pub fn new_with_backend(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        target_texture_format: wgpu::TextureFormat,
+        enable_antialiasing: bool,
+        outline_fill_rule: OutlineFillRule,
+        backend: RenderingBackend,
+    ) -> Self {
+        let backend = match backend {
+            RenderingBackend::Legacy => {
+                Backend::Legacy(Box::new(crate::legacy_renderrer::RasterizerRenderrer::new(
+                    device,
+                    width,
+                    height,
+                    target_texture_format,
+                    enable_antialiasing,
+                    outline_fill_rule,
+                )))
+            }
+            RenderingBackend::Windfoil => Backend::Windfoil(Box::new(
+                crate::windfoil_renderrer::RasterizerRenderrer::new(
+                    device,
+                    width,
+                    height,
+                    target_texture_format,
+                    enable_antialiasing,
+                    outline_fill_rule,
+                ),
+            )),
+        };
+        Self { backend }
+    }
+
+    pub fn new_with_curve_projection(
+        device: &wgpu::Device,
+        width: u32,
+        height: u32,
+        target_texture_format: wgpu::TextureFormat,
+        enable_antialiasing: bool,
+        outline_fill_rule: OutlineFillRule,
+        preproject_curves: bool,
+    ) -> Self {
+        Self {
+            backend: Backend::Windfoil(Box::new(
+                crate::windfoil_renderrer::RasterizerRenderrer::new_with_curve_projection(
+                    device,
+                    width,
+                    height,
+                    target_texture_format,
+                    enable_antialiasing,
+                    outline_fill_rule,
+                    preproject_curves,
+                ),
+            )),
         }
     }
 
-    #[inline]
+    pub(crate) fn overlap_bind_group(&mut self) -> &mut OverlapBindGroup {
+        match &mut self.backend {
+            Backend::Legacy(renderer) => &mut renderer.overlap_bind_group,
+            Backend::Windfoil(renderer) => &mut renderer.overlap_bind_group,
+        }
+    }
+
     pub fn prepare(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
     ) {
-        self.overlap_bind_group
-            .update(view_proj, self.enable_antialiasing as u32);
-        self.overlap_bind_group.update_buffer(queue);
-        self.outline_bind_group.update_textures(
-            device,
-            &self.overlap_texture,
-            &self.overlap_count_texture,
-        );
+        match &mut self.backend {
+            Backend::Legacy(renderer) => renderer.prepare(device, queue, view_proj),
+            Backend::Windfoil(renderer) => renderer.prepare(device, queue, view_proj),
+        }
     }
 
-    #[inline]
     pub fn render(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         buffers: Buffers,
         target_view: &wgpu::TextureView,
     ) {
-        self.overlap_stage(encoder, buffers.glyph_buffers, buffers.vector_buffers);
-        self.outline_stage(encoder, target_view);
-    }
-
-    #[inline]
-    fn overlap_stage(
-        &self,
-        encoder: &mut wgpu::CommandEncoder,
-        glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])>,
-        vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])>,
-    ) {
-        let overlap_bind_group = &self.overlap_bind_group.bind_group;
-        let mut overlay_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("Overlap Render Pass"),
-            color_attachments: &[
-                Some(wgpu::RenderPassColorAttachment {
-                    view: &self.overlap_texture.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                }),
-                Some(wgpu::RenderPassColorAttachment {
-                    view: &self.overlap_count_texture.view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                }),
-            ],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-            multiview_mask: None,
-        });
-
-        overlay_render_pass.set_pipeline(&self.overlap_render_pipeline);
-        overlay_render_pass.set_bind_group(0, overlap_bind_group, &[]);
-
-        // そんなに重要ではないがベクターを先に描画した方が、文字色が不自然にならないので先にベクターを描画する（キャレットはベクターのため）
-        // 文字以外のベクター画像の描画。文字のようにインスタンスが多い訳ではない(多くの場合は 1 つ)ので、それほど効率化はしていない。
-        if let Some((vector_vertex_buffer, vector_instance_buffers)) = vector_buffers {
-            for instance in vector_instance_buffers {
-                let instances = instance.to_wgpu_buffer();
-                if let Ok(draw_info) = vector_vertex_buffer.draw_info(&instance.key) {
-                    overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
-                    overlay_render_pass
-                        .set_index_buffer(draw_info.index.slice(..), wgpu::IndexFormat::Uint32);
-                    overlay_render_pass.set_vertex_buffer(1, instances.slice(..));
-                    overlay_render_pass.draw_indexed(
-                        draw_info.index_range.clone(),
-                        0,
-                        0..instance.len() as _,
-                    );
-                }
-            }
+        match &self.backend {
+            Backend::Legacy(renderer) => renderer.render(encoder, buffers, target_view),
+            Backend::Windfoil(renderer) => renderer.render(encoder, buffers, target_view),
         }
+    }
+}
 
-        if let Some((glyph_vertex_buffer, glyph_instance_buffers)) = glyph_buffers {
-            let mut instance_buffers = BTreeMap::new();
-            for instance in glyph_instance_buffers {
-                let instances = instance_buffers
-                    .entry((instance.c, instance.direction))
-                    .or_insert_with(Vec::new);
-                instances.push((instance.len(), instance.to_wgpu_buffer()));
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests {
+    use super::*;
+    use crate::{
+        VectorVertexBuilder,
+        vector_instances::{InstanceAttributes, VectorInstances},
+        vector_vertex_buffer::VectorVertexBuffer,
+    };
+
+    #[test]
+    #[ignore = "requires a WebGPU adapter"]
+    fn rendering_backends_switch_with_shared_buffers() {
+        pollster::block_on(async {
+            let mut descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
+            if cfg!(target_os = "windows") {
+                descriptor.backends = wgpu::Backends::DX12;
             }
-
-            // vertex_buffer と index_buffer はほとんどの場合同一の buffer に収まると
-            // 考えられるので ID を保持しておいて切り替え不要な場合には切り替えない。
-            // 涙ぐましい最適化だがあまり効果がなさそうな気もするのでできればバッサリ消したい。
-            // 微妙に意味があるかもしれないのでいったん残す。
-            let mut vertex_buffer_id = None;
-            let mut index_buffer_id = None;
-            for ((c, direction), instances) in instance_buffers.iter() {
-                for (len, buffer) in instances {
-                    if let Ok(draw_info) = glyph_vertex_buffer.draw_info(c, direction) {
-                        // グリフの座標情報(vertex)
-                        if vertex_buffer_id != Some(draw_info.vertex) {
-                            overlay_render_pass.set_vertex_buffer(0, draw_info.vertex.slice(..));
-                            vertex_buffer_id = Some(draw_info.vertex);
-                        }
-                        // グリフの座標情報(index)
-                        if index_buffer_id != Some(draw_info.index) {
-                            overlay_render_pass.set_index_buffer(
-                                draw_info.index.slice(..),
-                                wgpu::IndexFormat::Uint32,
-                            );
-                            index_buffer_id = Some(draw_info.index);
-                        }
-                        // インスタンスの位置
-                        overlay_render_pass.set_vertex_buffer(1, buffer.slice(..));
-                        overlay_render_pass.draw_indexed(
-                            draw_info.index_range.clone(),
-                            0,
-                            0..*len as _,
-                        );
+            let instance = wgpu::Instance::new(descriptor);
+            let adapter = instance.request_adapter(&Default::default()).await.unwrap();
+            let (device, queue) = adapter
+                .request_device(&wgpu::DeviceDescriptor {
+                    required_features: adapter.features()
+                        & wgpu::Features::CONSERVATIVE_RASTERIZATION,
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+            let mut builder = VectorVertexBuilder::new();
+            builder.move_to(-0.5, -0.5);
+            builder.line_to(0.5, -0.5);
+            builder.line_to(0.5, 0.5);
+            builder.line_to(-0.5, 0.5);
+            builder.close();
+            let key = "rectangle".to_string();
+            let mut vertices = VectorVertexBuffer::new();
+            vertices
+                .append(&device, &queue, key.clone(), builder.build())
+                .unwrap();
+            let mut instances = VectorInstances::new(key, &device);
+            instances.push(InstanceAttributes {
+                position: glam::Vec3::ZERO,
+                color: [1.0; 3],
+                start_time: 0,
+                ..Default::default()
+            });
+            instances.update_buffer(&device, &queue);
+            let texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("Backend switch test"),
+                size: wgpu::Extent3d {
+                    width: 64,
+                    height: 64,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            });
+            let view = texture.create_view(&Default::default());
+            let output = device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Backend switch readback"),
+                size: 64 * 64 * 4,
+                usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                mapped_at_creation: false,
+            });
+            for rule in [OutlineFillRule::NonZero, OutlineFillRule::EvenOdd] {
+                let mut reference = [None, None];
+                for backend in [
+                    RenderingBackend::Legacy,
+                    RenderingBackend::Windfoil,
+                    RenderingBackend::Legacy,
+                    RenderingBackend::Windfoil,
+                ] {
+                    let mut renderer = RasterizerRenderrer::new_with_backend(
+                        &device,
+                        64,
+                        64,
+                        texture.format(),
+                        true,
+                        rule,
+                        backend,
+                    );
+                    let identity = glam::Mat4::IDENTITY.to_cols_array_2d();
+                    renderer.prepare(&device, &queue, (identity, identity));
+                    let mut encoder = device.create_command_encoder(&Default::default());
+                    renderer.render(
+                        &mut encoder,
+                        Buffers {
+                            glyph_buffers: None,
+                            vector_buffers: Some((&vertices, &[&instances])),
+                        },
+                        &view,
+                    );
+                    encoder.copy_texture_to_buffer(
+                        texture.as_image_copy(),
+                        wgpu::TexelCopyBufferInfo {
+                            buffer: &output,
+                            layout: wgpu::TexelCopyBufferLayout {
+                                offset: 0,
+                                bytes_per_row: Some(256),
+                                rows_per_image: Some(64),
+                            },
+                        },
+                        texture.size(),
+                    );
+                    queue.submit([encoder.finish()]);
+                    let (sender, receiver) = std::sync::mpsc::channel();
+                    output
+                        .slice(..)
+                        .map_async(wgpu::MapMode::Read, move |result| {
+                            sender.send(result).unwrap()
+                        });
+                    device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
+                    receiver.recv().unwrap().unwrap();
+                    let pixels = output.slice(..).get_mapped_range().unwrap().to_vec();
+                    output.unmap();
+                    assert_eq!(pixels[(30 * 64 + 25) * 4 + 3], 255, "{backend:?}");
+                    assert_eq!(pixels[3], 0, "{backend:?}");
+                    let slot = usize::from(backend == RenderingBackend::Windfoil);
+                    if let Some(expected) = &reference[slot] {
+                        assert_eq!(&pixels, expected, "{backend:?}");
+                    } else {
+                        reference[slot] = Some(pixels);
                     }
                 }
             }
-        }
-    }
-
-    fn outline_stage(&self, encoder: &mut wgpu::CommandEncoder, target_view: &wgpu::TextureView) {
-        {
-            let mut outline_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render Pass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: target_view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store,
-                    },
-                    depth_slice: None,
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
-            outline_render_pass.set_pipeline(&self.outline_render_pipeline);
-            outline_render_pass.set_bind_group(0, &self.outline_bind_group.bind_group, &[]);
-            outline_render_pass
-                .set_vertex_buffer(0, self.outline_vertex_buffer.vertex_buffer.slice(..));
-            outline_render_pass.set_index_buffer(
-                self.outline_vertex_buffer.index_buffer.slice(..),
-                wgpu::IndexFormat::Uint16,
-            );
-            outline_render_pass.draw_indexed(
-                self.outline_vertex_buffer.index_range.clone(),
-                0,
-                0..1,
-            );
-        }
+        });
     }
 }

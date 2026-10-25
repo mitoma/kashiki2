@@ -70,6 +70,23 @@ impl GlyphVertexBuffer {
         self.registerd_chars.clone()
     }
 
+    pub(crate) fn windfoil_draw_info(
+        &self,
+        device: &wgpu::Device,
+        c: &char,
+        direction: &Direction,
+    ) -> Option<(&wgpu::BindGroup, u32)> {
+        if *direction == Direction::Vertical
+            && let Some(info) = self
+                .vector_vertex_buffer
+                .windfoil_draw_info(device, &(*c, Direction::Vertical))
+        {
+            return Some(info);
+        }
+        self.vector_vertex_buffer
+            .windfoil_draw_info(device, &(*c, Direction::Horizontal))
+    }
+
     pub fn append_chars(
         &mut self,
         device: &wgpu::Device,

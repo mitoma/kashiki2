@@ -1,15 +1,17 @@
-use std::{collections::BTreeMap, fmt::Debug, ops::Range};
+use std::{collections::BTreeMap, fmt::Debug, ops::Range, sync::OnceLock};
 
 use log::debug;
 use wgpu::BufferUsages;
 
 use crate::{
     errors::{BufferKind, FontRasterizerError},
-    vector_vertex::{VectorVertex, Vertex},
+    vector_vertex::{QuadraticCurve, VectorVertex, Vertex},
 };
 
 // バッファに登録された文字のインデックス情報
 struct BufferIndex {
+    curves: Vec<QuadraticCurve>,
+    windfoil: OnceLock<Option<wgpu::BindGroup>>,
     vertex_buffer_index: usize,
     index_buffer_index: usize,
     index_buffer_range: Range<u32>,
@@ -145,6 +147,20 @@ where
         self.buffer_index.contains_key(key)
     }
 
+    pub(crate) fn windfoil_draw_info(
+        &self,
+        device: &wgpu::Device,
+        key: &T,
+    ) -> Option<(&wgpu::BindGroup, u32)> {
+        let index = self.buffer_index.get(key)?;
+        let paths = index.windfoil.get_or_init(|| {
+            crate::windfoil::upload(device, &index.curves)
+                .inspect_err(|error| log::error!("Windfoil path upload failed: {error}"))
+                .ok()
+        });
+        Some((paths.as_ref()?, index.curves.len() as u32))
+    }
+
     pub fn append(
         &mut self,
         device: &wgpu::Device,
@@ -215,6 +231,8 @@ where
         self.buffer_index.insert(
             key,
             BufferIndex {
+                curves: glyph_data.curves(),
+                windfoil: OnceLock::new(),
                 vertex_buffer_index,
                 index_buffer_index,
                 index_buffer_range: range_start..range_end,
