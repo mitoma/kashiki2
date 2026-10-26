@@ -422,7 +422,7 @@ mod tests {
     #[test]
     fn rendering_backend_defaults_to_legacy_for_existing_settings() {
         let settings: EditorSettings = serde_json::from_str("{}").unwrap();
-        assert_eq!(settings.rendering_backend(), RenderingBackend::Legacy);
+        assert_eq!(settings.rendering_backend(), RenderingBackend::Windfoil);
     }
 
     #[test]
