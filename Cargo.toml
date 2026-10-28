@@ -4,6 +4,7 @@ members = [
     "phisical_layouter",
     "stroke_parser",
     "markdown_heading_splitter",
+    "tagbase_memo",
     "font_collector",
     "font_rasterizer",
     "rokid_3dof",

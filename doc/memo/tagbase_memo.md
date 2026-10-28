@@ -118,10 +118,12 @@ tags: ["scratch", "todo"]
 
 - キーワード検索はタイトルと本文を対象とし、まずは大文字・小文字を区別しない部分一致とする。タグ検索はタグ絞り込みとして別の操作にする。
 - タグ名の比較は完全一致とする。複数タグを指定した場合は、すべてのタグを持つメモに絞り込む（AND 条件）ことを暫定案とする。
+- 複数キーワードも AND 条件で扱う。各キーワードがタイトルまたは本文に含まれるメモを返す。
 - キーワード検索とタグ絞り込みを組み合わせるため、`キーワード tag:タグ名1 tag:タグ名2` 形式の簡単なクエリを用意する。`tag:` で指定した値は本文検索の対象ではなく、タグの絞り込み条件として扱う。キーワード条件とタグ条件の両方を満たすメモを返す。
 - 検索 API に空クエリを渡した場合、またはタグ絞り込み API に空のタグリストを渡した場合は、`default_tag` を指定したタグ絞り込みとして扱う。この規則は空クエリに対するものであり、キーワードだけの検索に `default_tag` 条件を追加するものではない。タグに依存しない一覧取得は一覧取得 API を使用する。
 - 空白を含む文字列や、キーワードとして検索したい `tag:` で始まる文字列は、二重引用符で囲む。引用符内は空白による分割や `tag:` による条件指定として解釈せず、一つの文字列として扱う。例えば、`"tag:example"` はタイトル・本文中の `tag:example` を検索する。
 - `tag:` の後に引用符で囲んだ値を指定すると、その値全体をタグ名として扱う。例えば、`tag:"my tag"` は空白を含むタグ名 `my tag`、`tag:"tag:example"` はタグ名 `tag:example` で絞り込む。
+- 引用符内では `\"` と `\\` をエスケープとして扱う。閉じていない引用符、不正なエスケープ、空の引用文字列、値のない `tag:` はクエリエラーとする。空白だけのクエリは空クエリと同様に扱う。
 - `invisible_tag` を持つメモは通常の検索・タグ絞り込みから除外する。ただし、クエリの `tag:` またはタグ絞り込み API で `invisible_tag` 自体を指定した場合は表示対象とし、ほかの検索・絞り込み条件も適用する。
 - 検索・絞り込み結果も「ファイル名と並び順」と同じ規則で返す。
 - 日本語の形態素解析や高度な全文検索は初期実装の対象外とし、必要になった場合に追加する。
@@ -137,13 +139,19 @@ tags: ["scratch", "todo"]
 
 #### インターフェイスのイメージ
 
-以下は API の利用イメージであり、型やシグネチャは実装時に確定する。`?` を使える、`Result` を返す呼び出し元を想定する。
+以下は実装した API の利用例であり、`?` を使える、`Result` を返す呼び出し元を想定する。
+メモは ID・日時と編集可能な `MemoContent` を分離し、更新クロージャには `MemoContent` を渡す。
+作成・更新は永続化後の `Memo` を返す。取得した内容は `memo.content.title` などで参照する。
 
 ```rust
 let memo_repository = TagbaseMemo::new(".")?;
 
 // メモの作成
 let memo = memo_repository.create_memo()?;
+
+// メモの直接取得・作成日時順の一覧取得
+let loaded = memo_repository.get_memo(&memo.id)?;
+let listed = memo_repository.list_memos_with_order(tagbase_memo::SortOrder::Asc)?;
 
 // メモの編集
 memo_repository.update_memo(&memo.id, |m| {
@@ -175,6 +183,9 @@ let default_tag_results = memo_repository.filter_by_tags(&[])?;
 
 // 非表示タグを明示して検索
 let archived_results = memo_repository.search("tag:archive")?;
+
+// メモの削除
+memo_repository.delete_memo(&memo.id)?;
 ```
 
 ### 既存メモからの移行
@@ -186,6 +197,8 @@ let archived_results = memo_repository.search("tag:archive")?;
 `tagbase_memo` クレートを作成するところからスタートする。
 まずはファイル保管庫、メモの作成・更新・一覧・タグ絞り込み・キーワード検索を実装する。
 GUI 上の編集状態の保存、外部更新との競合検出、複数プロセス間の高度な同期、全文検索インデックス、Git 操作、既存メモからの移行は初期実装の対象外とする。
+
+初期実装の利用方法と保存形式の詳細は [tagbase_memo の README](../../tagbase_memo/README.md) を参照する。
 
 ### 未決事項
 
