@@ -141,6 +141,16 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
 - **利用箇所**: `kashikishi/src/world/markdown_presentation_world.rs` でMarkdownプレゼンテーション表示時の分割処理に利用
 - **補足**: セクション本文は前後空白をトリムして返却され、見出しが存在しない文書は空配列を返す
 
+### tagbase_memo（タグベースのメモ保管庫）
+- **パス**: `tagbase_memo/`
+- **役割**: Markdown と YAML front matter によるメモの永続化
+- **機能**:
+  - メモの作成・取得・更新・削除、作成日時順の一覧取得
+  - タイトル・本文の検索、複数タグの AND 絞り込み、非表示タグ
+  - 一時ファイルを使った保存、パス付きのエラー通知
+- **補足**: GUI への組み込みと旧形式からの移行は未対応
+- **利用方法**: [クレート README](../tagbase_memo/README.md)
+
 ## 支援・実験的クレート
 
 ### rokid_3dof（3DOF制御）
