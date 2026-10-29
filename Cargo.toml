@@ -18,6 +18,7 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
+git2 = { version = "0.20.4", default-features = false }
 thiserror = "2.0.21"
 wgpu = "30.0.1"
 # fork元は winit = "0.31.x" ブランチ。いくつかのパッチを当てたものを使っている。

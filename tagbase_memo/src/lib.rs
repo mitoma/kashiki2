@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 
+mod git_history;
 mod query;
 mod tagbase_state;
 
@@ -31,6 +32,12 @@ pub enum Error {
     },
     #[error("{path}: {message}")]
     Format { path: PathBuf, message: String },
+    #[error("{path}: Git: {source}")]
+    Git {
+        path: PathBuf,
+        #[source]
+        source: git2::Error,
+    },
     #[error("Invalid memo ID or symbolic link: {0}")]
     InvalidId(PathBuf),
     #[error("Invalid search query: {0}")]
@@ -97,7 +104,7 @@ pub struct TagbaseMemo {
 }
 
 impl TagbaseMemo {
-    /// 保管庫を開く。存在しないディレクトリと設定は初期値で作成する。
+    /// 保管庫を開く。ディレクトリ・設定・Git リポジトリがなければ作成する。
     pub fn new(root: impl AsRef<Path>) -> Result<Self> {
         let root = root.as_ref();
         io_at(root, fs::create_dir_all(root))?;
@@ -131,6 +138,10 @@ impl TagbaseMemo {
                 });
             }
         };
+        git_history::open_repository(&root).map_err(|source| Error::Git {
+            path: root.clone(),
+            source,
+        })?;
         Ok(Self { root, settings })
     }
 
