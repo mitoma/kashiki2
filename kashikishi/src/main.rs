@@ -31,7 +31,9 @@ use stroke_parser::{
 };
 use text_buffer::action::EditorOperation;
 use winit::{event::WindowEvent, icon::RgbaIcon};
-use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld};
+use world::{
+    CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld, TagbaseMemosWorld,
+};
 
 use font_rasterizer::{context::WindowSize, rasterizer_pipeline::Quarity, time::set_clock_mode};
 use log::info;
@@ -479,6 +481,9 @@ impl SimpleStateCallback for KashikishiCallback {
                             "start" => Some(("start", Box::new(StartWorld::new(context)))),
                             "category" => {
                                 Some(("category", Box::new(CategorizedMemosWorld::new(context))))
+                            }
+                            "tagbase" => {
+                                Some(("tagbase", Box::new(TagbaseMemosWorld::new(context))))
                             }
                             "presentation" => Some((
                                 "presentation",

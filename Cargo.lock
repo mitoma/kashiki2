@@ -2189,6 +2189,7 @@ dependencies = [
  "serde",
  "serde_json",
  "stroke_parser",
+ "tagbase_memo",
  "text_buffer",
  "thiserror 2.0.21",
  "ui_support",

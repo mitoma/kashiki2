@@ -58,3 +58,32 @@ impl ActionRepository {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn both_memo_modes_are_available_in_the_command_palette() {
+        let repository = ActionRepository::default();
+        let actions = repository.load_actions(ActionNamespace::Mode);
+        assert!(actions.iter().any(|action| action.name == "category"));
+        assert!(actions.iter().any(|action| action.name == "tagbase"));
+    }
+
+    #[test]
+    fn tagbase_actions_are_available_in_the_command_palette() {
+        let repository = ActionRepository::default();
+        let actions = repository.load_actions(ActionNamespace::Kashikishi);
+        for name in [
+            "tagbase-search-ui",
+            "tagbase-list-all",
+            "tagbase-add-memo",
+            "tagbase-edit-title-ui",
+            "tagbase-edit-tags-ui",
+            "tagbase-delete-memo-ui",
+        ] {
+            assert!(actions.iter().any(|action| action.name == name), "{name}");
+        }
+    }
+}

@@ -7,7 +7,12 @@
     {
         "namespace": "mode",
         "name": "category",
-        "description": "メモ帳を開く"
+        "description": "カテゴリーメモ帳を開く"
+    },
+    {
+        "namespace": "mode",
+        "name": "tagbase",
+        "description": "タグメモ帳を開く"
     },
     {
         "namespace": "mode",
