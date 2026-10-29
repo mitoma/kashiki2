@@ -33,5 +33,35 @@
         "namespace": "kashikishi",
         "name": "move-memo-ui",
         "description": "編集中のメモの移動"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "tagbase-search-ui",
+        "description": "タグメモを検索・絞り込み"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "tagbase-list-all",
+        "description": "タグメモをすべて表示"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "tagbase-add-memo",
+        "description": "タグメモを追加"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "tagbase-edit-title-ui",
+        "description": "現在のタグメモのタイトルを変更"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "tagbase-edit-tags-ui",
+        "description": "現在のタグメモのタグを変更"
+    },
+    {
+        "namespace": "kashikishi",
+        "name": "tagbase-delete-memo-ui",
+        "description": "現在のタグメモを削除"
     }
 ]

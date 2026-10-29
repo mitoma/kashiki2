@@ -3,12 +3,14 @@ mod help_world;
 mod markdown_presentation_world;
 mod null_world;
 mod start_world;
+mod tagbase_memos_world;
 
 pub(crate) use categorized_memos_world::CategorizedMemosWorld;
 pub(crate) use help_world::HelpWorld;
 pub(crate) use markdown_presentation_world::MarkdownPresentationWorld;
 pub(crate) use null_world::NullWorld;
 pub(crate) use start_world::StartWorld;
+pub(crate) use tagbase_memos_world::TagbaseMemosWorld;
 
 use std::collections::HashSet;
 
