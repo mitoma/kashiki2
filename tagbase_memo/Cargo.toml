@@ -8,5 +8,5 @@ chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 thiserror = { workspace = true }
 toml = { workspace = true }
-serde_yaml_ng = "0.10"
-tempfile = "3"
+serde_yaml_ng = { workspace = true }
+tempfile = { workspace = true }

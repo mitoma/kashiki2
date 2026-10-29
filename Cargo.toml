@@ -100,6 +100,9 @@ regex = "1.12.4"
 png = "0.18.1"
 icu_segmenter = "2.3.0"
 
+serde_yaml_ng = "0.10.0"
+tempfile = "3.27.0"
+
 [profile.release-optimized]
 inherits = "release"
 debug = false
