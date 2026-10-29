@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+log = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 thiserror = { workspace = true }

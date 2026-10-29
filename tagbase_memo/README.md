@@ -85,14 +85,46 @@ AND 条件です。タグは大文字・小文字を区別する完全一致で�
 `invisible_tag`（既定値 `archive`）を持つメモは一覧・検索・絞り込みから除外します。
 そのタグをクエリまたはタグ絞り込み API で指定したときだけ表示対象となり、ほかの条件も適用します。
 
+## 個人用状態
+
+`TagbaseState` は、保管庫直下の `kashikishi-state.toml` の読み書きを提供します。
+絞り込みタグ、並び順、表示中のメモ ID と順序、検索クエリ、選択中のメモ ID を保持します。
+
+```rust
+use tagbase_memo::{Result, TagbaseMemo, TagbaseState};
+
+# fn main() -> Result<()> {
+# let directory = tempfile::tempdir().unwrap();
+let repository = TagbaseMemo::new(directory.path())?;
+let memo = repository.create_memo()?;
+let mut state = TagbaseState::load(repository.root())?.unwrap_or_default();
+state.set_query("tag:todo".to_owned(), &repository.settings().default_tag)?;
+state.open_files = vec![memo.id.clone()];
+state.focused_file = Some(memo.id.clone());
+state.save(repository.root())?;
+
+let restored = TagbaseState::load(repository.root())?.unwrap();
+assert_eq!(restored.restore_memos(&repository)?, vec![memo]);
+# Ok(())
+# }
+```
+
+`load` はファイルがない場合に `Ok(None)`、読み取りや解析に失敗した場合にエラーを返します。
+`save` は一時ファイル経由で保存し、既存の `.gitignore` を保持しつつ状態ファイルを除外対象に追加します。
+`restore_memos` は保存済み ID の順序でメモを取得し、削除済みのファイルだけを除外します。
+空の `open_files` は何も開いていない状態として扱い、検索条件は再適用しません。
+
+状態の型と永続化はライブラリの責務ですが、画面からの状態収集、保存タイミング、
+読み込んだ状態の画面への適用は利用側で管理します。
+`TagbaseMemo::new` は個人用状態を自動では読み書きしません。
+
 ## 保存と制限
 
 一時ファイルへの書き込み・同期後、ファイルを置き換えて保存します。
 I/O エラー、設定や front matter の解析エラーはパスを含む `Error` で返します。
 不正なメモを黙って読み飛ばすことはしません。
 
-外部更新との競合検出、複数プロセスの同期、GUI 状態の保存、Git 操作、旧形式からの移行は
+外部更新との競合検出、複数プロセスの同期、カーソル・カメラ位置の保存、Git 操作、旧形式からの移行は
 対象外です。外部更新を上書きする可能性があります。
-ユーザー状態の保存と `.gitignore` の管理は利用側で行います。
 
 詳細は [設計メモ](../doc/memo/tagbase_memo.md) を参照してください。

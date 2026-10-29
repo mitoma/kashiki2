@@ -6,7 +6,9 @@ use std::{
 
 use font_rasterizer::glyph_vertex_buffer::Direction;
 use stroke_parser::{Action, ActionArgument};
-use tagbase_memo::{Error as TagbaseError, Memo, Result as TagbaseResult, TagbaseMemo};
+use tagbase_memo::{
+    Error as TagbaseError, Memo, Result as TagbaseResult, TagbaseMemo, TagbaseState,
+};
 use text_buffer::action::EditorOperation;
 use ui_support::{
     InputResult,
@@ -22,6 +24,7 @@ pub(crate) struct TagbaseMemosWorld {
     world: DefaultWorld,
     repository: Option<TagbaseMemo>,
     memos: Vec<Memo>,
+    state: TagbaseState,
     error_message: Option<String>,
 }
 
@@ -31,15 +34,21 @@ impl TagbaseMemosWorld {
             world: DefaultWorld::new(context.window_size()),
             repository: None,
             memos: Vec::new(),
+            state: TagbaseState::default(),
             error_message: None,
         };
         match open_repository().and_then(|repository| {
-            let memos = repository.list_memos()?;
-            Ok((repository, memos))
+            let state = TagbaseState::load(repository.root())?;
+            let memos = match &state {
+                Some(state) => state.restore_memos(&repository)?,
+                None => repository.list_memos()?,
+            };
+            Ok((repository, memos, state.unwrap_or_default()))
         }) {
-            Ok((repository, memos)) => {
+            Ok((repository, memos, state)) => {
                 result.repository = Some(repository);
                 result.memos = memos;
+                result.state = state;
             }
             Err(error) => result.error_message = Some(error.to_string()),
         }
@@ -61,7 +70,12 @@ impl TagbaseMemosWorld {
                 Direction::Horizontal => CameraAdjustment::FitWidth,
                 Direction::Vertical => CameraAdjustment::FitHeight,
             };
-            world.look_at(0, adjustment);
+            let focus = self
+                .memos
+                .iter()
+                .position(|memo| Some(&memo.id) == self.state.focused_file.as_ref())
+                .unwrap_or(0);
+            world.look_at(focus, adjustment);
         }
         world.re_layout();
         self.world = world;
@@ -86,6 +100,20 @@ impl TagbaseMemosWorld {
             *memo = updated;
         }
         Ok(())
+    }
+
+    fn save(&mut self) -> TagbaseResult<()> {
+        self.save_visible()?;
+        self.state.open_files = self.memos.iter().map(|memo| memo.id.clone()).collect();
+        self.state.focused_file = self
+            .focused_memo_index()
+            .map(|index| self.memos[index].id.clone());
+        self.state.save(
+            self.repository
+                .as_ref()
+                .expect("repository exists after saving memos")
+                .root(),
+        )
     }
 
     fn display_error(&mut self, context: &UiContext, error: impl std::fmt::Display) {
@@ -267,7 +295,11 @@ impl TagbaseMemosWorld {
             .repository
             .as_ref()
             .expect("repository exists")
-            .list_memos();
+            .list_memos_with_order(self.state.sort_order);
+        if result.is_ok() {
+            self.state.narrowing_tag.clear();
+            self.state.search_query = None;
+        }
         self.display_memos(context, result);
     }
 
@@ -276,11 +308,14 @@ impl TagbaseMemosWorld {
             self.display_error(context, error);
             return;
         }
-        let result = self
-            .repository
-            .as_ref()
-            .expect("repository exists")
-            .search(&query);
+        let repository = self.repository.as_ref().expect("repository exists");
+        let result = repository
+            .search_with_order(&query, self.state.sort_order)
+            .and_then(|memos| {
+                self.state
+                    .set_query(query, &repository.settings().default_tag)?;
+                Ok(memos)
+            });
         self.display_memos(context, result);
     }
 
@@ -347,7 +382,7 @@ impl ModalWorld for TagbaseMemosWorld {
 
         match name.as_str() {
             "save" => {
-                if let Err(error) = self.save_visible() {
+                if let Err(error) = self.save() {
                     self.display_error(context, error);
                 } else {
                     self.error_message = None;
@@ -360,7 +395,7 @@ impl ModalWorld for TagbaseMemosWorld {
                 Box::new(TextInput::new(
                     context,
                     "検索クエリ（空欄で既定タグ）".to_string(),
-                    None,
+                    self.state.search_query.clone(),
                     Action::new_command("kashikishi", "tagbase-search"),
                 )),
             ),
@@ -402,7 +437,7 @@ impl ModalWorld for TagbaseMemosWorld {
     }
 
     fn graceful_exit(&mut self) {
-        if let Err(error) = self.save_visible() {
+        if let Err(error) = self.save() {
             log::error!("Failed to save tagbase memos: {error}");
         }
     }

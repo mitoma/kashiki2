@@ -1,6 +1,7 @@
 #![doc = include_str!("../README.md")]
 
 mod query;
+mod tagbase_state;
 
 use std::{
     fs,
@@ -14,6 +15,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use query::Query;
+pub use tagbase_state::TagbaseState;
 
 const SETTINGS_FILE: &str = "kashikishi-tagbase-settings.toml";
 
