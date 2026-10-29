@@ -108,12 +108,13 @@ impl TagbaseMemosWorld {
         self.state.focused_file = self
             .focused_memo_index()
             .map(|index| self.memos[index].id.clone());
-        self.state.save(
-            self.repository
-                .as_ref()
-                .expect("repository exists after saving memos")
-                .root(),
-        )
+        let repository = self
+            .repository
+            .as_ref()
+            .expect("repository exists after saving memos");
+        self.state.save(repository.root())?;
+        repository.commit()?;
+        Ok(())
     }
 
     fn display_error(&mut self, context: &UiContext, error: impl std::fmt::Display) {

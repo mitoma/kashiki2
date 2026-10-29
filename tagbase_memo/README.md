@@ -34,6 +34,9 @@ repository.delete_memo(&memo.id)?;
 `kashikishi-tagbase-settings.toml` がなければ作成し、既存設定が不正な場合は
 上書きせずエラーを返します。設定は開くときに読み込み、`settings()` で参照できます。
 設定ファイルを外部で変更した場合は保管庫を開き直します。
+保管庫ルートに Git リポジトリがなければ初期化し、既存の場合は履歴を引き継ぎます。
+親ディレクトリの Git リポジトリは使用しません。Git 操作は libgit2 で行うため、
+外部の Git コマンドのインストールは不要です。
 
 ## データと API
 
@@ -102,6 +105,8 @@ state.set_query("tag:todo".to_owned(), &repository.settings().default_tag)?;
 state.open_files = vec![memo.id.clone()];
 state.focused_file = Some(memo.id.clone());
 state.save(repository.root())?;
+assert!(repository.commit()?);
+assert!(!repository.commit()?);
 
 let restored = TagbaseState::load(repository.root())?.unwrap();
 assert_eq!(restored.restore_memos(&repository)?, vec![memo]);
@@ -118,13 +123,34 @@ assert_eq!(restored.restore_memos(&repository)?, vec![memo]);
 読み込んだ状態の画面への適用は利用側で管理します。
 `TagbaseMemo::new` は個人用状態を自動では読み書きしません。
 
+## Git 履歴
+
+`TagbaseMemo::commit()` は `memos/` 配下、`kashikishi-tagbase-settings.toml`、
+`.gitignore` の追加・更新・削除を一つのコミットに記録します。
+変更があれば `Ok(true)`、変更がなければ空コミットを作らず `Ok(false)` を返します。
+メモの作成・更新・削除 API はファイルへの永続化のみを行い、自動コミットはしません。
+利用側が本文と個人用状態を保存した後に `commit()` を呼び出してください。
+炊紙では明示的な保存時およびタグメモモード終了時に呼び出します。
+
+`kashikishi-state.toml` はコミット対象外です。既に追跡されている場合は、
+ローカルのファイルを残して以後の追跡から外します。過去の履歴は書き換えません。
+対象外のファイルとそのステージ済み内容はコミットに含めず、インデックス上でも保持します。
+対象ファイルについては、ステージ済みの内容ではなく保存後のファイル内容を記録します。
+
+コミットには Git のユーザー設定を使用し、利用できない場合は
+`kashikishi <kashikishi@localhost>` を使用します。ユーザー設定自体は変更しません。
+コミットメッセージは `メモを保存 <保存日時>` です。
+マージ中やインデックスに競合がある場合は自動コミットせずエラーを返します。
+Git 操作に失敗しても、既にファイルに保存したメモは残ります。
+リモートとの push / pull、コミット署名、Git フックの実行は行いません。
+
 ## 保存と制限
 
 一時ファイルへの書き込み・同期後、ファイルを置き換えて保存します。
-I/O エラー、設定や front matter の解析エラーはパスを含む `Error` で返します。
+I/O エラー、設定や front matter の解析エラー、Git 操作のエラーはパスを含む `Error` で返します。
 不正なメモを黙って読み飛ばすことはしません。
 
-外部更新との競合検出、複数プロセスの同期、カーソル・カメラ位置の保存、Git 操作、旧形式からの移行は
+外部更新との競合検出、複数プロセスの同期、カーソル・カメラ位置の保存、旧形式からの移行は
 対象外です。外部更新を上書きする可能性があります。
 
 詳細は [設計メモ](../doc/memo/tagbase_memo.md) を参照してください。
