@@ -80,6 +80,11 @@ impl ModalWorld for StartWorld {
         &self.world
     }
 
+    // メニュー全体が縦横ともに画面内へ収まるようにする
+    fn initial_camera_action(&self) -> Action {
+        Action::new_command("world", "reset-zoom")
+    }
+
     fn apply_action(
         &mut self,
         _context: &UiContext,

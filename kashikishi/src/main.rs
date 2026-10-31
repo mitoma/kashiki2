@@ -413,7 +413,7 @@ impl SimpleStateCallback for KashikishiCallback {
         register_default_border(context);
 
         // カメラを初期化する
-        context.register_post_action(Action::new_command("world", "fit-by-direction"));
+        context.register_post_action(self.world.initial_camera_action());
     }
 
     fn resize(&mut self, window_size: WindowSize) {
@@ -511,8 +511,7 @@ impl SimpleStateCallback for KashikishiCallback {
                         self.world_name = world_name;
                         self.update_command_namespaces();
                         context.register_string(self.world.world_chars().into_iter().collect());
-                        context
-                            .register_post_action(Action::new_command("world", "fit-by-direction"));
+                        context.register_post_action(self.world.initial_camera_action());
                     }
                     InputResult::InputConsumed
                 }
