@@ -5,9 +5,10 @@ mod query;
 mod tagbase_state;
 
 use std::{
-    fs,
+    fmt, fs,
     io::{self, Write},
     path::{Component, Path, PathBuf},
+    sync::Arc,
 };
 
 use chrono::{DateTime, FixedOffset, Local};
@@ -97,10 +98,22 @@ pub enum SortOrder {
     Desc,
 }
 
-#[derive(Debug)]
+/// メモの作成・更新日時に使う時計
+pub type Clock = Arc<dyn Fn() -> DateTime<FixedOffset> + Send + Sync>;
+
 pub struct TagbaseMemo {
     root: PathBuf,
     settings: Settings,
+    clock: Clock,
+}
+
+impl fmt::Debug for TagbaseMemo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("TagbaseMemo")
+            .field("root", &self.root)
+            .field("settings", &self.settings)
+            .finish_non_exhaustive()
+    }
 }
 
 impl TagbaseMemo {
@@ -142,7 +155,20 @@ impl TagbaseMemo {
             path: root.clone(),
             source,
         })?;
-        Ok(Self { root, settings })
+        Ok(Self {
+            root,
+            settings,
+            clock: Arc::new(|| Local::now().fixed_offset()),
+        })
+    }
+
+    /// 作成・更新日時に使う時計を差し替える。テストで日時を固定するときに使う。
+    pub fn with_clock(
+        mut self,
+        clock: impl Fn() -> DateTime<FixedOffset> + Send + Sync + 'static,
+    ) -> Self {
+        self.clock = Arc::new(clock);
+        self
     }
 
     pub fn settings(&self) -> &Settings {
@@ -154,7 +180,7 @@ impl TagbaseMemo {
     }
 
     pub fn create_memo(&self) -> Result<Memo> {
-        let now = Local::now().fixed_offset();
+        let now = (self.clock)();
         reject_symlink(&self.root.join("memos"))?;
         let directory = self
             .root
@@ -222,7 +248,7 @@ impl TagbaseMemo {
         let original = memo.content.clone();
         update(&mut memo.content);
         if original != memo.content {
-            memo.updated_at = Local::now().fixed_offset();
+            memo.updated_at = (self.clock)();
             let path = self.memo_path(&memo.id)?;
             let file = staged_file(&path, &encode(&memo, &path)?)?;
             io_at(&path, file.persist(&path).map_err(|error| error.error))?;

@@ -1,0 +1,19 @@
+world: tagbase
+layout: liner
+direction: horizontal
+focus: 0
+models: 1
+  [0] TextEdit
+    direction: horizontal
+    text: "牛乳と卵を買う"
+modal_models: 1
+  [0] TextInput
+    default_input: Some("")
+    [0] StackLayout
+      focus_model_index: Some(1)
+      [0] TextEdit
+        direction: horizontal
+        text: "メモのタイトルを入力（空欄で無題）"
+      [1] TextEdit
+        direction: horizontal
+        text: "買い物"

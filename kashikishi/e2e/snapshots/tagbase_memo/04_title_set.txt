@@ -1,0 +1,9 @@
+world: tagbase
+layout: liner
+direction: horizontal
+focus: 0
+models: 1
+  [0] TextEdit
+    direction: horizontal
+    text: "牛乳と卵を買う"
+modal_models: 0

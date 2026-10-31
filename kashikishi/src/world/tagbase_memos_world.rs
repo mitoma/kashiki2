@@ -2,8 +2,10 @@ use std::{
     collections::HashSet,
     io,
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
 
+use chrono::{DateTime, FixedOffset, TimeZone};
 use font_rasterizer::{glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction};
 use stroke_parser::{Action, ActionArgument};
 use tagbase_memo::{
@@ -534,18 +536,32 @@ fn text_edit(context: &UiContext, text: &str) -> TextEdit {
     textedit
 }
 
+static FIXED_CLOCK_BASE: OnceLock<DateTime<FixedOffset>> = OnceLock::new();
+
+/// E2E 用。メモの日時を、固定の基準時刻にテスト用時計の経過時間を足したものにする
+pub(crate) fn use_fixed_tagbase_clock() {
+    let base = FixedOffset::east_opt(9 * 3600)
+        .and_then(|offset| offset.with_ymd_and_hms(2026, 1, 1, 9, 0, 0).single())
+        .expect("valid fixed datetime");
+    let _ = FIXED_CLOCK_BASE.set(base);
+}
+
 fn open_repository() -> TagbaseResult<TagbaseMemo> {
-    TagbaseMemo::new(tagbase_memos_root()?)
+    let repository = TagbaseMemo::new(tagbase_memos_root()?)?;
+    Ok(match FIXED_CLOCK_BASE.get().copied() {
+        Some(base) => repository.with_clock(move || {
+            base + chrono::Duration::milliseconds(font_rasterizer::time::now_millis() as i64)
+        }),
+        None => repository,
+    })
 }
 
 fn tagbase_memos_root() -> TagbaseResult<PathBuf> {
-    dirs::home_dir()
-        .map(|home| home.join("kashikishi-docs"))
-        .ok_or_else(|| TagbaseError::Io {
-            path: Path::new("~").join("kashikishi-docs"),
-            source: io::Error::new(
-                io::ErrorKind::NotFound,
-                "ユーザーのホームディレクトリを取得できません",
-            ),
-        })
+    crate::paths::tagbase_memos_dir().ok_or_else(|| TagbaseError::Io {
+        path: Path::new("~").join("kashikishi-docs"),
+        source: io::Error::new(
+            io::ErrorKind::NotFound,
+            "ユーザーのホームディレクトリを取得できません",
+        ),
+    })
 }

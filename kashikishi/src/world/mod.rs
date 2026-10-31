@@ -10,7 +10,7 @@ pub(crate) use help_world::HelpWorld;
 pub(crate) use markdown_presentation_world::MarkdownPresentationWorld;
 pub(crate) use null_world::NullWorld;
 pub(crate) use start_world::StartWorld;
-pub(crate) use tagbase_memos_world::TagbaseMemosWorld;
+pub(crate) use tagbase_memos_world::{TagbaseMemosWorld, use_fixed_tagbase_clock};
 
 use std::collections::HashSet;
 
