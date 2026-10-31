@@ -212,8 +212,11 @@ pub trait SimpleStateCallback {
 kashikishi では、次の内容を出力します（安定した順序のテキスト）。
 
 - 現在の `ModalWorld` の種類（start / category / presentation / help）
-- `world.strings()`（各モデルのテキスト）
-- フォーカスしているモデルの番号と、モーダルの有無
+- レイアウト、方向、フォーカスしているモデルの番号
+- `World::debug_snapshot()` によるモデルとモーダルのツリー。ノードごとに種類と主な状態を出す（`TextEdit` は方向とテキスト、`SelectBox` は選択位置・絞り込み後の件数・全件数、`StackLayout` はフォーカス位置など）
+- 浮動小数点の値（位置や拡大率）は環境やアニメーションの途中で揺れやすいので出さない
+
+実装は `kashikishi/src/snapshot_text.rs` にあります。
 
 GPU の差に左右されない比較はテキストで行い、画像はおおまかな見た目の確認に使う、という役割分担にします。
 
@@ -223,11 +226,11 @@ GPU の差に左右されない比較はテキストで行い、画像はおお�
   - `FileActionRecordRepository` が任意のパスを受け取れるようにする（`new(path)`）。`load` は `Result` を返す新しい関数を用意し、パースエラーの行番号を報告する。エラー型は `thiserror` で定義する
   - 特殊コマンドの定数（`RECORDER_NAMESPACE = "action_recorder"`、`WAIT`、`SNAPSHOT`）を公開する
   - `is_replaying()` を追加する（ランナーの終了判定の補助に使う）
-- `lib.rs`（または新しいモジュール `headless.rs`）
-  - `run_headless(support, HeadlessOptions) -> HeadlessResult` を追加する
-    - `HeadlessOptions { frame_gain, max_frames, on_snapshot: Box<dyn FnMut(&str, &ImageBuffer<..>, Option<String>)> }`
+- `headless.rs`（新しいモジュール）
+  - `run_headless(support, HeadlessOptions, on_snapshot: impl FnMut(Snapshot)) -> HeadlessExit` を追加する
+    - `HeadlessOptions { frame_gain, max_frames }`、`Snapshot { name, frame, image, text }`、`HeadlessExit::{Exited, Timeout}`
     - `SendExit` を受け取ったら `shutdown` してループを抜ける（`generate_images` では捨てていた部分）
-  - `generate_images` / `generate_image_iter` と 1 フレーム分の処理（`step_frame`）を共通にし、二重実装を避ける
+  - `generate_images` / `generate_image_iter` との共通化は行わず、別の関数として実装した。`generate_images` は呼び出し側がフレームを引き出すイテレーター型で、終了やスナップショットの扱いが異なるため、共通化すると既存の動作を変える範囲が大きくなる。重複が問題になったら 1 フレーム分の処理を切り出す
 - `SimpleStateCallback::snapshot_text` を追加する（既定値は `None` なので、既存の実装は変更不要）
 
 ### 6. kashikishi 側の変更
@@ -236,11 +239,11 @@ GPU の差に左右されない比較はテキストで行い、画像はおお�
   - あわせて、`config.json` を作る前に `create_dir_all` するようにする
 - `KashikishiCallback::new` が `ActionRecorder` を外から受け取れるようにする
   - 通常: `InMemoryActionRecordRepository`（現状どおり）
-  - シナリオ: `ActionRecorder::new_with_time(Box::new(FileActionRecordRepository::new(path)), 0)` を作って `start_replay()` する
-- `run()` で `args.command` によって分岐する（`test` は `#[cfg(not(target_arch = "wasm32"))]`）
-  - `None`: 従来どおり `run_support`
-  - `Some(Record)`: 従来どおり `run_support`。ただし `ActionRecorder` の保存先を `FileActionRecordRepository::new(path)` にする
-  - `Some(Test)`: `set_clock_mode(ClockMode::Fixed)` にして、`run_support` の代わりに `run_headless` を呼ぶ
+  - シナリオ: `load_action_records(path)` で読み込み（不正な行はここでエラーにする）、`ActionRecorder::new_with_time(Box::new(InMemoryActionRecordRepository::new(actions)), 0)` を作って `start_replay()` する
+- `main()` で `args.command` によって分岐する（`test` は `#[cfg(not(target_arch = "wasm32"))]`）
+  - `Some(Test)`: `scenario_test::run_test` を呼び、`ExitCode` を返す。`set_clock_mode(ClockMode::Fixed)` にして、`run_support` の代わりに `run_headless` を呼ぶ
+  - `None`: 従来どおり `run()` から `run_support`
+  - `Some(Record)`: 従来どおり `run()` から `run_support`。ただし `ActionRecorder` の保存先を `FileActionRecordRepository::new(path)` にする
 - `snapshot_text` を実装する
 - **録画位置の修正**: `record()` の呼び出しを `action()` から `input()` に移し、`winit_window_event_to_action` で得た **ユーザー入力が元の Action だけ** を記録する（IME イベントも `input()` を通るので記録される）。これで派生 Action の二重実行を防ぐ
 - 録画をファイルに書き出せるようにする。`kashikishi record <PATH>` で起動したときは、`stop-record` で `FileActionRecordRepository` に保存する。これで「人が操作して記録し、それをシナリオにする」流れができる
@@ -265,7 +268,9 @@ kashikishi/
 
 - `kashikishi/tests/e2e_scenarios.rs` で、`env!("CARGO_BIN_EXE_kashikishi")` を使って `kashikishi test --scenario ...` を起動し、出力を `snapshots/` と比べる
   - テキスト: 完全に一致することを確認する
-  - 画像: 画素ごとの差が閾値（例: 各チャンネル 8）を超える画素の割合が、許容率（例: 0.5%）以下であることを確認する。失敗したら `target/e2e/<scenario>/<name>.diff.png` を出力する
+  - 画像: 画素ごとの差が閾値（各チャンネル 8）を超える画素の割合が、許容率（0.5%）以下であることを確認する。失敗したら実行結果の隣に `<name>.diff.png` を出力する（差分のある画素を赤で示す）
+  - 実行結果は `CARGO_TARGET_TMPDIR`（`target/tmp/e2e/<scenario>/`）に出力する
+  - テキストは git の autocrlf の影響を受けないよう、改行コードを LF にそろえてから比べる
   - 環境変数 `UPDATE_SNAPSHOTS=1` を付けると、期待値を上書き更新する
 - GPU が必要で時間もかかるため、テストには `#[ignore]` を付ける。通常の `cargo test --all` では実行しない
 - `mise.toml` に次のタスクを追加する
@@ -282,7 +287,7 @@ kashikishi/
 3. **kashikishi: データディレクトリの差し替え**
    - `paths` モジュールを作り、設定とメモのパス解決を一本化する（`test --data-dir` の土台）
 4. **ui_support: `run_headless` と `snapshot` の横取り、`snapshot_text`**
-   - `generate_images` と処理を共通にし、`SendExit` で終われるようにする
+   - `SendExit` で終われるヘッドレスのループを `headless.rs` に用意する（`generate_images` とは共通化しない）
 5. **kashikishi: `test` サブコマンド**
    - 決定的な環境（固定時計、埋め込みフォント、デフォルト設定、一時データディレクトリ）を作り、`run_headless` を呼ぶ。スナップショットを書き出し、終了コードを返す
 6. **E2E ハーネスとサンプルシナリオ**
