@@ -89,6 +89,11 @@ run = "cargo test --all"
 description = "Run kashikishi E2E scenarios (requires GPU)"
 run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"
 
+[tasks.e2e-headed]
+description = "Replay kashikishi E2E scenarios in a window to watch them (no comparison)"
+run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored --nocapture"
+env = { E2E_HEADED = "1" }
+
 [tasks.e2e-update]
 description = "Run kashikishi E2E scenarios and update expected snapshots"
 run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"

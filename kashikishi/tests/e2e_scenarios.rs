@@ -4,6 +4,7 @@
 //! `e2e/snapshots/<シナリオ名>/` の期待値と比較する。
 //! GPU を使うため通常の `cargo test` では実行せず、`mise r e2e` で実行する。
 //! `UPDATE_SNAPSHOTS=1` を指定すると期待値を更新する。
+//! `E2E_HEADED=1`（`mise r e2e-headed`）を指定すると、各シナリオをウィンドウで再生するだけで比較はしない。
 
 use std::{
     collections::BTreeSet,
@@ -47,13 +48,15 @@ fn file_names(dir: &Path) -> BTreeSet<String> {
         .collect()
 }
 
-fn run_scenario(scenario: &Path, snapshot_dir: &Path) -> Result<(), String> {
-    let output = Command::new(env!("CARGO_BIN_EXE_kashikishi"))
-        .arg("test")
-        .arg("--scenario")
-        .arg(scenario)
-        .arg("--snapshot-dir")
-        .arg(snapshot_dir)
+fn run_scenario(scenario: &Path, snapshot_dir: &Path, headed: bool) -> Result<(), String> {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_kashikishi"));
+    command.arg("test").arg("--scenario").arg(scenario);
+    if headed {
+        command.arg("--headed");
+    } else {
+        command.arg("--snapshot-dir").arg(snapshot_dir);
+    }
+    let output = command
         .output()
         .map_err(|err| format!("failed to run kashikishi: {err}"))?;
     if output.status.success() {
@@ -178,6 +181,7 @@ fn update_snapshots(expected_dir: &Path, actual_dir: &Path) -> Result<(), String
 #[ignore = "GPU が必要なため `mise r e2e` で実行する"]
 fn e2e_scenarios() {
     let update = std::env::var("UPDATE_SNAPSHOTS").is_ok_and(|v| v == "1");
+    let headed = std::env::var("E2E_HEADED").is_ok_and(|v| v == "1");
     let actual_root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("e2e");
     let scenarios = scenarios();
     assert!(!scenarios.is_empty(), "no scenario found");
@@ -192,8 +196,15 @@ fn e2e_scenarios() {
         let actual_dir = actual_root.join(&name);
         let expected_dir = e2e_dir().join("snapshots").join(&name);
 
-        if let Err(err) = run_scenario(&scenario, &actual_dir) {
+        if headed {
+            println!("replaying {name} in a window");
+        }
+        if let Err(err) = run_scenario(&scenario, &actual_dir, headed) {
             failures.push(format!("[{name}] {err}"));
+            continue;
+        }
+        // ウィンドウでの再生は目視確認用なので、スナップショットを撮らず比較もしない
+        if headed {
             continue;
         }
         if update {

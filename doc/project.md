@@ -46,6 +46,7 @@ GPU が必要なため通常の `cargo test` では実行されません。
 
 ```powershell
 mise r e2e         # 期待値と比較する
+mise r e2e-headed  # 各シナリオをウィンドウで再生して目で確認する（比較はしない）
 mise r e2e-update  # 期待値を更新する（差分を目で確認してからコミットする）
 ```
 

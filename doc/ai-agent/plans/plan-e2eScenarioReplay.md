@@ -277,6 +277,7 @@ kashikishi/
 - `mise.toml` に次のタスクを追加する
   - `e2e`: `cargo test -p kashikishi --test e2e_scenarios -- --ignored`
   - `e2e-update`: 上と同じ処理を `UPDATE_SNAPSHOTS=1` 付きで実行する
+  - `e2e-headed`: 上と同じ処理を `E2E_HEADED=1` 付きで実行する。各シナリオを `--headed` でウィンドウ再生するだけで、比較はしない
 - CI（`.github/workflows/rust.yml`）への組み込みは、GPU がない環境の扱い（lavapipe / WARP）を確かめてから別途行う。画像の期待値はプラットフォームごとに差が出る可能性があるため、当面は **開発機（Windows）で画像とテキストを比べ、CI ではテキストだけを比べる** 方針を候補とする
 
 ## 実装ステップ
