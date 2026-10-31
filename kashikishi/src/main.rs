@@ -490,22 +490,21 @@ impl SimpleStateCallback for KashikishiCallback {
                     InputResult::InputConsumed
                 }
                 "mode" => {
-                    let world: Option<(&'static str, Box<dyn ModalWorld>)> =
-                        match &*name.to_string() {
-                            "start" => Some(("start", Box::new(StartWorld::new(context)))),
-                            "category" => {
-                                Some(("category", Box::new(CategorizedMemosWorld::new(context))))
-                            }
-                            "tagbase" => {
-                                Some(("tagbase", Box::new(TagbaseMemosWorld::new(context))))
-                            }
-                            "presentation" => Some((
-                                "presentation",
-                                Box::new(MarkdownPresentationWorld::new(context)),
-                            )),
-                            "help" => Some(("help", Box::new(HelpWorld::new(context)))),
-                            _ => None,
-                        };
+                    let world: Option<(&'static str, Box<dyn ModalWorld>)> = match &*name
+                        .to_string()
+                    {
+                        "start" => Some(("start", Box::new(StartWorld::new(context)))),
+                        "category" => {
+                            Some(("category", Box::new(CategorizedMemosWorld::new(context))))
+                        }
+                        "tagbase" => Some(("tagbase", Box::new(TagbaseMemosWorld::new(context)))),
+                        "presentation" => Some((
+                            "presentation",
+                            Box::new(MarkdownPresentationWorld::new(context)),
+                        )),
+                        "help" => Some(("help", Box::new(HelpWorld::new(context)))),
+                        _ => None,
+                    };
                     if let Some((world_name, world)) = world {
                         self.world.graceful_exit();
                         self.world = world;
