@@ -4133,6 +4133,7 @@ dependencies = [
  "similar",
  "stroke_parser",
  "text_buffer",
+ "thiserror 2.0.21",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

@@ -24,6 +24,8 @@ stroke_parser = { path = "../stroke_parser" }
 text_buffer = { path = "../text_buffer" }
 phisical_layouter = { path = "../phisical_layouter" }
 serde-jsonlines = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
 
 similar = { workspace = true }
 futures = { workspace = true }
@@ -46,4 +48,3 @@ arboard = { workspace = true }
 apng = { workspace = true }
 rayon = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
