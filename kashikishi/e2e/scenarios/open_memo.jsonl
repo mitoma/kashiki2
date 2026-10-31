@@ -1,0 +1,9 @@
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","snapshot",{"String":"01_start"}]}
+{"Command":["edit","return","None"]}
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","snapshot",{"String":"02_memo_opened"}]}
+{"ImeInput":"こんにちは、炊紙"}
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","snapshot",{"String":"03_text_inserted"}]}
+{"Command":["system","exit","None"]}

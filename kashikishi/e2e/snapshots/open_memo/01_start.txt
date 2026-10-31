@@ -1,0 +1,22 @@
+world: start
+layout: liner
+direction: horizontal
+focus: 0
+models: 1
+  [0] StackLayout
+    focus_model_index: Some(1)
+    [0] SingleSvg
+    [1] SelectBox
+      selection: 0 / narrowed: 4 / options: 4
+      [0] StackLayout
+        focus_model_index: Some(1)
+        [0] TextEdit
+          direction: horizontal
+          text: "炊紙 kashikishi"
+        [1] TextEdit
+          direction: horizontal
+          text: ""
+        [2] TextEdit
+          direction: horizontal
+          text: "メモ帳を開く\nプレゼンモードを開く\nヘルプ(使い方の概説)を開く\n炊紙を終了する\n"
+modal_models: 0
