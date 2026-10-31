@@ -15,6 +15,7 @@ Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタ�
 - **パス**: `kashikishi/`
 - **役割**: メインの実行ファイルとなるアプリケーション
 - **依存関係**: 他の全てのクレートを統合し、最終的なテキストエディタを提供
+- **メモモード**: 開始画面から従来の `CategorizedMemosWorld` と `TagbaseMemosWorld` を選択可能。タグメモは `~/kashikishi-docs` を保管庫として使用する。
 
 #### 操作の記録と E2E テスト
 
@@ -112,6 +113,10 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
   - キー入力の処理
   - マウスアクションの処理
   - 入力ストロークの解析
+  - `ActionStore::set_current_namespaces` による有効なコマンド名前空間と優先順位の指定。同一キーは名前空間の指定順、同一名前空間内は登録順で解決する
+  - キーボード・マウス・ストローク継続判定に同じ名前空間条件を適用し、条件変更時は入力途中のストロークを破棄する。未設定時は従来互換、空リストはコマンド無効、`clear_current_namespaces` で制限解除
+
+炊紙では `ModalWorld::command_namespace` がモード固有の名前空間を返し、起動時とモード切り替え時に共通名前空間より優先して有効化する。カテゴリーメモは `categorized-memo`、タグメモは `tagbase-memo` を使用し、保存などの共通操作は `kashikishi` に残す。
 
 ### ui_support（UI支援）
 - **パス**: `ui_support/`
@@ -140,6 +145,16 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
   - `Heading::level()` / `Heading::title()`
 - **利用箇所**: `kashikishi/src/world/markdown_presentation_world.rs` でMarkdownプレゼンテーション表示時の分割処理に利用
 - **補足**: セクション本文は前後空白をトリムして返却され、見出しが存在しない文書は空配列を返す
+
+### tagbase_memo（タグベースのメモ保管庫）
+- **パス**: `tagbase_memo/`
+- **役割**: Markdown と YAML front matter によるメモの永続化
+- **機能**:
+  - メモの作成・取得・更新・削除、作成日時順の一覧取得
+  - タイトル・本文の検索、複数タグの AND 絞り込み、非表示タグ
+  - 一時ファイルを使った保存、パス付きのエラー通知
+- **補足**: GUI への組み込みと旧形式からの移行は未対応
+- **利用方法**: [クレート README](../tagbase_memo/README.md)
 
 ## 支援・実験的クレート
 

@@ -31,7 +31,9 @@ use stroke_parser::{
 };
 use text_buffer::action::EditorOperation;
 use winit::{event::WindowEvent, icon::RgbaIcon};
-use world::{CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld};
+use world::{
+    CategorizedMemosWorld, HelpWorld, ModalWorld, NullWorld, StartWorld, TagbaseMemosWorld,
+};
 
 use font_rasterizer::{context::WindowSize, rasterizer_pipeline::Quarity, time::set_clock_mode};
 use log::info;
@@ -376,6 +378,19 @@ impl KashikishiCallback {
             _ => {}
         };
     }
+
+    fn update_command_namespaces(&mut self) {
+        self.store
+            .set_current_namespaces(self.world.command_namespace().into_iter().chain([
+                "kashikishi",
+                "edit",
+                "world",
+                "system",
+                "mode",
+                "rokid-max",
+                "action-recorder",
+            ]));
+    }
 }
 
 impl SimpleStateCallback for KashikishiCallback {
@@ -383,6 +398,7 @@ impl SimpleStateCallback for KashikishiCallback {
         // 初期状態で表示するワールドを設定する
         self.world = Box::new(StartWorld::new(context));
         self.world_name = "start";
+        self.update_command_namespaces();
 
         // world にすでに表示されるグリフを追加する
         let mut chars = self.world.world_chars();
@@ -397,7 +413,7 @@ impl SimpleStateCallback for KashikishiCallback {
         register_default_border(context);
 
         // カメラを初期化する
-        context.register_post_action(Action::new_command("world", "fit-by-direction"));
+        context.register_post_action(self.world.initial_camera_action());
     }
 
     fn resize(&mut self, window_size: WindowSize) {
@@ -407,7 +423,7 @@ impl SimpleStateCallback for KashikishiCallback {
     fn update(&mut self, context: &UiContext) {
         self.action_recorder.lock().unwrap().replay(context);
 
-        self.world.get_mut().update(context);
+        self.world.update(context);
         self.ime.update(context);
 
         let _ = self.rokid_max_action.lock().map(|rokid_max_action| {
@@ -474,26 +490,28 @@ impl SimpleStateCallback for KashikishiCallback {
                     InputResult::InputConsumed
                 }
                 "mode" => {
-                    let world: Option<(&'static str, Box<dyn ModalWorld>)> =
-                        match &*name.to_string() {
-                            "start" => Some(("start", Box::new(StartWorld::new(context)))),
-                            "category" => {
-                                Some(("category", Box::new(CategorizedMemosWorld::new(context))))
-                            }
-                            "presentation" => Some((
-                                "presentation",
-                                Box::new(MarkdownPresentationWorld::new(context)),
-                            )),
-                            "help" => Some(("help", Box::new(HelpWorld::new(context)))),
-                            _ => None,
-                        };
+                    let world: Option<(&'static str, Box<dyn ModalWorld>)> = match &*name
+                        .to_string()
+                    {
+                        "start" => Some(("start", Box::new(StartWorld::new(context)))),
+                        "category" => {
+                            Some(("category", Box::new(CategorizedMemosWorld::new(context))))
+                        }
+                        "tagbase" => Some(("tagbase", Box::new(TagbaseMemosWorld::new(context)))),
+                        "presentation" => Some((
+                            "presentation",
+                            Box::new(MarkdownPresentationWorld::new(context)),
+                        )),
+                        "help" => Some(("help", Box::new(HelpWorld::new(context)))),
+                        _ => None,
+                    };
                     if let Some((world_name, world)) = world {
                         self.world.graceful_exit();
                         self.world = world;
                         self.world_name = world_name;
+                        self.update_command_namespaces();
                         context.register_string(self.world.world_chars().into_iter().collect());
-                        context
-                            .register_post_action(Action::new_command("world", "fit-by-direction"));
+                        context.register_post_action(self.world.initial_camera_action());
                     }
                     InputResult::InputConsumed
                 }
@@ -559,6 +577,7 @@ impl SimpleStateCallback for KashikishiCallback {
         let mut ime_instances = self.ime.get_instances();
 
         if glyph_instances_for_modal.is_empty() {
+            world_instances.append(&mut self.world.overlay_glyph_instances());
             world_instances.append(&mut ime_instances);
         } else {
             glyph_instances_for_modal.append(&mut ime_instances);

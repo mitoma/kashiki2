@@ -10,28 +10,58 @@
         "description": "日付の挿入"
     },
     {
-        "namespace": "kashikishi",
+        "namespace": "categorized-memo",
         "name": "move-category-ui",
         "description": "カテゴリを移動"
     },
     {
-        "namespace": "kashikishi",
+        "namespace": "categorized-memo",
         "name": "add-category-ui",
         "description": "カテゴリの追加"
     },
     {
-        "namespace": "kashikishi",
+        "namespace": "categorized-memo",
         "name": "rename-category-select-ui",
         "description": "カテゴリの名前変更"
     },
     {
-        "namespace": "kashikishi",
+        "namespace": "categorized-memo",
         "name": "remove-category-ui",
         "description": "カテゴリの削除"
     },
     {
-        "namespace": "kashikishi",
+        "namespace": "categorized-memo",
         "name": "move-memo-ui",
         "description": "編集中のメモの移動"
+    },
+    {
+        "namespace": "tagbase-memo",
+        "name": "search-ui",
+        "description": "タグメモを検索・絞り込み"
+    },
+    {
+        "namespace": "tagbase-memo",
+        "name": "list-all",
+        "description": "タグメモをすべて表示"
+    },
+    {
+        "namespace": "tagbase-memo",
+        "name": "add-memo",
+        "description": "タグメモを追加"
+    },
+    {
+        "namespace": "tagbase-memo",
+        "name": "edit-title-ui",
+        "description": "現在のタグメモのタイトルを変更"
+    },
+    {
+        "namespace": "tagbase-memo",
+        "name": "edit-tags-ui",
+        "description": "現在のタグメモのタグを変更"
+    },
+    {
+        "namespace": "tagbase-memo",
+        "name": "delete-memo-ui",
+        "description": "現在のタグメモを削除"
     }
 ]

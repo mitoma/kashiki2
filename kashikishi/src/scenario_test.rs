@@ -155,6 +155,9 @@ fn prepare_data_dir(data_dir: Option<&Path>) -> Result<DataDir, ScenarioError> {
     })?;
     // 設定やメモのパスを解決する前に差し替える必要がある
     let _ = crate::paths::set_data_dir(data_dir.path.clone());
+    // タグメモの保管庫も一時ディレクトリに切り替え、日時を固定する
+    let _ = crate::paths::set_tagbase_memos_dir(data_dir.path.join("kashikishi-docs"));
+    crate::world::use_fixed_tagbase_clock();
     Ok(data_dir)
 }
 
