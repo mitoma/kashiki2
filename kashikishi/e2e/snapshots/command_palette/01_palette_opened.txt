@@ -7,7 +7,7 @@ models: 1
     focus_model_index: Some(1)
     [0] SingleSvg
     [1] SelectBox
-      selection: 0 / narrowed: 4 / options: 4
+      selection: 0 / narrowed: 5 / options: 5
       [0] StackLayout
         focus_model_index: Some(1)
         [0] TextEdit
@@ -18,10 +18,10 @@ models: 1
           text: ""
         [2] TextEdit
           direction: horizontal
-          text: "メモ帳を開く\nプレゼンモードを開く\nヘルプ(使い方の概説)を開く\n炊紙を終了する\n"
+          text: "カテゴリーメモ帳を開く\nタグメモ帳を開く\nプレゼンモードを開く\nヘルプ(使い方の概説)を開く\n炊紙を終了する\n"
 modal_models: 1
   [0] SelectBox
-    selection: 0 / narrowed: 85 / options: 85
+    selection: 0 / narrowed: 92 / options: 92
     [0] StackLayout
       focus_model_index: Some(1)
       [0] TextEdit
@@ -32,4 +32,4 @@ modal_models: 1
         text: ""
       [2] TextEdit
         direction: horizontal
-        text: "エディタ開始画面に戻る                                              mode:start\nメモ帳を開く                                                     mode:category\nヘルプ(使い方の概説)を開く                                           mode:help\nフルスクリーンの切り替え                              system:toggle-fullscreen\nタイトルバーの表示・非表示の切り替え                    system:toggle-titlebar\n[debug用途] RasterizerPipeline を作り直す   system:rebuild-rasterizer-pipeline\nカラーテーマの変更                                      system:change-theme-ui\n背景画像の変更                               system:select-background-image-ui\n背景シェーダーアートの変更                         system:select-shader-art-ui\nフォントの変更                                           system:change-font-ui\n"
+        text: "エディタ開始画面に戻る                                              mode:start\nカテゴリーメモ帳を開く                                           mode:category\nタグメモ帳を開く                                                  mode:tagbase\nヘルプ(使い方の概説)を開く                                           mode:help\nフルスクリーンの切り替え                              system:toggle-fullscreen\nタイトルバーの表示・非表示の切り替え                    system:toggle-titlebar\n[debug用途] RasterizerPipeline を作り直す   system:rebuild-rasterizer-pipeline\nカラーテーマの変更                                      system:change-theme-ui\n背景画像の変更                               system:select-background-image-ui\n背景シェーダーアートの変更                         system:select-shader-art-ui\n"

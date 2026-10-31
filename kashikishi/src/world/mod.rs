@@ -29,6 +29,10 @@ pub(crate) trait ModalWorld {
     }
     fn get_mut(&mut self) -> &mut dyn World;
     fn get(&self) -> &dyn World;
+    // ワールド表示直後にカメラを合わせるためのアクション
+    fn initial_camera_action(&self) -> Action {
+        Action::new_command("world", "fit-by-direction")
+    }
     fn update(&mut self, context: &UiContext) {
         self.get_mut().update(context);
     }
