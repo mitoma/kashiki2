@@ -80,6 +80,11 @@ impl DefaultWorld {
         }
     }
 
+    // 現在フォーカスしているモデルのインデックスを返す
+    pub fn focus(&self) -> usize {
+        self.focus
+    }
+
     fn get_current_mut(&mut self) -> Option<&mut Box<dyn Model>> {
         self.modal_models
             .last_mut()

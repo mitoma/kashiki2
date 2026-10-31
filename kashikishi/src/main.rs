@@ -423,7 +423,7 @@ impl SimpleStateCallback for KashikishiCallback {
     fn update(&mut self, context: &UiContext) {
         self.action_recorder.lock().unwrap().replay(context);
 
-        self.world.get_mut().update(context);
+        self.world.update(context);
         self.ime.update(context);
 
         let _ = self.rokid_max_action.lock().map(|rokid_max_action| {
@@ -579,6 +579,7 @@ impl SimpleStateCallback for KashikishiCallback {
         let mut ime_instances = self.ime.get_instances();
 
         if glyph_instances_for_modal.is_empty() {
+            world_instances.append(&mut self.world.overlay_glyph_instances());
             world_instances.append(&mut ime_instances);
         } else {
             glyph_instances_for_modal.append(&mut ime_instances);

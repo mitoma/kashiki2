@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use font_rasterizer::glyph_vertex_buffer::Direction;
+use font_rasterizer::{glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction};
 use stroke_parser::{Action, ActionArgument};
 use tagbase_memo::{
     Error as TagbaseError, Memo, Result as TagbaseResult, TagbaseMemo, TagbaseState,
@@ -14,7 +14,7 @@ use ui_support::{
     InputResult,
     camera::CameraAdjustment,
     layout_engine::{DefaultWorld, Model, ModelOperation, World},
-    ui::{SelectBox, SelectOption, TextEdit, TextInput},
+    ui::{Card, CardAnchor, SelectBox, SelectOption, TextEdit, TextInput},
     ui_context::UiContext,
 };
 
@@ -27,16 +27,23 @@ pub(crate) struct TagbaseMemosWorld {
     memos: Vec<Memo>,
     state: TagbaseState,
     error_message: Option<String>,
+    meta_card: Card,
+    // meta_card に表示中のテキスト。変化したときだけ書き換える
+    meta_text: Option<String>,
 }
 
 impl TagbaseMemosWorld {
     pub(crate) fn new(context: &UiContext) -> Self {
+        let mut meta_card = Card::with_settings(context.editor_settings());
+        meta_card.set_anchor(CardAnchor::BottomRight);
         let mut result = Self {
             world: DefaultWorld::new(context.window_size()),
             repository: None,
             memos: Vec::new(),
             state: TagbaseState::default(),
             error_message: None,
+            meta_card,
+            meta_text: None,
         };
         match open_repository().and_then(|repository| {
             let state = TagbaseState::load(repository.root())?;
@@ -138,8 +145,37 @@ impl TagbaseMemosWorld {
     }
 
     fn focused_memo_index(&self) -> Option<usize> {
-        let index = self.world.debug_snapshot().focus;
+        let index = self.world.focus();
         (index < self.memos.len()).then_some(index)
+    }
+
+    fn current_meta_text(&self) -> String {
+        if self.error_message.is_some() {
+            return String::new();
+        }
+        let Some(index) = self.focused_memo_index() else {
+            return String::new();
+        };
+        let memo = &self.memos[index];
+        let title = memo.content.title.as_deref().unwrap_or("（無題）");
+        let tags = if memo.content.tags.is_empty() {
+            "なし".to_string()
+        } else {
+            memo.content.tags.join(", ")
+        };
+        let updated = memo.updated_at.format("%Y-%m-%d %H:%M");
+        format!("{title}\nタグ: {tags}\n更新: {updated}")
+    }
+
+    // フォーカス移動は World 側で直接処理されるため、毎フレーム差分を確認して反映する
+    fn update_meta_card(&mut self, context: &UiContext) {
+        let text = self.current_meta_text();
+        if self.meta_text.as_ref() != Some(&text) {
+            context.register_string(text.clone());
+            self.meta_card.set_text(context, text.clone());
+            self.meta_text = Some(text);
+        }
+        self.meta_card.update(context);
     }
 
     fn edit_title_ui(&mut self, context: &UiContext, chars: &mut HashSet<char>) {
@@ -374,6 +410,15 @@ impl ModalWorld for TagbaseMemosWorld {
 
     fn get(&self) -> &dyn World {
         &self.world
+    }
+
+    fn update(&mut self, context: &UiContext) {
+        self.world.update(context);
+        self.update_meta_card(context);
+    }
+
+    fn overlay_glyph_instances(&self) -> Vec<&GlyphInstances> {
+        self.meta_card.get_instances()
     }
 
     fn world_chars(&self) -> HashSet<char> {
