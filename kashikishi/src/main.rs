@@ -18,7 +18,7 @@ use std::{
 };
 
 use arboard::Clipboard;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use font_collector::{FontCollector, FontRepository};
 use rokid_max_ext::RokidMaxAction;
 use stroke_parser::{
@@ -34,7 +34,10 @@ use log::info;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     action::{ActionProcessor, ActionProcessorStore},
-    action_recorder::{ActionRecorder, InMemoryActionRecordRepository},
+    action_recorder::{
+        ActionRecordRepository, ActionRecorder, FileActionRecordRepository,
+        InMemoryActionRecordRepository,
+    },
     camera::{CameraAdjustment, CameraOperation},
     layout_engine::{Model, ModelOperation, World},
     register_default_border, register_default_caret, run_support,
@@ -143,6 +146,18 @@ pub struct Args {
     /// clear glyph cache before startup
     #[arg(long, default_value = "false")]
     pub clear_glyph_cache: bool,
+
+    #[command(subcommand)]
+    pub command: Option<Command>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum Command {
+    /// record operations and save them to a file (JSON Lines) on action-recorder:stop-record
+    Record {
+        /// output file of the recorded actions
+        path: PathBuf,
+    },
 }
 
 struct SystemCommandPalette;
@@ -233,7 +248,12 @@ pub async fn run(args: Args) {
     });
 
     let color_theme = config.editor_settings.color_theme();
-    let callback = KashikishiCallback::new(window_size, config);
+    let record_repository: Box<dyn ActionRecordRepository> = match &args.command {
+        Some(Command::Record { path }) => Box::new(FileActionRecordRepository::new(path)),
+        None => Box::new(InMemoryActionRecordRepository::default()),
+    };
+    let callback =
+        KashikishiCallback::new(window_size, config, ActionRecorder::new(record_repository));
     let support = SimpleStateSupport {
         window_icon: icon,
         window_title: "Kashikishi".to_string(),
@@ -262,7 +282,11 @@ struct KashikishiCallback {
 }
 
 impl KashikishiCallback {
-    fn new(window_size: WindowSize, config: KashikishiConfig) -> Self {
+    fn new(
+        window_size: WindowSize,
+        config: KashikishiConfig,
+        action_recorder: ActionRecorder,
+    ) -> Self {
         let mut store: ActionStore = Default::default();
         let key_setting = include_str!("../asset/key-settings.txt");
         info!("{}", key_setting);
@@ -278,8 +302,6 @@ impl KashikishiCallback {
         action_processor_store.add_default_world_processors();
         action_processor_store.add_processor(Box::new(SystemCommandPalette));
 
-        let action_recorder =
-            ActionRecorder::new(Box::new(InMemoryActionRecordRepository::default()));
         let action_recorder = Rc::new(Mutex::new(action_recorder));
         action_processor_store.add_namespace_processors(action_recorder.clone());
 
@@ -366,6 +388,9 @@ impl SimpleStateCallback for KashikishiCallback {
 
     fn input(&mut self, context: &UiContext, event: &WindowEvent) -> InputResult {
         if let Some(action) = self.store.winit_window_event_to_action(event) {
+            // ユーザー入力が元になった action だけを記録する。
+            // action() で記録すると SelectBox などが派生的に発行した action も記録され、再生時に二重に実行されてしまう。
+            self.action_recorder.lock().unwrap().record(&action);
             self.action(context, action)
         } else {
             InputResult::Noop
@@ -373,8 +398,6 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &UiContext, action: Action) -> InputResult {
-        self.action_recorder.lock().unwrap().record(&action);
-
         let result = self
             .action_processor_store
             .process(&action, context, self.world.get_mut());
