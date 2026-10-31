@@ -27,6 +27,8 @@ markdown_heading_splitter = { path = "../markdown_heading_splitter" }
 
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+web-time = { workspace = true }
 
 [target.'cfg(windows)'.build-dependencies]
 winresource = { workspace = true }

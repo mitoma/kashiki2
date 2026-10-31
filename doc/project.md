@@ -16,6 +16,40 @@ Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタ�
 - **役割**: メインの実行ファイルとなるアプリケーション
 - **依存関係**: 他の全てのクレートを統合し、最終的なテキストエディタを提供
 
+#### 操作の記録と E2E テスト
+
+`kashikishi record <PATH>` で起動すると、操作（`stroke_parser::Action`）を記録できます。
+`action-recorder:stop-record` を実行すると、記録を `<PATH>` に JSON Lines で保存します。
+
+`kashikishi test --scenario <PATH>` は、シナリオ（同じ JSON Lines 形式）をウィンドウなしで再生します。
+固定時計、埋め込みフォント、デフォルト設定、一時データディレクトリを使うので、起動直後の状態から毎回同じ結果になります。
+シナリオ中の `action_recorder:snapshot` の時点で、`<名前>.png`（描画結果）と `<名前>.txt`（ワールドの論理状態）を `--snapshot-dir`（既定は `target/e2e/<シナリオ名>`）に保存します。
+終了コードは `0` が成功、`1` がシナリオのエラー、`2` がタイムアウト、`3` が panic です。
+`--headed` を付けると、シナリオをウィンドウで実時間で再生します。シナリオを書くときの目視確認用で、スナップショットは撮りません（`--snapshot-dir`、`--frame-ms`、`--max-frames` は無視します）。
+その他のオプションは `kashikishi test --help` を参照してください。
+
+```jsonl
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","snapshot",{"String":"01_start"}]}
+{"Command":["edit","return","None"]}
+{"ImeInput":"こんにちは"}
+{"Command":["system","exit","None"]}
+```
+
+- `action_recorder:wait` は固定時計で指定したミリ秒だけ待ちます。アニメーションが落ち着くよう、スナップショットの前に入れます
+- シナリオの末尾に `system:exit` がなければ自動で追加します
+- 日付の挿入やクリップボードなど、環境に依存する操作はシナリオで使わないでください
+
+E2E テストは `kashikishi/e2e/scenarios/*.jsonl` を再生し、`kashikishi/e2e/snapshots/<シナリオ名>/` の期待値と比べます。
+テキストは完全一致、画像は許容誤差付きで比べ、不一致の画像は `target/tmp/e2e/` に `*.diff.png` を出力します。
+GPU が必要なため通常の `cargo test` では実行されません。
+
+```powershell
+mise r e2e         # 期待値と比較する
+mise r e2e-headed  # 各シナリオをウィンドウで再生して目で確認する（比較はしない）
+mise r e2e-update  # 期待値を更新する（差分を目で確認してからコミットする）
+```
+
 ### font_rasterizer（フォントレンダリング）
 - **パス**: `font_rasterizer/`
 - **役割**: フォントのラスタライゼーションとレンダリング処理

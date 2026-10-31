@@ -1,8 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, fs, path::PathBuf};
 
 use chrono::{DateTime, Local};
 use serde::{Deserialize, Serialize};
@@ -119,7 +115,5 @@ impl CategorizedMemos {
 }
 
 fn memos_file() -> PathBuf {
-    // いわゆるホームディレクトリのパスを取得する
-    let home_dir = dirs::home_dir().unwrap();
-    Path::new(&home_dir).join(".config/kashikishi/categorized_memos.json")
+    crate::paths::categorized_memos_file()
 }

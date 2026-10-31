@@ -1,0 +1,9 @@
+world: category
+layout: liner
+direction: horizontal
+focus: 0
+models: 1
+  [0] TextEdit
+    direction: horizontal
+    text: "こんにちは、炊紙"
+modal_models: 0

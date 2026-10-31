@@ -7,7 +7,11 @@ mod kashikishi_actions;
 mod kashikishi_config;
 mod local_datetime_format;
 mod memos;
+mod paths;
 mod rokid_max_ext;
+#[cfg(not(target_arch = "wasm32"))]
+mod scenario_test;
+mod snapshot_text;
 mod world;
 
 use std::{
@@ -18,7 +22,7 @@ use std::{
 };
 
 use arboard::Clipboard;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use font_collector::{FontCollector, FontRepository};
 use rokid_max_ext::RokidMaxAction;
 use stroke_parser::{
@@ -34,7 +38,10 @@ use log::info;
 use ui_support::{
     Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     action::{ActionProcessor, ActionProcessorStore},
-    action_recorder::{ActionRecorder, InMemoryActionRecordRepository},
+    action_recorder::{
+        ActionRecordRepository, ActionRecorder, FileActionRecordRepository,
+        InMemoryActionRecordRepository,
+    },
     camera::{CameraAdjustment, CameraOperation},
     layout_engine::{Model, ModelOperation, World},
     register_default_border, register_default_caret, run_support,
@@ -54,7 +61,7 @@ const EMOJI_FONT_DATA: &[u8] = include_bytes!("../../fonts/NotoEmoji-Regular.ttf
 const LOG_FILE_NAME: &str = "kashikishi.log";
 const LOG_GENERATIONS: usize = 5;
 
-pub fn main() {
+pub fn main() -> std::process::ExitCode {
     //std::env::set_var("RUST_LOG", "simple_text=debug");
     //std::env::set_var("RUST_LOG", "font_rasterizer::ui::textedit=info");
     //std::env::set_var("RUST_LOG", "font_rasterizer::ui::view_element_state=debug");
@@ -65,7 +72,29 @@ pub fn main() {
         eprintln!("failed to initialize file logger: {err}");
     }
     let args = Args::parse();
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(Command::Test(test_args)) = args.command.clone() {
+        warn_ignored_options_for_test(&args);
+        return scenario_test::run_test(*test_args);
+    }
     pollster::block_on(run(args));
+    std::process::ExitCode::SUCCESS
+}
+
+/// test サブコマンドでは環境を固定するため、通常起動用のオプションは使わない
+#[cfg(not(target_arch = "wasm32"))]
+fn warn_ignored_options_for_test(args: &Args) {
+    let defaults = Args::parse_from(["kashikishi"]);
+    if args.performance_mode
+        || args.use_embedded_font
+        || args.ime_on_the_fly
+        || args.clear_glyph_cache
+        || args.font_names != defaults.font_names
+    {
+        let message = "options before `test` are ignored in test mode";
+        eprintln!("warning: {message}");
+        log::warn!("{message}");
+    }
 }
 
 fn init_rotating_file_logger() -> io::Result<()> {
@@ -143,6 +172,21 @@ pub struct Args {
     /// clear glyph cache before startup
     #[arg(long, default_value = "false")]
     pub clear_glyph_cache: bool,
+
+    #[command(subcommand)]
+    pub command: Option<Command>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum Command {
+    /// record operations and save them to a file (JSON Lines) on action-recorder:stop-record
+    Record {
+        /// output file of the recorded actions
+        path: PathBuf,
+    },
+    /// replay a scenario without a window and save snapshots (for E2E tests)
+    #[cfg(not(target_arch = "wasm32"))]
+    Test(Box<scenario_test::TestArgs>),
 }
 
 struct SystemCommandPalette;
@@ -233,7 +277,12 @@ pub async fn run(args: Args) {
     });
 
     let color_theme = config.editor_settings.color_theme();
-    let callback = KashikishiCallback::new(window_size, config);
+    let record_repository: Box<dyn ActionRecordRepository> = match &args.command {
+        Some(Command::Record { path }) => Box::new(FileActionRecordRepository::new(path)),
+        _ => Box::new(InMemoryActionRecordRepository::default()),
+    };
+    let callback =
+        KashikishiCallback::new(window_size, config, ActionRecorder::new(record_repository));
     let support = SimpleStateSupport {
         window_icon: icon,
         window_title: "Kashikishi".to_string(),
@@ -254,6 +303,8 @@ pub async fn run(args: Args) {
 struct KashikishiCallback {
     store: ActionStore,
     world: Box<dyn ModalWorld>,
+    /// スナップショットのテキストに出力するワールドの識別名
+    world_name: &'static str,
     ime: ImeInput,
     action_processor_store: ActionProcessorStore,
     rokid_max_action: Rc<Mutex<RokidMaxAction>>,
@@ -262,7 +313,11 @@ struct KashikishiCallback {
 }
 
 impl KashikishiCallback {
-    fn new(window_size: WindowSize, config: KashikishiConfig) -> Self {
+    fn new(
+        window_size: WindowSize,
+        config: KashikishiConfig,
+        action_recorder: ActionRecorder,
+    ) -> Self {
         let mut store: ActionStore = Default::default();
         let key_setting = include_str!("../asset/key-settings.txt");
         info!("{}", key_setting);
@@ -278,8 +333,6 @@ impl KashikishiCallback {
         action_processor_store.add_default_world_processors();
         action_processor_store.add_processor(Box::new(SystemCommandPalette));
 
-        let action_recorder =
-            ActionRecorder::new(Box::new(InMemoryActionRecordRepository::default()));
         let action_recorder = Rc::new(Mutex::new(action_recorder));
         action_processor_store.add_namespace_processors(action_recorder.clone());
 
@@ -290,6 +343,7 @@ impl KashikishiCallback {
         Self {
             store,
             world: Box::new(NullWorld::new(window_size)),
+            world_name: "null",
             ime,
             action_processor_store,
             rokid_max_action,
@@ -328,6 +382,7 @@ impl SimpleStateCallback for KashikishiCallback {
     fn init(&mut self, context: &UiContext) {
         // 初期状態で表示するワールドを設定する
         self.world = Box::new(StartWorld::new(context));
+        self.world_name = "start";
 
         // world にすでに表示されるグリフを追加する
         let mut chars = self.world.world_chars();
@@ -366,6 +421,9 @@ impl SimpleStateCallback for KashikishiCallback {
 
     fn input(&mut self, context: &UiContext, event: &WindowEvent) -> InputResult {
         if let Some(action) = self.store.winit_window_event_to_action(event) {
+            // ユーザー入力が元になった action だけを記録する。
+            // action() で記録すると SelectBox などが派生的に発行した action も記録され、再生時に二重に実行されてしまう。
+            self.action_recorder.lock().unwrap().record(&action);
             self.action(context, action)
         } else {
             InputResult::Noop
@@ -373,8 +431,6 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &UiContext, action: Action) -> InputResult {
-        self.action_recorder.lock().unwrap().record(&action);
-
         let result = self
             .action_processor_store
             .process(&action, context, self.world.get_mut());
@@ -418,16 +474,23 @@ impl SimpleStateCallback for KashikishiCallback {
                     InputResult::InputConsumed
                 }
                 "mode" => {
-                    let world: Option<Box<dyn ModalWorld>> = match &*name.to_string() {
-                        "start" => Some(Box::new(StartWorld::new(context))),
-                        "category" => Some(Box::new(CategorizedMemosWorld::new(context))),
-                        "presentation" => Some(Box::new(MarkdownPresentationWorld::new(context))),
-                        "help" => Some(Box::new(HelpWorld::new(context))),
-                        _ => None,
-                    };
-                    if let Some(world) = world {
+                    let world: Option<(&'static str, Box<dyn ModalWorld>)> =
+                        match &*name.to_string() {
+                            "start" => Some(("start", Box::new(StartWorld::new(context)))),
+                            "category" => {
+                                Some(("category", Box::new(CategorizedMemosWorld::new(context))))
+                            }
+                            "presentation" => Some((
+                                "presentation",
+                                Box::new(MarkdownPresentationWorld::new(context)),
+                            )),
+                            "help" => Some(("help", Box::new(HelpWorld::new(context)))),
+                            _ => None,
+                        };
+                    if let Some((world_name, world)) = world {
                         self.world.graceful_exit();
                         self.world = world;
+                        self.world_name = world_name;
                         context.register_string(self.world.world_chars().into_iter().collect());
                         context
                             .register_post_action(Action::new_command("world", "fit-by-direction"));
@@ -518,5 +581,12 @@ impl SimpleStateCallback for KashikishiCallback {
         self.world.graceful_exit();
         self.config.editor_settings = context.editor_settings();
         self.config.save();
+    }
+
+    fn snapshot_text(&self) -> Option<String> {
+        Some(snapshot_text::world_snapshot_text(
+            self.world_name,
+            self.world.get(),
+        ))
     }
 }

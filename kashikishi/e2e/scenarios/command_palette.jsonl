@@ -1,0 +1,8 @@
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["system","command-palette","None"]}
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","snapshot",{"String":"01_palette_opened"}]}
+{"ImeInput":"help"}
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","snapshot",{"String":"02_palette_narrowed"}]}
+{"Command":["system","exit","None"]}

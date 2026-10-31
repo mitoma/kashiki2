@@ -839,6 +839,10 @@ impl RenderState {
         self.simple_state_callback.shutdown(&self.context);
     }
 
+    pub(crate) fn snapshot_text(&self) -> Option<String> {
+        self.simple_state_callback.snapshot_text()
+    }
+
     pub(crate) fn change_font(&mut self, font_name: Option<String>) {
         match font_name {
             Some(font_name) => {
