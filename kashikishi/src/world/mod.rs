@@ -23,6 +23,9 @@ use ui_support::{
 use stroke_parser::Action;
 
 pub(crate) trait ModalWorld {
+    fn command_namespace(&self) -> Option<&'static str> {
+        None
+    }
     fn get_mut(&mut self) -> &mut dyn World;
     fn get(&self) -> &dyn World;
     fn apply_action(&mut self, context: &UiContext, action: Action)

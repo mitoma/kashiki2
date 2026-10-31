@@ -57,9 +57,11 @@ C-R         rokid-max:toggle-mode
 
 # kashikishi
 C-X C-S kashikishi:save
-C-Z C   kashikishi:add-memo
-C-Z K   kashikishi:remove-memo
-C-X C M kashikishi:move-category-ui
+C-Z C   categorized-memo:add-memo
+C-Z C   tagbase-memo:add-memo
+C-Z K   categorized-memo:remove-memo
+C-Z K   tagbase-memo:delete-memo-ui
+C-X C M categorized-memo:move-category-ui
 
 C-X C-F kashikishi:open-file-ui
 

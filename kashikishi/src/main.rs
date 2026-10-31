@@ -378,6 +378,19 @@ impl KashikishiCallback {
             _ => {}
         };
     }
+
+    fn update_command_namespaces(&mut self) {
+        self.store
+            .set_current_namespaces(self.world.command_namespace().into_iter().chain([
+                "kashikishi",
+                "edit",
+                "world",
+                "system",
+                "mode",
+                "rokid-max",
+                "action-recorder",
+            ]));
+    }
 }
 
 impl SimpleStateCallback for KashikishiCallback {
@@ -385,6 +398,7 @@ impl SimpleStateCallback for KashikishiCallback {
         // 初期状態で表示するワールドを設定する
         self.world = Box::new(StartWorld::new(context));
         self.world_name = "start";
+        self.update_command_namespaces();
 
         // world にすでに表示されるグリフを追加する
         let mut chars = self.world.world_chars();
@@ -496,6 +510,7 @@ impl SimpleStateCallback for KashikishiCallback {
                         self.world.graceful_exit();
                         self.world = world;
                         self.world_name = world_name;
+                        self.update_command_namespaces();
                         context.register_string(self.world.world_chars().into_iter().collect());
                         context
                             .register_post_action(Action::new_command("world", "fit-by-direction"));

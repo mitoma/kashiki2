@@ -76,14 +76,59 @@ mod tests {
         let repository = ActionRepository::default();
         let actions = repository.load_actions(ActionNamespace::Kashikishi);
         for name in [
-            "tagbase-search-ui",
-            "tagbase-list-all",
-            "tagbase-add-memo",
-            "tagbase-edit-title-ui",
-            "tagbase-edit-tags-ui",
-            "tagbase-delete-memo-ui",
+            "search-ui",
+            "list-all",
+            "add-memo",
+            "edit-title-ui",
+            "edit-tags-ui",
+            "delete-memo-ui",
         ] {
-            assert!(actions.iter().any(|action| action.name == name), "{name}");
+            assert!(
+                actions
+                    .iter()
+                    .any(|action| action.namespace == "tagbase-memo" && action.name == name),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn category_actions_use_the_category_namespace() {
+        let repository = ActionRepository::default();
+        let actions = repository.load_actions(ActionNamespace::Kashikishi);
+        for name in [
+            "move-category-ui",
+            "add-category-ui",
+            "rename-category-select-ui",
+            "remove-category-ui",
+            "move-memo-ui",
+        ] {
+            assert!(
+                actions
+                    .iter()
+                    .any(|action| action.namespace == "categorized-memo" && action.name == name),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn memo_keybindings_have_contextual_commands_and_shared_save() {
+        use stroke_parser::action_store_parser::parse_setting;
+
+        let keybinds = parse_setting(include_str!("../asset/key-settings.txt"));
+        for setting in [
+            "C-Z C categorized-memo:add-memo",
+            "C-Z C tagbase-memo:add-memo",
+            "C-Z K categorized-memo:remove-memo",
+            "C-Z K tagbase-memo:delete-memo-ui",
+            "C-X C M categorized-memo:move-category-ui",
+            "C-X C-S kashikishi:save",
+        ] {
+            assert!(
+                keybinds.contains(&parse_setting(setting).remove(0)),
+                "{setting}"
+            );
         }
     }
 }
