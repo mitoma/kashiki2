@@ -121,7 +121,7 @@ mod tests {
             "C-Z C categorized-memo:add-memo",
             "C-Z C tagbase-memo:add-memo",
             "C-Z K categorized-memo:remove-memo",
-            "C-Z K tagbase-memo:delete-memo-ui",
+            "C-Z K tagbase-memo:close-memo",
             "C-X C M categorized-memo:move-category-ui",
             "C-X C-S kashikishi:save",
         ] {

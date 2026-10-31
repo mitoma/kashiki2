@@ -288,6 +288,25 @@ impl TagbaseMemosWorld {
         }
     }
 
+    fn close_focused(&mut self, context: &UiContext) {
+        let Some(index) = self.focused_memo_index() else {
+            return;
+        };
+        if let Err(error) = self.save_visible() {
+            self.display_error(context, error);
+            return;
+        }
+        self.memos.remove(index);
+        self.error_message = None;
+        self.reset_world(context);
+        if self.world.model_length() > 0 {
+            self.world.look_at(
+                index.min(self.world.model_length() - 1),
+                CameraAdjustment::NoCare,
+            );
+        }
+    }
+
     fn refresh_all(&mut self, context: &UiContext) {
         if let Err(error) = self.save_visible() {
             self.display_error(context, error);
@@ -439,6 +458,10 @@ impl ModalWorld for TagbaseMemosWorld {
             "delete-memo-ui" => self.delete_memo_ui(context, &mut chars),
             "delete-memo" => {
                 self.delete_focused(context);
+                chars.extend(self.world_chars());
+            }
+            "close-memo" => {
+                self.close_focused(context);
                 chars.extend(self.world_chars());
             }
             _ => return (InputResult::Noop, chars),
