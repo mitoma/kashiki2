@@ -16,6 +16,7 @@ use ui_support::{
         load_action_records,
     },
     headless::{HeadlessExit, HeadlessOptions, Snapshot, run_headless},
+    run_support,
 };
 use web_time::Duration;
 
@@ -54,6 +55,10 @@ pub struct TestArgs {
     /// fail as timeout when the scenario does not finish within this number of frames
     #[arg(long, default_value_t = 36000)]
     pub max_frames: u32,
+
+    /// replay in a window in real time to watch it (no snapshots; --snapshot-dir, --frame-ms and --max-frames are ignored)
+    #[arg(long)]
+    pub headed: bool,
 }
 
 fn parse_window_size(value: &str) -> Result<WindowSize, String> {
@@ -95,11 +100,12 @@ pub(crate) fn run_test(test_args: TestArgs) -> ExitCode {
         let _ = std::fs::remove_dir_all(&data_dir.path);
     }
     match result {
-        Ok(Ok(HeadlessExit::Exited { frames })) => {
+        Ok(Ok(ScenarioOutcome::Headed)) => ExitCode::SUCCESS,
+        Ok(Ok(ScenarioOutcome::Headless(HeadlessExit::Exited { frames }))) => {
             eprintln!("scenario finished: {frames} frames");
             ExitCode::SUCCESS
         }
-        Ok(Ok(HeadlessExit::Timeout { frames })) => {
+        Ok(Ok(ScenarioOutcome::Headless(HeadlessExit::Timeout { frames }))) => {
             eprintln!("scenario timeout: not finished within {frames} frames");
             ExitCode::from(EXIT_TIMEOUT)
         }
@@ -200,30 +206,27 @@ fn snapshot_dir(test_args: &TestArgs) -> PathBuf {
     })
 }
 
-fn run_scenario(test_args: &TestArgs) -> Result<HeadlessExit, ScenarioError> {
+enum ScenarioOutcome {
+    Headless(HeadlessExit),
+    /// ウィンドウを閉じるか、シナリオの最後の `system:exit` で終了した
+    Headed,
+}
+
+fn run_scenario(test_args: &TestArgs) -> Result<ScenarioOutcome, ScenarioError> {
     let actions = load_scenario(&test_args.scenario)?;
     let config = load_config(test_args.config.as_deref())?;
-
-    let snapshot_dir = snapshot_dir(test_args);
-    // 前回の実行結果が混ざらないように出力先を空にする
-    if snapshot_dir.exists() {
-        std::fs::remove_dir_all(&snapshot_dir).map_err(|source| ScenarioError::Directory {
-            path: snapshot_dir.clone(),
-            source,
-        })?;
-    }
-    std::fs::create_dir_all(&snapshot_dir).map_err(|source| ScenarioError::Directory {
-        path: snapshot_dir.clone(),
-        source,
-    })?;
 
     // 環境によって字形が変わらないように埋め込みフォントだけを使う
     let mut font_repository = FontRepository::new(FontCollector::default());
     font_repository.add_fallback_font_from_binary(FONT_DATA.to_vec(), None);
     font_repository.add_fallback_font_from_binary(EMOJI_FONT_DATA.to_vec(), None);
 
-    // 固定時計は 0 から始まるので、記録の基準時刻も 0 にする
-    font_rasterizer::time::set_clock_mode(font_rasterizer::time::ClockMode::Fixed);
+    // どちらの時計も 0 から始まるので、記録の基準時刻も 0 にする
+    font_rasterizer::time::set_clock_mode(if test_args.headed {
+        font_rasterizer::time::ClockMode::StepByStep
+    } else {
+        font_rasterizer::time::ClockMode::Fixed
+    });
     let mut action_recorder =
         ActionRecorder::new_with_time(Box::new(InMemoryActionRecordRepository::new(actions)), 0);
     action_recorder.start_replay();
@@ -242,12 +245,36 @@ fn run_scenario(test_args: &TestArgs) -> Result<HeadlessExit, ScenarioError> {
         callback: Box::new(callback),
         quarity: Quarity::Middle,
         color_theme,
-        flags: Flags::empty(),
+        flags: if test_args.headed {
+            Flags::DEFAULT
+        } else {
+            Flags::empty()
+        },
         font_repository,
         performance_mode: false,
         background_image: None,
         shader_art,
     };
+
+    if test_args.headed {
+        // 目視確認用なので、スナップショットは撮らない（snapshot コマンドは何もしない）
+        pollster::block_on(run_support(support));
+        return Ok(ScenarioOutcome::Headed);
+    }
+
+    let snapshot_dir = snapshot_dir(test_args);
+    // 前回の実行結果が混ざらないように出力先を空にする
+    if snapshot_dir.exists() {
+        std::fs::remove_dir_all(&snapshot_dir).map_err(|source| ScenarioError::Directory {
+            path: snapshot_dir.clone(),
+            source,
+        })?;
+    }
+    std::fs::create_dir_all(&snapshot_dir).map_err(|source| ScenarioError::Directory {
+        path: snapshot_dir.clone(),
+        source,
+    })?;
+
     let options = HeadlessOptions {
         frame_gain: Duration::from_millis(test_args.frame_ms as u64),
         max_frames: test_args.max_frames,
@@ -263,7 +290,7 @@ fn run_scenario(test_args: &TestArgs) -> Result<HeadlessExit, ScenarioError> {
     }));
     match save_error {
         Some(err) => Err(err),
-        None => Ok(exit),
+        None => Ok(ScenarioOutcome::Headless(exit)),
     }
 }
 
