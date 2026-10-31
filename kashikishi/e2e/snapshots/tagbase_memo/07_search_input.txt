@@ -1,0 +1,22 @@
+world: tagbase
+layout: liner
+direction: horizontal
+focus: 1
+models: 2
+  [0] TextEdit
+    direction: horizontal
+    text: "牛乳と卵を買う"
+  [1] TextEdit
+    direction: horizontal
+    text: "会議の議事録"
+modal_models: 1
+  [0] TextInput
+    default_input: None
+    [0] StackLayout
+      focus_model_index: Some(1)
+      [0] TextEdit
+        direction: horizontal
+        text: "検索クエリ（空欄で既定タグ）"
+      [1] TextEdit
+        direction: horizontal
+        text: "tag:shopping"

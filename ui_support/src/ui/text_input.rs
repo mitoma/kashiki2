@@ -66,13 +66,16 @@ impl TextInput {
         layout.add_model(Box::new(input_text_edit));
         layout.set_focus_model_index(INPUT_TEXT_INDEX, false);
 
-        Self {
+        let mut result = Self {
             action,
             layout,
             action_queue_sender: context.action_sender(),
             default_input,
             border: ModelBorder::default(),
-        }
+        };
+        // 表示直後のカメラ調整で正しい大きさを使えるように bound を確定させておく
+        result.update(context);
+        result
     }
 
     fn title_text_edit(&self) -> &dyn Model {

@@ -47,6 +47,19 @@ fn initializes_and_reopens_repository_without_touching_user_state() {
 }
 
 #[test]
+fn injected_clock_fixes_timestamps_and_ids() {
+    let directory = tempdir().unwrap();
+    let fixed = DateTime::parse_from_rfc3339("2026-01-01T09:00:00+09:00").unwrap();
+    let repository = TagbaseMemo::new(directory.path())
+        .unwrap()
+        .with_clock(move || fixed);
+    let memo = repository.create_memo().unwrap();
+    assert_eq!(memo.created_at, fixed);
+    assert_eq!(memo.updated_at, fixed);
+    assert_eq!(memo.id, Path::new("memos/2026-01/2026-01-01-001.md"));
+}
+
+#[test]
 fn creates_local_date_files_with_immutable_metadata() {
     let (_directory, repository) = repository();
     let before = Local::now().fixed_offset();
