@@ -113,6 +113,10 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
   - キー入力の処理
   - マウスアクションの処理
   - 入力ストロークの解析
+  - `ActionStore::set_current_namespaces` による有効なコマンド名前空間と優先順位の指定。同一キーは名前空間の指定順、同一名前空間内は登録順で解決する
+  - キーボード・マウス・ストローク継続判定に同じ名前空間条件を適用し、条件変更時は入力途中のストロークを破棄する。未設定時は従来互換、空リストはコマンド無効、`clear_current_namespaces` で制限解除
+
+炊紙では `ModalWorld::command_namespace` がモード固有の名前空間を返し、起動時とモード切り替え時に共通名前空間より優先して有効化する。カテゴリーメモは `categorized-memo`、タグメモは `tagbase-memo` を使用し、保存などの共通操作は `kashikishi` に残す。
 
 ### ui_support（UI支援）
 - **パス**: `ui_support/`

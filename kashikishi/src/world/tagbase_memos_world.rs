@@ -19,6 +19,7 @@ use ui_support::{
 };
 
 use super::ModalWorld;
+use crate::kashikishi_actions::{insert_date_select, open_file_ui};
 
 pub(crate) struct TagbaseMemosWorld {
     world: DefaultWorld,
@@ -158,7 +159,7 @@ impl TagbaseMemosWorld {
                 context,
                 "メモのタイトルを入力（空欄で無題）".to_string(),
                 Some(title),
-                Action::new_command("kashikishi", "tagbase-set-title"),
+                Action::new_command("tagbase-memo", "set-title"),
             )),
         );
     }
@@ -180,7 +181,7 @@ impl TagbaseMemosWorld {
                 context,
                 "タグをカンマ区切りで入力".to_string(),
                 Some(tags),
-                Action::new_command("kashikishi", "tagbase-set-tags"),
+                Action::new_command("tagbase-memo", "set-tags"),
             )),
         );
     }
@@ -192,7 +193,7 @@ impl TagbaseMemosWorld {
         }
         let options = vec![SelectOption::new(
             "現在のメモを削除する".to_string(),
-            Action::new_command("kashikishi", "tagbase-delete-memo"),
+            Action::new_command("tagbase-memo", "delete-memo"),
         )];
         self.add_modal(
             context,
@@ -344,6 +345,10 @@ impl TagbaseMemosWorld {
 }
 
 impl ModalWorld for TagbaseMemosWorld {
+    fn command_namespace(&self) -> Option<&'static str> {
+        Some("tagbase-memo")
+    }
+
     fn get_mut(&mut self) -> &mut dyn World {
         &mut self.world
     }
@@ -377,7 +382,10 @@ impl ModalWorld for TagbaseMemosWorld {
         let Action::Command(namespace, name, argument) = action else {
             return (InputResult::Noop, chars);
         };
-        if *namespace != "kashikishi" {
+        if *namespace != "tagbase-memo"
+            && !(*namespace == "kashikishi"
+                && matches!(name.as_str(), "save" | "insert-date" | "open-file-ui"))
+        {
             return (InputResult::Noop, chars);
         }
 
@@ -389,47 +397,51 @@ impl ModalWorld for TagbaseMemosWorld {
                     self.error_message = None;
                 }
             }
-            "tagbase-add-memo" => self.add_memo(context),
-            "tagbase-search-ui" => self.add_modal(
+            "insert-date" => {
+                self.add_modal(context, &mut chars, Box::new(insert_date_select(context)))
+            }
+            "open-file-ui" => self.add_modal(context, &mut chars, Box::new(open_file_ui(context))),
+            "add-memo" => self.add_memo(context),
+            "search-ui" => self.add_modal(
                 context,
                 &mut chars,
                 Box::new(TextInput::new(
                     context,
                     "検索クエリ（空欄で既定タグ）".to_string(),
                     self.state.search_query.clone(),
-                    Action::new_command("kashikishi", "tagbase-search"),
+                    Action::new_command("tagbase-memo", "search"),
                 )),
             ),
-            "tagbase-search" => {
+            "search" => {
                 if let ActionArgument::String2(query, _) = argument {
                     self.search(context, query);
                     chars.extend(self.world_chars());
                 }
             }
-            "tagbase-list-all" => {
+            "list-all" => {
                 self.refresh_all(context);
                 chars.extend(self.world_chars());
             }
-            "tagbase-edit-title-ui" => self.edit_title_ui(context, &mut chars),
-            "tagbase-edit-tags-ui" => self.edit_tags_ui(context, &mut chars),
-            "tagbase-set-title" => {
+            "edit-title-ui" => self.edit_title_ui(context, &mut chars),
+            "edit-tags-ui" => self.edit_tags_ui(context, &mut chars),
+            "set-title" => {
                 if let ActionArgument::String2(value, _) = argument {
                     self.set_title(context, value);
                     chars.extend(self.world_chars());
                 }
             }
-            "tagbase-set-tags" => {
+            "set-tags" => {
                 if let ActionArgument::String2(value, _) = argument {
                     self.set_tags(context, value);
                     chars.extend(self.world_chars());
                 }
             }
-            "tagbase-delete-memo-ui" => self.delete_memo_ui(context, &mut chars),
-            "tagbase-delete-memo" => {
+            "delete-memo-ui" => self.delete_memo_ui(context, &mut chars),
+            "delete-memo" => {
                 self.delete_focused(context);
                 chars.extend(self.world_chars());
             }
-            _ => {}
+            _ => return (InputResult::Noop, chars),
         }
         if let Some(message) = &self.error_message {
             chars.extend(message.chars());

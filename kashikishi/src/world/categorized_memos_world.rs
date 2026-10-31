@@ -73,6 +73,10 @@ impl CategorizedMemosWorld {
 }
 
 impl ModalWorld for CategorizedMemosWorld {
+    fn command_namespace(&self) -> Option<&'static str> {
+        Some("categorized-memo")
+    }
+
     fn get_mut(&mut self) -> &mut dyn World {
         &mut self.world
     }
@@ -107,7 +111,10 @@ impl ModalWorld for CategorizedMemosWorld {
         let Action::Command(namespace, name, argument) = action else {
             return (InputResult::Noop, chars);
         };
-        if *namespace != "kashikishi" {
+        if *namespace != "categorized-memo"
+            && !(*namespace == "kashikishi"
+                && matches!(name.as_str(), "save" | "insert-date" | "open-file-ui"))
+        {
             return (InputResult::Noop, chars);
         };
 
@@ -218,7 +225,7 @@ impl ModalWorld for CategorizedMemosWorld {
             "open-file-ui" => {
                 self.add_modal(context, &mut chars, Box::new(open_file_ui(context)));
             }
-            _ => { /* noop */ }
+            _ => return (InputResult::Noop, chars),
         }
         (InputResult::InputConsumed, chars)
     }
