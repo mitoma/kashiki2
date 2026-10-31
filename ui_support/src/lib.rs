@@ -3,6 +3,7 @@ pub mod action_recorder;
 pub mod camera;
 pub mod easing_value;
 pub mod editor_settings;
+pub mod headless;
 pub mod layout_engine;
 mod metrics_counter;
 mod render_rate_adjuster;
@@ -627,6 +628,10 @@ pub trait SimpleStateCallback {
         EditorSettings::default()
     }
     fn shutdown(&mut self, context: &UiContext);
+    /// E2E テスト用に、現在の論理状態をテキストで返す
+    fn snapshot_text(&self) -> Option<String> {
+        None
+    }
 }
 
 pub struct RenderData<'a> {
