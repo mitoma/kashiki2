@@ -33,7 +33,10 @@ impl KashikishiConfig {
         } else {
             let config = KashikishiConfig::default();
             let config_json = serde_json::to_string(&config).unwrap();
-            std::fs::write(Self::config_file(), config_json).unwrap();
+            if let Some(dir) = config_file.parent() {
+                std::fs::create_dir_all(dir).unwrap();
+            }
+            std::fs::write(config_file, config_json).unwrap();
             config
         }
     }
@@ -44,8 +47,6 @@ impl KashikishiConfig {
     }
 
     fn config_file() -> std::path::PathBuf {
-        // いわゆるホームディレクトリのパスを取得する
-        let home_dir = dirs::home_dir().unwrap();
-        std::path::Path::new(&home_dir).join(".config/kashikishi/config.json")
+        crate::paths::config_file()
     }
 }

@@ -7,6 +7,7 @@ mod kashikishi_actions;
 mod kashikishi_config;
 mod local_datetime_format;
 mod memos;
+mod paths;
 mod rokid_max_ext;
 mod world;
 
