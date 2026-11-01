@@ -118,7 +118,7 @@ impl MotionFlags {
             3 => MotionDetail::USE_Y_DISTANCE,
             4 => MotionDetail::USE_XY_DISTANCE,
             _ => MotionDetail::empty(),
-        };
+        } | MotionDetail::TURN_BACK;
         let mut motion_target = MotionTarget::empty();
         (0..4).for_each(|_| {
             motion_target |= match rng.random_range(0..=15) {
