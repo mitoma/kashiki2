@@ -60,6 +60,13 @@
 - FrostKiwi の `AAA - Analytical Anti-Aliasing` を raw なし URL source として追加
 - anti-aliasing strategy と既存 AA source summary を更新
 
+## [2026-11-01] query | E2E 高速化の調査
+
+- debug / release / `WGPU_DEBUG=1` の各構成で `tagbase_memo` シナリオの実行時間を計測
+- release が遅いのは、DX12 FXC が最適化ありで windfoil シェーダーをコンパイルするためと特定
+- `decisions/e2e-performance.md` を draft（保留）として追加し、`index.md` に追記
+- 残課題: 対応する場合は release + `WGPU_DEBUG=1` を第一候補として再検討する
+
 ## ルール
 
 - 見出しは `## [YYYY-MM-DD] kind | title` 形式にする

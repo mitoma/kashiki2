@@ -30,6 +30,7 @@
 - [decisions/unicode-segmentation.md](decisions/unicode-segmentation.md) ICU4X 導入方針
 - [decisions/preedit-source-of-truth.md](decisions/preedit-source-of-truth.md) preedit 配置の唯一の正
 - [decisions/overlap-removal-strategy.md](decisions/overlap-removal-strategy.md) overlap remover と non-zero 移行の位置づけ
+- [decisions/e2e-performance.md](decisions/e2e-performance.md) E2E 高速化の調査結果と保留判断
 
 ## Workflows
 
