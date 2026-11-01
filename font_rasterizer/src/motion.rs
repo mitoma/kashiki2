@@ -149,6 +149,10 @@ impl MotionFlags {
         )
     }
 
+    pub fn camera_detail(&self) -> CameraDetail {
+        CameraDetail::from_bits_truncate(((self.0 >> 20) & 0b_0111) as u8)
+    }
+
     pub fn swap_target_xy(&self) -> Self {
         let mut new_bits = self.0;
 
@@ -314,6 +318,7 @@ bitflags! {
 }
 
 bitflags! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub struct CameraDetail: u8 {
         const IGNORE_CAMERA  = 0b_0000_0001;
     }
@@ -334,6 +339,25 @@ mod test {
             CameraDetail::IGNORE_CAMERA,
         );
         println!("{:#034b}", flags.0);
+    }
+
+    #[test]
+    fn camera_detail_is_extracted_without_motion_detail() {
+        let flags = MotionFlags::new(
+            MotionType::EaseOut(EasingFuncType::Bounce, false),
+            MotionDetail::TO_CURRENT | MotionDetail::USE_XY_DISTANCE,
+            MotionTarget::MOVE_X_MINUS,
+            CameraDetail::IGNORE_CAMERA,
+        );
+        assert_eq!(flags.camera_detail(), CameraDetail::IGNORE_CAMERA);
+
+        let flags = MotionFlags::new(
+            MotionType::EaseOut(EasingFuncType::Bounce, false),
+            MotionDetail::TO_CURRENT | MotionDetail::USE_XY_DISTANCE,
+            MotionTarget::MOVE_X_MINUS,
+            CameraDetail::empty(),
+        );
+        assert_eq!(flags.camera_detail(), CameraDetail::empty());
     }
 
     #[test]

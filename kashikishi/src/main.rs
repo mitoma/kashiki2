@@ -572,12 +572,14 @@ impl SimpleStateCallback for KashikishiCallback {
     fn render(&mut self) -> RenderData<'_> {
         let world = self.world.get();
         let mut world_instances = world.glyph_instances();
+        let mut world_vector_instances = world.vector_instances();
         let (mut glyph_instances_for_modal, vector_instances_for_modal) = world.modal_instances();
 
         let mut ime_instances = self.ime.get_instances();
 
         if glyph_instances_for_modal.is_empty() {
             world_instances.append(&mut self.world.overlay_glyph_instances());
+            world_vector_instances.append(&mut self.world.overlay_vector_instances());
             world_instances.append(&mut ime_instances);
         } else {
             glyph_instances_for_modal.append(&mut ime_instances);
@@ -586,7 +588,7 @@ impl SimpleStateCallback for KashikishiCallback {
         RenderData {
             camera: self.world.get().camera(),
             glyph_instances: world_instances,
-            vector_instances: world.vector_instances(),
+            vector_instances: world_vector_instances,
             glyph_instances_for_modal,
             vector_instances_for_modal,
         }

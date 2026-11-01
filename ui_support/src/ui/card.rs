@@ -1,12 +1,12 @@
 use glam::Vec3;
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::glyph_instances::GlyphInstances;
+use font_rasterizer::{glyph_instances::GlyphInstances, vector_instances::VectorInstances};
 
 use crate::editor_settings::{EditorSettings, EditorTextContextProfile};
 use crate::ui_context::UiContext;
 
-use crate::layout_engine::Model;
+use crate::layout_engine::{Model, ModelBorder};
 
 use super::textedit::TextEdit;
 
@@ -40,6 +40,8 @@ impl Default for Card {
 const CARD_DEFAULT_SCALE: [f32; 2] = [0.05, 0.05];
 // 画面端からの余白(カメラを無視した座標系での値)
 const CARD_SCREEN_MARGIN: f32 = 0.05;
+// TextEdit の罫線は bound の 1 セル外側に描画されるため、その分だけ内側に寄せる
+const CARD_BORDER_OUTSET: f32 = 1.0;
 
 impl Card {
     pub fn new() -> Self {
@@ -61,6 +63,14 @@ impl Card {
 
     pub fn set_anchor(&mut self, anchor: CardAnchor) {
         self.anchor = anchor;
+    }
+
+    pub fn set_border(&mut self, border: ModelBorder) {
+        self.text_edit.set_border(border);
+    }
+
+    pub fn border(&self) -> ModelBorder {
+        self.text_edit.border()
     }
 
     pub fn set_text(&mut self, context: &UiContext, text: String) {
@@ -100,6 +110,10 @@ impl Card {
         self.text_edit.glyph_instances()
     }
 
+    pub fn get_vector_instances(&self) -> Vec<&VectorInstances<String>> {
+        self.text_edit.vector_instances()
+    }
+
     // カメラを無視した座標系は x: [-aspect, aspect], y: [-1, 1] で、
     // world_scale は位置にも掛かるため、画面上の位置を world_scale で割って求める。
     fn apply_anchor(&mut self, aspect: f32) {
@@ -112,9 +126,18 @@ impl Card {
         };
         let (width, height) = self.text_edit.bound();
         let [scale_x, scale_y] = self.world_scale;
-        let x = horizontal * ((aspect - CARD_SCREEN_MARGIN) / scale_x - width / 2.0);
-        let y = vertical * ((1.0 - CARD_SCREEN_MARGIN) / scale_y - height / 2.0);
+        let outset = self.border_outset();
+        let x = horizontal * ((aspect - CARD_SCREEN_MARGIN) / scale_x - width / 2.0 - outset);
+        let y = vertical * ((1.0 - CARD_SCREEN_MARGIN) / scale_y - height / 2.0 - outset);
         self.text_edit.set_position(Vec3::new(x, y, 0.0));
+    }
+
+    fn border_outset(&self) -> f32 {
+        if self.border() == ModelBorder::None {
+            0.0
+        } else {
+            CARD_BORDER_OUTSET
+        }
     }
 }
 
@@ -163,6 +186,27 @@ mod tests {
                 assert_eq!(position.z, 0.0);
             }
         }
+    }
+
+    #[test]
+    fn corner_anchors_keep_the_border_inside_the_screen() {
+        let aspect = 16.0 / 9.0;
+        let scale = [0.05, 0.05];
+        let mut settings = EditorSettings::default();
+        settings.profiles.card.min_bound = Some([4.0, 8.0]);
+        let mut card = Card::with_settings(settings);
+        card.set_border(ModelBorder::Rounded);
+        assert_eq!(card.border(), ModelBorder::Rounded);
+        let (width, height) = card.text_edit.bound();
+
+        card.set_anchor(CardAnchor::BottomRight);
+        card.apply_anchor(aspect);
+        let position = card.text_edit.last_position();
+        let edge_x = (position.x + width / 2.0 + CARD_BORDER_OUTSET) * scale[0];
+        let edge_y = (position.y - height / 2.0 - CARD_BORDER_OUTSET) * scale[1];
+
+        assert!((edge_x - (aspect - CARD_SCREEN_MARGIN)).abs() < 1e-5);
+        assert!((edge_y - -(1.0 - CARD_SCREEN_MARGIN)).abs() < 1e-5);
     }
 
     #[test]

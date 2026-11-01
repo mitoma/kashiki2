@@ -14,7 +14,7 @@ pub(crate) use tagbase_memos_world::{TagbaseMemosWorld, use_fixed_tagbase_clock}
 
 use std::collections::HashSet;
 
-use font_rasterizer::glyph_instances::GlyphInstances;
+use font_rasterizer::{glyph_instances::GlyphInstances, vector_instances::VectorInstances};
 use ui_support::{
     InputResult,
     layout_engine::{Model, World},
@@ -38,6 +38,9 @@ pub(crate) trait ModalWorld {
     }
     // World のレイアウトやカメラの影響を受けず、常に画面上に重ねて表示するインスタンス
     fn overlay_glyph_instances(&self) -> Vec<&GlyphInstances> {
+        Vec::new()
+    }
+    fn overlay_vector_instances(&self) -> Vec<&VectorInstances<String>> {
         Vec::new()
     }
     fn apply_action(&mut self, context: &UiContext, action: Action)

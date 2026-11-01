@@ -6,7 +6,10 @@ use std::{
 };
 
 use chrono::{DateTime, FixedOffset, TimeZone};
-use font_rasterizer::{glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction};
+use font_rasterizer::{
+    glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
+    vector_instances::VectorInstances,
+};
 use stroke_parser::{Action, ActionArgument};
 use tagbase_memo::{
     Error as TagbaseError, Memo, Result as TagbaseResult, TagbaseMemo, TagbaseState,
@@ -15,7 +18,7 @@ use text_buffer::action::EditorOperation;
 use ui_support::{
     InputResult,
     camera::CameraAdjustment,
-    layout_engine::{DefaultWorld, Model, ModelOperation, World},
+    layout_engine::{DefaultWorld, Model, ModelBorder, ModelOperation, World},
     ui::{Card, CardAnchor, SelectBox, SelectOption, TextEdit, TextInput},
     ui_context::UiContext,
 };
@@ -38,6 +41,7 @@ impl TagbaseMemosWorld {
     pub(crate) fn new(context: &UiContext) -> Self {
         let mut meta_card = Card::with_settings(context.editor_settings());
         meta_card.set_anchor(CardAnchor::BottomRight);
+        meta_card.set_border(ModelBorder::Rounded);
         let mut result = Self {
             world: DefaultWorld::new(context.window_size()),
             repository: None,
@@ -421,6 +425,14 @@ impl ModalWorld for TagbaseMemosWorld {
 
     fn overlay_glyph_instances(&self) -> Vec<&GlyphInstances> {
         self.meta_card.get_instances()
+    }
+
+    fn overlay_vector_instances(&self) -> Vec<&VectorInstances<String>> {
+        // 表示する情報がないときに空の枠だけが出ないようにする
+        if self.meta_text.as_deref().is_none_or(str::is_empty) {
+            return Vec::new();
+        }
+        self.meta_card.get_vector_instances()
     }
 
     fn world_chars(&self) -> HashSet<char> {

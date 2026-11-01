@@ -802,13 +802,6 @@ impl TextEdit {
             max_col.max(layout.column_to_legacy_units(layout.main_caret_pos.col)),
             max_row.max(layout.main_caret_pos.row),
         );
-        let (max_col, max_row) = if self.border != ModelBorder::None {
-            // border がある場合は border の幅を考慮して bound を大きくする
-            (max_col + 1.0, max_row + 1)
-        } else {
-            (max_col, max_row)
-        };
-
         let [max_x, max_y, _max_z] = Self::get_adjusted_position(
             &self.config,
             CharWidth::Wide, /* この指定に深い意図はない */

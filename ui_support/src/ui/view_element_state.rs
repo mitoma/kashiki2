@@ -1044,8 +1044,18 @@ impl BorderStates {
             motion_gain: [1.0].into(),
         };
         self.elements.insert(fragment.clone(), state);
-        self.instances
-            .add(fragment, InstanceAttributes::default(), device);
+        // 罫線はアニメーションしないが、カメラを無視する設定は文字と揃える
+        let motion = MotionFlags::builder()
+            .camera_detail(text_context.char_easings.add_char.motion.camera_detail())
+            .build();
+        self.instances.add(
+            fragment,
+            InstanceAttributes {
+                motion,
+                ..InstanceAttributes::default()
+            },
+            device,
+        );
     }
 }
 
