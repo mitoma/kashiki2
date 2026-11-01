@@ -51,6 +51,13 @@ mise r e2e-headed  # 各シナリオをウィンドウで再生して目で確�
 mise r e2e-update  # 期待値を更新する（差分を目で確認してからコミットする）
 ```
 
+紹介動画用のシナリオ `kashikishi/demo/introduction.jsonl` もあります。E2E の対象ではなく、スナップショットも持ちません。
+解説文をメモに入力しながら主な機能を順に実行します（約 2.5 分）。
+
+```powershell
+mise r demo        # 紹介シナリオをウィンドウで再生する
+```
+
 ### font_rasterizer（フォントレンダリング）
 - **パス**: `font_rasterizer/`
 - **役割**: フォントのラスタライゼーションとレンダリング処理
