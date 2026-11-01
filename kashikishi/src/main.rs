@@ -447,6 +447,12 @@ impl SimpleStateCallback for KashikishiCallback {
     }
 
     fn action(&mut self, context: &UiContext, action: Action) -> InputResult {
+        if let Action::Command(namespace, name, _) = &action
+            && namespace.as_str() == "world"
+            && self.world.before_world_action(context, name.as_str())
+        {
+            return InputResult::InputConsumed;
+        }
         let result = self
             .action_processor_store
             .process(&action, context, self.world.get_mut());

@@ -455,6 +455,29 @@ impl ModalWorld for TagbaseMemosWorld {
         self.world.chars()
     }
 
+    // World だけでモデルを並べ替えたり消したりすると、表示順で対応づけている memos とずれて
+    // メタ情報の表示や保存先を取り違えるため、同じ操作を memos にも反映する
+    fn before_world_action(&mut self, context: &UiContext, name: &str) -> bool {
+        if self.memos.len() != self.world.model_length() {
+            return false;
+        }
+        let focus = self.world.focus();
+        match name {
+            "swap-next" if focus + 1 < self.memos.len() => self.memos.swap(focus, focus + 1),
+            "swap-prev" if focus > 0 && focus < self.memos.len() => {
+                self.memos.swap(focus - 1, focus)
+            }
+            // モーダルを閉じる用途ではなく、メモ自体を外す場合は保存してから閉じる
+            "remove-current" if self.world.modal_instances().0.is_empty() => {
+                self.close_focused(context);
+                context.register_string(self.world_chars().into_iter().collect());
+                return true;
+            }
+            _ => {}
+        }
+        false
+    }
+
     fn add_modal(
         &mut self,
         _context: &UiContext,

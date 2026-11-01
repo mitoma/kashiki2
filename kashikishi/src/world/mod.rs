@@ -43,6 +43,10 @@ pub(crate) trait ModalWorld {
     fn overlay_vector_instances(&self) -> Vec<&VectorInstances<String>> {
         Vec::new()
     }
+    // world 名前空間のアクションを World に適用する前に呼ばれる。true を返すとアクションを消費する
+    fn before_world_action(&mut self, _context: &UiContext, _name: &str) -> bool {
+        false
+    }
     fn apply_action(&mut self, context: &UiContext, action: Action)
     -> (InputResult, HashSet<char>);
     fn world_chars(&self) -> HashSet<char>;
