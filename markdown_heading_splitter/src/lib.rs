@@ -87,6 +87,25 @@ pub fn sprint_headings(markdown: &str) -> Vec<(Heading, String)> {
     split_headings(markdown)
 }
 
+/// 文書が見出しで始まっている場合、その見出しを返す。
+/// 見出しより前に空白以外の内容がある場合は None を返す。
+pub fn leading_heading(markdown: &str) -> Option<Heading> {
+    let mut parser = arborium::tree_sitter::Parser::new();
+    parser
+        .set_language(&arborium::lang_markdown::language().into())
+        .expect("failed to set markdown language");
+    let tree = parser.parse(markdown, None)?;
+
+    let mut nodes = Vec::new();
+    collect_heading_nodes(markdown, tree.root_node(), &mut nodes);
+    let first = nodes.into_iter().min_by_key(|node| node.start_byte)?;
+    markdown
+        .get(..first.start_byte)?
+        .trim()
+        .is_empty()
+        .then_some(first.heading)
+}
+
 fn collect_heading_nodes(
     markdown: &str,
     node: arborium::tree_sitter::Node<'_>,
@@ -128,8 +147,14 @@ fn parse_atx_heading(text: &str) -> Option<(usize, String)> {
     }
 
     let rest = line[level..].trim();
-    let title = rest.trim_end_matches('#').trim().to_string();
-    Some((level, title))
+    // CommonMark では閉じの # 列は直前に空白があるときだけ取り除く (`# C#` は `C#` のまま)
+    let without_closing = rest.trim_end_matches('#');
+    let title = if without_closing.is_empty() || without_closing.ends_with([' ', '\t']) {
+        without_closing.trim_end()
+    } else {
+        rest
+    };
+    Some((level, title.to_string()))
 }
 
 fn parse_setext_heading(text: &str) -> Option<(usize, String)> {
@@ -180,5 +205,39 @@ mod tests {
     fn sprint_headings_is_alias() {
         let markdown = "### X\ntext\n";
         assert_eq!(sprint_headings(markdown), split_headings(markdown));
+    }
+
+    #[test]
+    fn closing_sequence_requires_preceding_space() {
+        assert_eq!(parse_atx_heading("# C#"), Some((1, "C#".to_string())));
+        assert_eq!(
+            parse_atx_heading("# 見出し ##"),
+            Some((1, "見出し".to_string()))
+        );
+        assert_eq!(parse_atx_heading("# ###"), Some((1, String::new())));
+    }
+
+    #[test]
+    fn leading_heading_only_when_document_starts_with_it() {
+        let cases = [
+            ("# 買い物\n牛乳", Some(Heading::H1("買い物".to_string()))),
+            (
+                "\n\n  # 前後の空白  \n",
+                Some(Heading::H1("前後の空白".to_string())),
+            ),
+            (
+                "タイトル\n=====\n本文",
+                Some(Heading::H1("タイトル".to_string())),
+            ),
+            ("## 見出し2", Some(Heading::H2("見出し2".to_string()))),
+            ("#見出しではない", None),
+            ("    # コードブロック", None),
+            ("> # 引用", None),
+            ("本文\n\n# 2 つ目の段落", None),
+            ("", None),
+        ];
+        for (markdown, expected) in cases {
+            assert_eq!(leading_heading(markdown), expected, "{markdown:?}");
+        }
     }
 }

@@ -10,6 +10,7 @@ use font_rasterizer::{
     glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
     vector_instances::VectorInstances,
 };
+use markdown_heading_splitter::{Heading, leading_heading};
 use stroke_parser::{Action, ActionArgument};
 use tagbase_memo::{
     Error as TagbaseError, Memo, Result as TagbaseResult, TagbaseMemo, TagbaseState,
@@ -110,6 +111,12 @@ impl TagbaseMemosWorld {
         }
         for (memo, text) in self.memos.iter_mut().zip(texts) {
             let updated = repository.update_memo(&memo.id, |content| {
+                if content.title.as_deref().is_none_or(str::is_empty)
+                    && let Some(Heading::H1(heading)) = leading_heading(&text)
+                    && !heading.is_empty()
+                {
+                    content.title = Some(heading);
+                }
                 content.text = text;
             })?;
             *memo = updated;
