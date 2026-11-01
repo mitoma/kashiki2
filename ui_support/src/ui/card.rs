@@ -1,12 +1,15 @@
 use glam::Vec3;
 use text_buffer::action::EditorOperation;
 
-use font_rasterizer::{glyph_instances::GlyphInstances, vector_instances::VectorInstances};
+use font_rasterizer::{
+    glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
+    vector_instances::VectorInstances,
+};
 
 use crate::editor_settings::{EditorSettings, EditorTextContextProfile};
 use crate::ui_context::UiContext;
 
-use crate::layout_engine::{Model, ModelBorder};
+use crate::layout_engine::{Model, ModelBorder, ModelOperation};
 
 use super::textedit::TextEdit;
 
@@ -29,6 +32,9 @@ pub struct Card {
     text_edit: TextEdit,
     world_scale: [f32; 2],
     anchor: CardAnchor,
+    direction: Direction,
+    // 最も長い行の文字幅。行方向の縮小率の計算に使う
+    max_line_width: f32,
 }
 
 impl Default for Card {
@@ -49,6 +55,7 @@ impl Card {
     }
 
     pub fn with_settings(editor_settings: EditorSettings) -> Self {
+        let direction = editor_settings.global_direction();
         let mut text_edit =
             TextEdit::new(editor_settings.text_context(EditorTextContextProfile::Card));
         text_edit.set_world_scale(CARD_DEFAULT_SCALE);
@@ -58,6 +65,8 @@ impl Card {
             text_edit,
             world_scale: CARD_DEFAULT_SCALE,
             anchor: CardAnchor::Free,
+            direction,
+            max_line_width: 0.0,
         }
     }
 
@@ -74,7 +83,7 @@ impl Card {
     }
 
     pub fn set_text(&mut self, context: &UiContext, text: String) {
-        let char_width = text
+        self.max_line_width = text
             .lines()
             .map(|line| {
                 line.chars()
@@ -82,14 +91,7 @@ impl Card {
                     .sum::<f32>()
             })
             .fold(0.0_f32, f32::max);
-        self.world_scale = [
-            f32::min(
-                CARD_DEFAULT_SCALE[0],
-                1.0 / char_width * context.window_size().aspect(),
-            ),
-            CARD_DEFAULT_SCALE[1],
-        ];
-        self.text_edit.set_world_scale(self.world_scale);
+        self.update_world_scale(context.window_size().aspect());
 
         for op in [
             EditorOperation::Mark,
@@ -102,8 +104,34 @@ impl Card {
     }
 
     pub fn update(&mut self, context: &UiContext) {
-        self.apply_anchor(context.window_size().aspect());
+        let direction = context.global_direction();
+        if self.direction != direction {
+            self.direction = direction;
+            self.text_edit
+                .model_operation(&ModelOperation::ChangeDirection(Some(direction)));
+        }
+        let aspect = context.window_size().aspect();
+        self.update_world_scale(aspect);
+        self.apply_anchor(aspect);
         self.text_edit.update(context)
+    }
+
+    // 長い行が画面の半分を超えないよう、行方向の縮小率だけを下げる。
+    // カメラを無視した座標系は x: [-aspect, aspect], y: [-1, 1] なので、半分は x で aspect、y で 1.0 になる
+    fn update_world_scale(&mut self, aspect: f32) {
+        let [default_x, default_y] = CARD_DEFAULT_SCALE;
+        let fit = |default: f32, half_screen: f32| {
+            if self.max_line_width > 0.0 {
+                default.min(half_screen / self.max_line_width)
+            } else {
+                default
+            }
+        };
+        self.world_scale = match self.direction {
+            Direction::Horizontal => [fit(default_x, aspect), default_y],
+            Direction::Vertical => [default_x, fit(default_y, 1.0)],
+        };
+        self.text_edit.set_world_scale(self.world_scale);
     }
 
     pub fn get_instances(&self) -> Vec<&GlyphInstances> {

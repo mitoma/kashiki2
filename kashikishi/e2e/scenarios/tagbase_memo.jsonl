@@ -34,7 +34,10 @@
 {"Command":["action_recorder","wait",{"Integer":500}]}
 {"Command":["action_recorder","snapshot",{"String":"08_searched_meta_card_hidden"}]}
 {"Command":["tagbase-memo","toggle-meta-card","None"]}
+{"Command":["system","change-global-direction", "None"]}
+{"Command":["action_recorder","wait",{"Integer":500}]}
+{"Command":["action_recorder","snapshot",{"String":"09_searched_meta_card_direction"}]}
 {"Command":["tagbase-memo","close-memo","None"]}
 {"Command":["action_recorder","wait",{"Integer":1500}]}
-{"Command":["action_recorder","snapshot",{"String":"09_closed"}]}
+{"Command":["action_recorder","snapshot",{"String":"10_closed"}]}
 {"Command":["system","exit","None"]}

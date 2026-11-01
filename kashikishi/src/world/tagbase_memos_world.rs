@@ -41,7 +41,6 @@ pub(crate) struct TagbaseMemosWorld {
 impl TagbaseMemosWorld {
     pub(crate) fn new(context: &UiContext) -> Self {
         let mut meta_card = Card::with_settings(context.editor_settings());
-        meta_card.set_anchor(CardAnchor::BottomRight);
         meta_card.set_border(ModelBorder::Rounded);
         let mut result = Self {
             world: DefaultWorld::new(context.window_size()),
@@ -183,6 +182,11 @@ impl TagbaseMemosWorld {
             self.meta_card.set_text(context, text.clone());
             self.meta_text = Some(text);
         }
+        // 縦書きでは本文が右から並ぶため、カードは左下に置く
+        self.meta_card.set_anchor(match context.global_direction() {
+            Direction::Horizontal => CardAnchor::BottomRight,
+            Direction::Vertical => CardAnchor::BottomLeft,
+        });
         self.meta_card.update(context);
     }
 
