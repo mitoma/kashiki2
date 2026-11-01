@@ -63,5 +63,10 @@
         "namespace": "tagbase-memo",
         "name": "delete-memo-ui",
         "description": "現在のタグメモを削除"
+    },
+    {
+        "namespace": "tagbase-memo",
+        "name": "toggle-meta-card",
+        "description": "メモ情報カードの表示を切り替え"
     }
 ]

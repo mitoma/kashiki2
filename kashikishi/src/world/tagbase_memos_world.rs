@@ -35,6 +35,7 @@ pub(crate) struct TagbaseMemosWorld {
     meta_card: Card,
     // meta_card に表示中のテキスト。変化したときだけ書き換える
     meta_text: Option<String>,
+    meta_card_visible: bool,
 }
 
 impl TagbaseMemosWorld {
@@ -50,6 +51,7 @@ impl TagbaseMemosWorld {
             error_message: None,
             meta_card,
             meta_text: None,
+            meta_card_visible: true,
         };
         match open_repository().and_then(|repository| {
             let state = TagbaseState::load(repository.root())?;
@@ -424,12 +426,15 @@ impl ModalWorld for TagbaseMemosWorld {
     }
 
     fn overlay_glyph_instances(&self) -> Vec<&GlyphInstances> {
+        if !self.meta_card_visible {
+            return Vec::new();
+        }
         self.meta_card.get_instances()
     }
 
     fn overlay_vector_instances(&self) -> Vec<&VectorInstances<String>> {
         // 表示する情報がないときに空の枠だけが出ないようにする
-        if self.meta_text.as_deref().is_none_or(str::is_empty) {
+        if !self.meta_card_visible || self.meta_text.as_deref().is_none_or(str::is_empty) {
             return Vec::new();
         }
         self.meta_card.get_vector_instances()
@@ -523,6 +528,7 @@ impl ModalWorld for TagbaseMemosWorld {
                 self.close_focused(context);
                 chars.extend(self.world_chars());
             }
+            "toggle-meta-card" => self.meta_card_visible = !self.meta_card_visible,
             _ => return (InputResult::Noop, chars),
         }
         if let Some(message) = &self.error_message {

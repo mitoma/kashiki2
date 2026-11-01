@@ -21,7 +21,7 @@ models: 1
           text: "カテゴリーメモ帳を開く\nタグメモ帳を開く\nプレゼンモードを開く\nヘルプ(使い方の概説)を開く\n炊紙を終了する\n"
 modal_models: 1
   [0] SelectBox
-    selection: 0 / narrowed: 1 / options: 92
+    selection: 0 / narrowed: 1 / options: 93
     [0] StackLayout
       focus_model_index: Some(1)
       [0] TextEdit

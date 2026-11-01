@@ -82,6 +82,7 @@ mod tests {
             "edit-title-ui",
             "edit-tags-ui",
             "delete-memo-ui",
+            "toggle-meta-card",
         ] {
             assert!(
                 actions
@@ -123,6 +124,7 @@ mod tests {
             "C-Z K categorized-memo:remove-memo",
             "C-Z K tagbase-memo:close-memo",
             "C-X C M categorized-memo:move-category-ui",
+            "F10 tagbase-memo:toggle-meta-card",
             "C-X C-S kashikishi:save",
         ] {
             assert!(
