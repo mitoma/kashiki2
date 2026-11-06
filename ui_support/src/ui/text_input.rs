@@ -120,6 +120,18 @@ impl Model for TextInput {
         self.layout.bound()
     }
 
+    fn surface_instances(&self) -> Vec<&VectorInstances<String>> {
+        self.layout.surface_instances()
+    }
+
+    fn set_surface_style(&mut self, surface_style: crate::layout_engine::ModelSurfaceStyle) {
+        self.layout.set_surface_style(surface_style);
+    }
+
+    fn surface_style(&self) -> crate::layout_engine::ModelSurfaceStyle {
+        self.layout.surface_style()
+    }
+
     fn glyph_instances(&self) -> Vec<&GlyphInstances> {
         self.layout.glyph_instances()
     }

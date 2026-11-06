@@ -19,7 +19,8 @@ use crate::ui_context::UiContext;
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
     layout_engine::{
-        DebugModelNode, Model, ModelOperation, ModelOperationResult, World, world::RemovedModelType,
+        DebugModelNode, Model, ModelOperation, ModelOperationResult, ModelRenderBatch, World,
+        world::RemovedModelType,
     },
     to_ndc_position,
 };
@@ -193,6 +194,30 @@ impl World for DefaultWorld {
 
     fn vector_instances(&self) -> Vec<&VectorInstances<String>> {
         self.vector_instances_inner()
+    }
+
+    fn render_batches(&self) -> Vec<ModelRenderBatch<'_>> {
+        let models = &self.models[self.get_surrounding_model_range()];
+        models
+            .iter()
+            .chain(self.removed_models.iter())
+            .map(|model| ModelRenderBatch {
+                surface_instances: model.surface_instances(),
+                vector_instances: model.vector_instances(),
+                glyph_instances: model.glyph_instances(),
+            })
+            .collect()
+    }
+
+    fn modal_render_batches(&self) -> Vec<ModelRenderBatch<'_>> {
+        self.modal_models
+            .iter()
+            .map(|model| ModelRenderBatch {
+                surface_instances: model.surface_instances(),
+                vector_instances: model.vector_instances(),
+                glyph_instances: model.glyph_instances(),
+            })
+            .collect()
     }
 
     fn modal_instances(&self) -> (Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {

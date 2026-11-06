@@ -248,13 +248,13 @@ impl SimpleStateCallback for SingleCharCallback {
             glyph_instances_for_modal.append(&mut ime_instances);
         }
 
-        RenderData {
-            camera: self.world.camera(),
-            glyph_instances: world_instances,
-            vector_instances: self.world.vector_instances(),
+        RenderData::single_batch(
+            self.world.camera(),
+            world_instances,
+            self.world.vector_instances(),
             glyph_instances_for_modal,
             vector_instances_for_modal,
-        }
+        )
     }
 
     fn shutdown(&mut self, _context: &UiContext) {}

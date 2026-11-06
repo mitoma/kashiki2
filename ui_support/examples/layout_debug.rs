@@ -207,13 +207,13 @@ impl SimpleStateCallback for LayoutDebugCallback {
 
     fn render(&'_ mut self) -> RenderData<'_> {
         *self.snapshot.lock().unwrap() = Some(self.world.debug_snapshot());
-        RenderData {
-            camera: self.world.camera(),
-            glyph_instances: self.world.glyph_instances(),
-            vector_instances: self.world.vector_instances(),
-            glyph_instances_for_modal: vec![],
-            vector_instances_for_modal: vec![],
-        }
+        RenderData::single_batch(
+            self.world.camera(),
+            self.world.glyph_instances(),
+            self.world.vector_instances(),
+            vec![],
+            vec![],
+        )
     }
 
     fn shutdown(&mut self, _context: &UiContext) {}

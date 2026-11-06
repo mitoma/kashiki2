@@ -213,34 +213,46 @@ impl RasterizerRenderrer {
         buffers: Buffers,
         target_view: &wgpu::TextureView,
     ) {
+        self.render_many(encoder, &[buffers], target_view);
+    }
+
+    pub(crate) fn render_many(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        buffers: &[Buffers],
+        target_view: &wgpu::TextureView,
+    ) {
         let mut draws = Vec::new();
-        if let Some((vertices, instances)) = buffers.vector_buffers {
-            for instance in instances {
-                if let Some((paths, curve_count)) =
-                    vertices.windfoil_draw_info(&self.device, &instance.key)
-                {
-                    draws.push((
-                        paths,
-                        curve_count,
-                        instance.to_wgpu_buffer(),
-                        instance.len() as u32,
-                        instance.needs_curve_projection(),
-                    ));
+        for buffers in buffers {
+            if let Some((vertices, instances)) = buffers.vector_buffers {
+                for instance in instances {
+                    if let Some((paths, curve_count)) =
+                        vertices.windfoil_draw_info(&self.device, &instance.key)
+                    {
+                        draws.push((
+                            paths,
+                            curve_count,
+                            instance.to_wgpu_buffer(),
+                            instance.len() as u32,
+                            instance.needs_curve_projection(),
+                        ));
+                    }
                 }
             }
-        }
-        if let Some((vertices, instances)) = buffers.glyph_buffers {
-            for instance in instances {
-                if let Some((paths, curve_count)) =
-                    vertices.windfoil_draw_info(&self.device, &instance.c, &instance.direction)
-                {
-                    draws.push((
-                        paths,
-                        curve_count,
-                        instance.to_wgpu_buffer(),
-                        instance.len() as u32,
-                        instance.needs_curve_projection(),
-                    ));
+
+            if let Some((vertices, instances)) = buffers.glyph_buffers {
+                for instance in instances {
+                    if let Some((paths, curve_count)) =
+                        vertices.windfoil_draw_info(&self.device, &instance.c, &instance.direction)
+                    {
+                        draws.push((
+                            paths,
+                            curve_count,
+                            instance.to_wgpu_buffer(),
+                            instance.len() as u32,
+                            instance.needs_curve_projection(),
+                        ));
+                    }
                 }
             }
         }

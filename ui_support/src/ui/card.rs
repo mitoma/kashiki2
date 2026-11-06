@@ -60,6 +60,9 @@ impl Card {
             TextEdit::new(editor_settings.text_context(EditorTextContextProfile::Card));
         text_edit.set_world_scale(CARD_DEFAULT_SCALE);
         text_edit.set_position((0.0, -1.5, 0.0).into());
+        text_edit.set_surface_style(crate::layout_engine::ModelSurfaceStyle::Color([
+            0.5, 0.5, 1.0,
+        ]));
 
         Self {
             text_edit,
@@ -140,6 +143,10 @@ impl Card {
 
     pub fn get_vector_instances(&self) -> Vec<&VectorInstances<String>> {
         self.text_edit.vector_instances()
+    }
+
+    pub fn get_surface_instances(&self) -> Vec<&VectorInstances<String>> {
+        self.text_edit.surface_instances()
     }
 
     // カメラを無視した座標系は x: [-aspect, aspect], y: [-1, 1] で、

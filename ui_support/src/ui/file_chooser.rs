@@ -128,6 +128,20 @@ impl Model for FileChooser {
         self.select_box.bound()
     }
 
+    fn surface_instances(
+        &self,
+    ) -> Vec<&font_rasterizer::vector_instances::VectorInstances<String>> {
+        self.select_box.surface_instances()
+    }
+
+    fn set_surface_style(&mut self, surface_style: crate::layout_engine::ModelSurfaceStyle) {
+        self.select_box.set_surface_style(surface_style);
+    }
+
+    fn surface_style(&self) -> crate::layout_engine::ModelSurfaceStyle {
+        self.select_box.surface_style()
+    }
+
     fn glyph_instances(&self) -> Vec<&font_rasterizer::glyph_instances::GlyphInstances> {
         self.select_box.glyph_instances()
     }

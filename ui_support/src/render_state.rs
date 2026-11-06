@@ -5,11 +5,9 @@ use font_rasterizer::{
     char_width_calcurator::CharWidthCalculator,
     color_theme::ColorTheme,
     context::{StateContext, WindowSize},
-    glyph_instances::GlyphInstances,
     glyph_vertex_buffer::{Direction, GlyphVertexBuffer},
     rasterizer_pipeline::{Buffers, Quarity, RasterizerPipeline},
     svg::SvgVertexBuffer,
-    vector_instances::VectorInstances,
     vector_vertex_buffer::VectorVertexBuffer,
 };
 
@@ -25,6 +23,34 @@ use crate::{
 use stroke_parser::Action;
 use wgpu::{CurrentSurfaceTexture, InstanceDescriptor, SubmissionIndex};
 use winit::{dpi::PhysicalSize, event::WindowEvent, window::Window};
+
+fn model_batches_to_buffers<'a>(
+    glyph_vertex_buffer: &'a GlyphVertexBuffer,
+    vector_vertex_buffer: &'a VectorVertexBuffer<String>,
+    batches: &'a [crate::layout_engine::ModelRenderBatch<'a>],
+) -> Vec<Buffers<'a>> {
+    let mut buffers = Vec::new();
+    for batch in batches {
+        if !batch.surface_instances.is_empty() {
+            buffers.push(Buffers {
+                glyph_buffers: None,
+                vector_buffers: Some((vector_vertex_buffer, &batch.surface_instances)),
+            });
+        }
+
+        let glyph_buffers = (!batch.glyph_instances.is_empty())
+            .then_some((glyph_vertex_buffer, &batch.glyph_instances[..]));
+        let vector_buffers = (!batch.vector_instances.is_empty())
+            .then_some((vector_vertex_buffer, &batch.vector_instances[..]));
+        if glyph_buffers.is_some() || vector_buffers.is_some() {
+            buffers.push(Buffers {
+                glyph_buffers,
+                vector_buffers,
+            });
+        }
+    }
+    buffers
+}
 
 // レンダリング対象を表す。
 pub(crate) enum RenderTargetRequest {
@@ -451,7 +477,15 @@ impl RenderState {
             ascii_override_font,
             char_width_calcurator.clone(),
         );
-        let svg_vertex_buffer = SvgVertexBuffer::default();
+        let mut svg_vertex_buffer = SvgVertexBuffer::default();
+        svg_vertex_buffer
+            .append_svg(
+                &device,
+                &queue,
+                crate::layout_engine::MODEL_SURFACE_SVG_KEY,
+                include_str!("../asset/model_surface.svg"),
+            )
+            .expect("built-in model surface SVG must be valid");
 
         let (ui_string_sender, ui_string_receiver) = std::sync::mpsc::channel();
         let (ui_svg_sender, ui_svg_receiver) = std::sync::mpsc::channel();
@@ -757,55 +791,22 @@ impl RenderState {
         record_start_of_phase("render 3: callback render");
         let RenderData {
             camera,
-            glyph_instances,
-            vector_instances,
-            glyph_instances_for_modal,
-            vector_instances_for_modal,
+            model_batches,
+            modal_model_batches,
         } = self.simple_state_callback.render();
 
         record_start_of_phase("render 4: run all stage");
-        let buffers = {
-            let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
-                if glyph_instances.is_empty() {
-                    None
-                } else {
-                    Some((&self.glyph_vertex_buffer, &glyph_instances))
-                };
-            let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
-                if vector_instances.is_empty() {
-                    None
-                } else {
-                    Some((
-                        self.svg_vertex_buffer.vector_vertex_buffer(),
-                        &vector_instances,
-                    ))
-                };
-            Buffers {
-                glyph_buffers,
-                vector_buffers,
-            }
-        };
-        let modal_buffers = {
-            let glyph_buffers: Option<(&GlyphVertexBuffer, &[&GlyphInstances])> =
-                if glyph_instances_for_modal.is_empty() {
-                    None
-                } else {
-                    Some((&self.glyph_vertex_buffer, &glyph_instances_for_modal))
-                };
-            let vector_buffers: Option<(&VectorVertexBuffer<String>, &[&VectorInstances<String>])> =
-                if vector_instances_for_modal.is_empty() {
-                    None
-                } else {
-                    Some((
-                        self.svg_vertex_buffer.vector_vertex_buffer(),
-                        &vector_instances_for_modal,
-                    ))
-                };
-            Buffers {
-                glyph_buffers,
-                vector_buffers,
-            }
-        };
+        let vector_vertex_buffer = self.svg_vertex_buffer.vector_vertex_buffer();
+        let buffers = model_batches_to_buffers(
+            &self.glyph_vertex_buffer,
+            vector_vertex_buffer,
+            &model_batches,
+        );
+        let modal_buffers = model_batches_to_buffers(
+            &self.glyph_vertex_buffer,
+            vector_vertex_buffer,
+            &modal_model_batches,
+        );
 
         self.rasterizer_pipeline.run_all_stage(
             &mut encoder,
@@ -817,8 +818,8 @@ impl RenderState {
                     .build_default_view_projection_matrix()
                     .to_cols_array_2d(),
             ),
-            buffers,
-            modal_buffers,
+            &buffers,
+            &modal_buffers,
             screen_view,
         );
 

@@ -577,27 +577,34 @@ impl SimpleStateCallback for KashikishiCallback {
 
     fn render(&mut self) -> RenderData<'_> {
         let world = self.world.get();
-        let mut world_instances = world.glyph_instances();
-        let mut world_vector_instances = world.vector_instances();
-        let (mut glyph_instances_for_modal, vector_instances_for_modal) = world.modal_instances();
-
+        let mut model_batches = world.render_batches();
+        let mut modal_model_batches = world.modal_render_batches();
         let mut ime_instances = self.ime.get_instances();
 
-        if glyph_instances_for_modal.is_empty() {
-            world_instances.append(&mut self.world.overlay_glyph_instances());
-            world_vector_instances.append(&mut self.world.overlay_vector_instances());
-            world_instances.append(&mut ime_instances);
+        let has_modal_instances = modal_model_batches.iter().any(|batch| {
+            !batch.surface_instances.is_empty()
+                || !batch.vector_instances.is_empty()
+                || !batch.glyph_instances.is_empty()
+        });
+        if has_modal_instances {
+            if !ime_instances.is_empty() {
+                modal_model_batches.push(ui_support::layout_engine::ModelRenderBatch {
+                    surface_instances: vec![],
+                    vector_instances: vec![],
+                    glyph_instances: ime_instances,
+                });
+            }
         } else {
-            glyph_instances_for_modal.append(&mut ime_instances);
+            let mut overlay_glyph_instances = self.world.overlay_glyph_instances();
+            overlay_glyph_instances.append(&mut ime_instances);
+            model_batches.push(ui_support::layout_engine::ModelRenderBatch {
+                surface_instances: self.world.overlay_surface_instances(),
+                vector_instances: self.world.overlay_vector_instances(),
+                glyph_instances: overlay_glyph_instances,
+            });
         }
 
-        RenderData {
-            camera: self.world.get().camera(),
-            glyph_instances: world_instances,
-            vector_instances: world_vector_instances,
-            glyph_instances_for_modal,
-            vector_instances_for_modal,
-        }
+        RenderData::from_batches(world.camera(), model_batches, modal_model_batches)
     }
 
     fn initial_editor_settings(&self) -> ui_support::editor_settings::EditorSettings {

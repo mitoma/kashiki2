@@ -1,5 +1,25 @@
 # Log
 
+## [2026-11-06] fix | Card overlay surface の座標系を修正
+
+- ModalWorld overlay に surface instances の経路を追加し、Tagbase meta card の面を RenderData batch に渡す
+- TextEdit surface に glyph と同じ camera detail を設定し、`IGNORE_CAMERA` overlay での投影ずれを解消
+- tagbase E2E golden を更新し、通常比較で全シナリオ成功
+
+## [2026-11-05] refactor | Windfoil model batch を一括 resolve
+
+- Windfoil に順序付き複数 Buffers の draw collection を追加し、normal/modal ごとの render pass と resolve を一回に集約
+- Legacy は coverage/count のモデル間混在を避けるため per-batch composite fallback を維持
+- command palette phase avg 約 20→1 ms、tagbase 約 6→<1 ms (debug、GPU timestamp ではない)
+- E2E の微小な AA/量子化差を確認して PNG golden を更新し、通常比較で全シナリオ成功
+
+## [2026-11-05] ingest | Model bound surface と E2E 描画検証を反映
+
+- bound 面のモデル順合成、TextEdit の既定テーマ面、Legacy / Windfoil 共通合成段を設計・実装
+- `model-bound-surface` decision と `model-surface-e2e` workflow、実装 source summary を追加
+- `text-rendering-pipeline` と `index.md` を更新。tagbase memo の swap 中 snapshot を追加
+- E2E golden を更新後、通常比較で全シナリオ成功。残課題は角丸・半透明・border 境界共有
+
 ## [2026-09-13] ingest | テキストラスタライズ品質改善を反映
 
 - `font_rasterizer` の現行 WGSL を再確認し、signed coverage の格納 (`count.r/g/b`) と outline resolve の説明を更新

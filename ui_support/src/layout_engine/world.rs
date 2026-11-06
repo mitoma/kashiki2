@@ -8,6 +8,7 @@ use font_rasterizer::{
 
 use crate::{
     layout_engine::default_world::DebugWorldSnapshot,
+    layout_engine::model::ModelRenderBatch,
     ui_context::{CharEasingsPreset, UiContext},
 };
 
@@ -65,8 +66,23 @@ pub trait World {
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
     // vector_instances を返す
     fn vector_instances(&self) -> Vec<&VectorInstances<String>>;
+    fn render_batches(&self) -> Vec<ModelRenderBatch<'_>> {
+        vec![ModelRenderBatch {
+            surface_instances: vec![],
+            vector_instances: self.vector_instances(),
+            glyph_instances: self.glyph_instances(),
+        }]
+    }
     // モーダル時のインスタンスを返す
     fn modal_instances(&self) -> (Vec<&GlyphInstances>, Vec<&VectorInstances<String>>);
+    fn modal_render_batches(&self) -> Vec<ModelRenderBatch<'_>> {
+        let (glyph_instances, vector_instances) = self.modal_instances();
+        vec![ModelRenderBatch {
+            surface_instances: vec![],
+            vector_instances,
+            glyph_instances,
+        }]
+    }
 
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation);

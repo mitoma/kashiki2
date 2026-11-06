@@ -114,13 +114,13 @@ impl SimpleStateCallback for Callback {
         let mut world_instances = self.world.glyph_instances();
         let mut ime_instances = self.ime.get_instances();
         world_instances.append(&mut ime_instances);
-        ui_support::RenderData {
-            camera: self.world.camera(),
-            glyph_instances: world_instances,
-            vector_instances: self.world.vector_instances(),
-            glyph_instances_for_modal: vec![],
-            vector_instances_for_modal: vec![],
-        }
+        ui_support::RenderData::single_batch(
+            self.world.camera(),
+            world_instances,
+            self.world.vector_instances(),
+            vec![],
+            vec![],
+        )
     }
 
     fn shutdown(&mut self, _context: &ui_support::ui_context::UiContext) {}

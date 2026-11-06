@@ -38,6 +38,7 @@ pub enum Quarity {
     CappedVeryHigh(u32, u32),
 }
 
+#[derive(Clone, Copy)]
 pub struct Buffers<'a> {
     pub glyph_buffers: Option<(&'a GlyphVertexBuffer, &'a [&'a GlyphInstances])>,
     pub vector_buffers: Option<(
@@ -65,6 +66,8 @@ pub struct RasterizerPipeline {
     // outline_texture を外部から渡すため、ここで保持する
     pub(crate) outline_texture: ScreenTexture,
     pub(crate) outline_texture_for_modal: ScreenTexture,
+    composited_texture: ScreenTexture,
+    composited_texture_for_modal: ScreenTexture,
 
     // 背景色。
     pub bg_color: wgpu::Color,
@@ -84,6 +87,7 @@ pub struct RasterizerPipeline {
     pub(crate) screen_bind_group: ScreenBindGroup,
     pub(crate) screen_render_pipeline: wgpu::RenderPipeline,
     pub(crate) screen_render_modal_background_pipeline: wgpu::RenderPipeline,
+    compositing_pipeline: wgpu::RenderPipeline,
     pub(crate) screen_vertex_buffer: ScreenVertexBuffer,
 }
 
@@ -185,6 +189,18 @@ impl RasterizerPipeline {
             target_texture_format,
             Some("Outline Texture for Modal"),
         );
+        let composited_texture = ScreenTexture::new_with_format(
+            device,
+            (width, height),
+            wgpu::TextureFormat::Rgba16Float,
+            Some("Composited model layers"),
+        );
+        let composited_texture_for_modal = ScreenTexture::new_with_format(
+            device,
+            (width, height),
+            wgpu::TextureFormat::Rgba16Float,
+            Some("Composited modal model layers"),
+        );
 
         let background_image_shader =
             device.create_shader_module(BACKGROUND_IMAGE_SHADER_DESCRIPTOR);
@@ -209,7 +225,7 @@ impl RasterizerPipeline {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &background_image_shader,
-                    entry_point: Some("fs_main"),
+                    entry_point: Some("fs_resolve_straight"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: target_texture_format,
                         blend: Some(wgpu::BlendState::REPLACE),
@@ -311,7 +327,7 @@ impl RasterizerPipeline {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &screen_shader,
-                    entry_point: Some("fs_main_modal_background"),
+                    entry_point: Some("fs_modal_background_resolve_straight"),
                     targets: &[Some(wgpu::ColorTargetState {
                         format: target_texture_format,
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
@@ -343,6 +359,40 @@ impl RasterizerPipeline {
                 multiview_mask: None,
             });
 
+        let compositing_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Premultiplied model layer compositing"),
+            layout: Some(&screen_render_pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &screen_shader,
+                entry_point: Some("vs_main"),
+                buffers: &[Some(ScreenVertexBuffer::desc())],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &screen_shader,
+                entry_point: Some("fs_premultiply"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Rgba16Float,
+                    blend: Some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            cache: None,
+            multiview_mask: None,
+        });
+
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
         Self {
@@ -350,6 +400,8 @@ impl RasterizerPipeline {
             rasterizer_renderrer_for_modal,
             outline_texture,
             outline_texture_for_modal,
+            composited_texture,
+            composited_texture_for_modal,
             bg_color,
 
             // バックグラウンド
@@ -366,6 +418,7 @@ impl RasterizerPipeline {
             // default
             screen_render_pipeline,
             screen_render_modal_background_pipeline,
+            compositing_pipeline,
             screen_bind_group,
             screen_vertex_buffer,
         }
@@ -378,29 +431,142 @@ impl RasterizerPipeline {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
-        buffers: Buffers,
-        modal_buffers: Buffers,
+        buffers: &[Buffers],
+        modal_buffers: &[Buffers],
         screen_view: wgpu::TextureView,
     ) {
-        let has_modal_background =
-            modal_buffers.glyph_buffers.is_some() || modal_buffers.vector_buffers.is_some();
+        let has_modal_background = modal_buffers
+            .iter()
+            .any(|buffers| buffers.glyph_buffers.is_some() || buffers.vector_buffers.is_some());
 
-        self.rasterizer_renderrer.prepare(device, queue, view_proj);
-        self.rasterizer_renderrer
-            .render(encoder, buffers, &self.outline_texture.view);
+        let render_ordered_batches = self.rasterizer_renderrer.supports_ordered_batches();
+        if render_ordered_batches {
+            self.rasterizer_renderrer.prepare(device, queue, view_proj);
+            self.rasterizer_renderrer
+                .render_ordered(encoder, buffers, &self.outline_texture.view);
 
-        if has_modal_background {
-            self.rasterizer_renderrer_for_modal
-                .prepare(device, queue, view_proj);
-            self.rasterizer_renderrer_for_modal.render(
-                encoder,
-                modal_buffers,
-                &self.outline_texture_for_modal.view,
-            );
+            if has_modal_background {
+                self.rasterizer_renderrer_for_modal
+                    .prepare(device, queue, view_proj);
+                self.rasterizer_renderrer_for_modal.render_ordered(
+                    encoder,
+                    modal_buffers,
+                    &self.outline_texture_for_modal.view,
+                );
+            }
+        } else {
+            self.rasterizer_renderrer.prepare(device, queue, view_proj);
+            Self::clear_texture(encoder, &self.composited_texture.view, "Clear model layers");
+            let layer_bind_group = self
+                .screen_bind_group
+                .to_bind_group(device, &self.outline_texture);
+            for buffers in buffers {
+                if buffers.glyph_buffers.is_none() && buffers.vector_buffers.is_none() {
+                    continue;
+                }
+                self.rasterizer_renderrer
+                    .render(encoder, *buffers, &self.outline_texture.view);
+                self.composite_layer(encoder, &layer_bind_group, &self.composited_texture.view);
+            }
+
+            if has_modal_background {
+                self.rasterizer_renderrer_for_modal
+                    .prepare(device, queue, view_proj);
+                Self::clear_texture(
+                    encoder,
+                    &self.composited_texture_for_modal.view,
+                    "Clear modal model layers",
+                );
+                let modal_layer_bind_group = self
+                    .screen_bind_group
+                    .to_bind_group(device, &self.outline_texture_for_modal);
+                for buffers in modal_buffers {
+                    if buffers.glyph_buffers.is_none() && buffers.vector_buffers.is_none() {
+                        continue;
+                    }
+                    self.rasterizer_renderrer_for_modal.render(
+                        encoder,
+                        *buffers,
+                        &self.outline_texture_for_modal.view,
+                    );
+                    self.composite_layer(
+                        encoder,
+                        &modal_layer_bind_group,
+                        &self.composited_texture_for_modal.view,
+                    );
+                }
+            } else {
+                Self::clear_texture(
+                    encoder,
+                    &self.composited_texture_for_modal.view,
+                    "Clear modal model layers",
+                );
+            }
         }
 
         self.screen_background_image_stage(encoder, device, &screen_view);
-        self.screen_stage(encoder, device, screen_view, has_modal_background);
+        self.screen_stage(
+            encoder,
+            device,
+            screen_view,
+            has_modal_background,
+            render_ordered_batches,
+        );
+    }
+
+    fn clear_texture(
+        encoder: &mut wgpu::CommandEncoder,
+        view: &wgpu::TextureView,
+        label: &'static str,
+    ) {
+        let _pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some(label),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: wgpu::StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+    }
+
+    fn composite_layer(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        bind_group: &wgpu::BindGroup,
+        target_view: &wgpu::TextureView,
+    ) {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Composite model layer"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: target_view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+                depth_slice: None,
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+        pass.set_pipeline(&self.compositing_pipeline);
+        pass.set_bind_group(0, bind_group, &[]);
+        pass.set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
+        pass.set_index_buffer(
+            self.screen_vertex_buffer.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+        pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
     }
 
     pub(crate) fn screen_stage(
@@ -409,13 +575,21 @@ impl RasterizerPipeline {
         device: &wgpu::Device,
         screen_view: wgpu::TextureView,
         has_modal_background: bool,
+        render_ordered_batches: bool,
     ) {
-        let screen_bind_group = &self
-            .screen_bind_group
-            .to_bind_group(device, &self.outline_texture);
-        let screen_bind_group_for_modal = &self
-            .screen_bind_group
-            .to_bind_group(device, &self.outline_texture_for_modal);
+        let main_texture = if render_ordered_batches {
+            &self.outline_texture
+        } else {
+            &self.composited_texture
+        };
+        let modal_texture = if render_ordered_batches {
+            &self.outline_texture_for_modal
+        } else {
+            &self.composited_texture_for_modal
+        };
+        let screen_bind_group = &self.screen_bind_group.to_bind_group(device, main_texture);
+        let screen_bind_group_for_modal =
+            &self.screen_bind_group.to_bind_group(device, modal_texture);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
