@@ -1,3 +1,4 @@
+- Card は border なしでは通常 bound を使う。border は bound から 1 セル外側が中心線で、線幅は viewBox 9 単位中 1 単位のため、surface inset は内縁の `17/18` セル。Rounded の内側曲線は `border_top_left.svg` の 4/9 セル半径を使い、border 形状に一致させる。
 ---
 title: Model Bound Surface
 kind: decision
@@ -28,6 +29,7 @@ related_pages:
 - 色は `ColorTheme::background()` に追従する。モデル API から `None`、テーマ背景、RGB 色を選べる。
 - 面は現在のモデル位置・回転・world scale・bound を利用し、bound アニメーションに追従する。
 - surface instance は TextEdit glyph と同じ `camera_detail` を使用する。Card overlay のように `IGNORE_CAMERA` を使う UI でも面と文字の座標系を揃える。
+- Card は border なしでは通常 bound を使う。border ありでは内縁まで塗り、Rounded は bound に合わせて生成した半径 0.5 セルの rounded geometry を使う。単に四角い矩形を広げない。
 - SVG geometry は RenderState 初期化時に一度登録する。利用側 callback に登録責務を置かない。
 - modal は通常 World とは独立して合成し、既存の modal 背景ぼかしと最終合成を保つ。
 - Windfoil では normal/modal それぞれ一回の ordered render/resolve にまとめる。Legacy は従来経路を使う。

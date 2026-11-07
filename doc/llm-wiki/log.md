@@ -1,4 +1,19 @@
 # Log
+## [2026-11-07] fix | Card surface inset を border SVG に一致
+
+- `border_top_left.svg` の 9-unit viewBox から inner corner radius 4/9、border edge inset 17/18 を導出
+- Card surface geometry を border 内側の二次曲線に一致させ、tagbase の E2E golden を更新
+
+
+## [2026-11-06] fix | Card fill を角丸 border に一致
+
+- 0.5 セル outset の四角い fill を、bound と固定半径から生成する rounded SVG surface に変更
+- 横書き/縦書き meta card の E2E 画像で角丸内側の塗りを確認し、golden 更新後に通常比較で全シナリオ成功
+
+## [2026-11-06] fix | Card surface を border 内縁まで拡張
+
+- TextEdit surface に per-side outset を追加し、Card で border 有効時だけ各辺 0.5 セルを設定
+- 水平/垂直 E2E 画像で Rounded border 内側の塗りを確認し、golden 更新後に通常比較で全シナリオ成功
 
 ## [2026-11-06] fix | Card overlay surface の座標系を修正
 

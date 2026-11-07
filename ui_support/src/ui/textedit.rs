@@ -109,6 +109,9 @@ pub struct TextEdit {
     border: ModelBorder,
     surface_style: ModelSurfaceStyle,
     surface_instances: Option<VectorInstances<String>>,
+    surface_outset: [f32; 2],
+    surface_corner_radius: f32,
+    surface_geometry_key: String,
 }
 
 impl Default for TextEdit {
@@ -536,6 +539,9 @@ impl TextEdit {
             border: ModelBorder::default(),
             surface_style: ModelSurfaceStyle::ThemeBackground,
             surface_instances: None,
+            surface_outset: [0.0, 0.0],
+            surface_corner_radius: 0.0,
+            surface_geometry_key: MODEL_SURFACE_SVG_KEY.to_owned(),
         }
     }
 
@@ -549,9 +555,38 @@ impl TextEdit {
             ModelSurfaceStyle::Color(color) => color,
         };
 
+        let [bound_width, bound_height] = self.bound.last();
+        let surface_width = bound_width + self.surface_outset[0] * 2.0;
+        let surface_height = bound_height + self.surface_outset[1] * 2.0;
+        let surface_size_scale = surface_width.max(surface_height);
+        let surface_geometry_key = if self.surface_corner_radius > 0.0 {
+            format!(
+                "{}_rounded_{:08x}_{:08x}_{:08x}",
+                MODEL_SURFACE_SVG_KEY,
+                surface_width.to_bits(),
+                surface_height.to_bits(),
+                self.surface_corner_radius.to_bits(),
+            )
+        } else {
+            MODEL_SURFACE_SVG_KEY.to_owned()
+        };
+        if self.surface_geometry_key != surface_geometry_key {
+            if self.surface_corner_radius > 0.0 {
+                context.register_svg(
+                    surface_geometry_key.clone(),
+                    Self::rounded_surface_svg(
+                        surface_width,
+                        surface_height,
+                        self.surface_corner_radius,
+                    ),
+                );
+            }
+            self.surface_geometry_key = surface_geometry_key.clone();
+            self.surface_instances = None;
+        }
+
         let instances = self.surface_instances.get_or_insert_with(|| {
-            let mut instances =
-                VectorInstances::new(MODEL_SURFACE_SVG_KEY.to_owned(), context.device());
+            let mut instances = VectorInstances::new(surface_geometry_key, context.device());
             instances.insert(InstanceKey::Monotonic(0), InstanceAttributes::default());
             instances
         });
@@ -559,13 +594,33 @@ impl TextEdit {
             attributes.position = self.position.current().into();
             attributes.rotation = Quat::from_array(self.rotation.current());
             attributes.world_scale = self.world_scale;
-            attributes.instance_scale = self.bound.current();
+            let [current_bound_width, current_bound_height] = self.bound.current();
+            let current_surface_width = current_bound_width + self.surface_outset[0] * 2.0;
+            let current_surface_height = current_bound_height + self.surface_outset[1] * 2.0;
+            attributes.instance_scale = if self.surface_corner_radius > 0.0 {
+                [
+                    surface_size_scale * current_surface_width / surface_width,
+                    surface_size_scale * current_surface_height / surface_height,
+                ]
+            } else {
+                [current_surface_width, current_surface_height]
+            };
             attributes.color = color;
             attributes.motion = MotionFlags::builder()
                 .camera_detail(self.config.char_easings.add_char.motion.camera_detail())
                 .build();
         }
         instances.update_buffer(context.device(), context.queue());
+    }
+
+    fn rounded_surface_svg(width: f32, height: f32, radius: f32) -> String {
+        format!(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"><path d=\"M {radius} 0 H {} Q {width} 0 {width} {radius} V {} Q {width} {height} {} {height} H {radius} Q 0 {height} 0 {} V {radius} Q 0 0 {radius} 0 Z\" /></svg>",
+            width - radius,
+            height - radius,
+            width - radius,
+            height - radius,
+        )
     }
 
     pub fn from_context(context: &UiContext) -> Self {
@@ -1103,6 +1158,20 @@ impl TextEdit {
 
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
         self.world_scale = world_scale;
+    }
+
+    pub(crate) fn set_surface_outset(&mut self, surface_outset: [f32; 2]) {
+        if self.surface_outset != surface_outset {
+            self.surface_outset = surface_outset;
+            self.config_updated = true;
+        }
+    }
+
+    pub(crate) fn set_surface_corner_radius(&mut self, radius: f32) {
+        if self.surface_corner_radius != radius {
+            self.surface_corner_radius = radius;
+            self.config_updated = true;
+        }
     }
 
     #[inline]

@@ -1,3 +1,4 @@
+- Card は border なしなら TextEdit bound の面を使う。border SVG は viewBox 9 単位中 1 単位幅で、中心線は bound から 1 セル外にあるため、面の端は半線幅 `1 - 1/18 = 17/18` セル外とする。Rounded の内側曲線は同 SVG の 4 単位半径に合わせ `4/9` セルを使う。
 # Model Bound Surface 設計
 
 ## 目的
@@ -12,6 +13,7 @@
 - 背景だけを全モデル分まとめて先に描くことはしない。そうすると、背面モデルの glyph が前面モデルの背景より後に描かれて透けてしまう。
 - 面の矩形はモデルと同一の現在の変換・bound を利用する。bound や位置のアニメーション中も、文字・border とずれないこと。
 - surface の camera detail は TextEdit の glyph easing 設定から引き継ぐ。Card など camera-ignore overlay の面だけが通常 camera で投影されないようにする。
+- Card は border なしなら TextEdit bound の面を使う。Square/Rounded border では bound より各辺 0.5 セル外側まで面を広げ、Rounded は半径 0.5 セルの角丸 geometry にする。面の角も border 内縁と一致させる。
 
 ## モデル API と既定値
 

@@ -48,6 +48,8 @@ const CARD_DEFAULT_SCALE: [f32; 2] = [0.05, 0.05];
 const CARD_SCREEN_MARGIN: f32 = 0.05;
 // TextEdit の罫線は bound の 1 セル外側に描画されるため、その分だけ内側に寄せる
 const CARD_BORDER_OUTSET: f32 = 1.0;
+const CARD_SURFACE_OUTSET: f32 = 1.0 - 0.5 / 9.0;
+const CARD_SURFACE_CORNER_RADIUS: f32 = 4.0 / 9.0;
 
 impl Card {
     pub fn new() -> Self {
@@ -60,9 +62,7 @@ impl Card {
             TextEdit::new(editor_settings.text_context(EditorTextContextProfile::Card));
         text_edit.set_world_scale(CARD_DEFAULT_SCALE);
         text_edit.set_position((0.0, -1.5, 0.0).into());
-        text_edit.set_surface_style(crate::layout_engine::ModelSurfaceStyle::Color([
-            0.5, 0.5, 1.0,
-        ]));
+        text_edit.set_surface_style(crate::layout_engine::ModelSurfaceStyle::ThemeBackground);
 
         Self {
             text_edit,
@@ -79,6 +79,18 @@ impl Card {
 
     pub fn set_border(&mut self, border: ModelBorder) {
         self.text_edit.set_border(border);
+        let surface_outset = if border == ModelBorder::None {
+            [0.0, 0.0]
+        } else {
+            [CARD_SURFACE_OUTSET; 2]
+        };
+        self.text_edit.set_surface_outset(surface_outset);
+        self.text_edit
+            .set_surface_corner_radius(if border == ModelBorder::Rounded {
+                CARD_SURFACE_CORNER_RADIUS
+            } else {
+                0.0
+            });
     }
 
     pub fn border(&self) -> ModelBorder {
