@@ -6,13 +6,13 @@ Windfoil は、輪郭線をたくさんの三角形に分けて塗る代わり�
 
 > この記事は、[Windfoil の公開仕様](https://github.com/texel-org/windfoil-algorithm/blob/main/docs/ALGORITHM.md)を参考にしつつ、炊紙（kashikishi）の実装を説明します。実装は元のコードのコピーではなく、二次ベジェ曲線と WebGPU のシェーダーを使って組み込んだものです。
 
-## 炊紙では描画方式を切り替えられる
+## 炊紙の描画方式
 
-炊紙では、従来の三角形描画を使う **Legacy** と、この記事で説明する **Windfoil** をバックエンドとして選択できます。既定は Legacy で、Windfoil が従来の処理を全面的に置き換えるわけではありません。
+炊紙の描画は、この記事で説明する **Windfoil** に統一されています。従来の三角形描画を使う Legacy と描画方式の切り替え機能は廃止しました。
 
-操作メニューの「描画方式の変更」から、再起動せずに切り替えられます。アクション名は `system:change-rendering-backend-ui`、直接指定する場合は `system:change-rendering-backend` に `legacy` または `windfoil` を渡します。選択はエディター設定の `rendering_backend` に `Legacy` / `Windfoil` として保存され、リサイズ・画面品質・塗り規則の変更後も維持されます。設定項目がない既存の設定ファイルでは Legacy を使います。
+既存のエディター設定に `rendering_backend` が残っていても、他の設定を維持したまま Windfoil で動作します。この項目は読み込み時に無視し、再保存時には出力しません。
 
-ライブラリからは `RasterizerPipeline::new_with_backend` または `RasterizerRenderrer::new_with_backend` で選択します。既存の `new` は Legacy のままです。PNG 出力にも `render_vector_vertex_to_png_with_backend` とその非同期版があり、同じ輪郭を両方式で比較できます。ただし、アンチエイリアスの計算方法が異なるため、両方式で全く同じ画素値になることは保証しません。
+ライブラリからは `RasterizerPipeline::new` または `RasterizerRenderrer::new` を使用します。PNG 出力は `render_vector_vertex_to_png` とその非同期版を使用します。いずれも Windfoil で描画し、`RenderingBackend` と `*_with_backend` 系 API は提供しません。
 
 ## まず「輪郭線の中」を決めたい
 

@@ -12,9 +12,7 @@ mod glyph_cache;
 pub use glyph_cache::clear_glyph_cache;
 pub mod glyph_instances;
 pub mod glyph_vertex_buffer;
-mod legacy_renderrer;
 pub mod motion;
-mod outline_bind_group;
 mod overlap_bind_group;
 mod projected_curves;
 pub mod rasterizer_pipeline;
@@ -35,6 +33,5 @@ pub mod vector_vertex_png_renderer;
 mod windfoil;
 mod windfoil_renderrer;
 
-pub use rasterizer_renderrer::RenderingBackend;
 pub use straighten_outline_builder::StraightenOutlineBuilder;
 pub use vector_vertex::{QuadraticCurve, VectorVertex, VectorVertexBuilder, VertexPointKind};

@@ -33,12 +33,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 }
 
 @fragment
-fn fs_premultiply(in: VertexOutput) -> @location(0) vec4<f32> {
-    let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    return vec4<f32>(color.rgb * color.a, color.a);
-}
-
-@fragment
 fn fs_resolve_straight(in: VertexOutput) -> @location(0) vec4<f32> {
     let color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     return vec4<f32>(color.rgb / max(color.a, 1e-8), color.a);

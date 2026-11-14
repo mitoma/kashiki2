@@ -8,7 +8,7 @@ use image::{ImageBuffer, Rgba};
 use crate::{
     errors::FontRasterizerError,
     rasterizer_pipeline::Buffers,
-    rasterizer_renderrer::{OutlineFillRule, RasterizerRenderrer, RenderingBackend},
+    rasterizer_renderrer::{OutlineFillRule, RasterizerRenderrer},
     vector_instances::{InstanceAttributes, VectorInstances},
     vector_vertex::VectorVertex,
     vector_vertex_buffer::VectorVertexBuffer,
@@ -53,35 +53,6 @@ pub async fn render_vector_vertex_to_png_async(
     output_path: impl AsRef<Path>,
     options: VectorVertexPngRendererOptions,
 ) -> Result<(), FontRasterizerError> {
-    render_vector_vertex_to_png_with_backend_async(
-        vector_vertex,
-        output_path,
-        options,
-        RenderingBackend::Legacy,
-    )
-    .await
-}
-
-pub fn render_vector_vertex_to_png_with_backend(
-    vector_vertex: VectorVertex,
-    output_path: impl AsRef<Path>,
-    options: VectorVertexPngRendererOptions,
-    backend: RenderingBackend,
-) -> Result<(), FontRasterizerError> {
-    pollster::block_on(render_vector_vertex_to_png_with_backend_async(
-        vector_vertex,
-        output_path,
-        options,
-        backend,
-    ))
-}
-
-pub async fn render_vector_vertex_to_png_with_backend_async(
-    vector_vertex: VectorVertex,
-    output_path: impl AsRef<Path>,
-    options: VectorVertexPngRendererOptions,
-    backend: RenderingBackend,
-) -> Result<(), FontRasterizerError> {
     let attributes = InstanceAttributes {
         position: Vec3::ZERO,
         rotation: Quat::IDENTITY,
@@ -96,7 +67,6 @@ pub async fn render_vector_vertex_to_png_with_backend_async(
         attributes,
         Mat4::IDENTITY,
         true,
-        backend,
     )
     .await
 }
@@ -108,10 +78,8 @@ async fn render_with_transform(
     attributes: InstanceAttributes,
     view_proj: Mat4,
     preproject_curves: bool,
-    backend: RenderingBackend,
 ) -> Result<(), FontRasterizerError> {
-    // headless(サーフェスなし)描画時、Windows の Vulkan ドライバでは overlap ステージの
-    // 描画コマンドがラスタライズされない既知の不具合があるため、Windows では DX12 を強制する。
+    // headless 描画は既存の GPU 回帰テストと同じ条件に揃え、Windows では DX12 を使用する。
     let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
     if cfg!(target_os = "windows") {
         instance_descriptor.backends = wgpu::Backends::DX12;
@@ -123,20 +91,10 @@ async fn render_with_transform(
         .await
         .unwrap();
 
-    let mut features = wgpu::Features::empty();
-    if backend == RenderingBackend::Legacy
-        && options.enable_antialiasing
-        && adapter
-            .features()
-            .contains(wgpu::Features::CONSERVATIVE_RASTERIZATION)
-    {
-        features |= wgpu::Features::CONSERVATIVE_RASTERIZATION;
-    }
-
     let (device, queue) = adapter
         .request_device(&wgpu::DeviceDescriptor {
             label: Some("Vector Vertex PNG Renderer Device"),
-            required_features: features,
+            required_features: wgpu::Features::empty(),
             required_limits: wgpu::Limits::default(),
             memory_hints: wgpu::MemoryHints::Performance,
             trace: wgpu::Trace::default(),
@@ -184,26 +142,15 @@ async fn render_with_transform(
     vector_instances.push(attributes);
     vector_instances.update_buffer(&device, &queue);
 
-    let mut rasterizer = if backend == RenderingBackend::Windfoil {
-        RasterizerRenderrer::new_with_curve_projection(
-            &device,
-            options.width,
-            options.height,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
-            options.enable_antialiasing,
-            options.outline_fill_rule,
-            preproject_curves,
-        )
-    } else {
-        RasterizerRenderrer::new(
-            &device,
-            options.width,
-            options.height,
-            wgpu::TextureFormat::Rgba8UnormSrgb,
-            options.enable_antialiasing,
-            options.outline_fill_rule,
-        )
-    };
+    let mut rasterizer = RasterizerRenderrer::new_with_curve_projection(
+        &device,
+        options.width,
+        options.height,
+        wgpu::TextureFormat::Rgba8UnormSrgb,
+        options.enable_antialiasing,
+        options.outline_fill_rule,
+        preproject_curves,
+    );
 
     rasterizer.prepare(
         &device,
@@ -281,7 +228,7 @@ async fn render_with_transform(
     drop(data);
     output_buffer.unmap();
 
-    // outline_stage は LoadOp::Clear(TRANSPARENT) で書き込むため、
+    // Windfoil の resolve は透明な背景へ書き込むため、
     // GPU 側ではバックグラウンドカラーを合成できない。
     // 読み出し後にソフトウェアでアルファ合成する。
     let bg = options.background_color;
@@ -392,7 +339,6 @@ mod tests {
             attributes,
             view,
             preproject_curves,
-            RenderingBackend::Windfoil,
         ))
         .unwrap();
         let image = image::open(&path).unwrap().to_rgba8();
@@ -413,6 +359,35 @@ mod tests {
                 (actual - expected).abs() <= 1.1 / 255.0,
                 "pixel ({horizontal}, {vertical}): {actual} != {expected}"
             );
+        }
+    }
+
+    #[test]
+    #[ignore = "requires a WebGPU adapter"]
+    fn windfoil_default_png_renderer_preserves_analytic_coverage() {
+        let bounds = [17.25, 18.75, 44.75, 45.25];
+        for rule in [OutlineFillRule::NonZero, OutlineFillRule::EvenOdd] {
+            let mut builder = VectorVertexBuilder::new();
+            rectangle(&mut builder, bounds, false);
+            let path = std::env::temp_dir().join(format!(
+                "kashiki-default-png-{}-{rule:?}.png",
+                std::process::id()
+            ));
+            render_vector_vertex_to_png(
+                builder.build(),
+                &path,
+                VectorVertexPngRendererOptions {
+                    width: 64,
+                    height: 64,
+                    background_color: [0; 4],
+                    outline_fill_rule: rule,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let image = image::open(&path).unwrap().to_rgba8();
+            std::fs::remove_file(path).unwrap();
+            assert_rectangle(&image, bounds);
         }
     }
 

@@ -2,16 +2,10 @@ use image::{DynamicImage, GenericImageView};
 
 pub struct ScreenTexture {
     pub view: wgpu::TextureView,
-    pub sampler: wgpu::Sampler,
     pub texture_format: wgpu::TextureFormat,
 }
 
 impl ScreenTexture {
-    pub fn new(device: &wgpu::Device, size: (u32, u32), label: Option<&str>) -> Self {
-        let texture_format = wgpu::TextureFormat::Bgra8UnormSrgb;
-        Self::new_with_format(device, size, texture_format, label)
-    }
-
     pub fn new_with_format(
         device: &wgpu::Device,
         size: (u32, u32),
@@ -38,19 +32,8 @@ impl ScreenTexture {
         });
 
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::MipmapFilterMode::Linear,
-            ..Default::default()
-        });
-
         Self {
             view,
-            sampler,
             texture_format,
         }
     }
