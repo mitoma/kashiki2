@@ -1364,7 +1364,10 @@ dependencies = [
  "dirs",
  "log",
  "read-fonts 0.45.0",
+ "serde",
+ "serde_json",
  "skrifa 0.48.0",
+ "tempfile",
 ]
 
 [[package]]

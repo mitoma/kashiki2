@@ -242,6 +242,11 @@ pub async fn run(args: Args) {
         let mut font_collector = FontCollector::default();
         if !args.use_embedded_font {
             font_collector.add_system_fonts();
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(cache_dir) = dirs::cache_dir() {
+                font_collector
+                    .set_name_cache_file(cache_dir.join("kashikishi").join("font_names.json"));
+            }
         }
         let mut font_repository = FontRepository::new(font_collector);
         if !args.use_embedded_font {

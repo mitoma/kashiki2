@@ -1,10 +1,14 @@
 pub mod convert_text;
+mod name_cache;
 
+use std::collections::HashSet;
 use std::env::consts::OS;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use convert_text::PreferredLanguage;
 use log::{info, warn};
+use name_cache::{FileStamp, FontNameCache};
 
 #[derive(Debug, Clone)]
 pub struct FontData {
@@ -87,6 +91,7 @@ impl FontRepository {
 pub struct FontCollector {
     font_paths: Vec<PathBuf>,
     preffered_language: Option<PreferredLanguage>,
+    name_cache: Mutex<FontNameCache>,
 }
 
 impl Default for FontCollector {
@@ -94,11 +99,21 @@ impl Default for FontCollector {
         Self {
             font_paths: Vec::new(),
             preffered_language: Some(PreferredLanguage::Japanese),
+            name_cache: Mutex::new(FontNameCache::default()),
         }
     }
 }
 
 impl FontCollector {
+    /// フォント名の解析結果をキャッシュするファイルを設定する。
+    /// 設定しない場合でもプロセス内ではキャッシュされる。
+    pub fn set_name_cache_file(&mut self, path: PathBuf) {
+        self.name_cache
+            .get_mut()
+            .unwrap_or_else(|e| e.into_inner())
+            .set_file_path(path);
+    }
+
     pub fn add_system_fonts(&mut self) {
         self.font_paths.push(system_font_dir());
         if let Some(path) = user_font_dir() {
@@ -110,23 +125,29 @@ impl FontCollector {
         self.font_paths.push(path);
     }
 
-    fn list_font_files(&self) -> Vec<PathBuf> {
+    fn list_font_files(&self) -> Vec<(PathBuf, Option<FileStamp>)> {
         let mut fonts = Vec::new();
 
         for font_path in &self.font_paths {
-            if !font_path.exists() {
+            let Ok(metadata) = std::fs::metadata(font_path) else {
                 warn!("font_path:{:?} not found", font_path);
                 continue;
-            }
-            if font_path.is_file() {
-                fonts.push(font_path.clone());
+            };
+            if metadata.is_file() {
+                fonts.push((font_path.clone(), FileStamp::from_metadata(&metadata)));
                 continue;
             }
             for entry in std::fs::read_dir(font_path).unwrap() {
                 let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_file() {
-                    fonts.push(path);
+                // Windows では DirEntry::metadata が追加のファイルアクセスなしで取得できるので速い
+                let metadata = match entry.metadata() {
+                    Ok(metadata) if metadata.is_symlink() => std::fs::metadata(entry.path()),
+                    other => other,
+                };
+                if let Ok(metadata) = metadata
+                    && metadata.is_file()
+                {
+                    fonts.push((entry.path(), FileStamp::from_metadata(&metadata)));
                 }
             }
         }
@@ -134,16 +155,32 @@ impl FontCollector {
     }
 
     fn list_fonts(&self) -> Vec<Font> {
-        let font_file_paths = self.list_font_files();
+        let font_files = self.list_font_files();
+        let mut cache = self.name_cache.lock().unwrap_or_else(|e| e.into_inner());
+        cache.ensure_loaded(self.preffered_language);
+
         let mut fonts = Vec::new();
-        for font_path in font_file_paths {
-            let font_names = font_names(&font_path, self.preffered_language);
+        let mut found_paths = HashSet::new();
+        for (font_path, stamp) in font_files {
+            let cached_names = stamp.and_then(|stamp| cache.get(&font_path, stamp).cloned());
+            let font_names = match (cached_names, stamp) {
+                (Some(names), _) => names,
+                (None, Some(stamp)) => {
+                    let names = font_names(&font_path, self.preffered_language);
+                    cache.insert(font_path.clone(), stamp, names.clone());
+                    names
+                }
+                (None, None) => font_names(&font_path, self.preffered_language),
+            };
+            found_paths.insert(font_path.clone());
             if font_names.is_empty() {
                 continue;
             }
             info!("font_path:{:?}, names:{:?}", font_path, font_names);
-            fonts.push(Font::File(font_path.clone(), font_names));
+            fonts.push(Font::File(font_path, font_names));
         }
+        cache.retain(&found_paths);
+        cache.save_if_dirty(self.preffered_language);
         fonts
     }
 
@@ -208,9 +245,14 @@ fn user_font_dir() -> Option<PathBuf> {
     None
 }
 
-fn font_names(font_path: &PathBuf, preferred_language: Option<PreferredLanguage>) -> Vec<String> {
-    let data = std::fs::read(font_path).unwrap();
-    font_names_from_data(data.as_slice(), preferred_language)
+fn font_names(font_path: &Path, preferred_language: Option<PreferredLanguage>) -> Vec<String> {
+    match std::fs::read(font_path) {
+        Ok(data) => font_names_from_data(data.as_slice(), preferred_language),
+        Err(e) => {
+            warn!("failed to read font file:{:?}, error:{}", font_path, e);
+            Vec::new()
+        }
+    }
 }
 
 fn font_names_from_data(data: &[u8], preferred_language: Option<PreferredLanguage>) -> Vec<String> {
@@ -300,5 +342,39 @@ mod tests {
             font_names.is_empty(),
             "Font names should be empty when font directories are missing"
         );
+    }
+
+    #[test]
+    fn test_name_cache_file_is_reused_and_invalidated() {
+        let dir = tempfile::tempdir().unwrap();
+        let font_path = dir.path().join("font.ttf");
+        std::fs::copy("../fonts/BIZUDMincho-Regular.ttf", &font_path).unwrap();
+        let cache_path = dir.path().join("cache").join("font_names.json");
+        let new_collector = || {
+            let mut collector = FontCollector::default();
+            collector.add_font_path(font_path.clone());
+            collector.set_name_cache_file(cache_path.clone());
+            collector
+        };
+
+        let original_names = new_collector().list_font_names();
+        assert_eq!(original_names.len(), 1);
+        assert!(cache_path.exists(), "cache file should be written");
+
+        // ファイルが変わっていなければフォントを解析せずキャッシュの値を使う
+        let cache_text = std::fs::read_to_string(&cache_path).unwrap();
+        let tampered = cache_text.replace(&original_names[0], "Cached Font Name");
+        std::fs::write(&cache_path, tampered).unwrap();
+        assert_eq!(
+            new_collector().list_font_names(),
+            vec!["Cached Font Name".to_string()]
+        );
+
+        // フォントファイルが変わったら解析し直す
+        std::fs::copy("../fonts/NotoEmoji-Regular.ttf", &font_path).unwrap();
+        let updated_names = new_collector().list_font_names();
+        assert_eq!(updated_names.len(), 1);
+        assert_ne!(updated_names, vec!["Cached Font Name".to_string()]);
+        assert_ne!(updated_names, original_names);
     }
 }
