@@ -99,6 +99,21 @@ description = "Run kashikishi E2E scenarios and update expected snapshots"
 run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"
 env = { UPDATE_SNAPSHOTS = "1" }
 
+[tasks.e2e-select]
+description = "Select kashikishi E2E scenarios interactively and run them (requires GPU)"
+run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"
+env = { E2E_SELECT = "1" }
+
+[tasks.e2e-headed-select]
+description = "Select kashikishi E2E scenarios interactively and replay them in a window (no comparison)"
+run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored --nocapture"
+env = { E2E_HEADED = "1", E2E_SELECT = "1" }
+
+[tasks.e2e-update-select]
+description = "Select kashikishi E2E scenarios interactively and update their expected snapshots"
+run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"
+env = { UPDATE_SNAPSHOTS = "1", E2E_SELECT = "1" }
+
 [tasks.demo]
 description = "Replay the kashikishi introduction scenario in a window (for recording demo videos)"
 run = "cargo run -p kashikishi -- test --scenario kashikishi/demo/introduction.jsonl --headed"

@@ -5,6 +5,7 @@
 //! GPU を使うため通常の `cargo test` では実行せず、`mise r e2e` で実行する。
 //! `UPDATE_SNAPSHOTS=1` を指定すると期待値を更新する。
 //! `E2E_HEADED=1`（`mise r e2e-headed`）を指定すると、各シナリオをウィンドウで再生するだけで比較はしない。
+//! `E2E_SELECT=1`（`mise r e2e-select` など）を指定すると、実行するシナリオをターミナルで選択できる。
 
 use std::{
     collections::BTreeSet,
@@ -31,6 +32,27 @@ fn scenarios() -> Vec<PathBuf> {
         .collect();
     scenarios.sort();
     scenarios
+}
+
+fn scenario_name(scenario: &Path) -> String {
+    scenario
+        .file_stem()
+        .expect("scenario file name")
+        .to_string_lossy()
+        .to_string()
+}
+
+/// 実行するシナリオをターミナルで対話的に選ばせる
+fn select_scenarios(scenarios: Vec<PathBuf>) -> Vec<PathBuf> {
+    let names: Vec<String> = scenarios.iter().map(|path| scenario_name(path)).collect();
+    let selected = inquire::MultiSelect::new("実行するシナリオを選択してください", names)
+        .with_page_size(20)
+        .raw_prompt()
+        .expect("failed to select scenarios");
+    selected
+        .into_iter()
+        .map(|option| scenarios[option.index].clone())
+        .collect()
 }
 
 fn file_names(dir: &Path) -> BTreeSet<String> {
@@ -182,17 +204,20 @@ fn update_snapshots(expected_dir: &Path, actual_dir: &Path) -> Result<(), String
 fn e2e_scenarios() {
     let update = std::env::var("UPDATE_SNAPSHOTS").is_ok_and(|v| v == "1");
     let headed = std::env::var("E2E_HEADED").is_ok_and(|v| v == "1");
+    let select = std::env::var("E2E_SELECT").is_ok_and(|v| v == "1");
     let actual_root = Path::new(env!("CARGO_TARGET_TMPDIR")).join("e2e");
     let scenarios = scenarios();
     assert!(!scenarios.is_empty(), "no scenario found");
+    let scenarios = if select {
+        select_scenarios(scenarios)
+    } else {
+        scenarios
+    };
+    assert!(!scenarios.is_empty(), "no scenario selected");
 
     let mut failures = Vec::new();
     for scenario in scenarios {
-        let name = scenario
-            .file_stem()
-            .expect("scenario file name")
-            .to_string_lossy()
-            .to_string();
+        let name = scenario_name(&scenario);
         let actual_dir = actual_root.join(&name);
         let expected_dir = e2e_dir().join("snapshots").join(&name);
 

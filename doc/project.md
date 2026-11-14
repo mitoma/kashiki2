@@ -49,6 +49,9 @@ GPU が必要なため通常の `cargo test` では実行されません。
 mise r e2e         # 期待値と比較する
 mise r e2e-headed  # 各シナリオをウィンドウで再生して目で確認する（比較はしない）
 mise r e2e-update  # 期待値を更新する（差分を目で確認してからコミットする）
+mise r e2e-select         # 実行するシナリオをターミナルで選んでから期待値と比較する
+mise r e2e-headed-select  # 選んだシナリオをウィンドウで再生する
+mise r e2e-update-select  # 選んだシナリオの期待値だけを更新する
 ```
 
 紹介動画用のシナリオ `kashikishi/demo/introduction.jsonl` もあります。E2E の対象ではなく、スナップショットも持ちません。

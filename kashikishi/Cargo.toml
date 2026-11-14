@@ -31,5 +31,8 @@ clap = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 web-time = { workspace = true }
 
+[dev-dependencies]
+inquire = { workspace = true }
+
 [target.'cfg(windows)'.build-dependencies]
 winresource = { workspace = true }
