@@ -771,7 +771,6 @@ impl RenderState {
         let RenderData {
             camera,
             model_batches,
-            modal_model_batches,
         } = self.simple_state_callback.render();
 
         record_start_of_phase("render 4: run all stage");
@@ -780,11 +779,6 @@ impl RenderState {
             &self.glyph_vertex_buffer,
             vector_vertex_buffer,
             &model_batches,
-        );
-        let modal_buffers = model_batches_to_buffers(
-            &self.glyph_vertex_buffer,
-            vector_vertex_buffer,
-            &modal_model_batches,
         );
 
         self.rasterizer_pipeline.run_all_stage(
@@ -798,7 +792,6 @@ impl RenderState {
                     .to_cols_array_2d(),
             ),
             &buffers,
-            &modal_buffers,
             screen_view,
         );
 

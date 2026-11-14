@@ -236,25 +236,13 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn render(&'_ mut self) -> RenderData<'_> {
-        let mut world_instances = self.world.glyph_instances();
-        let (mut glyph_instances_for_modal, vector_instances_for_modal) =
-            self.world.modal_instances();
-
-        let mut ime_instances = self.ime.get_instances();
-
-        if glyph_instances_for_modal.is_empty() {
-            world_instances.append(&mut ime_instances);
-        } else {
-            glyph_instances_for_modal.append(&mut ime_instances);
-        }
-
-        RenderData::single_batch(
-            self.world.camera(),
-            world_instances,
-            self.world.vector_instances(),
-            glyph_instances_for_modal,
-            vector_instances_for_modal,
-        )
+        let mut batches = self.world.render_batches();
+        batches.push(ui_support::layout_engine::ModelRenderBatch {
+            surface_instances: vec![],
+            vector_instances: vec![],
+            glyph_instances: self.ime.get_instances(),
+        });
+        RenderData::from_batches(self.world.camera(), batches)
     }
 
     fn shutdown(&mut self, _context: &UiContext) {}

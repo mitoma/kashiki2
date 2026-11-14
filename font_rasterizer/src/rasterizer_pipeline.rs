@@ -52,11 +52,9 @@ pub struct Buffers<'a> {
 /// Windfoil で曲線の被覆率を解析的に計算し、モデル順に合成した結果を画面へ描画する。
 pub struct RasterizerPipeline {
     pub(crate) rasterizer_renderrer: RasterizerRenderrer,
-    pub(crate) rasterizer_renderrer_for_modal: RasterizerRenderrer,
 
     // outline_texture を外部から渡すため、ここで保持する
     pub(crate) outline_texture: ScreenTexture,
-    pub(crate) outline_texture_for_modal: ScreenTexture,
 
     // 背景色。
     pub bg_color: wgpu::Color,
@@ -75,7 +73,6 @@ pub struct RasterizerPipeline {
     // 画面に表示する用のパイプライン
     pub(crate) screen_bind_group: ScreenBindGroup,
     pub(crate) screen_render_pipeline: wgpu::RenderPipeline,
-    pub(crate) screen_render_modal_background_pipeline: wgpu::RenderPipeline,
     pub(crate) screen_vertex_buffer: ScreenVertexBuffer,
 }
 
@@ -131,26 +128,11 @@ impl RasterizerPipeline {
             enable_antialiasing,
             outline_fill_rule,
         );
-        let rasterizer_renderrer_for_modal = RasterizerRenderrer::new(
-            device,
-            width,
-            height,
-            target_texture_format,
-            enable_antialiasing,
-            outline_fill_rule,
-        );
-
         let outline_texture = ScreenTexture::new_with_format(
             device,
             (width, height),
             target_texture_format,
             Some("Outline Texture"),
-        );
-        let outline_texture_for_modal = ScreenTexture::new_with_format(
-            device,
-            (width, height),
-            target_texture_format,
-            Some("Outline Texture for Modal"),
         );
 
         let background_image_shader =
@@ -266,57 +248,11 @@ impl RasterizerPipeline {
                 multiview_mask: None,
             });
 
-        let screen_render_modal_background_pipeline =
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("Default Screen Render Modal Background Pipeline"),
-                layout: Some(&screen_render_pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: &screen_shader,
-                    entry_point: Some("vs_main"),
-                    buffers: &[Some(ScreenVertexBuffer::desc())],
-                    compilation_options: Default::default(),
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: &screen_shader,
-                    entry_point: Some("fs_modal_background_resolve_straight"),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: target_texture_format,
-                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                    compilation_options: Default::default(),
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    strip_index_format: None,
-                    front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
-                    // Setting this to anything other than Fill requires Features::POLYGON_MODE_LINE
-                    // or Features::POLYGON_MODE_POINT
-                    polygon_mode: wgpu::PolygonMode::Fill,
-                    // Requires Features::DEPTH_CLIP_CONTROL
-                    unclipped_depth: false,
-                    // Requires Features::CONSERVATIVE_RASTERIZATION
-                    conservative: false,
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState {
-                    count: 1,
-                    mask: !0,
-                    alpha_to_coverage_enabled: false,
-                },
-                // render pipeline cache。起動時間の短縮に有利そうな気配だけどまぁ難しそうなので一旦無しで。
-                cache: None,
-                multiview_mask: None,
-            });
-
         let screen_vertex_buffer = ScreenVertexBuffer::new_buffer(device);
 
         Self {
             rasterizer_renderrer,
-            rasterizer_renderrer_for_modal,
             outline_texture,
-            outline_texture_for_modal,
             bg_color,
 
             // バックグラウンド
@@ -332,13 +268,11 @@ impl RasterizerPipeline {
 
             // default
             screen_render_pipeline,
-            screen_render_modal_background_pipeline,
             screen_bind_group,
             screen_vertex_buffer,
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn run_all_stage(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -346,29 +280,14 @@ impl RasterizerPipeline {
         queue: &wgpu::Queue,
         view_proj: ([[f32; 4]; 4], [[f32; 4]; 4]),
         buffers: &[Buffers],
-        modal_buffers: &[Buffers],
         screen_view: wgpu::TextureView,
     ) {
-        let has_modal_background = modal_buffers
-            .iter()
-            .any(|buffers| buffers.glyph_buffers.is_some() || buffers.vector_buffers.is_some());
-
         self.rasterizer_renderrer.prepare(device, queue, view_proj);
         self.rasterizer_renderrer
             .render_many(encoder, buffers, &self.outline_texture.view);
 
-        if has_modal_background {
-            self.rasterizer_renderrer_for_modal
-                .prepare(device, queue, view_proj);
-            self.rasterizer_renderrer_for_modal.render_many(
-                encoder,
-                modal_buffers,
-                &self.outline_texture_for_modal.view,
-            );
-        }
-
         self.screen_background_image_stage(encoder, device, &screen_view);
-        self.screen_stage(encoder, device, screen_view, has_modal_background);
+        self.screen_stage(encoder, device, screen_view);
     }
 
     pub(crate) fn screen_stage(
@@ -376,14 +295,10 @@ impl RasterizerPipeline {
         encoder: &mut wgpu::CommandEncoder,
         device: &wgpu::Device,
         screen_view: wgpu::TextureView,
-        has_modal_background: bool,
     ) {
         let screen_bind_group = &self
             .screen_bind_group
             .to_bind_group(device, &self.outline_texture);
-        let screen_bind_group_for_modal = &self
-            .screen_bind_group
-            .to_bind_group(device, &self.outline_texture_for_modal);
         {
             let mut screen_render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Screen Render Pass"),
@@ -401,11 +316,7 @@ impl RasterizerPipeline {
                 occlusion_query_set: None,
                 multiview_mask: None,
             });
-            if has_modal_background {
-                screen_render_pass.set_pipeline(&self.screen_render_modal_background_pipeline);
-            } else {
-                screen_render_pass.set_pipeline(&self.screen_render_pipeline);
-            }
+            screen_render_pass.set_pipeline(&self.screen_render_pipeline);
             screen_render_pass.set_bind_group(0, screen_bind_group, &[]);
             screen_render_pass
                 .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
@@ -414,22 +325,6 @@ impl RasterizerPipeline {
                 wgpu::IndexFormat::Uint16,
             );
             screen_render_pass.draw_indexed(self.screen_vertex_buffer.index_range.clone(), 0, 0..1);
-
-            if has_modal_background {
-                screen_render_pass.set_pipeline(&self.screen_render_pipeline);
-                screen_render_pass.set_bind_group(0, screen_bind_group_for_modal, &[]);
-                screen_render_pass
-                    .set_vertex_buffer(0, self.screen_vertex_buffer.vertex_buffer.slice(..));
-                screen_render_pass.set_index_buffer(
-                    self.screen_vertex_buffer.index_buffer.slice(..),
-                    wgpu::IndexFormat::Uint16,
-                );
-                screen_render_pass.draw_indexed(
-                    self.screen_vertex_buffer.index_range.clone(),
-                    0,
-                    0..1,
-                );
-            }
         }
     }
 

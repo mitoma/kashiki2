@@ -575,17 +575,11 @@ impl SimpleStateCallback for KashikishiCallback {
     fn render(&mut self) -> RenderData<'_> {
         let world = self.world.get();
         let mut model_batches = world.render_batches();
-        let mut modal_model_batches = world.modal_render_batches();
         let mut ime_instances = self.ime.get_instances();
 
-        let has_modal_instances = modal_model_batches.iter().any(|batch| {
-            !batch.surface_instances.is_empty()
-                || !batch.vector_instances.is_empty()
-                || !batch.glyph_instances.is_empty()
-        });
-        if has_modal_instances {
+        if world.has_modal() {
             if !ime_instances.is_empty() {
-                modal_model_batches.push(ui_support::layout_engine::ModelRenderBatch {
+                model_batches.push(ui_support::layout_engine::ModelRenderBatch {
                     surface_instances: vec![],
                     vector_instances: vec![],
                     glyph_instances: ime_instances,
@@ -601,7 +595,7 @@ impl SimpleStateCallback for KashikishiCallback {
             });
         }
 
-        RenderData::from_batches(world.camera(), model_batches, modal_model_batches)
+        RenderData::from_batches(world.camera(), model_batches)
     }
 
     fn initial_editor_settings(&self) -> ui_support::editor_settings::EditorSettings {

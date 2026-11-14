@@ -626,19 +626,16 @@ pub trait SimpleStateCallback {
 pub struct RenderData<'a> {
     pub camera: &'a Camera,
     pub model_batches: Vec<layout_engine::ModelRenderBatch<'a>>,
-    pub modal_model_batches: Vec<layout_engine::ModelRenderBatch<'a>>,
 }
 
 impl<'a> RenderData<'a> {
     pub fn from_batches(
         camera: &'a Camera,
         model_batches: Vec<layout_engine::ModelRenderBatch<'a>>,
-        modal_model_batches: Vec<layout_engine::ModelRenderBatch<'a>>,
     ) -> Self {
         Self {
             camera,
             model_batches,
-            modal_model_batches,
         }
     }
 
@@ -651,16 +648,18 @@ impl<'a> RenderData<'a> {
     ) -> Self {
         Self {
             camera,
-            model_batches: vec![layout_engine::ModelRenderBatch {
-                surface_instances: vec![],
-                vector_instances,
-                glyph_instances,
-            }],
-            modal_model_batches: vec![layout_engine::ModelRenderBatch {
-                surface_instances: vec![],
-                vector_instances: vector_instances_for_modal,
-                glyph_instances: glyph_instances_for_modal,
-            }],
+            model_batches: vec![
+                layout_engine::ModelRenderBatch {
+                    surface_instances: vec![],
+                    vector_instances,
+                    glyph_instances,
+                },
+                layout_engine::ModelRenderBatch {
+                    surface_instances: vec![],
+                    vector_instances: vector_instances_for_modal,
+                    glyph_instances: glyph_instances_for_modal,
+                },
+            ],
         }
     }
 }

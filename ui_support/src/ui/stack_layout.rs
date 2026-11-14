@@ -1,13 +1,16 @@
-use font_rasterizer::glyph_vertex_buffer::Direction;
+use font_rasterizer::{
+    glyph_vertex_buffer::Direction,
+    vector_instances::{InstanceAttributes, VectorInstances},
+};
 use glam::Quat;
 
 use crate::{
     easing_value::EasingPointN,
     layout_engine::{
-        DebugModelDetails, DebugModelNode, DebugStackLayoutSnapshot, Model, ModelAttributes,
-        ModelBorder, ModelOperation, ModelOperationResult,
+        DebugModelDetails, DebugModelNode, DebugStackLayoutSnapshot, MODEL_SURFACE_SVG_KEY, Model,
+        ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult, ModelSurfaceStyle,
     },
-    ui::view_element_state::{BORDER_OUTSET, BorderStates},
+    ui::view_element_state::{BORDER_OUTSET, BorderStates, update_model_surface_instances},
     ui_context::TextContext,
 };
 
@@ -29,6 +32,8 @@ pub struct StackLayout {
     border: ModelBorder,
     border_states: Option<BorderStates>,
     border_context: TextContext,
+    surface_style: ModelSurfaceStyle,
+    surface_instances: Option<VectorInstances<String>>,
 }
 
 pub struct Margin {
@@ -52,7 +57,30 @@ impl StackLayout {
             border: ModelBorder::None,
             border_states: None,
             border_context: TextContext::default(),
+            surface_style: ModelSurfaceStyle::None,
+            surface_instances: None,
         }
+    }
+
+    fn update_surface(&mut self, context: &crate::ui_context::UiContext) {
+        if self.models.is_empty() || self.surface_style == ModelSurfaceStyle::None {
+            self.surface_instances = None;
+            return;
+        }
+        let (width, height) = self.bound();
+        let attributes = InstanceAttributes {
+            position: self.position.current().into(),
+            rotation: Quat::from_array(self.rotation.current()),
+            instance_scale: [width, height],
+            ..Default::default()
+        };
+        update_model_surface_instances(
+            &mut self.surface_instances,
+            self.surface_style,
+            MODEL_SURFACE_SVG_KEY,
+            attributes,
+            context,
+        );
     }
 
     fn update_border(&mut self, context: &crate::ui_context::UiContext) {
@@ -175,23 +203,22 @@ impl Model for StackLayout {
     fn surface_instances(
         &self,
     ) -> Vec<&font_rasterizer::vector_instances::VectorInstances<String>> {
-        self.models
+        self.surface_instances
             .iter()
-            .flat_map(|model| model.surface_instances())
+            .chain(
+                self.models
+                    .iter()
+                    .flat_map(|model| model.surface_instances()),
+            )
             .collect()
     }
 
-    fn set_surface_style(&mut self, surface_style: crate::layout_engine::ModelSurfaceStyle) {
-        for model in self.models.iter_mut() {
-            model.set_surface_style(surface_style);
-        }
+    fn set_surface_style(&mut self, surface_style: ModelSurfaceStyle) {
+        self.surface_style = surface_style;
     }
 
-    fn surface_style(&self) -> crate::layout_engine::ModelSurfaceStyle {
-        self.models
-            .first()
-            .map(|model| model.surface_style())
-            .unwrap_or_default()
+    fn surface_style(&self) -> ModelSurfaceStyle {
+        self.surface_style
     }
 
     fn glyph_instances(&self) -> Vec<&font_rasterizer::glyph_instances::GlyphInstances> {
@@ -260,6 +287,7 @@ impl Model for StackLayout {
             model.update(context);
         }
         self.update_border(context);
+        self.update_surface(context);
     }
 
     fn editor_operation(&mut self, op: &text_buffer::action::EditorOperation) {
@@ -371,6 +399,31 @@ impl Model for StackLayout {
 mod tests {
     use super::*;
     use crate::ui::TextEdit;
+
+    #[test]
+    fn surface_belongs_to_the_whole_layout_without_changing_child_styles() {
+        for direction in [Direction::Horizontal, Direction::Vertical] {
+            let mut layout = StackLayout::new(direction);
+            let child_style = ModelSurfaceStyle::Color([1.0, 0.0, 0.0, 0.5]);
+            let mut child = TextEdit::default();
+            child.set_surface_style(child_style);
+            layout.add_model(Box::new(child));
+
+            assert_eq!(layout.surface_style(), ModelSurfaceStyle::None);
+            layout.set_surface_style(ModelSurfaceStyle::ThemeBackground { alpha: 0.9 });
+            layout.add_model(Box::new(TextEdit::default()));
+
+            assert_eq!(
+                layout.surface_style(),
+                ModelSurfaceStyle::ThemeBackground { alpha: 0.9 }
+            );
+            assert_eq!(layout.models()[0].surface_style(), child_style);
+            assert_eq!(layout.models()[1].surface_style(), ModelSurfaceStyle::None);
+
+            layout.set_surface_style(ModelSurfaceStyle::None);
+            assert_eq!(layout.models()[0].surface_style(), child_style);
+        }
+    }
 
     #[test]
     fn border_wraps_the_whole_layout_instead_of_each_child() {

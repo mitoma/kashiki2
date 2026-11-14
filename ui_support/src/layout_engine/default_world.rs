@@ -19,8 +19,8 @@ use crate::ui_context::UiContext;
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
     layout_engine::{
-        DebugModelNode, Model, ModelOperation, ModelOperationResult, ModelRenderBatch, World,
-        world::RemovedModelType,
+        DebugModelNode, Model, ModelOperation, ModelOperationResult, ModelRenderBatch,
+        ModelSurfaceStyle, World, world::RemovedModelType,
     },
     to_ndc_position,
 };
@@ -151,7 +151,8 @@ impl World for DefaultWorld {
         self.world_updated = true;
     }
 
-    fn add_modal(&mut self, model: Box<dyn Model>) {
+    fn add_modal(&mut self, mut model: Box<dyn Model>) {
+        model.set_surface_style(ModelSurfaceStyle::ThemeBackground { alpha: 0.9 });
         self.modal_models.push(model);
         self.pre_camera = Some(self.camera.target_and_eye());
         self.world_updated = true;
@@ -208,7 +209,10 @@ impl World for DefaultWorld {
         models.sort_by(|(a, _), (b, _)| b.total_cmp(a));
         models
             .into_iter()
-            .map(|(_, model)| ModelRenderBatch {
+            .map(|(_, model)| model)
+            // モーダルは奥行きによらず通常モデルより手前に重ねる。
+            .chain(self.modal_models.iter().map(|model| model.as_ref()))
+            .map(|model| ModelRenderBatch {
                 surface_instances: model.surface_instances(),
                 vector_instances: model.vector_instances(),
                 glyph_instances: model.glyph_instances(),
@@ -216,15 +220,8 @@ impl World for DefaultWorld {
             .collect()
     }
 
-    fn modal_render_batches(&self) -> Vec<ModelRenderBatch<'_>> {
-        self.modal_models
-            .iter()
-            .map(|model| ModelRenderBatch {
-                surface_instances: model.surface_instances(),
-                vector_instances: model.vector_instances(),
-                glyph_instances: model.glyph_instances(),
-            })
-            .collect()
+    fn has_modal(&self) -> bool {
+        !self.modal_models.is_empty()
     }
 
     fn modal_instances(&self) -> (Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
@@ -575,6 +572,39 @@ impl WorldLayout {
 #[cfg(test)]
 mod font_change_tests {
     use super::*;
+
+    #[test]
+    fn modal_models_share_render_batches_and_use_translucent_surfaces() {
+        let mut world = DefaultWorld::new(WindowSize::new(800, 600));
+        world.add(Box::new(crate::ui::TextEdit::default()));
+        assert!(!world.has_modal());
+        assert_eq!(world.render_batches().len(), 1);
+
+        for _ in 0..2 {
+            world.add_modal(Box::new(crate::ui::TextEdit::default()));
+        }
+
+        assert!(world.has_modal());
+        assert_eq!(world.render_batches().len(), 3);
+        assert_eq!(world.models[0].surface_style(), ModelSurfaceStyle::None);
+        for modal in &world.modal_models {
+            let ModelSurfaceStyle::ThemeBackground { alpha } = modal.surface_style() else {
+                panic!("modal must use the theme background");
+            };
+            assert!(alpha > 0.0 && alpha < 1.0);
+        }
+
+        assert!(matches!(world.remove_current(), RemovedModelType::Modal));
+        assert!(world.has_modal());
+        assert_eq!(world.removed_models.len(), 1);
+        assert_eq!(world.render_batches().len(), 3);
+        assert!(matches!(world.remove_current(), RemovedModelType::Modal));
+        assert!(!world.has_modal());
+        assert_eq!(world.removed_models.len(), 2);
+        assert_eq!(world.render_batches().len(), 3);
+        world.removed_models.clear();
+        assert_eq!(world.render_batches().len(), 1);
+    }
 
     #[test]
     fn font_change_invalidates_world_layout() {

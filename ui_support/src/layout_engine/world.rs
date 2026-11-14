@@ -75,14 +75,7 @@ pub trait World {
     }
     // モーダル時のインスタンスを返す
     fn modal_instances(&self) -> (Vec<&GlyphInstances>, Vec<&VectorInstances<String>>);
-    fn modal_render_batches(&self) -> Vec<ModelRenderBatch<'_>> {
-        let (glyph_instances, vector_instances) = self.modal_instances();
-        vec![ModelRenderBatch {
-            surface_instances: vec![],
-            vector_instances,
-            glyph_instances,
-        }]
-    }
+    fn has_modal(&self) -> bool;
 
     fn editor_operation(&mut self, op: &EditorOperation);
     fn model_operation(&mut self, op: &ModelOperation);

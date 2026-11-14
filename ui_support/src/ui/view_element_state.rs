@@ -15,17 +15,48 @@ use font_rasterizer::{
     glyph_vertex_buffer::Direction,
     motion::MotionFlags,
     time::now_millis,
-    vector_instances::InstanceAttributes,
+    vector_instances::{InstanceAttributes, InstanceKey, VectorInstances},
 };
 
 use crate::{
     easing_value::EasingPointN,
-    layout_engine::ModelAttributes,
+    layout_engine::{ModelAttributes, ModelSurfaceStyle},
     text_instances::{BorderFragment, BorderInstances, BorderType, CaretInstances, TextInstances},
-    ui_context::{CharEasings, GpuEasingConfig, RemoveCharMode, TextContext},
+    ui_context::{CharEasings, GpuEasingConfig, RemoveCharMode, TextContext, UiContext},
 };
 
 use super::caret_char;
+
+pub(crate) fn update_model_surface_instances(
+    instances: &mut Option<VectorInstances<String>>,
+    style: ModelSurfaceStyle,
+    geometry_key: &str,
+    mut attributes: InstanceAttributes,
+    context: &UiContext,
+) {
+    let (color, alpha) = match style {
+        ModelSurfaceStyle::None => {
+            *instances = None;
+            return;
+        }
+        ModelSurfaceStyle::ThemeBackground { alpha } => {
+            (context.color_theme().background().get_color(), alpha)
+        }
+        ModelSurfaceStyle::Color([r, g, b, a]) => ([r, g, b], a),
+    };
+    if instances
+        .as_ref()
+        .is_some_and(|instances| instances.key != geometry_key)
+    {
+        *instances = None;
+    }
+    let instances = instances
+        .get_or_insert_with(|| VectorInstances::new(geometry_key.to_owned(), context.device()));
+    attributes.color = color;
+    attributes.alpha = alpha.clamp(0.0, 1.0);
+    instances.insert(InstanceKey::Monotonic(0), attributes);
+    instances.update_buffer(context.device(), context.queue());
+}
 
 #[derive(Default)]
 pub(crate) struct ViewElementStateUpdateRequest {

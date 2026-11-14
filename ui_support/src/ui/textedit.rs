@@ -24,7 +24,7 @@ use font_rasterizer::{
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
     motion::MotionFlags,
-    vector_instances::{InstanceAttributes, InstanceKey, VectorInstances},
+    vector_instances::{InstanceAttributes, VectorInstances},
 };
 
 use crate::{
@@ -46,7 +46,10 @@ use crate::{
 
 use super::{
     caret_char,
-    view_element_state::{BorderStates, CaretStates, CharStates, ViewElementStateUpdateRequest},
+    view_element_state::{
+        BorderStates, CaretStates, CharStates, ViewElementStateUpdateRequest,
+        update_model_surface_instances,
+    },
 };
 
 // IME プレエディットの状態
@@ -546,16 +549,10 @@ impl TextEdit {
     }
 
     fn update_surface_instances(&mut self, context: &UiContext) {
-        let (color, alpha) = match self.surface_style {
-            ModelSurfaceStyle::None => {
-                self.surface_instances = None;
-                return;
-            }
-            ModelSurfaceStyle::ThemeBackground { alpha } => {
-                (context.color_theme().background().get_color(), alpha)
-            }
-            ModelSurfaceStyle::Color([r, g, b, a]) => ([r, g, b], a),
-        };
+        if self.surface_style == ModelSurfaceStyle::None {
+            self.surface_instances = None;
+            return;
+        }
 
         let [bound_width, bound_height] = self.bound.last();
         let surface_width = bound_width + self.surface_outset[0] * 2.0;
@@ -587,33 +584,33 @@ impl TextEdit {
             self.surface_instances = None;
         }
 
-        let instances = self.surface_instances.get_or_insert_with(|| {
-            let mut instances = VectorInstances::new(surface_geometry_key, context.device());
-            instances.insert(InstanceKey::Monotonic(0), InstanceAttributes::default());
-            instances
-        });
-        if let Some(attributes) = instances.get_mut(&InstanceKey::Monotonic(0)) {
-            attributes.position = self.position.current().into();
-            attributes.rotation = Quat::from_array(self.rotation.current());
-            attributes.world_scale = self.world_scale;
-            let [current_bound_width, current_bound_height] = self.bound.current();
-            let current_surface_width = current_bound_width + self.surface_outset[0] * 2.0;
-            let current_surface_height = current_bound_height + self.surface_outset[1] * 2.0;
-            attributes.instance_scale = if self.surface_corner_radius > 0.0 {
+        let [current_bound_width, current_bound_height] = self.bound.current();
+        let current_surface_width = current_bound_width + self.surface_outset[0] * 2.0;
+        let current_surface_height = current_bound_height + self.surface_outset[1] * 2.0;
+        let attributes = InstanceAttributes {
+            position: self.position.current().into(),
+            rotation: Quat::from_array(self.rotation.current()),
+            world_scale: self.world_scale,
+            instance_scale: if self.surface_corner_radius > 0.0 {
                 [
                     surface_size_scale * current_surface_width / surface_width,
                     surface_size_scale * current_surface_height / surface_height,
                 ]
             } else {
                 [current_surface_width, current_surface_height]
-            };
-            attributes.color = color;
-            attributes.alpha = alpha.clamp(0.0, 1.0);
-            attributes.motion = MotionFlags::builder()
+            },
+            motion: MotionFlags::builder()
                 .camera_detail(self.config.char_easings.add_char.motion.camera_detail())
-                .build();
-        }
-        instances.update_buffer(context.device(), context.queue());
+                .build(),
+            ..Default::default()
+        };
+        update_model_surface_instances(
+            &mut self.surface_instances,
+            self.surface_style,
+            &surface_geometry_key,
+            attributes,
+            context,
+        );
     }
 
     fn rounded_surface_svg(width: f32, height: f32, radius: f32) -> String {
