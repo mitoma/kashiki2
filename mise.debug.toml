@@ -4,7 +4,7 @@ FONT_RASTERIZER_DEBUG_SHADER = "true"
 
 [tasks.build-aatest]
 description = "Run the aatest"
-run = "cargo build --example aa_test"
+run = "{{vars.cargo}} build --example aa_test"
 
 [tasks.run-aatest]
 description = "Run the aatest"
@@ -14,7 +14,7 @@ depends = "build-aatest"
 
 [tasks.build-aasvgtest]
 description = "Run the aasvgtest"
-run = "cargo build --example aa_svg_test"
+run = "{{vars.cargo}} build --example aa_svg_test"
 
 [tasks.run-aasvgtest]
 description = "Run the aasvgtest"
@@ -24,7 +24,7 @@ depends = "build-aasvgtest"
 
 [tasks.build-vector-vertex-to-png]
 description = "Build vector_vertex_to_png example"
-run = "cargo build -p font_rasterizer --example vector_vertex_to_png --release"
+run = "{{vars.cargo}} build -p font_rasterizer --example vector_vertex_to_png --release"
 sources = [
     "Cargo.toml",
     "font_rasterizer/Cargo.toml",

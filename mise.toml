@@ -6,9 +6,16 @@
 "github:wasm-bindgen/wasm-bindgen" = "0.2.128"
 "cargo:cargo-bloat" = "0.12.1"
 
+# ビルドキャッシュ (https://github.com/jdx/mr-boxington)
+"mr-boxington" = "1.30.0"
+
+[vars]
+# タスクで使う cargo コマンド。mbx をやめる場合は "cargo" に戻す
+cargo = "mbx"
+
 [tasks.apng-build-sites]
 description = "apng 用のプロジェクトをビルドする"
-run = "cargo build --target wasm32-unknown-unknown --release -p apng_gen"
+run = "{{vars.cargo}} build --target wasm32-unknown-unknown --release -p apng_gen"
 
 [tasks.apng-bindgen-sites]
 description = "Run wasm-bindgen for apng"
@@ -17,7 +24,7 @@ depends = ["apng-build-sites"]
 
 [tasks.build-sites]
 description = "Showcase 用のプロジェクトをビルドする"
-run = "cargo build --target wasm32-unknown-unknown --release -p showcase"
+run = "{{vars.cargo}} build --target wasm32-unknown-unknown --release -p showcase"
 
 [tasks.bindgen-sites]
 description = "Run wasm-bindgen"
@@ -31,7 +38,7 @@ depends = ["bindgen-sites"]
 
 [tasks.pig-action-game-build-sites]
 description = "Build pig_action_game for sites"
-run = "cargo build --target wasm32-unknown-unknown --release -p pig_action_game"
+run = "{{vars.cargo}} build --target wasm32-unknown-unknown --release -p pig_action_game"
 
 [tasks.pig-action-game-bindgen-sites]
 description = "Run wasm-bindgen for pig_action_game"
@@ -50,73 +57,73 @@ depends = ["opt-sites"]
 
 [tasks.debug-kashikishi]
 description = "Run the kashikishi"
-run = "cargo run --bin kashikishi"
+run = "{{vars.cargo}} run --bin kashikishi"
 env = { RUST_LOG = "info" }
 
 [tasks.kashikishi]
 description = "Run the kashikishi"
-run = "cargo run --bin kashikishi --release"
+run = "{{vars.cargo}} run --bin kashikishi --release"
 
 [tasks.clear-kashikishi-cache]
 description = "Clear the kashikishi cache"
-run = "cargo run --bin kashikishi --release -- --clear-glyph-cache"
+run = "{{vars.cargo}} run --bin kashikishi --release -- --clear-glyph-cache"
 
 [tasks.install-kashikishi]
 description = "Install the kashikishi"
-run = "cargo install --path kashikishi"
+run = "{{vars.cargo}} install --path kashikishi"
 
 [tasks.fmt]
 description = "Format the code"
-run = "cargo fmt --all"
+run = "{{vars.cargo}} fmt --all"
 
 [tasks.clippy]
 description = "Run clippy"
-run = "cargo clippy --all -- -D clippy::all"
+run = "{{vars.cargo}} clippy --all -- -D clippy::all"
 
 [tasks.clippy-tests]
 description = "Run clippy for test and examples"
-run = "cargo clippy --tests --examples -- -D clippy::all"
+run = "{{vars.cargo}} clippy --tests --examples -- -D clippy::all"
 
 [tasks.clippy-tests-fix]
 description = "Fix clippy error for test and examples"
-run = "cargo clippy --tests --examples --fix"
+run = "{{vars.cargo}} clippy --tests --examples --fix"
 
 [tasks.test]
 description = "Run tests"
-run = "cargo test --all"
+run = "{{vars.cargo}} test --all"
 
 [tasks.e2e]
 description = "Run kashikishi E2E scenarios (requires GPU)"
-run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"
+run = "{{vars.cargo}} test -p kashikishi --test e2e_scenarios -- --ignored"
 
 [tasks.e2e-headed]
 description = "Replay kashikishi E2E scenarios in a window to watch them (no comparison)"
-run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored --nocapture"
+run = "{{vars.cargo}} test -p kashikishi --test e2e_scenarios -- --ignored --nocapture"
 env = { E2E_HEADED = "1" }
 
 [tasks.e2e-update]
 description = "Run kashikishi E2E scenarios and update expected snapshots"
-run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"
+run = "{{vars.cargo}} test -p kashikishi --test e2e_scenarios -- --ignored"
 env = { UPDATE_SNAPSHOTS = "1" }
 
 [tasks.e2e-select]
 description = "Select kashikishi E2E scenarios interactively and run them (requires GPU)"
-run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"
+run = "{{vars.cargo}} test -p kashikishi --test e2e_scenarios -- --ignored"
 env = { E2E_SELECT = "1" }
 
 [tasks.e2e-headed-select]
 description = "Select kashikishi E2E scenarios interactively and replay them in a window (no comparison)"
-run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored --nocapture"
+run = "{{vars.cargo}} test -p kashikishi --test e2e_scenarios -- --ignored --nocapture"
 env = { E2E_HEADED = "1", E2E_SELECT = "1" }
 
 [tasks.e2e-update-select]
 description = "Select kashikishi E2E scenarios interactively and update their expected snapshots"
-run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"
+run = "{{vars.cargo}} test -p kashikishi --test e2e_scenarios -- --ignored"
 env = { UPDATE_SNAPSHOTS = "1", E2E_SELECT = "1" }
 
 [tasks.demo]
 description = "Replay the kashikishi introduction scenario in a window (for recording demo videos)"
-run = "cargo run -p kashikishi -- test --scenario kashikishi/demo/introduction.jsonl --headed"
+run = "{{vars.cargo}} run -p kashikishi -- test --scenario kashikishi/demo/introduction.jsonl --headed"
 
 [tasks.check]
 description = "Run checks"
@@ -124,4 +131,4 @@ depends = ["fmt", "clippy", "clippy-tests"]
 
 [tasks.check-bloat]
 description = "Check binary size with cargo bloat"
-run = "cargo bloat --bin kashikishi --release --crates"
+run = "{{vars.cargo}} bloat --bin kashikishi --release --crates"
