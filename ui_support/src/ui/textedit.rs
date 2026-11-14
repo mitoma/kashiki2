@@ -263,7 +263,9 @@ impl Model for TextEdit {
         }
         let surface_needs_update = match self.surface_style {
             ModelSurfaceStyle::None => self.surface_instances.is_some(),
-            ModelSurfaceStyle::ThemeBackground { .. } | ModelSurfaceStyle::Color(_) => {
+            ModelSurfaceStyle::ThemeBackground { .. }
+            | ModelSurfaceStyle::ThemeBackgroundHighlight { .. }
+            | ModelSurfaceStyle::Color(_) => {
                 self.surface_instances.is_none()
                     || self.config_updated
                     || self.position.in_animation()

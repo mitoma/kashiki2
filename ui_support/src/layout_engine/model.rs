@@ -31,6 +31,10 @@ pub enum ModelSurfaceStyle {
     ThemeBackground {
         alpha: f32,
     },
+    // カラーテーマのハイライト色で面を塗る。alpha は 0.0(透明)〜1.0(不透明)。
+    ThemeBackgroundHighlight {
+        alpha: f32,
+    },
     // RGBA で指定した色で面を塗る。
     Color([f32; 4]),
 }

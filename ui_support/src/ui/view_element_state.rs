@@ -42,6 +42,10 @@ pub(crate) fn update_model_surface_instances(
         ModelSurfaceStyle::ThemeBackground { alpha } => {
             (context.color_theme().background().get_color(), alpha)
         }
+        ModelSurfaceStyle::ThemeBackgroundHighlight { alpha } => (
+            context.color_theme().background_highlights().get_color(),
+            alpha,
+        ),
         ModelSurfaceStyle::Color([r, g, b, a]) => ([r, g, b], a),
     };
     if instances
