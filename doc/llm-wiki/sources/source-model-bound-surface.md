@@ -1,9 +1,9 @@
-- TextEdit の面は `ThemeBackground`、`Color([f32; 3])`、`None` を持ち、モデルの現在位置・回転・world scale・現在 bound と、glyph easing 由来の camera detail を instance に反映する。追加の `surface_outset` は初期値ゼロ。Card の border は 9 単位 viewBox の 1 単位幅で、中心線が bound から 1 セル外にある。内縁 inset は `1 - 1/18 = 17/18` セル、Rounded の inner curve 半径は `4/9` セルとし、border SVG と同じ二次曲線を使う。Card profile は glyph に `IGNORE_CAMERA` を設定するため、surface にも同じ detail が必要である。基本矩形 SVG は RenderState 初期化時に登録され、bound ごとの rounded geometry は TextEdit から登録される。
+- TextEdit の面は `ThemeBackground { alpha }`、`Color([f32; 4])`(RGBA)、`None` を持ち、alpha は instance の不透明度として premultiplied alpha で合成され、モデルの現在位置・回転・world scale・現在 bound と、glyph easing 由来の camera detail を instance に反映する。追加の `surface_outset` は初期値ゼロ。Card の border は 9 単位 viewBox の 1 単位幅で、中心線が bound から 1 セル外にある。内縁 inset は `1 - 1/18 = 17/18` セル、Rounded の inner curve 半径は `4/9` セルとし、border SVG と同じ二次曲線を使う。Card profile は glyph に `IGNORE_CAMERA` を設定するため、surface にも同じ detail が必要である。基本矩形 SVG は RenderState 初期化時に登録され、bound ごとの rounded geometry は TextEdit から登録される。
 ---
 title: Source Model Bound Surface
 kind: source
 status: production
-updated: 2026-11-06
+updated: 2026-11-14
 source_refs:
   - ../../ai-agent/plans/model-surface-background.md
   - ../../../ui_support/src/layout_engine/model.rs
@@ -24,9 +24,9 @@ related_pages:
 
 設計は [model-surface-background plan](../../ai-agent/plans/model-surface-background.md)、実装は `ModelSurfaceStyle` と `ModelRenderBatch`、`DefaultWorld::render_batches`、`model_batches_to_buffers`、`RasterizerPipeline::run_all_stage` に分かれる。
 
-World はモデル順と surface/content の境界を保持する。RenderState は各モデルを順序付き `Buffers` にする。Windfoil は全 batch を一回の ordered render に集約し、一回の premultiplied-alpha render pass と resolve で outline texture を生成する。Legacy は coverage/count texture の意味を保つため per-batch resolve と全画面 composite を継続する。normal と modal の出力 texture は独立し、modal blur を保つ。
+World はモデル順と surface/content の境界を保持する。RenderState は各モデルを順序付き `Buffers` にする。Windfoil は全 batch を一回の ordered render に集約し、一回の premultiplied-alpha render pass と resolve で outline texture を生成する。Legacy 描画は #144 で廃止され、描画経路は Windfoil のみである。normal と modal の出力 texture は独立し、modal blur を保つ。
 
-TextEdit の面は `ThemeBackground`、`Color([f32; 3])`、`None` を持ち、モデルの現在位置・回転・world scale・現在 bound と、glyph easing 由来の camera detail を instance に反映する。追加の `surface_outset` は初期値ゼロ。Card は border 設定時に各辺 0.5 セルを指定する。Rounded border ではその寸法と半径 0.5 セルで角丸 SVG geometry を生成し、四角い面を広げるだけにしない。Card profile は glyph に `IGNORE_CAMERA` を設定するため、surface にも同じ detail が必要である。基本矩形 SVG は RenderState 初期化時に登録され、bound ごとの rounded geometry は TextEdit から登録される。
+TextEdit の面は `ThemeBackground { alpha }`、`Color([f32; 4])`(RGBA)、`None` を持ち、alpha は instance の不透明度として premultiplied alpha で合成され、モデルの現在位置・回転・world scale・現在 bound と、glyph easing 由来の camera detail を instance に反映する。追加の `surface_outset` は初期値ゼロ。Card は border 設定時に各辺 0.5 セルを指定する。Rounded border ではその寸法と半径 0.5 セルで角丸 SVG geometry を生成し、四角い面を広げるだけにしない。Card profile は glyph に `IGNORE_CAMERA` を設定するため、surface にも同じ detail が必要である。基本矩形 SVG は RenderState 初期化時に登録され、bound ごとの rounded geometry は TextEdit から登録される。
 
 Card は通常 World model ではなく ModalWorld overlay として glyph/vector を供給する。overlay API も surface instances を返し、RenderData の overlay batch に追加しなければ面が描画されない。
 

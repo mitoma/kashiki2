@@ -523,6 +523,30 @@ mod tests {
 
     #[test]
     #[ignore = "requires a WebGPU adapter"]
+    fn windfoil_instance_alpha_scales_coverage() {
+        let attributes = InstanceAttributes {
+            position: Vec3::ZERO,
+            start_time: 0,
+            color: [0.25, 0.5, 0.75],
+            alpha: 0.5,
+            ..Default::default()
+        };
+        let mut builder = VectorVertexBuilder::new();
+        rectangle(&mut builder, [8.0, 8.0, 56.0, 56.0], false);
+        let image = render(
+            builder,
+            OutlineFillRule::NonZero,
+            true,
+            attributes,
+            Mat4::IDENTITY,
+        );
+        let pixel = image.get_pixel(32, 32);
+        assert!(pixel[3].abs_diff(128) <= 1, "alpha={}", pixel[3]);
+        assert_eq!(image.get_pixel(2, 2)[3], 0);
+    }
+
+    #[test]
+    #[ignore = "requires a WebGPU adapter"]
     fn windfoil_gpu_coverage_regressions() {
         let attributes = InstanceAttributes {
             position: Vec3::ZERO,

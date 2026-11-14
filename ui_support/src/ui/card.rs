@@ -62,7 +62,8 @@ impl Card {
             TextEdit::new(editor_settings.text_context(EditorTextContextProfile::Card));
         text_edit.set_world_scale(CARD_DEFAULT_SCALE);
         text_edit.set_position((0.0, -1.5, 0.0).into());
-        text_edit.set_surface_style(crate::layout_engine::ModelSurfaceStyle::ThemeBackground);
+        text_edit
+            .set_surface_style(crate::layout_engine::ModelSurfaceStyle::OPAQUE_THEME_BACKGROUND);
 
         Self {
             text_edit,

@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn compute_instance_word_layout_matches_vertex_buffer() {
         use crate::vector_instances::InstanceRaw;
-        assert_eq!(std::mem::size_of::<InstanceRaw>(), 23 * 4);
+        assert_eq!(std::mem::size_of::<InstanceRaw>(), 24 * 4);
         assert_eq!(std::mem::offset_of!(InstanceRaw, model), 0);
     }
 }

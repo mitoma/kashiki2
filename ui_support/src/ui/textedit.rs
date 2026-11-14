@@ -262,7 +262,7 @@ impl Model for TextEdit {
         }
         let surface_needs_update = match self.surface_style {
             ModelSurfaceStyle::None => self.surface_instances.is_some(),
-            ModelSurfaceStyle::ThemeBackground | ModelSurfaceStyle::Color(_) => {
+            ModelSurfaceStyle::ThemeBackground { .. } | ModelSurfaceStyle::Color(_) => {
                 self.surface_instances.is_none()
                     || self.config_updated
                     || self.position.in_animation()
@@ -546,13 +546,15 @@ impl TextEdit {
     }
 
     fn update_surface_instances(&mut self, context: &UiContext) {
-        let color = match self.surface_style {
+        let (color, alpha) = match self.surface_style {
             ModelSurfaceStyle::None => {
                 self.surface_instances = None;
                 return;
             }
-            ModelSurfaceStyle::ThemeBackground => context.color_theme().background().get_color(),
-            ModelSurfaceStyle::Color(color) => color,
+            ModelSurfaceStyle::ThemeBackground { alpha } => {
+                (context.color_theme().background().get_color(), alpha)
+            }
+            ModelSurfaceStyle::Color([r, g, b, a]) => ([r, g, b], a),
         };
 
         let [bound_width, bound_height] = self.bound.last();
@@ -606,6 +608,7 @@ impl TextEdit {
                 [current_surface_width, current_surface_height]
             };
             attributes.color = color;
+            attributes.alpha = alpha.clamp(0.0, 1.0);
             attributes.motion = MotionFlags::builder()
                 .camera_detail(self.config.char_easings.add_char.motion.camera_detail())
                 .build();

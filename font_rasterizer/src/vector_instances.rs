@@ -17,6 +17,8 @@ pub struct InstanceAttributes {
     // 各 glyph 自身の見た目の拡大率。位置は変えたくないが大きさだけ変えたい時はこちらを使う。
     pub instance_scale: [f32; 2],
     pub color: [f32; 3],
+    // 不透明度。0.0 で完全に透明、1.0 で不透明。
+    pub alpha: f32,
     pub motion: MotionFlags,
     pub start_time: u32,
     pub gain: f32,
@@ -42,6 +44,7 @@ impl InstanceAttributes {
             world_scale,
             instance_scale,
             color,
+            alpha: 1.0,
             motion,
             start_time,
             gain,
@@ -58,6 +61,7 @@ impl Default for InstanceAttributes {
             world_scale: [1.0, 1.0],
             instance_scale: [1.0, 1.0],
             color: SolarizedColor::Red.get_color(),
+            alpha: 1.0,
             motion: MotionFlags::ZERO_MOTION,
             start_time: now_millis(),
             gain: 0.0,
@@ -93,7 +97,7 @@ impl InstanceAttributes {
             .to_cols_array_2d();
         InstanceRaw {
             model,
-            color: self.color,
+            color: [self.color[0], self.color[1], self.color[2], self.alpha],
             motion: self.motion.into(),
             start_time: self.start_time,
             gain: self.gain,
@@ -125,7 +129,7 @@ pub enum InstanceKey {
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub(crate) struct InstanceRaw {
     pub(crate) model: [[f32; 4]; 4],
-    color: [f32; 3],
+    color: [f32; 4],
     motion: u32,
     start_time: u32,
     gain: f32,
@@ -169,29 +173,29 @@ impl InstanceRaw {
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 16]>() as wgpu::BufferAddress,
                     shader_location: 9,
-                    format: wgpu::VertexFormat::Float32x3,
+                    format: wgpu::VertexFormat::Float32x4,
                 },
                 // Action
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 19]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 20]>() as wgpu::BufferAddress,
                     shader_location: 10,
                     format: wgpu::VertexFormat::Uint32,
                 },
                 // Action Started At
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 20]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 21]>() as wgpu::BufferAddress,
                     shader_location: 11,
                     format: wgpu::VertexFormat::Uint32,
                 },
                 // gain
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 21]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 22]>() as wgpu::BufferAddress,
                     shader_location: 12,
                     format: wgpu::VertexFormat::Float32,
                 },
                 // duration
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 22]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 23]>() as wgpu::BufferAddress,
                     shader_location: 13,
                     format: wgpu::VertexFormat::Uint32,
                 },

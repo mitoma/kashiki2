@@ -142,7 +142,7 @@ struct InstancesInput {
     @location(6) model_matrix_1: vec4<f32>,
     @location(7) model_matrix_2: vec4<f32>,
     @location(8) model_matrix_3: vec4<f32>,
-    @location(9) color: vec3<f32>,
+    @location(9) color: vec4<f32>,
     @location(10) motion: u32,
     @location(11) start_time: u32,
     @location(12) gain: f32,
@@ -321,7 +321,7 @@ struct WindfoilHeader {
 struct WindfoilOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) local_position: vec2<f32>,
-    @location(1) color: vec3<f32>,
+    @location(1) color: vec4<f32>,
     @location(2) @interpolate(flat) matrix_0: vec4<f32>,
     @location(3) @interpolate(flat) matrix_1: vec4<f32>,
     @location(4) @interpolate(flat) matrix_2: vec4<f32>,
@@ -351,11 +351,11 @@ fn project_curves(@builtin(global_invocation_id) invocation: vec3<u32>) {
     let instance = invocation.y;
     let point = invocation.x;
     if instance >= projection_settings.x || point >= path_header.raw_count * 3u { return; }
-    let base = instance * 23u;
+    let base = instance * 24u;
     let attributes = InstancesInput(instance_vector(base), instance_vector(base + 4u),
-        instance_vector(base + 8u), instance_vector(base + 12u), instance_vector(base + 16u).xyz,
-        instance_words[base + 19u], instance_words[base + 20u], bitcast<f32>(instance_words[base + 21u]),
-        instance_words[base + 22u]);
+        instance_vector(base + 8u), instance_vector(base + 12u), instance_vector(base + 16u),
+        instance_words[base + 20u], instance_words[base + 21u], bitcast<f32>(instance_words[base + 22u]),
+        instance_words[base + 23u]);
     projected_points_out[instance * path_header.raw_count * 3u + point] =
         project_local(path_points[path_header.raw_start * 3u + point], attributes);
 }
@@ -655,7 +655,8 @@ fn windfoil_color(input: WindfoilOutput, even_odd: bool) -> vec4<f32> {
     let magnitude = abs(winding);
     let parity = magnitude - 2.0 * floor(magnitude * 0.5);
     let coverage = select(min(magnitude, 1.0), 1.0 - abs(1.0 - parity), even_odd);
-    return vec4<f32>(input.color * coverage, coverage);
+    let alpha = coverage * input.color.a;
+    return vec4<f32>(input.color.rgb * alpha, alpha);
 }
 
 @fragment
