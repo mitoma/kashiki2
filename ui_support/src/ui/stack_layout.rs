@@ -4,9 +4,11 @@ use glam::Quat;
 use crate::{
     easing_value::EasingPointN,
     layout_engine::{
-        DebugModelDetails, DebugModelNode, DebugStackLayoutSnapshot, Model, ModelOperation,
-        ModelOperationResult,
+        DebugModelDetails, DebugModelNode, DebugStackLayoutSnapshot, Model, ModelAttributes,
+        ModelBorder, ModelOperation, ModelOperationResult,
     },
+    ui::view_element_state::{BORDER_OUTSET, BorderStates},
+    ui_context::TextContext,
 };
 
 /// Model を複数まとめてレイアウトするためのコンテナ
@@ -22,6 +24,11 @@ pub struct StackLayout {
     rotation: EasingPointN<4>,
 
     margin: Margin,
+
+    // 子モデルごとではなく、レイアウト全体を囲む枠線
+    border: ModelBorder,
+    border_states: Option<BorderStates>,
+    border_context: TextContext,
 }
 
 pub struct Margin {
@@ -42,6 +49,51 @@ impl StackLayout {
                 horizontal: 0.1,
                 vertical: 0.1,
             },
+            border: ModelBorder::None,
+            border_states: None,
+            border_context: TextContext::default(),
+        }
+    }
+
+    fn update_border(&mut self, context: &crate::ui_context::UiContext) {
+        if self.border == ModelBorder::None {
+            return;
+        }
+        self.border_context.color_theme = *context.color_theme();
+        // BorderStates はモデルの左上を原点とした座標で、内容の外側に枠線を配置する
+        let (bound_x, bound_y) = self.content_bound();
+        let model_attributes = ModelAttributes {
+            center: (bound_x / 2.0, -bound_y / 2.0).into(),
+            position: self.position.current().into(),
+            rotation: Quat::from_array(self.rotation.current()),
+            world_scale: [1.0, 1.0],
+        };
+        let border_context = &self.border_context;
+        let states = self.border_states.get_or_insert_with(|| {
+            let mut states = BorderStates::default();
+            states.init(border_context, context.device());
+            states
+        });
+        states.update_state([0.0, 0.0, 0.0], [bound_x, bound_y], border_context);
+        states.update_instances(true, &model_attributes);
+        states.instances.update(context.device(), context.queue());
+    }
+
+    // 枠線を含まない、子モデルを並べた部分の大きさ
+    fn content_bound(&self) -> (f32, f32) {
+        match self.direction {
+            Direction::Horizontal => (
+                // 横書き: テキスト行が下に伸びる → 複数行を縦に積む
+                self.models.iter().map(|m| m.bound().0).fold(0.0, f32::max),
+                self.models.iter().map(|m| m.bound().1).sum::<f32>()
+                    + self.margin.vertical * (self.models.len() as f32 - 1.0),
+            ),
+            Direction::Vertical => (
+                // 縦書き: テキスト列が右に伸びる → 複数列を横に並べる
+                self.models.iter().map(|m| m.bound().0).sum::<f32>()
+                    + self.margin.horizontal * (self.models.len() as f32 - 1.0),
+                self.models.iter().map(|m| m.bound().1).fold(0.0, f32::max),
+            ),
         }
     }
 
@@ -109,21 +161,15 @@ impl Model for StackLayout {
         Quat::from_array(self.rotation.current())
     }
 
+    // 枠線があるときは、カメラが枠線まで画面に収められるよう枠線の分も含める
     fn bound(&self) -> (f32, f32) {
-        match self.direction {
-            Direction::Horizontal => (
-                // 横書き: テキスト行が下に伸びる → 複数行を縦に積む
-                self.models.iter().map(|m| m.bound().0).fold(0.0, f32::max),
-                self.models.iter().map(|m| m.bound().1).sum::<f32>()
-                    + self.margin.vertical * (self.models.len() as f32 - 1.0),
-            ),
-            Direction::Vertical => (
-                // 縦書き: テキスト列が右に伸びる → 複数列を横に並べる
-                self.models.iter().map(|m| m.bound().0).sum::<f32>()
-                    + self.margin.horizontal * (self.models.len() as f32 - 1.0),
-                self.models.iter().map(|m| m.bound().1).fold(0.0, f32::max),
-            ),
-        }
+        let (x, y) = self.content_bound();
+        let outset = if self.border == ModelBorder::None {
+            0.0
+        } else {
+            BORDER_OUTSET * 2.0
+        };
+        (x + outset, y + outset)
     }
 
     fn surface_instances(
@@ -156,15 +202,20 @@ impl Model for StackLayout {
     }
 
     fn vector_instances(&self) -> Vec<&font_rasterizer::vector_instances::VectorInstances<String>> {
-        self.models
+        let mut result: Vec<_> = self
+            .models
             .iter()
             .flat_map(|model| model.vector_instances())
-            .collect()
+            .collect();
+        if let Some(states) = self.border_states.as_ref() {
+            result.extend(states.instances.to_instances());
+        }
+        result
     }
 
     fn update(&mut self, context: &crate::ui_context::UiContext) {
         let position: glam::Vec3 = self.last_position();
-        let layout_bound: (f32, f32) = self.bound();
+        let layout_bound: (f32, f32) = self.content_bound();
         //log::info!("--------");
         //log::info!(
         //    "StackLayout update: position={:?}, bound={:?}",
@@ -208,6 +259,7 @@ impl Model for StackLayout {
         for model in self.models.iter_mut() {
             model.update(context);
         }
+        self.update_border(context);
     }
 
     fn editor_operation(&mut self, op: &text_buffer::action::EditorOperation) {
@@ -222,6 +274,12 @@ impl Model for StackLayout {
         &mut self,
         op: &crate::layout_engine::ModelOperation,
     ) -> crate::layout_engine::ModelOperationResult {
+        // 枠線は子モデルに配らず、レイアウト全体に 1 つだけ付ける
+        if let ModelOperation::SetModelBorder(border) = op {
+            self.set_border(*border);
+            return ModelOperationResult::RequireReLayoutAndFit;
+        }
+
         let mut result = ModelOperationResult::NoCare;
         if let ModelOperation::ChangeDirection(direction) = op {
             log::info!("StackLayout ChangeDirection: {:?}", direction);
@@ -256,14 +314,15 @@ impl Model for StackLayout {
         self.models.iter().any(|model| model.in_animation())
     }
 
-    fn set_border(&mut self, border: crate::layout_engine::ModelBorder) {
-        for model in self.models.iter_mut() {
-            model.set_border(border);
+    fn set_border(&mut self, border: ModelBorder) {
+        self.border = border;
+        if border == ModelBorder::None {
+            self.border_states = None;
         }
     }
 
-    fn border(&self) -> crate::layout_engine::ModelBorder {
-        crate::layout_engine::ModelBorder::None
+    fn border(&self) -> ModelBorder {
+        self.border
     }
 
     fn set_easing_preset(&mut self, preset: crate::ui_context::CharEasingsPreset) {
@@ -305,5 +364,37 @@ impl Model for StackLayout {
             }),
             camera,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::TextEdit;
+
+    #[test]
+    fn border_wraps_the_whole_layout_instead_of_each_child() {
+        let mut layout = StackLayout::new(Direction::Horizontal);
+        layout.add_model(Box::new(TextEdit::default()));
+        layout.add_model(Box::new(TextEdit::default()));
+        let (width, height) = layout.bound();
+
+        let result = layout.model_operation(&ModelOperation::SetModelBorder(ModelBorder::Rounded));
+
+        assert!(result == ModelOperationResult::RequireReLayoutAndFit);
+        assert_eq!(layout.border(), ModelBorder::Rounded);
+        assert!(
+            layout
+                .models()
+                .iter()
+                .all(|model| model.border() == ModelBorder::None)
+        );
+        assert_eq!(
+            layout.bound(),
+            (width + BORDER_OUTSET * 2.0, height + BORDER_OUTSET * 2.0)
+        );
+
+        layout.model_operation(&ModelOperation::SetModelBorder(ModelBorder::None));
+        assert_eq!(layout.bound(), (width, height));
     }
 }

@@ -898,6 +898,9 @@ const BORDER_BOTTOM_RIGHT: BorderFragment = BorderFragment {
 
 const BORDER_BASE_COLOR: ThemedColor = ThemedColor::TextEmphasized;
 
+/// 罫線は bound の外側にこの距離だけ離して描画される
+pub(crate) const BORDER_OUTSET: f32 = 1.0;
+
 /// 罫線の 3 次元上の位置と画面上のインスタンスを管理する構造体
 pub(crate) struct BorderStates {
     initialized: bool,

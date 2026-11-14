@@ -286,6 +286,8 @@ pub enum ModelOperation {
 pub enum ModelOperationResult {
     NoCare,
     RequireReLayout,
+    // モデルの外形が変わったので、レイアウトし直したうえでモデル全体が画面に収まるようカメラを合わせ直す
+    RequireReLayoutAndFit,
 }
 
 // モデルが持つ属性をまとめたもの

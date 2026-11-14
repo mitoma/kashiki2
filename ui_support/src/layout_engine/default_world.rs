@@ -330,6 +330,10 @@ impl World for DefaultWorld {
                 ModelOperationResult::RequireReLayout => {
                     self.world_updated = true;
                 }
+                ModelOperationResult::RequireReLayoutAndFit => {
+                    self.world_updated = true;
+                    self.look_current(CameraAdjustment::FitBoth);
+                }
             }
         }
     }

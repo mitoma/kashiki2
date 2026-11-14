@@ -1,0 +1,7 @@
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["system","command-palette","None"]}
+{"ImeInput":":set-model-border"}
+{"Command":["edit","return","None"]}
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","snapshot",{"String":"01_set_model_border"}]}
+{"Command":["system","exit","None"]}
