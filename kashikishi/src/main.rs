@@ -583,6 +583,7 @@ impl SimpleStateCallback for KashikishiCallback {
                     surface_instances: vec![],
                     vector_instances: vec![],
                     glyph_instances: ime_instances,
+                    opacity: 1.0,
                 });
             }
         } else {
@@ -592,6 +593,7 @@ impl SimpleStateCallback for KashikishiCallback {
                 surface_instances: self.world.overlay_surface_instances(),
                 vector_instances: self.world.overlay_vector_instances(),
                 glyph_instances: overlay_glyph_instances,
+                opacity: 1.0,
             });
         }
 

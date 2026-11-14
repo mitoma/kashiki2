@@ -70,9 +70,17 @@ fn file_names(dir: &Path) -> BTreeSet<String> {
         .collect()
 }
 
-fn run_scenario(scenario: &Path, snapshot_dir: &Path, headed: bool) -> Result<(), String> {
+fn run_scenario(
+    scenario: &Path,
+    snapshot_dir: &Path,
+    headed: bool,
+    frame_ms: Option<u32>,
+) -> Result<(), String> {
     let mut command = Command::new(env!("CARGO_BIN_EXE_kashikishi"));
     command.arg("test").arg("--scenario").arg(scenario);
+    if let Some(frame_ms) = frame_ms {
+        command.arg("--frame-ms").arg(frame_ms.to_string());
+    }
     if headed {
         command.arg("--headed");
     } else {
@@ -224,7 +232,7 @@ fn e2e_scenarios() {
         if headed {
             println!("replaying {name} in a window");
         }
-        if let Err(err) = run_scenario(&scenario, &actual_dir, headed) {
+        if let Err(err) = run_scenario(&scenario, &actual_dir, headed, None) {
             failures.push(format!("[{name}] {err}"));
             continue;
         }
@@ -250,4 +258,100 @@ fn e2e_scenarios() {
         "e2e scenarios failed:\n{}",
         failures.join("\n")
     );
+}
+
+#[test]
+#[ignore = "GPU が必要なため `mise r e2e` で実行する"]
+fn closing_modal_fades_over_the_parent_modal() {
+    if std::env::var("E2E_HEADED").is_ok_and(|v| v == "1")
+        || std::env::var("E2E_SELECT").is_ok_and(|v| v == "1")
+    {
+        println!("skipping headless modal fade check in headed or scenario selection mode");
+        return;
+    }
+    let root =
+        Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("modal_fade_{}", std::process::id()));
+    let scenario = root.join("scenario.jsonl");
+    let snapshots = root.join("snapshots");
+    std::fs::create_dir_all(&root).expect("create modal fade test directory");
+    std::fs::write(
+        &scenario,
+        r#"{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["system","command-palette","None"]}
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","snapshot",{"String":"parent"}]}
+{"Command":["system","command-palette","None"]}
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"ImeInput":"help"}
+{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","snapshot",{"String":"child"}]}
+{"Command":["world","remove-current","None"]}
+{"Command":["action_recorder","snapshot",{"String":"close"}]}
+{"Command":["action_recorder","wait",{"Integer":100}]}
+{"Command":["action_recorder","snapshot",{"String":"early"}]}
+{"Command":["action_recorder","wait",{"Integer":150}]}
+{"Command":["action_recorder","snapshot",{"String":"middle"}]}
+{"Command":["action_recorder","wait",{"Integer":125}]}
+{"Command":["action_recorder","snapshot",{"String":"late"}]}
+{"Command":["action_recorder","wait",{"Integer":200}]}
+{"Command":["action_recorder","snapshot",{"String":"finished"}]}
+{"Command":["system","exit","None"]}
+"#,
+    )
+    .expect("write modal fade scenario");
+    run_scenario(&scenario, &snapshots, false, Some(25)).expect("run modal fade scenario");
+
+    let read_image = |name: &str| {
+        image::open(snapshots.join(format!("{name}.png")))
+            .expect("open modal fade snapshot")
+            .to_rgba8()
+    };
+    let parent = read_image("parent");
+    let child = read_image("child");
+    let finished = read_image("finished");
+    assert!(parent == finished, "the parent modal should be restored");
+    assert!(
+        std::fs::read_to_string(snapshots.join("child.txt"))
+            .unwrap()
+            .contains("modal_models: 2")
+    );
+    assert!(
+        std::fs::read_to_string(snapshots.join("close.txt"))
+            .unwrap()
+            .contains("modal_models: 1")
+    );
+
+    let mut brighter = Vec::new();
+    let mut darker = Vec::new();
+    for (x, y, parent_pixel) in parent.enumerate_pixels() {
+        let brightness = |pixel: &Rgba<u8>| pixel.0[..3].iter().map(|&v| i32::from(v)).sum::<i32>();
+        let difference = brightness(child.get_pixel(x, y)) - brightness(parent_pixel);
+        if difference > 30 {
+            brighter.push((x, y));
+        } else if difference < -30 {
+            darker.push((x, y));
+        }
+    }
+
+    let frames = ["close", "early", "middle", "late"].map(read_image);
+    for mask in [&brighter, &darker] {
+        assert!(mask.len() > 100, "the modal must change visible pixels");
+        let distance = |image: &RgbaImage| -> u64 {
+            mask.iter()
+                .map(|&(x, y)| {
+                    image.get_pixel(x, y).0[..3]
+                        .iter()
+                        .zip(&finished.get_pixel(x, y).0[..3])
+                        .map(|(a, b)| u64::from(a.abs_diff(*b)))
+                        .sum::<u64>()
+                })
+                .sum()
+        };
+        let initial = distance(&child);
+        let [close, early, middle, late] = frames.each_ref().map(distance);
+        assert!(close >= initial * 98 / 100, "modal disappeared on close");
+        assert!(early < close && early > close * 65 / 100);
+        assert!(middle < early && middle > close * 25 / 100);
+        assert!(late < middle && late > close * 5 / 100);
+    }
 }

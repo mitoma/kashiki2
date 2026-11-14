@@ -13,11 +13,13 @@ use font_rasterizer::{
     context::WindowSize, glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
     vector_instances::VectorInstances,
 };
+use web_time::Duration;
 
 use crate::ui_context::UiContext;
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
+    easing_value::EasingPointN,
     layout_engine::{
         DebugModelNode, Model, ModelOperation, ModelOperationResult, ModelRenderBatch,
         ModelSurfaceStyle, World, world::RemovedModelType,
@@ -51,13 +53,48 @@ fn world_layout_name(layout: &WorldLayout) -> &'static str {
     }
 }
 
+struct ModalModel {
+    model: Box<dyn Model>,
+    opacity: EasingPointN<1>,
+    closing: bool,
+}
+
+impl ModalModel {
+    fn new(model: Box<dyn Model>) -> Self {
+        let mut opacity = EasingPointN::new([1.0]);
+        opacity.update_duration_and_easing_func(
+            Duration::from_millis(500),
+            nenobi::functions::sin_in_out,
+        );
+        Self {
+            model,
+            opacity,
+            closing: false,
+        }
+    }
+
+    fn close(&mut self) {
+        self.closing = true;
+        self.opacity.update([0.0]);
+    }
+
+    fn opacity(&self) -> f32 {
+        let [opacity] = self.opacity.current();
+        opacity
+    }
+
+    fn fade_finished(&self) -> bool {
+        self.closing && !self.opacity.in_animation()
+    }
+}
+
 pub struct DefaultWorld {
     camera: Camera,
     /* modal に移行する直前のカメラの位置 */
     pre_camera: Option<([f32; 3], [f32; 3])>,
     camera_controller: CameraController,
     models: Vec<Box<dyn Model>>,
-    modal_models: Vec<Box<dyn Model>>,
+    modal_models: Vec<ModalModel>,
     removed_models: Vec<Box<dyn Model>>,
     focus: usize,
     world_updated: bool,
@@ -88,7 +125,10 @@ impl DefaultWorld {
 
     fn get_current_mut(&mut self) -> Option<&mut Box<dyn Model>> {
         self.modal_models
-            .last_mut()
+            .iter_mut()
+            .rev()
+            .find(|modal| !modal.closing)
+            .map(|modal| &mut modal.model)
             .or_else(|| self.models.get_mut(self.focus))
     }
 
@@ -138,6 +178,34 @@ impl DefaultWorld {
             Self::to_vector_instances(&self.removed_models);
         chain(models, removed_models).collect()
     }
+
+    fn render_batches_inner(&self) -> Vec<ModelRenderBatch<'_>> {
+        let models = &self.models[self.get_surrounding_model_range()];
+        // 半透明の描画を正しく重ねるため、視線方向で奥にあるモデルから順に描画する
+        let view_depth = self.camera.view_depth_fn();
+        let mut models: Vec<(f32, &dyn Model)> = models
+            .iter()
+            .chain(self.removed_models.iter())
+            .map(|model| (view_depth(model.position()), model.as_ref()))
+            .collect();
+        models.sort_by(|(a, _), (b, _)| b.total_cmp(a));
+        models
+            .into_iter()
+            .map(|(_, model)| (model, 1.0))
+            // モーダルは奥行きによらず通常モデルより手前に重ねる。
+            .chain(
+                self.modal_models
+                    .iter()
+                    .map(|modal| (modal.model.as_ref(), modal.opacity())),
+            )
+            .map(|(model, opacity)| ModelRenderBatch {
+                surface_instances: model.surface_instances(),
+                vector_instances: model.vector_instances(),
+                glyph_instances: model.glyph_instances(),
+                opacity,
+            })
+            .collect()
+    }
 }
 
 impl World for DefaultWorld {
@@ -153,7 +221,7 @@ impl World for DefaultWorld {
 
     fn add_modal(&mut self, mut model: Box<dyn Model>) {
         model.set_surface_style(ModelSurfaceStyle::ThemeBackground { alpha: 0.9 });
-        self.modal_models.push(model);
+        self.modal_models.push(ModalModel::new(model));
         self.pre_camera = Some(self.camera.target_and_eye());
         self.world_updated = true;
     }
@@ -177,11 +245,11 @@ impl World for DefaultWorld {
     }
 
     fn look_modal(&mut self, adjustment: CameraAdjustment) {
-        let Some(model) = self.modal_models.last() else {
+        let Some(modal) = self.modal_models.iter().rev().find(|modal| !modal.closing) else {
             return;
         };
         self.camera_controller
-            .look_at(&mut self.camera, model.as_ref(), adjustment);
+            .look_at(&mut self.camera, modal.model.as_ref(), adjustment);
         self.camera_controller.update_camera(&mut self.camera);
     }
 
@@ -198,36 +266,25 @@ impl World for DefaultWorld {
     }
 
     fn render_batches(&self) -> Vec<ModelRenderBatch<'_>> {
-        let models = &self.models[self.get_surrounding_model_range()];
-        // 半透明の描画を正しく重ねるため、視線方向で奥にあるモデルから順に描画する
-        let view_depth = self.camera.view_depth_fn();
-        let mut models: Vec<(f32, &dyn Model)> = models
-            .iter()
-            .chain(self.removed_models.iter())
-            .map(|model| (view_depth(model.position()), model.as_ref()))
-            .collect();
-        models.sort_by(|(a, _), (b, _)| b.total_cmp(a));
-        models
-            .into_iter()
-            .map(|(_, model)| model)
-            // モーダルは奥行きによらず通常モデルより手前に重ねる。
-            .chain(self.modal_models.iter().map(|model| model.as_ref()))
-            .map(|model| ModelRenderBatch {
-                surface_instances: model.surface_instances(),
-                vector_instances: model.vector_instances(),
-                glyph_instances: model.glyph_instances(),
-            })
-            .collect()
+        self.render_batches_inner()
     }
 
     fn has_modal(&self) -> bool {
-        !self.modal_models.is_empty()
+        self.modal_models.iter().any(|modal| !modal.closing)
     }
 
     fn modal_instances(&self) -> (Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
         (
-            Self::to_glyph_instances(&self.modal_models),
-            Self::to_vector_instances(&self.modal_models),
+            self.modal_models
+                .iter()
+                .filter(|modal| !modal.closing)
+                .flat_map(|modal| modal.model.glyph_instances())
+                .collect(),
+            self.modal_models
+                .iter()
+                .filter(|modal| !modal.closing)
+                .flat_map(|modal| modal.model.vector_instances())
+                .collect(),
         )
     }
 
@@ -247,10 +304,11 @@ impl World for DefaultWorld {
         for model in self.removed_models.iter_mut() {
             model.update(context);
         }
-        for model in self.modal_models.iter_mut() {
-            model.update(context);
+        for modal in self.modal_models.iter_mut() {
+            modal.model.update(context);
         }
         self.removed_models.retain(|m| m.in_animation());
+        self.modal_models.retain(|modal| !modal.fade_finished());
 
         if self.world_updated {
             self.re_layout();
@@ -272,7 +330,7 @@ impl World for DefaultWorld {
 
     fn look_current(&mut self, adjustment: CameraAdjustment) {
         // modal の場合はフォーカスを移動させない
-        if !self.modal_models.is_empty() {
+        if self.has_modal() {
             self.look_modal(adjustment);
         } else {
             self.look_at(self.focus, adjustment)
@@ -286,7 +344,7 @@ impl World for DefaultWorld {
         }
 
         // modal の場合はフォーカスを移動させない
-        if !self.modal_models.is_empty() {
+        if self.has_modal() {
             self.look_modal(adjustment);
             return;
         }
@@ -301,7 +359,7 @@ impl World for DefaultWorld {
         }
 
         // modal の場合はフォーカスを移動させない
-        if !self.modal_models.is_empty() {
+        if self.has_modal() {
             self.look_modal(adjustment);
             return;
         }
@@ -352,16 +410,23 @@ impl World for DefaultWorld {
 
     fn remove_current(&mut self) -> RemovedModelType {
         self.world_updated = true;
-        let (mut removed_model, removed_model_type) = self
+        let removed_model_type = if let Some(modal) = self
             .modal_models
-            .pop()
-            .map(|m| (m, RemovedModelType::Modal))
-            .unwrap_or_else(|| (self.models.remove(self.focus), RemovedModelType::Normal));
-        let (x, y, z) = removed_model.position().into();
-        removed_model.set_position(Vec3::new(x, y - 5.0, z));
-        self.removed_models.push(removed_model);
+            .iter_mut()
+            .rev()
+            .find(|modal| !modal.closing)
+        {
+            modal.close();
+            RemovedModelType::Modal
+        } else {
+            let mut removed_model = self.models.remove(self.focus);
+            let (x, y, z) = removed_model.position().into();
+            removed_model.set_position(Vec3::new(x, y - 5.0, z));
+            self.removed_models.push(removed_model);
+            RemovedModelType::Normal
+        };
 
-        if self.modal_models.is_empty() && self.pre_camera.is_some() {
+        if !self.has_modal() && self.pre_camera.is_some() {
             // modal から戻るときはカメラを元に戻す
             if let Some((target, eye)) = self.pre_camera.take() {
                 self.camera_operation(CameraOperation::CangeTargetAndEye(
@@ -436,8 +501,10 @@ impl World for DefaultWorld {
         self.models.iter_mut().for_each(|m| {
             m.set_easing_preset(preset);
         });
-        self.modal_models.iter_mut().for_each(|m| {
-            m.set_easing_preset(preset);
+        self.modal_models.iter_mut().for_each(|modal| {
+            if !modal.closing {
+                modal.model.set_easing_preset(preset);
+            }
         });
     }
 
@@ -457,11 +524,19 @@ impl World for DefaultWorld {
             modal_models: self
                 .modal_models
                 .iter()
-                .map(|model| model.debug_node(&self.camera))
+                .filter(|modal| !modal.closing)
+                .map(|modal| modal.model.debug_node(&self.camera))
                 .collect(),
             removed_models: self
                 .removed_models
                 .iter()
+                .map(|model| model.as_ref())
+                .chain(
+                    self.modal_models
+                        .iter()
+                        .filter(|modal| modal.closing)
+                        .map(|modal| modal.model.as_ref()),
+                )
                 .map(|model| model.debug_node(&self.camera))
                 .collect(),
         }
@@ -513,8 +588,8 @@ impl WorldLayout {
                     .map(|m| m.focus_position())
                     .unwrap_or([0.0, 0.0, 0.0].into())
                     .into();
-                for model in world.modal_models.iter_mut() {
-                    model.set_position([focus_x, focus_y, focus_z].into());
+                for modal in world.modal_models.iter_mut().filter(|modal| !modal.closing) {
+                    modal.model.set_position([focus_x, focus_y, focus_z].into());
                 }
             }
             WorldLayout::Circle => {
@@ -576,7 +651,9 @@ mod font_change_tests {
     #[test]
     fn modal_models_share_render_batches_and_use_translucent_surfaces() {
         let mut world = DefaultWorld::new(WindowSize::new(800, 600));
-        world.add(Box::new(crate::ui::TextEdit::default()));
+        let mut normal = crate::ui::TextEdit::default();
+        normal.set_position(Vec3::new(1.0, 2.0, 3.0));
+        world.add(Box::new(normal));
         assert!(!world.has_modal());
         assert_eq!(world.render_batches().len(), 1);
 
@@ -588,22 +665,50 @@ mod font_change_tests {
         assert_eq!(world.render_batches().len(), 3);
         assert_eq!(world.models[0].surface_style(), ModelSurfaceStyle::None);
         for modal in &world.modal_models {
-            let ModelSurfaceStyle::ThemeBackground { alpha } = modal.surface_style() else {
+            let ModelSurfaceStyle::ThemeBackground { alpha } = modal.model.surface_style() else {
                 panic!("modal must use the theme background");
             };
             assert!(alpha > 0.0 && alpha < 1.0);
         }
 
+        let last_position = world.modal_models[1].model.last_position();
         assert!(matches!(world.remove_current(), RemovedModelType::Modal));
         assert!(world.has_modal());
-        assert_eq!(world.removed_models.len(), 1);
+        assert_eq!(world.modal_models[1].model.last_position(), last_position);
+        assert!(world.modal_models[1].closing);
+        assert_eq!(world.modal_models[1].opacity.last(), [0.0]);
         assert_eq!(world.render_batches().len(), 3);
         assert!(matches!(world.remove_current(), RemovedModelType::Modal));
         assert!(!world.has_modal());
-        assert_eq!(world.removed_models.len(), 2);
+        assert!(world.modal_models.iter().all(|modal| modal.closing));
+        assert!(world.removed_models.is_empty());
+        assert!(world.modal_instances().0.is_empty());
+        assert_eq!(
+            world.get_current_mut().unwrap().last_position(),
+            Vec3::new(1.0, 2.0, 3.0)
+        );
         assert_eq!(world.render_batches().len(), 3);
-        world.removed_models.clear();
+        world.modal_models.clear();
         assert_eq!(world.render_batches().len(), 1);
+    }
+
+    #[test]
+    fn closing_modals_keep_their_layer_when_another_modal_opens() {
+        let mut world = DefaultWorld::new(WindowSize::new(800, 600));
+        world.add(Box::new(crate::ui::TextEdit::default()));
+        world.add_modal(Box::new(crate::ui::TextEdit::default()));
+        world.add_modal(Box::new(crate::ui::TextEdit::default()));
+        assert!(matches!(world.remove_current(), RemovedModelType::Modal));
+
+        world.modal_models[1].opacity = EasingPointN::new([0.5]);
+        world.add_modal(Box::new(crate::ui::TextEdit::default()));
+
+        let batches = world.render_batches();
+        assert_eq!(batches.len(), 4);
+        assert_eq!(batches[0].opacity, 1.0);
+        assert_eq!(batches[1].opacity, 1.0);
+        assert!((batches[2].opacity - 0.5).abs() < 0.001);
+        assert_eq!(batches[3].opacity, 1.0);
     }
 
     #[test]

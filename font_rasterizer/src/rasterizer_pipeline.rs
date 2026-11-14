@@ -45,6 +45,8 @@ pub struct Buffers<'a> {
         &'a VectorVertexBuffer<String>,
         &'a [&'a VectorInstances<String>],
     )>,
+    /// 各インスタンスの alpha に掛ける不透明度。
+    pub opacity: f32,
 }
 
 /// フォントをラスタライズするためのパイプラインを提供する。

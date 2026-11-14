@@ -241,6 +241,7 @@ impl SimpleStateCallback for SingleCharCallback {
             surface_instances: vec![],
             vector_instances: vec![],
             glyph_instances: self.ime.get_instances(),
+            opacity: 1.0,
         });
         RenderData::from_batches(self.world.camera(), batches)
     }

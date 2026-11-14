@@ -67,6 +67,7 @@ pub async fn render_vector_vertex_to_png_async(
         attributes,
         Mat4::IDENTITY,
         true,
+        1.0,
     )
     .await
 }
@@ -78,6 +79,7 @@ async fn render_with_transform(
     attributes: InstanceAttributes,
     view_proj: Mat4,
     preproject_curves: bool,
+    opacity: f32,
 ) -> Result<(), FontRasterizerError> {
     // headless 描画は既存の GPU 回帰テストと同じ条件に揃え、Windows では DX12 を使用する。
     let mut instance_descriptor = wgpu::InstanceDescriptor::new_without_display_handle();
@@ -171,6 +173,7 @@ async fn render_with_transform(
         Buffers {
             glyph_buffers: None,
             vector_buffers: Some((&vector_vertex_buffer, &vector_instances_refs)),
+            opacity,
         },
         &render_view,
     );
@@ -319,6 +322,26 @@ mod tests {
         view: Mat4,
         preproject_curves: bool,
     ) -> image::RgbaImage {
+        render_with_opacity(
+            builder,
+            rule,
+            antialiasing,
+            attributes,
+            view,
+            preproject_curves,
+            1.0,
+        )
+    }
+
+    fn render_with_opacity(
+        builder: VectorVertexBuilder,
+        rule: OutlineFillRule,
+        antialiasing: bool,
+        attributes: InstanceAttributes,
+        view: Mat4,
+        preproject_curves: bool,
+        opacity: f32,
+    ) -> image::RgbaImage {
         static NEXT_IMAGE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let image_index = NEXT_IMAGE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
@@ -339,6 +362,7 @@ mod tests {
             attributes,
             view,
             preproject_curves,
+            opacity,
         ))
         .unwrap();
         let image = image::open(&path).unwrap().to_rgba8();
@@ -543,6 +567,35 @@ mod tests {
         let pixel = image.get_pixel(32, 32);
         assert!(pixel[3].abs_diff(128) <= 1, "alpha={}", pixel[3]);
         assert_eq!(image.get_pixel(2, 2)[3], 0);
+    }
+
+    #[test]
+    #[ignore = "requires a WebGPU adapter"]
+    fn windfoil_batch_opacity_scales_instance_alpha() {
+        let attributes = InstanceAttributes {
+            position: Vec3::ZERO,
+            start_time: 0,
+            alpha: 0.6,
+            ..Default::default()
+        };
+        for (opacity, expected_alpha) in [(1.0, 153), (0.5, 77), (0.0, 0)] {
+            let mut builder = VectorVertexBuilder::new();
+            rectangle(&mut builder, [8.0, 8.0, 56.0, 56.0], false);
+            let image = render_with_opacity(
+                builder,
+                OutlineFillRule::NonZero,
+                true,
+                attributes,
+                Mat4::IDENTITY,
+                true,
+                opacity,
+            );
+            let alpha = image.get_pixel(32, 32)[3];
+            assert!(
+                alpha.abs_diff(expected_alpha) <= 1,
+                "opacity={opacity}, alpha={alpha}"
+            );
+        }
     }
 
     #[test]

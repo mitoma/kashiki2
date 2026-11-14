@@ -387,10 +387,10 @@ fn clipped_edge_bounds(first: vec4<f32>, last: vec4<f32>, previous: ProjectedBou
 }
 
 @vertex
-fn vs_windfoil(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32, instances: InstancesInput) -> WindfoilOutput {
+fn vs_windfoil(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32, instances: InstancesInput, @location(14) opacity: f32) -> WindfoilOutput {
     let corner = vec2<f32>(f32(vertex & 1u), f32(vertex >> 1u));
     var output: WindfoilOutput;
-    output.color = instances.color;
+    output.color = vec4<f32>(instances.color.rgb, instances.color.a * opacity);
     output.instance = instance;
     output.matrix_0 = instances.model_matrix_0;
     output.matrix_1 = instances.model_matrix_1;

@@ -71,6 +71,7 @@ pub trait World {
             surface_instances: vec![],
             vector_instances: self.vector_instances(),
             glyph_instances: self.glyph_instances(),
+            opacity: 1.0,
         }]
     }
     // モーダル時のインスタンスを返す

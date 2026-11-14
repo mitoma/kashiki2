@@ -653,11 +653,13 @@ impl<'a> RenderData<'a> {
                     surface_instances: vec![],
                     vector_instances,
                     glyph_instances,
+                    opacity: 1.0,
                 },
                 layout_engine::ModelRenderBatch {
                     surface_instances: vec![],
                     vector_instances: vector_instances_for_modal,
                     glyph_instances: glyph_instances_for_modal,
+                    opacity: 1.0,
                 },
             ],
         }

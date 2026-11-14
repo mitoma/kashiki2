@@ -35,6 +35,7 @@ fn model_batches_to_buffers<'a>(
             buffers.push(Buffers {
                 glyph_buffers: None,
                 vector_buffers: Some((vector_vertex_buffer, &batch.surface_instances)),
+                opacity: batch.opacity,
             });
         }
 
@@ -46,6 +47,7 @@ fn model_batches_to_buffers<'a>(
             buffers.push(Buffers {
                 glyph_buffers,
                 vector_buffers,
+                opacity: batch.opacity,
             });
         }
     }

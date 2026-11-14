@@ -1,5 +1,7 @@
 use std::{fs, sync::Mutex};
 
+use wgpu::util::DeviceExt;
+
 use crate::{
     debug_mode::DEBUG_FLAGS,
     overlap_bind_group::OverlapBindGroup,
@@ -22,6 +24,7 @@ pub struct RasterizerRenderrer {
     enable_antialiasing: bool,
     pub(crate) overlap_bind_group: OverlapBindGroup,
     path_pipeline: wgpu::RenderPipeline,
+    opaque_opacity_buffer: wgpu::Buffer,
     color_texture: ScreenTexture,
     resolve_bind_group: wgpu::BindGroup,
     resolve_pipeline: wgpu::RenderPipeline,
@@ -108,7 +111,19 @@ impl RasterizerRenderrer {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_windfoil"),
-                buffers: &[Some(InstanceRaw::desc())],
+                buffers: &[
+                    Some(InstanceRaw::desc()),
+                    // stride 0 でバッチ内の全インスタンスに同じ不透明度を使う。
+                    Some(wgpu::VertexBufferLayout {
+                        array_stride: 0,
+                        step_mode: wgpu::VertexStepMode::Instance,
+                        attributes: &[wgpu::VertexAttribute {
+                            offset: 0,
+                            shader_location: 14,
+                            format: wgpu::VertexFormat::Float32,
+                        }],
+                    }),
+                ],
                 compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -181,6 +196,11 @@ impl RasterizerRenderrer {
             multiview_mask: None,
             cache: None,
         });
+        let opaque_opacity_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Windfoil opaque batch"),
+            contents: bytemuck::bytes_of(&1.0_f32),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
         Self {
             preproject_curves,
             device: device.clone(),
@@ -189,6 +209,7 @@ impl RasterizerRenderrer {
             enable_antialiasing,
             overlap_bind_group,
             path_pipeline,
+            opaque_opacity_buffer,
             color_texture,
             resolve_bind_group,
             resolve_pipeline,
@@ -223,7 +244,7 @@ impl RasterizerRenderrer {
         target_view: &wgpu::TextureView,
     ) {
         let mut draws = Vec::new();
-        for buffers in buffers {
+        for (batch_index, buffers) in buffers.iter().enumerate() {
             if let Some((vertices, instances)) = buffers.vector_buffers {
                 for instance in instances {
                     if let Some((paths, curve_count)) = vertices.windfoil_draw_info(&instance.key) {
@@ -233,6 +254,7 @@ impl RasterizerRenderrer {
                             instance.to_wgpu_buffer(),
                             instance.len() as u32,
                             instance.needs_curve_projection(),
+                            batch_index,
                         ));
                     }
                 }
@@ -249,16 +271,26 @@ impl RasterizerRenderrer {
                             instance.to_wgpu_buffer(),
                             instance.len() as u32,
                             instance.needs_curve_projection(),
+                            batch_index,
                         ));
                     }
                 }
             }
         }
+        let opacity_buffer = buffers.iter().any(|batch| batch.opacity != 1.0).then(|| {
+            let opacities: Vec<f32> = buffers.iter().map(|batch| batch.opacity).collect();
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Windfoil batch opacity"),
+                    contents: bytemuck::cast_slice(&opacities),
+                    usage: wgpu::BufferUsages::VERTEX,
+                })
+        });
         let mut cache = self.projection_cache.lock().unwrap();
         cache.begin_frame();
         let projections: Vec<_> = draws
             .iter()
-            .map(|(_, curves, source, count, requested)| {
+            .map(|(_, curves, source, count, requested, _)| {
                 cache.get(
                     &self.device,
                     source,
@@ -270,7 +302,7 @@ impl RasterizerRenderrer {
             .collect();
         cache.end_frame();
         drop(cache);
-        for ((paths, curves, _, count, _), projection) in draws.iter().zip(&projections) {
+        for ((paths, curves, _, count, _, _), projection) in draws.iter().zip(&projections) {
             if !projection.enabled || *count == 0 {
                 continue;
             }
@@ -303,10 +335,24 @@ impl RasterizerRenderrer {
             });
             pass.set_pipeline(&self.path_pipeline);
             pass.set_bind_group(0, &self.overlap_bind_group.bind_group, &[]);
-            for ((paths, _, source, count, _), projection) in draws.iter().zip(&projections) {
+            if opacity_buffer.is_none() {
+                pass.set_vertex_buffer(1, self.opaque_opacity_buffer.slice(..));
+            }
+            let mut last_batch_index = None;
+            for ((paths, _, source, count, _, batch_index), projection) in
+                draws.iter().zip(&projections)
+            {
                 pass.set_bind_group(1, *paths, &[]);
                 pass.set_bind_group(2, &projection.render, &[]);
                 pass.set_vertex_buffer(0, source.slice(..));
+                if let Some(buffer) = &opacity_buffer
+                    && last_batch_index != Some(*batch_index)
+                {
+                    let size = std::mem::size_of::<f32>() as u64;
+                    let offset = *batch_index as u64 * size;
+                    pass.set_vertex_buffer(1, buffer.slice(offset..offset + size));
+                    last_batch_index = Some(*batch_index);
+                }
                 pass.draw(0..4, 0..*count);
             }
         }

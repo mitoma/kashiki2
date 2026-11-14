@@ -153,6 +153,8 @@ pub struct ModelRenderBatch<'a> {
     pub surface_instances: Vec<&'a VectorInstances<String>>,
     pub vector_instances: Vec<&'a VectorInstances<String>>,
     pub glyph_instances: Vec<&'a GlyphInstances>,
+    /// バッチ内の各インスタンスの alpha に掛ける不透明度。
+    pub opacity: f32,
 }
 
 fn short_type_name<T: ?Sized>() -> &'static str {
