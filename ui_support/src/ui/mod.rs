@@ -12,7 +12,7 @@ mod view_element_state;
 
 use std::{cmp::Ordering, sync::mpsc::Receiver};
 
-pub use card::Card;
+pub use card::{Card, CardAnchor};
 pub use file_chooser::FileChooser;
 pub use ime_input::ImeInput;
 pub use select_option::SelectOption;

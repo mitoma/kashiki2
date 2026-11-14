@@ -200,6 +200,7 @@ impl KeyBind {
 
 pub struct ActionStore {
     keybinds: Vec<KeyBind>,
+    current_namespaces: Option<Vec<CommandNamespace>>,
     current_modifier: keys::ModifiersState,
     current_stroke: Stroke,
     current_mouse: Option<MousePoint>,
@@ -209,6 +210,7 @@ impl Default for ActionStore {
     fn default() -> Self {
         ActionStore {
             keybinds: Vec::new(),
+            current_namespaces: None,
             current_modifier: keys::ModifiersState::NONE,
             current_stroke: Default::default(),
             current_mouse: None,
@@ -217,6 +219,36 @@ impl Default for ActionStore {
 }
 
 impl ActionStore {
+    /// 名前空間を優先順に指定する。指定外のコマンドは入力候補から除外する。
+    ///
+    /// 同じ名前空間内は登録順を優先する。名前空間の変更時は入力途中のストロークを消去する。
+    /// 未設定なら従来どおりすべてのコマンドが有効で、空リストならコマンドを無効にする。
+    /// 通常の文字入力と IME 入力には影響しない。
+    ///
+    /// ```
+    /// use stroke_parser::ActionStore;
+    ///
+    /// let mut store = ActionStore::default();
+    /// store.set_current_namespaces(["tagbase-memo", "edit", "world", "system"]);
+    /// store.clear_current_namespaces();
+    /// ```
+    pub fn set_current_namespaces(
+        &mut self,
+        namespaces: impl IntoIterator<Item = impl Into<CommandNamespace>>,
+    ) {
+        let namespaces = namespaces.into_iter().map(Into::into).collect();
+        if self.current_namespaces.as_ref() != Some(&namespaces) {
+            self.current_namespaces = Some(namespaces);
+            self.current_stroke.clear();
+        }
+    }
+
+    /// 名前空間による制限を解除し、従来の登録順で解決する。
+    pub fn clear_current_namespaces(&mut self) {
+        self.current_namespaces = None;
+        self.current_stroke.clear();
+    }
+
     pub fn keybinds_to_string(&self) -> String {
         serde_json::to_string(&self.keybinds).unwrap()
     }
@@ -348,10 +380,30 @@ impl ActionStore {
     }
 
     fn get_action(&self) -> Option<Action> {
+        self.find_keybind(&self.current_stroke)
+            .map(|keybind| keybind.action.clone())
+    }
+
+    fn namespace_priority(&self, action: &Action) -> Option<usize> {
+        match (&self.current_namespaces, action) {
+            (Some(namespaces), Action::Command(namespace, ..)) => {
+                namespaces.iter().position(|active| active == namespace)
+            }
+            (Some(namespaces), _) => Some(namespaces.len()),
+            (None, _) => Some(0),
+        }
+    }
+
+    fn find_keybind(&self, stroke: &Stroke) -> Option<&KeyBind> {
         self.keybinds
             .iter()
-            .find(|keybind| keybind.stroke == self.current_stroke)
-            .map(|keybind| keybind.action.clone())
+            .filter(|keybind| keybind.stroke == *stroke)
+            .filter_map(|keybind| {
+                self.namespace_priority(&keybind.action)
+                    .map(|priority| (priority, keybind))
+            })
+            .min_by_key(|(priority, _)| *priority)
+            .map(|(_, keybind)| keybind)
     }
 
     fn get_action_by_mouse(
@@ -364,21 +416,145 @@ impl ActionStore {
             modifires: self.current_modifier,
         }]);
 
-        self.keybinds
-            .iter()
-            .find(|keybind| keybind.stroke == stroke)
-            .map(|keybind| {
-                let result = keybind.action.clone();
-                result.with_argument(action_argument)
-            })
+        self.find_keybind(&stroke).map(|keybind| {
+            let result = keybind.action.clone();
+            result.with_argument(action_argument)
+        })
     }
 
     fn in_stroke(&self) -> bool {
-        for KeyBind { stroke, .. } in &self.keybinds {
-            if stroke.starts_with(&self.current_stroke) {
-                return true;
-            }
+        self.keybinds.iter().any(|keybind| {
+            self.namespace_priority(&keybind.action).is_some()
+                && keybind.stroke.starts_with(&self.current_stroke)
+        })
+    }
+}
+
+#[cfg(test)]
+mod action_store_tests {
+    use super::*;
+
+    fn store(settings: &str) -> ActionStore {
+        let mut store = ActionStore::default();
+        for keybind in action_store_parser::parse_setting(settings) {
+            store.register_keybind(keybind);
         }
-        false
+        store
+    }
+
+    fn set_stroke(store: &mut ActionStore, keys: &str) {
+        store.current_stroke = action_store_parser::parse_setting(&format!("{keys} test:stroke"))
+            .remove(0)
+            .stroke;
+    }
+
+    #[test]
+    fn defaults_to_registration_order_and_can_clear_namespace_selection() {
+        let mut store = store("C-Z C category:add\nC-Z C tagbase:add");
+        set_stroke(&mut store, "C-Z C");
+        assert_eq!(
+            store.get_action(),
+            Some(Action::new_command("category", "add"))
+        );
+        store.set_current_namespaces(["tagbase"]);
+        set_stroke(&mut store, "C-Z C");
+        assert_eq!(
+            store.get_action(),
+            Some(Action::new_command("tagbase", "add"))
+        );
+        store.clear_current_namespaces();
+        assert!(store.current_stroke.keys.is_empty());
+        set_stroke(&mut store, "C-Z C");
+        assert_eq!(
+            store.get_action(),
+            Some(Action::new_command("category", "add"))
+        );
+    }
+
+    #[test]
+    fn namespace_priority_precedes_registration_order_and_preserves_ties() {
+        let mut store = store(
+            "C-Z C shared:add\nC-Z C tagbase:first\nC-Z C tagbase:second\nC-X C-S shared:save",
+        );
+        store.set_current_namespaces(["tagbase", "shared"]);
+        set_stroke(&mut store, "C-Z C");
+        assert_eq!(
+            store.get_action(),
+            Some(Action::new_command("tagbase", "first"))
+        );
+        set_stroke(&mut store, "C-X C-S");
+        assert_eq!(
+            store.get_action(),
+            Some(Action::new_command("shared", "save"))
+        );
+    }
+
+    #[test]
+    fn inactive_bindings_do_not_capture_stroke_prefixes() {
+        let mut store = store("C-Z C category:add\nC-X C-S shared:save");
+        store.set_current_namespaces(["tagbase", "shared"]);
+        set_stroke(&mut store, "C-Z");
+        assert!(!store.in_stroke());
+        set_stroke(&mut store, "C-Z C");
+        assert!(store.get_action().is_none());
+        set_stroke(&mut store, "C-X");
+        assert!(store.in_stroke());
+    }
+
+    #[test]
+    fn changing_context_clears_the_pending_stroke_but_reapplying_does_not() {
+        let mut store = store("C-Z C category:add\nC-Z C tagbase:add");
+        store.set_current_namespaces(["category"]);
+        set_stroke(&mut store, "C-Z");
+        store.set_current_namespaces(["category"]);
+        assert!(!store.current_stroke.keys.is_empty());
+        store.set_current_namespaces(["tagbase"]);
+        assert!(store.current_stroke.keys.is_empty());
+    }
+
+    #[test]
+    fn mouse_bindings_follow_namespace_priority_and_keep_arguments() {
+        let mut store = store("ClickLeft category:click\nClickLeft tagbase:click");
+        store.set_current_namespaces(["tagbase", "category"]);
+        let argument = ActionArgument::Point((12.0, 34.0));
+        let mouse = store.keybinds[0].stroke.keys[0].input;
+        let Input::Mouse(mouse) = mouse else {
+            panic!("expected a mouse binding")
+        };
+        assert_eq!(
+            store.get_action_by_mouse(mouse, Some(argument.clone())),
+            Some(Action::new_command("tagbase", "click").with_argument(Some(argument)))
+        );
+        store.set_current_namespaces(["shared"]);
+        assert!(store.get_action_by_mouse(mouse, None).is_none());
+    }
+
+    #[test]
+    fn empty_namespace_selection_disables_commands_but_not_ime() {
+        let mut store = store("C-Z C category:add");
+        store.set_current_namespaces(std::iter::empty::<CommandNamespace>());
+        set_stroke(&mut store, "C-Z C");
+        assert!(store.get_action().is_none());
+        assert!(!store.in_stroke());
+        assert_eq!(
+            store.winit_window_event_to_action(&WindowEvent::Ime(winit::event::Ime::Commit(
+                "text".into()
+            ))),
+            Some(Action::ImeInput("text".to_owned()))
+        );
+    }
+
+    #[test]
+    fn non_command_bindings_are_not_filtered_by_namespace() {
+        let mut store = store("C-Z C category:add");
+        store.keybinds[0].action = Action::ImeInput("literal".to_owned());
+        store.set_current_namespaces(std::iter::empty::<CommandNamespace>());
+        set_stroke(&mut store, "C-Z");
+        assert!(store.in_stroke());
+        set_stroke(&mut store, "C-Z C");
+        assert_eq!(
+            store.get_action(),
+            Some(Action::ImeInput("literal".to_owned()))
+        );
     }
 }

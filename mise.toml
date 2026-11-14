@@ -99,6 +99,10 @@ description = "Run kashikishi E2E scenarios and update expected snapshots"
 run = "cargo test -p kashikishi --test e2e_scenarios -- --ignored"
 env = { UPDATE_SNAPSHOTS = "1" }
 
+[tasks.demo]
+description = "Replay the kashikishi introduction scenario in a window (for recording demo videos)"
+run = "cargo run -p kashikishi -- test --scenario kashikishi/demo/introduction.jsonl --headed"
+
 [tasks.check]
 description = "Run checks"
 depends = ["fmt", "clippy", "clippy-tests"]

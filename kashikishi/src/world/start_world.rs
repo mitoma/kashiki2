@@ -35,8 +35,12 @@ impl StartWorld {
 
         let options = vec![
             SelectOption::new(
-                "メモ帳を開く".to_string(),
+                "カテゴリーメモ帳を開く".to_string(),
                 Action::new_command("mode", "category"),
+            ),
+            SelectOption::new(
+                "タグメモ帳を開く".to_string(),
+                Action::new_command("mode", "tagbase"),
             ),
             SelectOption::new(
                 "プレゼンモードを開く".to_string(),
@@ -74,6 +78,11 @@ impl ModalWorld for StartWorld {
 
     fn get(&self) -> &dyn World {
         &self.world
+    }
+
+    // メニュー全体が縦横ともに画面内へ収まるようにする
+    fn initial_camera_action(&self) -> Action {
+        Action::new_command("world", "reset-zoom")
     }
 
     fn apply_action(

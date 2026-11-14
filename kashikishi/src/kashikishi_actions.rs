@@ -10,6 +10,7 @@ use crate::{
 
 pub(crate) fn command_palette_select(context: &UiContext, narrow: Option<String>) -> SelectBox {
     let mut options = Vec::new();
+    let memo_actions_only = narrow.as_deref() == Some("kashikishi");
 
     let action_repository = ActionRepository::default();
 
@@ -21,6 +22,9 @@ pub(crate) fn command_palette_select(context: &UiContext, narrow: Option<String>
         ActionNamespace::ActionRecorder,
         ActionNamespace::Kashikishi,
     ] {
+        if memo_actions_only && !matches!(namespace, ActionNamespace::Kashikishi) {
+            continue;
+        }
         for action_definition in action_repository.load_actions(namespace) {
             options.push(SelectOption::new(
                 action_definition.description.clone(),
@@ -28,7 +32,12 @@ pub(crate) fn command_palette_select(context: &UiContext, narrow: Option<String>
             ));
         }
     }
-    SelectBox::new(context, "アクションの選択".to_string(), options, narrow)
+    SelectBox::new(
+        context,
+        "アクションの選択".to_string(),
+        options,
+        narrow.filter(|_| !memo_actions_only),
+    )
 }
 
 pub(crate) fn insert_date_select(context: &UiContext) -> SelectBox {
@@ -81,7 +90,7 @@ pub(crate) fn move_category_ui(
         options.push(SelectOption::new_multiple(
             category.clone(),
             vec![Action::new_command_with_argument(
-                "kashikishi",
+                "categorized-memo",
                 "move-category",
                 &category,
             )],
@@ -91,7 +100,7 @@ pub(crate) fn move_category_ui(
         options.push(SelectOption::new_multiple(
             "archive".to_string(),
             vec![Action::new_command_with_argument(
-                "kashikishi",
+                "categorized-memo",
                 "move-category",
                 "archive",
             )],
@@ -111,7 +120,7 @@ pub(crate) fn move_memo_ui(context: &UiContext, categorized_memos: &CategorizedM
     for category in categorized_memos.categories() {
         options.push(SelectOption::new(
             category.clone(),
-            Action::new_command_with_argument("kashikishi", "move-memo", &category),
+            Action::new_command_with_argument("categorized-memo", "move-memo", &category),
         ));
     }
     SelectBox::new_without_action_name(
@@ -127,7 +136,7 @@ pub(crate) fn add_category_ui(context: &UiContext) -> TextInput {
         context,
         "追加するカテゴリーを選択".to_string(),
         None,
-        Action::new_command("kashikishi", "add-category"),
+        Action::new_command("categorized-memo", "add-category"),
     )
 }
 
@@ -139,7 +148,7 @@ pub(crate) fn rename_category_select_ui(
     for category in categorized_memos.categories() {
         options.push(SelectOption::new(
             category.clone(),
-            Action::new_command_with_argument("kashikishi", "rename-category-ui", &category),
+            Action::new_command_with_argument("categorized-memo", "rename-category-ui", &category),
         ));
     }
     SelectBox::new_without_action_name(
@@ -155,7 +164,7 @@ pub(crate) fn rename_category_ui(context: &UiContext, category_name: &str) -> Te
         context,
         "変更後の名前を入力".to_string(),
         Some(category_name.to_string()),
-        Action::new_command("kashikishi", "rename-category"),
+        Action::new_command("categorized-memo", "rename-category"),
     )
 }
 
@@ -167,7 +176,7 @@ pub(crate) fn remove_category_ui(
     for category in categorized_memos.categories() {
         options.push(SelectOption::new(
             category.clone(),
-            Action::new_command_with_argument("kashikishi", "remove-category", &category),
+            Action::new_command_with_argument("categorized-memo", "remove-category", &category),
         ));
     }
     SelectBox::new_without_action_name(

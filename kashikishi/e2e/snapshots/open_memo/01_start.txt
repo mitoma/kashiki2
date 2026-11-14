@@ -7,7 +7,7 @@ models: 1
     focus_model_index: Some(1)
     [0] SingleSvg
     [1] SelectBox
-      selection: 0 / narrowed: 4 / options: 4
+      selection: 0 / narrowed: 5 / options: 5
       [0] StackLayout
         focus_model_index: Some(1)
         [0] TextEdit
@@ -18,5 +18,5 @@ models: 1
           text: ""
         [2] TextEdit
           direction: horizontal
-          text: "メモ帳を開く\nプレゼンモードを開く\nヘルプ(使い方の概説)を開く\n炊紙を終了する\n"
+          text: "カテゴリーメモ帳を開く\nタグメモ帳を開く\nプレゼンモードを開く\nヘルプ(使い方の概説)を開く\n炊紙を終了する\n"
 modal_models: 0

@@ -333,7 +333,8 @@ impl Default for EditorSettingsProfiles {
             },
             card: EditorTextContextPatch {
                 max_col: Some(usize::MAX),
-                min_bound: Some([1.0, 10.0]),
+                // 画面端に寄せるので、内容より大きな余白を取らない
+                min_bound: Some([1.0, 1.0]),
                 char_easings_preset: Some(CharEasingsPreset::IgnoreCamera),
                 hyde_caret: Some(true),
                 ..Default::default()
