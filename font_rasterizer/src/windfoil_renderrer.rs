@@ -226,9 +226,7 @@ impl RasterizerRenderrer {
         for buffers in buffers {
             if let Some((vertices, instances)) = buffers.vector_buffers {
                 for instance in instances {
-                    if let Some((paths, curve_count)) =
-                        vertices.windfoil_draw_info(&self.device, &instance.key)
-                    {
+                    if let Some((paths, curve_count)) = vertices.windfoil_draw_info(&instance.key) {
                         draws.push((
                             paths,
                             curve_count,
@@ -243,7 +241,7 @@ impl RasterizerRenderrer {
             if let Some((vertices, instances)) = buffers.glyph_buffers {
                 for instance in instances {
                     if let Some((paths, curve_count)) =
-                        vertices.windfoil_draw_info(&self.device, &instance.c, &instance.direction)
+                        vertices.windfoil_draw_info(&instance.c, &instance.direction)
                     {
                         draws.push((
                             paths,

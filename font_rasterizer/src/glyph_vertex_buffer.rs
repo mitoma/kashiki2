@@ -8,7 +8,7 @@ use crate::{
     char_width_calcurator::{CharWidth, CharWidthCalculator},
     errors::FontRasterizerError,
     font_converter::{FontVertexConverter, GlyphVertex},
-    vector_vertex_buffer::{DrawInfo, VectorVertexBuffer},
+    vector_vertex_buffer::VectorVertexBuffer,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -50,41 +50,24 @@ impl GlyphVertexBuffer {
         }
     }
 
-    pub(crate) fn draw_info(
-        &'_ self,
-        c: &char,
-        direction: &Direction,
-    ) -> Result<DrawInfo<'_>, FontRasterizerError> {
-        if direction == &Direction::Vertical
-            && let Ok(info) = self
-                .vector_vertex_buffer
-                .draw_info(&(*c, Direction::Vertical))
-        {
-            return Ok(info);
-        }
-        self.vector_vertex_buffer
-            .draw_info(&(*c, Direction::Horizontal))
-    }
-
     pub fn registerd_chars(&self) -> HashSet<char> {
         self.registerd_chars.clone()
     }
 
     pub(crate) fn windfoil_draw_info(
         &self,
-        device: &wgpu::Device,
         c: &char,
         direction: &Direction,
     ) -> Option<(&wgpu::BindGroup, u32)> {
         if *direction == Direction::Vertical
             && let Some(info) = self
                 .vector_vertex_buffer
-                .windfoil_draw_info(device, &(*c, Direction::Vertical))
+                .windfoil_draw_info(&(*c, Direction::Vertical))
         {
             return Some(info);
         }
         self.vector_vertex_buffer
-            .windfoil_draw_info(device, &(*c, Direction::Horizontal))
+            .windfoil_draw_info(&(*c, Direction::Horizontal))
     }
 
     pub fn append_chars(
@@ -126,11 +109,14 @@ impl GlyphVertexBuffer {
                 (c, Direction::Horizontal),
                 h_vertex,
             )?;
-            v_vertex.and_then(|v_vertex| {
-                self.vector_vertex_buffer
-                    .append(device, queue, (c, Direction::Vertical), v_vertex)
-                    .ok()
-            });
+            if let Some(v_vertex) = v_vertex {
+                self.vector_vertex_buffer.append(
+                    device,
+                    queue,
+                    (c, Direction::Vertical),
+                    v_vertex,
+                )?;
+            }
             self.registerd_chars.insert(c);
         }
         Ok(())
