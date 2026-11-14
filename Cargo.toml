@@ -31,42 +31,42 @@ wgpu = "30.0.1"
 winit = { git = "https://github.com/mitoma/winit", branch = "v0.31.x-fork-for-kashikishi" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_derive = "1.0.228"
-serde_json = "1.0.150"
-toml = "1.1.8"
+serde_json = "1.0.154"
+toml = "1.2.1"
 env_logger = "0.11.11"
-log = "0.4.34"
+log = "0.4.35"
 pollster = "1.0.1"
 image = "0.25.10"
-harfrust = "0.14.0"
-skrifa = "0.48.0"
-read-fonts = { version = "0.45.0" }
+harfrust = "0.16.0"
+skrifa = "0.50.0"
+read-fonts = { version = "0.47.0" }
 web-time = { version = "1.1.0" }
-glam = "0.34.1"
+glam = "0.34.3"
 bytemuck = { version = "1.25.0", features = ["derive"] }
 bitflags = "2.13.2"
 rand = "0.10.3"
 cfg-if = "1.0.5"
-arboard = "3.6.1"
+arboard = "3.7.0"
 dirs = "7.0.0"
 futures = "0.3.34"
 
 # 複数のクレートで使用される依存関係
-unicode-width = "0.2.2"
-cached = "4.0.1"
-usvg = "0.48.1"
+unicode-width = "0.2.3"
+cached = "4.1.1"
+usvg = "0.50.0"
 console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
-wasm-bindgen = "0.2.129"
-wasm-bindgen-futures = "0.4.79"
-web-sys = "0.3.106"
-js-sys = "0.3.103"
+wasm-bindgen = "0.2.130"
+wasm-bindgen-futures = "0.4.80"
+web-sys = "0.3.107"
+js-sys = "0.3.107"
 getrandom = "0.4.3"
 hidapi = "2.6.7"
 vqf-rs = "0.3.0"
 tiny-skia-path = "0.12.0"
 tiny-skia = "0.12.0"
-indoc = "2.0.7"
-similar = "3.2.0"
+indoc = "2.0.8"
+similar = "3.2.1"
 serde-jsonlines = "0.7.0"
 chrono = "0.4.45"
 clap = "4.6.7"
@@ -80,12 +80,12 @@ arborium = { git = "https://github.com/mitoma/arborium", branch = "support_markd
     "lang-bash",
     "lang-toml",
 ] }
-html-to-markdown-rs = "3.17.2"
+html-to-markdown-rs = "3.22.0"
 
-redb = "4.3.0"
+redb = "4.6.0"
 rayon = "1.12.0"
 apng = { git = "https://github.com/mitoma/apng", branch = "master" }
-winresource = "0.1.31"
+winresource = "0.1.34"
 
 # windows crate の依存。windows_hello の実験用コードにしか使われていない。
 windows-bindgen = "0.100.0"
@@ -96,7 +96,7 @@ windows-time = "0.100.0"
 
 regex = "1.12.4"
 png = "0.18.1"
-icu_segmenter = "2.3.0"
+icu_segmenter = "2.4.0"
 
 serde_yaml_ng = "0.10.0"
 tempfile = "3.27.0"

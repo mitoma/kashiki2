@@ -3,7 +3,7 @@
 # sites 用に必要なツールのインストール
 "aqua:WebAssembly/binaryen" = "132"
 "aqua:mdbook" = "0.5.4"
-"github:wasm-bindgen/wasm-bindgen" = "0.2.128"
+"github:wasm-bindgen/wasm-bindgen" = "0.2.130"
 "cargo:cargo-bloat" = "0.12.1"
 
 # ビルドキャッシュ (https://github.com/jdx/mr-boxington)
@@ -11,7 +11,7 @@
 
 [vars]
 # タスクで使う cargo コマンド。mbx をやめる場合は "cargo" に戻す
-cargo = "mbx"
+cargo = "cargo"
 
 [tasks.apng-build-sites]
 description = "apng 用のプロジェクトをビルドする"
