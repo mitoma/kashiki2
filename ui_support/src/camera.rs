@@ -64,18 +64,21 @@ impl Camera {
         }
     }
 
-    pub fn build_view_projection_matrix(&self) -> Mat4 {
+    fn build_view_matrix(&self) -> Mat4 {
         let view = look_at_mat4(
             self.eye.current().into(),
             self.target.current().into(),
             self.up.current().into(),
         );
-        let view = if let Some(eye_quaternion) = self.eye_quaternion {
+        if let Some(eye_quaternion) = self.eye_quaternion {
             Mat4::from_quat(eye_quaternion) * view
         } else {
             view
-        };
+        }
+    }
 
+    pub fn build_view_projection_matrix(&self) -> Mat4 {
+        let view = self.build_view_matrix();
         let proj = perspective(self.fovy.to_radians(), self.aspect, self.znear, self.zfar);
         OPENGL_TO_WGPU_MATRIX * proj * view
     }
@@ -89,6 +92,14 @@ impl Camera {
 
     pub fn aspect(&self) -> f32 {
         self.aspect
+    }
+
+    // ワールド座標の点を、カメラの視線方向に沿った奥行きに変換する。
+    // 値が大きいほどカメラから見て奥にある。
+    pub fn view_depth_fn(&self) -> impl Fn(Vec3) -> f32 {
+        let view = self.build_view_matrix();
+        // 右手系のビュー空間ではカメラは -Z 方向を向いている
+        move |point| -view.transform_point3(point).z
     }
 
     pub(crate) fn target_and_eye(&self) -> ([f32; 3], [f32; 3]) {
@@ -369,5 +380,30 @@ impl CameraController {
         camera.up.update([up.x, up.y, up.z]);
         camera.target.update(target_position.into());
         camera.eye.update(camera_position.into());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn view_depth_uses_view_direction_not_euclidean_distance() {
+        let camera = Camera::new(
+            [0.0, 0.0, 10.0].into(),
+            [0.0, 0.0, 0.0].into(),
+            [0.0, 1.0, 0.0].into(),
+            1.0,
+            45.0,
+            0.1,
+            1000.0,
+        );
+        let view_depth = camera.view_depth_fn();
+        let center = Vec3::new(0.0, 0.0, 0.0);
+        // 横に大きくずれているためユークリッド距離では center より遠いが、視線方向では手前にある
+        let side_front = Vec3::new(20.0, 0.0, 5.0);
+        assert!(side_front.distance(Vec3::new(0.0, 0.0, 10.0)) > 10.0);
+        assert!((view_depth(center) - 10.0).abs() < 1e-4);
+        assert!((view_depth(side_front) - 5.0).abs() < 1e-4);
     }
 }

@@ -198,10 +198,17 @@ impl World for DefaultWorld {
 
     fn render_batches(&self) -> Vec<ModelRenderBatch<'_>> {
         let models = &self.models[self.get_surrounding_model_range()];
-        models
+        // 半透明の描画を正しく重ねるため、視線方向で奥にあるモデルから順に描画する
+        let view_depth = self.camera.view_depth_fn();
+        let mut models: Vec<(f32, &dyn Model)> = models
             .iter()
             .chain(self.removed_models.iter())
-            .map(|model| ModelRenderBatch {
+            .map(|model| (view_depth(model.position()), model.as_ref()))
+            .collect();
+        models.sort_by(|(a, _), (b, _)| b.total_cmp(a));
+        models
+            .into_iter()
+            .map(|(_, model)| ModelRenderBatch {
                 surface_instances: model.surface_instances(),
                 vector_instances: model.vector_instances(),
                 glyph_instances: model.glyph_instances(),
