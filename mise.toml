@@ -48,7 +48,11 @@ depends = ["pig-action-game-build-sites"]
 [tasks.dev-sites]
 description = "Run the development server"
 run = "mdbook serve site --open"
-depends = ["bindgen-sites", "apng-bindgen-sites", "pig-action-game-bindgen-sites"]
+depends = [
+  "bindgen-sites",
+  "apng-bindgen-sites",
+  "pig-action-game-bindgen-sites",
+]
 
 [tasks.dev-sites-opt]
 description = "Run the development server"
