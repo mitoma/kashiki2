@@ -10,4 +10,3 @@ log = { workspace = true }
 skrifa = { workspace = true }
 read-fonts = { workspace = true }
 dirs = { workspace = true }
-encoding_rs = { workspace = true }

@@ -12,13 +12,11 @@ redb = { workspace = true, optional = true }
 dirs = { workspace = true, optional = true }
 cfg-if = { workspace = true }
 thiserror = { workspace = true }
-env_logger = { workspace = true }
 log = { workspace = true }
 wgpu = { workspace = true }
 bitflags = { workspace = true }
 rand = { workspace = true }
 image = { workspace = true }
-chrono = { workspace = true }
 
 harfrust.workspace = true
 skrifa.workspace = true
@@ -36,6 +34,8 @@ phisical_layouter = { path = "../phisical_layouter" }
 ttf_overlap_remover = { path = "../ttf_overlap_remover" }
 
 [dev-dependencies]
+chrono = { workspace = true }
+env_logger = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
@@ -50,7 +50,3 @@ wgpu = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 web-sys = { workspace = true, features = ["Document", "Window", "Element"] }
-
-[build-dependencies]
-fs_extra = { workspace = true }
-glob = { workspace = true }

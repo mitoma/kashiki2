@@ -161,8 +161,8 @@ impl Editor {
         } else {
             let mut result = Vec::new();
             result.extend(self.buffer.lines[from.row].chars[from.col..].iter());
-            for row in from.row + 1..to.row {
-                result.extend(self.buffer.lines[row].chars.iter());
+            for line in &self.buffer.lines[from.row + 1..to.row] {
+                result.extend(line.chars.iter());
             }
             result.extend(self.buffer.lines[to.row].chars[..to.col].iter());
             result
