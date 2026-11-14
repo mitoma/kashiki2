@@ -2,35 +2,21 @@
 
 新しい機能の開発を開始する際は、以下のステップに従ってください。
 
-## Step 1: ブランチと worktree の作成
+## Step 1: 現在の作業環境の確認
 
-作業対象の機能名（英小文字・ハイフン区切り）を `<feature-name>` として使用します。
+新機能の開発も含め、常に VS Code で開いている既存の作業ディレクトリ・ブランチで作業します。
 
-```powershell
-# main の最新状態を取得
-git fetch origin
-git checkout main
-git pull origin main
-
-# ブランチと worktree を同時に作成（doc/ai-agent/worktrees に配置）
-git worktree add doc\ai-agent\worktrees\kashiki2-<feature-name> -b feature/<feature-name>
-```
-
-以降の作業は `doc\ai-agent\worktrees\kashiki2-<feature-name>` ディレクトリで行います。
+- worktree の作成・削除は行いません。
+- ブランチの作成・切り替え・削除は行いません。ブランチの作成や命名は開発者の判断に委ねます。
+- 作業開始前に既存の変更を確認し、開発者の未コミットの変更を上書き・破棄しないでください。
 
 ## Step 2: 実装
 
-worktree 内で実装を進めます。コミットは**意味的にひとまとまりになる単位**で行ってください。  
-「この変更は何をするものか」が一文で説明できる範囲を1コミットとします。  
-各コミットメッセージはコミット内容を日本語で簡潔に説明します。  
-詳細な規約は [doc/commit-message.md](../../commit-message.md) を参照してください。
+現在の作業ディレクトリ・ブランチで実装を進めます。
 
-```powershell
-cd doc\ai-agent\worktrees\kashiki2-<feature-name>
-# ... 実装 ...
-git add .
-git commit -m "feat: <変更内容の要約>"
-```
+エージェントによるステージング・コミットは行わず、変更を未コミットのまま残してください。
+
+コミットのタイミング・単位・コミットメッセージは開発者が判断します。
 
 ## Step 3: チェック
 
@@ -48,36 +34,12 @@ cargo test --all
 実装内容を開発者に提示し、承認を得ます。
 
 - 変更の概要（何を・なぜ変えたか）を説明する
-- `git --no-pager diff main` で差分を確認できるよう提示する
+- `git --no-pager diff`（ステージ済みの変更は `git --no-pager diff --cached`）で差分を確認できるよう提示する
+- 実行したチェック・テストとその結果を報告する
 - 承認が得られるまで実装を続けます
 
-## Step 5: Pull Request の作成
+## Step 5: 開発者への引き渡し
 
-開発者の承認が得られたら PR を作成します。
+確認後も変更は現在のブランチに未コミットのまま残します。
 
-```powershell
-gh pr create --base main --title "<PRタイトル>" --body "<本文>"
-```
-
-PR タイトルは日本語で簡潔に記述します。  
-本文には以下を含めてください。
-
-```markdown
-## 目的
-
-（この PR で何を実現するか・なぜ必要か）
-
-## 実装の概要
-
-（どのように実現したか・主な変更点）
-```
-
-## Step 6: worktree の後片付け（マージ後）
-
-PR がマージされたら worktree を削除します。
-
-```powershell
-cd ..\kashiki2
-git worktree remove doc\ai-agent\worktrees\kashiki2-<feature-name>
-git branch -d feature/<feature-name>
-```
+ブランチの作成やコミットは開発者が行います。PR の作成は自動では行わず、開発者から明示的に依頼された場合に対応してください。
