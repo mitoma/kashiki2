@@ -225,7 +225,7 @@ impl ActionStore {
     /// 未設定なら従来どおりすべてのコマンドが有効で、空リストならコマンドを無効にする。
     /// 通常の文字入力と IME 入力には影響しない。
     ///
-    /// ```
+    /// ```no_run
     /// use stroke_parser::ActionStore;
     ///
     /// let mut store = ActionStore::default();

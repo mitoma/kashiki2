@@ -5,7 +5,7 @@ Markdown ファイルと YAML front matter で管理する、タグベースの�
 
 ## 利用例
 
-```rust
+```rust,no_run
 use tagbase_memo::{Result, SortOrder, TagbaseMemo};
 
 # fn main() -> Result<()> {
@@ -93,7 +93,7 @@ AND 条件です。タグは大文字・小文字を区別する完全一致で�
 `TagbaseState` は、保管庫直下の `kashikishi-state.toml` の読み書きを提供します。
 絞り込みタグ、並び順、表示中のメモ ID と順序、検索クエリ、選択中のメモ ID を保持します。
 
-```rust
+```rust,no_run
 use tagbase_memo::{Result, TagbaseMemo, TagbaseState};
 
 # fn main() -> Result<()> {

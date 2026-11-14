@@ -37,8 +37,8 @@ use crate::{
 use crate::{
     easing_value::EasingPointN,
     layout_engine::{
-        DebugModelDetails, DebugModelNode, DebugTextEditSnapshot, MODEL_SURFACE_SVG_KEY, Model,
-        ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult, ModelSurfaceStyle,
+        DebugModelDetails, DebugModelNode, DebugTextEditSnapshot, Model, ModelAttributes,
+        ModelBorder, ModelOperation, ModelOperationResult, ModelSurfaceStyle,
     },
     ui::{CharAttribute, Decoration},
     ui_context::{HighlightMode, TextContext},
@@ -47,8 +47,8 @@ use crate::{
 use super::{
     caret_char,
     view_element_state::{
-        BorderStates, CaretStates, CharStates, ViewElementStateUpdateRequest,
-        update_model_surface_instances,
+        BorderStates, CaretStates, CharStates, SURFACE_OUTSET, SurfaceGeometry,
+        ViewElementStateUpdateRequest, surface_corner_radius, update_model_surface_instances,
     },
 };
 
@@ -112,9 +112,7 @@ pub struct TextEdit {
     border: ModelBorder,
     surface_style: ModelSurfaceStyle,
     surface_instances: Option<VectorInstances<String>>,
-    surface_outset: [f32; 2],
-    surface_corner_radius: f32,
-    surface_geometry_key: String,
+    surface_geometry: SurfaceGeometry,
 }
 
 impl Default for TextEdit {
@@ -450,6 +448,10 @@ impl Model for TextEdit {
     }
 
     fn set_border(&mut self, border: ModelBorder) {
+        if self.border != border {
+            // 面の輪郭は罫線の種類で変わる
+            self.config_updated = true;
+        }
         self.border = border;
         if border == ModelBorder::None {
             self.border_states = None;
@@ -542,9 +544,7 @@ impl TextEdit {
             border: ModelBorder::default(),
             surface_style: ModelSurfaceStyle::None,
             surface_instances: None,
-            surface_outset: [0.0, 0.0],
-            surface_corner_radius: 0.0,
-            surface_geometry_key: MODEL_SURFACE_SVG_KEY.to_owned(),
+            surface_geometry: SurfaceGeometry::default(),
         }
     }
 
@@ -554,51 +554,20 @@ impl TextEdit {
             return;
         }
 
-        let [bound_width, bound_height] = self.bound.last();
-        let surface_width = bound_width + self.surface_outset[0] * 2.0;
-        let surface_height = bound_height + self.surface_outset[1] * 2.0;
-        let surface_size_scale = surface_width.max(surface_height);
-        let surface_geometry_key = if self.surface_corner_radius > 0.0 {
-            format!(
-                "{}_rounded_{:08x}_{:08x}_{:08x}",
-                MODEL_SURFACE_SVG_KEY,
-                surface_width.to_bits(),
-                surface_height.to_bits(),
-                self.surface_corner_radius.to_bits(),
-            )
-        } else {
-            MODEL_SURFACE_SVG_KEY.to_owned()
-        };
-        if self.surface_geometry_key != surface_geometry_key {
-            if self.surface_corner_radius > 0.0 {
-                context.register_svg(
-                    surface_geometry_key.clone(),
-                    Self::rounded_surface_svg(
-                        surface_width,
-                        surface_height,
-                        self.surface_corner_radius,
-                    ),
-                );
-            }
-            self.surface_geometry_key = surface_geometry_key.clone();
-            self.surface_instances = None;
-        }
-
-        let [current_bound_width, current_bound_height] = self.bound.current();
-        let current_surface_width = current_bound_width + self.surface_outset[0] * 2.0;
-        let current_surface_height = current_bound_height + self.surface_outset[1] * 2.0;
+        let outset = SURFACE_OUTSET * 2.0;
+        let [last_width, last_height] = self.bound.last();
+        let [current_width, current_height] = self.bound.current();
+        let (surface_geometry_key, instance_scale) = self.surface_geometry.resolve(
+            [last_width + outset, last_height + outset],
+            [current_width + outset, current_height + outset],
+            surface_corner_radius(self.border),
+            context,
+        );
         let attributes = InstanceAttributes {
             position: self.position.current().into(),
             rotation: Quat::from_array(self.rotation.current()),
             world_scale: self.world_scale,
-            instance_scale: if self.surface_corner_radius > 0.0 {
-                [
-                    surface_size_scale * current_surface_width / surface_width,
-                    surface_size_scale * current_surface_height / surface_height,
-                ]
-            } else {
-                [current_surface_width, current_surface_height]
-            },
+            instance_scale,
             motion: MotionFlags::builder()
                 .camera_detail(self.config.char_easings.add_char.motion.camera_detail())
                 .build(),
@@ -611,16 +580,6 @@ impl TextEdit {
             attributes,
             context,
         );
-    }
-
-    fn rounded_surface_svg(width: f32, height: f32, radius: f32) -> String {
-        format!(
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"><path d=\"M {radius} 0 H {} Q {width} 0 {width} {radius} V {} Q {width} {height} {} {height} H {radius} Q 0 {height} 0 {} V {radius} Q 0 0 {radius} 0 Z\" /></svg>",
-            width - radius,
-            height - radius,
-            width - radius,
-            height - radius,
-        )
     }
 
     pub fn from_context(context: &UiContext) -> Self {
@@ -1158,20 +1117,6 @@ impl TextEdit {
 
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
         self.world_scale = world_scale;
-    }
-
-    pub(crate) fn set_surface_outset(&mut self, surface_outset: [f32; 2]) {
-        if self.surface_outset != surface_outset {
-            self.surface_outset = surface_outset;
-            self.config_updated = true;
-        }
-    }
-
-    pub(crate) fn set_surface_corner_radius(&mut self, radius: f32) {
-        if self.surface_corner_radius != radius {
-            self.surface_corner_radius = radius;
-            self.config_updated = true;
-        }
     }
 
     #[inline]

@@ -7,10 +7,13 @@ use glam::Quat;
 use crate::{
     easing_value::EasingPointN,
     layout_engine::{
-        DebugModelDetails, DebugModelNode, DebugStackLayoutSnapshot, MODEL_SURFACE_SVG_KEY, Model,
-        ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult, ModelSurfaceStyle,
+        DebugModelDetails, DebugModelNode, DebugStackLayoutSnapshot, Model, ModelAttributes,
+        ModelBorder, ModelOperation, ModelOperationResult, ModelSurfaceStyle,
     },
-    ui::view_element_state::{BORDER_OUTSET, BorderStates, update_model_surface_instances},
+    ui::view_element_state::{
+        BORDER_OUTSET, BorderStates, SURFACE_OUTSET, SurfaceGeometry, surface_corner_radius,
+        update_model_surface_instances,
+    },
     ui_context::TextContext,
 };
 
@@ -25,6 +28,8 @@ pub struct StackLayout {
 
     position: EasingPointN<3>,
     rotation: EasingPointN<4>,
+    // 枠線と面の描画用。子モデルの配置と bound() は目標値の content_bound を使う
+    content_bound: Option<EasingPointN<2>>,
 
     margin: Margin,
 
@@ -34,6 +39,7 @@ pub struct StackLayout {
     border_context: TextContext,
     surface_style: ModelSurfaceStyle,
     surface_instances: Option<VectorInstances<String>>,
+    surface_geometry: SurfaceGeometry,
 }
 
 pub struct Margin {
@@ -50,6 +56,7 @@ impl StackLayout {
             focus_to_model: false,
             position: EasingPointN::new([0.0, 0.0, 0.0]),
             rotation: EasingPointN::new([0.0, 0.0, 0.0, 1.0]),
+            content_bound: None,
             margin: Margin {
                 horizontal: 0.1,
                 vertical: 0.1,
@@ -59,6 +66,7 @@ impl StackLayout {
             border_context: TextContext::default(),
             surface_style: ModelSurfaceStyle::None,
             surface_instances: None,
+            surface_geometry: SurfaceGeometry::default(),
         }
     }
 
@@ -67,17 +75,25 @@ impl StackLayout {
             self.surface_instances = None;
             return;
         }
-        let (width, height) = self.bound();
+        let outset = SURFACE_OUTSET * 2.0;
+        let ([last_width, last_height], [current_width, current_height]) =
+            self.animated_content_bound();
+        let (geometry_key, instance_scale) = self.surface_geometry.resolve(
+            [last_width + outset, last_height + outset],
+            [current_width + outset, current_height + outset],
+            surface_corner_radius(self.border),
+            context,
+        );
         let attributes = InstanceAttributes {
             position: self.position.current().into(),
             rotation: Quat::from_array(self.rotation.current()),
-            instance_scale: [width, height],
+            instance_scale,
             ..Default::default()
         };
         update_model_surface_instances(
             &mut self.surface_instances,
             self.surface_style,
-            MODEL_SURFACE_SVG_KEY,
+            &geometry_key,
             attributes,
             context,
         );
@@ -88,10 +104,11 @@ impl StackLayout {
             return;
         }
         self.border_context.color_theme = *context.color_theme();
-        // BorderStates はモデルの左上を原点とした座標で、内容の外側に枠線を配置する
-        let (bound_x, bound_y) = self.content_bound();
+        // BorderStates はモデルの左上を原点とした座標で、内容の外側に枠線を配置する。
+        // TextEdit と同様に、罫線の各片は目標の bound へイージングし、中心は現在の bound に追従させる
+        let ([bound_x, bound_y], [current_x, current_y]) = self.animated_content_bound();
         let model_attributes = ModelAttributes {
-            center: (bound_x / 2.0, -bound_y / 2.0).into(),
+            center: (current_x / 2.0, -current_y / 2.0).into(),
             position: self.position.current().into(),
             rotation: Quat::from_array(self.rotation.current()),
             world_scale: [1.0, 1.0],
@@ -105,6 +122,26 @@ impl StackLayout {
         states.update_state([0.0, 0.0, 0.0], [bound_x, bound_y], border_context);
         states.update_instances(true, &model_attributes);
         states.instances.update(context.device(), context.queue());
+    }
+
+    // 初回は目標値から始め、モーダルを開いた瞬間に面が 0 から広がらないようにする
+    fn update_content_bound(&mut self) {
+        let target: [f32; 2] = self.content_bound().into();
+        match self.content_bound.as_mut() {
+            Some(bound) => bound.update(target),
+            None => self.content_bound = Some(EasingPointN::new(target)),
+        }
+    }
+
+    // (目標値, 現在値)
+    fn animated_content_bound(&self) -> ([f32; 2], [f32; 2]) {
+        match self.content_bound.as_ref() {
+            Some(bound) => (bound.last(), bound.current()),
+            None => {
+                let target = self.content_bound().into();
+                (target, target)
+            }
+        }
     }
 
     // 枠線を含まない、子モデルを並べた部分の大きさ
@@ -189,10 +226,12 @@ impl Model for StackLayout {
         Quat::from_array(self.rotation.current())
     }
 
-    // 枠線があるときは、カメラが枠線まで画面に収められるよう枠線の分も含める
+    // 枠線か面があるときは、カメラがそれらまで画面に収められるよう外側の分も含める
     fn bound(&self) -> (f32, f32) {
         let (x, y) = self.content_bound();
-        let outset = if self.border == ModelBorder::None {
+        let outset = if self.border == ModelBorder::None
+            && (self.surface_style == ModelSurfaceStyle::None || self.models.is_empty())
+        {
             0.0
         } else {
             BORDER_OUTSET * 2.0
@@ -286,6 +325,7 @@ impl Model for StackLayout {
         for model in self.models.iter_mut() {
             model.update(context);
         }
+        self.update_content_bound();
         self.update_border(context);
         self.update_surface(context);
     }
@@ -340,6 +380,10 @@ impl Model for StackLayout {
 
     fn in_animation(&self) -> bool {
         self.models.iter().any(|model| model.in_animation())
+            || self
+                .content_bound
+                .as_ref()
+                .is_some_and(|bound| bound.in_animation())
     }
 
     fn set_border(&mut self, border: ModelBorder) {
@@ -426,6 +470,22 @@ mod tests {
     }
 
     #[test]
+    fn surface_without_border_keeps_the_rounded_outline_inside_the_bound() {
+        let mut layout = StackLayout::new(Direction::Horizontal);
+        layout.add_model(Box::new(TextEdit::default()));
+        let (width, height) = layout.bound();
+
+        layout.set_surface_style(ModelSurfaceStyle::OPAQUE_THEME_BACKGROUND);
+
+        assert_eq!(layout.border(), ModelBorder::None);
+        assert_eq!(
+            layout.bound(),
+            (width + BORDER_OUTSET * 2.0, height + BORDER_OUTSET * 2.0)
+        );
+        assert!(surface_corner_radius(layout.border()) > 0.0);
+    }
+
+    #[test]
     fn border_wraps_the_whole_layout_instead_of_each_child() {
         let mut layout = StackLayout::new(Direction::Horizontal);
         layout.add_model(Box::new(TextEdit::default()));
@@ -449,5 +509,25 @@ mod tests {
 
         layout.model_operation(&ModelOperation::SetModelBorder(ModelBorder::None));
         assert_eq!(layout.bound(), (width, height));
+    }
+
+    #[test]
+    fn surface_and_border_bound_eases_while_layout_bound_uses_the_target() {
+        let mut layout = StackLayout::new(Direction::Horizontal);
+        layout.add_model(Box::new(TextEdit::default()));
+        layout.update_content_bound();
+        let initial: [f32; 2] = layout.content_bound().into();
+        assert_eq!(layout.animated_content_bound(), (initial, initial));
+
+        layout.add_model(Box::new(TextEdit::default()));
+        layout.update_content_bound();
+        let target: [f32; 2] = layout.content_bound().into();
+        let (last, current) = layout.animated_content_bound();
+
+        assert!(target[1] > initial[1]);
+        assert_eq!(last, target);
+        assert!(current[1] < target[1]);
+        assert_eq!(layout.bound(), target.into());
+        assert!(layout.in_animation());
     }
 }

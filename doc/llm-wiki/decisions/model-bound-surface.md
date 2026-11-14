@@ -1,4 +1,3 @@
-- Card は border なしでは通常 bound を使う。border は bound から 1 セル外側が中心線で、線幅は viewBox 9 単位中 1 単位のため、surface inset は内縁の `17/18` セル。Rounded の内側曲線は `border_top_left.svg` の 4/9 セル半径を使い、border 形状に一致させる。
 ---
 title: Model Bound Surface
 kind: decision
@@ -27,9 +26,10 @@ related_pages:
 
 - TextEdit は既定で `ThemeBackground` surface を持つ。SVG など、面を持たないモデルの既定値は `None`。
 - 色は `ColorTheme::background()` に追従する。モデル API から `None`、テーマ背景、RGB 色を選べる。
-- 面は現在のモデル位置・回転・world scale・bound を利用し、bound アニメーションに追従する。
+- 面は現在のモデル位置・回転・world scale・bound を利用し、bound アニメーションに追従する。StackLayout も子モデルの合計サイズを `EasingPointN` で保持し、面と枠線だけを現在値に追従させる（子の配置と `bound()` は目標値のまま）。
 - surface instance は TextEdit glyph と同じ `camera_detail` を使用する。Card overlay のように `IGNORE_CAMERA` を使う UI でも面と文字の座標系を揃える。
-- Card は border なしでは通常 bound を使う。border ありでは内縁まで塗り、Rounded は bound に合わせて生成した半径 0.5 セルの rounded geometry を使う。単に四角い矩形を広げない。
+- 面は border の有無によらず border の内縁（bound の `17/18` セル外側）まで塗る。border は bound から 1 セル外側が中心線で、線幅は viewBox 9 単位中 1 単位のため内縁は `1 - 1/18` セルになる。border が None / Rounded では `border_top_left.svg` と同じ半径 4/9 セルの rounded geometry、Square では四角形を使う。単に四角い矩形を広げない。
+- 面を持つ Card / StackLayout は border がなくても外側 1 セルを含めて画面内に配置する。面も border もない Card は bound の端をそのまま画面余白に合わせる。
 - SVG geometry は RenderState 初期化時に一度登録する。利用側 callback に登録責務を置かない。
 - modal は通常 World とは独立して合成し、既存の modal 背景ぼかしと最終合成を保つ。
 - normal/modal それぞれ一回の Windfoil ordered render/resolve にまとめる。

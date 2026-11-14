@@ -9,7 +9,7 @@ use font_rasterizer::{
 use crate::editor_settings::{EditorSettings, EditorTextContextProfile};
 use crate::ui_context::UiContext;
 
-use crate::layout_engine::{Model, ModelBorder, ModelOperation};
+use crate::layout_engine::{Model, ModelBorder, ModelOperation, ModelSurfaceStyle};
 
 use super::textedit::TextEdit;
 
@@ -46,10 +46,8 @@ impl Default for Card {
 const CARD_DEFAULT_SCALE: [f32; 2] = [0.05, 0.05];
 // 画面端からの余白(カメラを無視した座標系での値)
 const CARD_SCREEN_MARGIN: f32 = 0.05;
-// TextEdit の罫線は bound の 1 セル外側に描画されるため、その分だけ内側に寄せる
+// TextEdit の罫線と面は bound の約 1 セル外側まで描画されるため、その分だけ内側に寄せる
 const CARD_BORDER_OUTSET: f32 = 1.0;
-const CARD_SURFACE_OUTSET: f32 = 1.0 - 0.5 / 9.0;
-const CARD_SURFACE_CORNER_RADIUS: f32 = 4.0 / 9.0;
 
 impl Card {
     pub fn new() -> Self {
@@ -62,8 +60,7 @@ impl Card {
             TextEdit::new(editor_settings.text_context(EditorTextContextProfile::Card));
         text_edit.set_world_scale(CARD_DEFAULT_SCALE);
         text_edit.set_position((0.0, -1.5, 0.0).into());
-        text_edit
-            .set_surface_style(crate::layout_engine::ModelSurfaceStyle::OPAQUE_THEME_BACKGROUND);
+        text_edit.set_surface_style(ModelSurfaceStyle::OPAQUE_THEME_BACKGROUND);
 
         Self {
             text_edit,
@@ -80,18 +77,6 @@ impl Card {
 
     pub fn set_border(&mut self, border: ModelBorder) {
         self.text_edit.set_border(border);
-        let surface_outset = if border == ModelBorder::None {
-            [0.0, 0.0]
-        } else {
-            [CARD_SURFACE_OUTSET; 2]
-        };
-        self.text_edit.set_surface_outset(surface_outset);
-        self.text_edit
-            .set_surface_corner_radius(if border == ModelBorder::Rounded {
-                CARD_SURFACE_CORNER_RADIUS
-            } else {
-                0.0
-            });
     }
 
     pub fn border(&self) -> ModelBorder {
@@ -181,7 +166,9 @@ impl Card {
     }
 
     fn border_outset(&self) -> f32 {
-        if self.border() == ModelBorder::None {
+        if self.border() == ModelBorder::None
+            && self.text_edit.surface_style() == ModelSurfaceStyle::None
+        {
             0.0
         } else {
             CARD_BORDER_OUTSET
@@ -205,11 +192,23 @@ mod tests {
             (16.0 / 9.0, [0.05, 0.05], [4.0, 8.0]),
             (0.75, [0.08, 0.04], [9.0, 3.0]),
         ];
+        // 面も罫線もなければ bound の外側には何も描画されないため、寄せる必要はない
+        let surfaces = [
+            (
+                ModelSurfaceStyle::OPAQUE_THEME_BACKGROUND,
+                CARD_BORDER_OUTSET,
+            ),
+            (ModelSurfaceStyle::None, 0.0),
+        ];
 
-        for (aspect, scale, bound) in configurations {
+        for ((aspect, scale, bound), (surface, outset)) in configurations
+            .into_iter()
+            .flat_map(|configuration| surfaces.map(|surface| (configuration, surface)))
+        {
             let mut settings = EditorSettings::default();
             settings.profiles.card.min_bound = Some(bound);
             let mut card = Card::with_settings(settings);
+            card.text_edit.set_surface_style(surface);
             card.world_scale = scale;
             card.text_edit.set_world_scale(scale);
             let (width, height) = card.text_edit.bound();
@@ -218,8 +217,8 @@ mod tests {
                 card.set_anchor(anchor);
                 card.apply_anchor(aspect);
                 let position = card.text_edit.last_position();
-                let edge_x = (position.x + horizontal * width / 2.0) * scale[0];
-                let edge_y = (position.y + vertical * height / 2.0) * scale[1];
+                let edge_x = (position.x + horizontal * (width / 2.0 + outset)) * scale[0];
+                let edge_y = (position.y + vertical * (height / 2.0 + outset)) * scale[1];
                 let expected_x = horizontal * (aspect - CARD_SCREEN_MARGIN);
                 let expected_y = vertical * (1.0 - CARD_SCREEN_MARGIN);
 

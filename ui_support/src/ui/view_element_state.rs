@@ -20,7 +20,7 @@ use font_rasterizer::{
 
 use crate::{
     easing_value::EasingPointN,
-    layout_engine::{ModelAttributes, ModelSurfaceStyle},
+    layout_engine::{MODEL_SURFACE_SVG_KEY, ModelAttributes, ModelBorder, ModelSurfaceStyle},
     text_instances::{BorderFragment, BorderInstances, BorderType, CaretInstances, TextInstances},
     ui_context::{CharEasings, GpuEasingConfig, RemoveCharMode, TextContext, UiContext},
 };
@@ -56,6 +56,73 @@ pub(crate) fn update_model_surface_instances(
     attributes.alpha = alpha.clamp(0.0, 1.0);
     instances.insert(InstanceKey::Monotonic(0), attributes);
     instances.update_buffer(context.device(), context.queue());
+}
+
+/// 面は bound の外側にある罫線(線幅 1/9 セル)の内縁まで広げる
+pub(crate) const SURFACE_OUTSET: f32 = BORDER_OUTSET - 0.5 / 9.0;
+/// 角丸罫線の内縁と同じ半径
+const SURFACE_CORNER_RADIUS: f32 = 4.0 / 9.0;
+
+/// 罫線が Square のときだけ四角い面にし、None と Rounded では角丸罫線と同じ輪郭にする
+pub(crate) fn surface_corner_radius(border: ModelBorder) -> f32 {
+    if border == ModelBorder::Square {
+        0.0
+    } else {
+        SURFACE_CORNER_RADIUS
+    }
+}
+
+/// 面の geometry を管理する。角丸の面は最終サイズごとに SVG を登録する
+#[derive(Default)]
+pub(crate) struct SurfaceGeometry {
+    registered_key: Option<String>,
+}
+
+impl SurfaceGeometry {
+    /// geometry key と instance_scale を返す
+    pub(crate) fn resolve(
+        &mut self,
+        last_size: [f32; 2],
+        current_size: [f32; 2],
+        radius: f32,
+        context: &UiContext,
+    ) -> (String, [f32; 2]) {
+        if radius <= 0.0 {
+            return (MODEL_SURFACE_SVG_KEY.to_owned(), current_size);
+        }
+        let [width, height] = last_size;
+        let key = format!(
+            "{}_rounded_{:08x}_{:08x}_{:08x}",
+            MODEL_SURFACE_SVG_KEY,
+            width.to_bits(),
+            height.to_bits(),
+            radius.to_bits(),
+        );
+        if self.registered_key.as_deref() != Some(key.as_str()) {
+            context.register_svg(key.clone(), rounded_surface_svg(width, height, radius));
+            self.registered_key = Some(key.clone());
+        }
+        // SVG は長辺で正規化されるため、長辺を基準に現在のサイズへ伸縮する
+        let size_scale = width.max(height);
+        let [current_width, current_height] = current_size;
+        (
+            key,
+            [
+                size_scale * current_width / width,
+                size_scale * current_height / height,
+            ],
+        )
+    }
+}
+
+fn rounded_surface_svg(width: f32, height: f32, radius: f32) -> String {
+    format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"><path d=\"M {radius} 0 H {} Q {width} 0 {width} {radius} V {} Q {width} {height} {} {height} H {radius} Q 0 {height} 0 {} V {radius} Q 0 0 {radius} 0 Z\" /></svg>",
+        width - radius,
+        height - radius,
+        width - radius,
+        height - radius,
+    )
 }
 
 #[derive(Default)]

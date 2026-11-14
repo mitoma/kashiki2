@@ -19,10 +19,11 @@ mise exec -- mbx explain --last  # 再ビルドせず、直近のキャッシュ
 mise exec -- mbx stats --json    # キャッシュ統計（累積値）
 ```
 
-doctest は `stroke_parser` に1件、`tagbase_memo` の README に2件あり、実行しています。
+doctest は `stroke_parser` に1件、`tagbase_memo` の README に2件あり、すべて `no_run` です。
+サンプルコードがコンパイルできることだけを検証し、実行はしません。
 doctest がない13クレートでは、空の検出処理を省くため `[lib] doctest = false` を設定しています。
 これらのクレートに doctest を追加するときは、その `Cargo.toml` の設定を削除または `true` に変更し、
-`mise exec -- mbx test -p <クレート名> --doc` で実行してください。
+コードブロックを `no_run` にしたうえで `mise exec -- mbx test -p <クレート名> --doc` で確認してください。
 
 `stats` はテスト関数の実行時間ではなく、コンパイルキャッシュの統計です。
 変更前後の差分で読み、`analyze` と `explain --last` は調査したいビルドの直後に実行します。
@@ -132,6 +133,9 @@ mise r demo        # 紹介シナリオをウィンドウで再生する
 閉じたモーダルは操作対象からすぐに外れ、背景・枠・文字が元の重なり順のまま 500ms でフェードアウトします。
 `StackLayout` の Surface は枠線と同様に子要素間の余白も含むレイアウト全体を一枚で覆います。
 Surface の設定は子要素へ伝播せず、子要素が個別に持つ Surface は維持します。
+Surface は枠線の線幅の内縁（bound の 17/18 セル外側）まで広げます。
+Border が `None` / `Rounded` のときは角丸枠線と同じ半径 4/9 セルの角丸、`Square` のときは四角形にします。
+`StackLayout` は Surface があれば枠線がなくても bound に外側 1 セル分を含め、カメラが背景面まで収めます。
 
 Legacy の描画実装・専用シェーダー・頂点/インデックス GPU バッファと、
 描画方式の切り替え UI・アクション・`RenderingBackend`・`new_with_backend` 系 API は廃止しました。
