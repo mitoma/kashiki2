@@ -606,13 +606,7 @@ impl SimpleStateCallback for PigActionGame {
 
         increment_fixed_clock(Duration::ZERO);
 
-        RenderData {
-            camera: &self.camera,
-            glyph_instances,
-            vector_instances: vec![],
-            glyph_instances_for_modal: vec![],
-            vector_instances_for_modal: vec![],
-        }
+        RenderData::single_batch(&self.camera, glyph_instances, vec![], vec![], vec![])
     }
 
     fn shutdown(&mut self, _context: &UiContext) {}

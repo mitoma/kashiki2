@@ -119,6 +119,22 @@ impl RasterizerRenderrer {
         }
     }
 
+    pub(crate) fn supports_ordered_batches(&self) -> bool {
+        matches!(&self.backend, Backend::Windfoil(_))
+    }
+
+    pub(crate) fn render_ordered(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        buffers: &[Buffers],
+        target_view: &wgpu::TextureView,
+    ) {
+        match &self.backend {
+            Backend::Legacy(_) => unreachable!("ordered batch rendering requires Windfoil"),
+            Backend::Windfoil(renderer) => renderer.render_many(encoder, buffers, target_view),
+        }
+    }
+
     pub fn render(
         &self,
         encoder: &mut wgpu::CommandEncoder,

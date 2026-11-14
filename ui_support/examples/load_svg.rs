@@ -146,13 +146,13 @@ impl SimpleStateCallback for SingleCharCallback {
     }
 
     fn render(&'_ mut self) -> RenderData<'_> {
-        RenderData {
-            camera: &self.camera,
-            glyph_instances: vec![],
-            vector_instances: self.vector_instances.iter().collect(),
-            glyph_instances_for_modal: vec![],
-            vector_instances_for_modal: vec![],
-        }
+        RenderData::single_batch(
+            &self.camera,
+            vec![],
+            self.vector_instances.iter().collect(),
+            vec![],
+            vec![],
+        )
     }
 
     fn shutdown(&mut self, _context: &UiContext) {}

@@ -23,6 +23,16 @@ pub enum ModelBorder {
     Rounded,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub enum ModelSurfaceStyle {
+    #[default]
+    None,
+    ThemeBackground,
+    Color([f32; 3]),
+}
+
+pub const MODEL_SURFACE_SVG_KEY: &str = "model_surface";
+
 #[derive(Debug, Clone, Serialize)]
 pub struct DebugModelNode {
     pub name: &'static str,
@@ -131,6 +141,12 @@ pub struct DebugSingleSvgSnapshot {
     pub instance_scale: [f32; 2],
 }
 
+pub struct ModelRenderBatch<'a> {
+    pub surface_instances: Vec<&'a VectorInstances<String>>,
+    pub vector_instances: Vec<&'a VectorInstances<String>>,
+    pub glyph_instances: Vec<&'a GlyphInstances>,
+}
+
 fn short_type_name<T: ?Sized>() -> &'static str {
     std::any::type_name::<T>()
         .rsplit("::")
@@ -182,6 +198,13 @@ pub trait Model {
     fn rotation(&self) -> Quat;
     // モデルの縦横の長さを返す
     fn bound(&self) -> (f32, f32);
+    fn surface_instances(&self) -> Vec<&VectorInstances<String>> {
+        vec![]
+    }
+    fn set_surface_style(&mut self, _surface_style: ModelSurfaceStyle) {}
+    fn surface_style(&self) -> ModelSurfaceStyle {
+        ModelSurfaceStyle::None
+    }
     fn glyph_instances(&self) -> Vec<&GlyphInstances>;
     fn vector_instances(&self) -> Vec<&VectorInstances<String>>;
     fn update(&mut self, context: &UiContext);

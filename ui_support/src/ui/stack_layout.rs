@@ -126,6 +126,28 @@ impl Model for StackLayout {
         }
     }
 
+    fn surface_instances(
+        &self,
+    ) -> Vec<&font_rasterizer::vector_instances::VectorInstances<String>> {
+        self.models
+            .iter()
+            .flat_map(|model| model.surface_instances())
+            .collect()
+    }
+
+    fn set_surface_style(&mut self, surface_style: crate::layout_engine::ModelSurfaceStyle) {
+        for model in self.models.iter_mut() {
+            model.set_surface_style(surface_style);
+        }
+    }
+
+    fn surface_style(&self) -> crate::layout_engine::ModelSurfaceStyle {
+        self.models
+            .first()
+            .map(|model| model.surface_style())
+            .unwrap_or_default()
+    }
+
     fn glyph_instances(&self) -> Vec<&font_rasterizer::glyph_instances::GlyphInstances> {
         self.models
             .iter()

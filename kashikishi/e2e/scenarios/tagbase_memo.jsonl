@@ -24,7 +24,9 @@
 {"Command":["action_recorder","wait",{"Integer":1500}]}
 {"Command":["action_recorder","snapshot",{"String":"06_second_memo"}]}
 {"Command":["world","swap-prev","None"]}
-{"Command":["action_recorder","wait",{"Integer":1500}]}
+{"Command":["action_recorder","wait",{"Integer":160}]}
+{"Command":["action_recorder","snapshot",{"String":"06_second_memo_swapping"}]}
+{"Command":["action_recorder","wait",{"Integer":1340}]}
 {"Command":["action_recorder","snapshot",{"String":"06_second_memo_swapped"}]}
 {"Command":["tagbase-memo","search-ui","None"]}
 {"ImeInput":"tag:shopping"}

@@ -1,4 +1,39 @@
 # Log
+## [2026-11-07] fix | Card surface inset を border SVG に一致
+
+- `border_top_left.svg` の 9-unit viewBox から inner corner radius 4/9、border edge inset 17/18 を導出
+- Card surface geometry を border 内側の二次曲線に一致させ、tagbase の E2E golden を更新
+
+
+## [2026-11-06] fix | Card fill を角丸 border に一致
+
+- 0.5 セル outset の四角い fill を、bound と固定半径から生成する rounded SVG surface に変更
+- 横書き/縦書き meta card の E2E 画像で角丸内側の塗りを確認し、golden 更新後に通常比較で全シナリオ成功
+
+## [2026-11-06] fix | Card surface を border 内縁まで拡張
+
+- TextEdit surface に per-side outset を追加し、Card で border 有効時だけ各辺 0.5 セルを設定
+- 水平/垂直 E2E 画像で Rounded border 内側の塗りを確認し、golden 更新後に通常比較で全シナリオ成功
+
+## [2026-11-06] fix | Card overlay surface の座標系を修正
+
+- ModalWorld overlay に surface instances の経路を追加し、Tagbase meta card の面を RenderData batch に渡す
+- TextEdit surface に glyph と同じ camera detail を設定し、`IGNORE_CAMERA` overlay での投影ずれを解消
+- tagbase E2E golden を更新し、通常比較で全シナリオ成功
+
+## [2026-11-05] refactor | Windfoil model batch を一括 resolve
+
+- Windfoil に順序付き複数 Buffers の draw collection を追加し、normal/modal ごとの render pass と resolve を一回に集約
+- Legacy は coverage/count のモデル間混在を避けるため per-batch composite fallback を維持
+- command palette phase avg 約 20→1 ms、tagbase 約 6→<1 ms (debug、GPU timestamp ではない)
+- E2E の微小な AA/量子化差を確認して PNG golden を更新し、通常比較で全シナリオ成功
+
+## [2026-11-05] ingest | Model bound surface と E2E 描画検証を反映
+
+- bound 面のモデル順合成、TextEdit の既定テーマ面、Legacy / Windfoil 共通合成段を設計・実装
+- `model-bound-surface` decision と `model-surface-e2e` workflow、実装 source summary を追加
+- `text-rendering-pipeline` と `index.md` を更新。tagbase memo の swap 中 snapshot を追加
+- E2E golden を更新後、通常比較で全シナリオ成功。残課題は角丸・半透明・border 境界共有
 
 ## [2026-09-13] ingest | テキストラスタライズ品質改善を反映
 

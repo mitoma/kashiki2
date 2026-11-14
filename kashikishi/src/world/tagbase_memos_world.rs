@@ -451,6 +451,13 @@ impl ModalWorld for TagbaseMemosWorld {
         self.meta_card.get_vector_instances()
     }
 
+    fn overlay_surface_instances(&self) -> Vec<&VectorInstances<String>> {
+        if !self.meta_card_visible || self.meta_text.as_deref().is_none_or(str::is_empty) {
+            return Vec::new();
+        }
+        self.meta_card.get_surface_instances()
+    }
+
     fn world_chars(&self) -> HashSet<char> {
         self.world.chars()
     }

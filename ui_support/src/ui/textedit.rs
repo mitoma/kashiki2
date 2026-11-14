@@ -23,7 +23,8 @@ use font_rasterizer::{
     color_theme::{ColorTheme, ThemedColor},
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
-    vector_instances::VectorInstances,
+    motion::MotionFlags,
+    vector_instances::{InstanceAttributes, InstanceKey, VectorInstances},
 };
 
 use crate::{
@@ -36,8 +37,8 @@ use crate::{
 use crate::{
     easing_value::EasingPointN,
     layout_engine::{
-        DebugModelDetails, DebugModelNode, DebugTextEditSnapshot, Model, ModelAttributes,
-        ModelBorder, ModelOperation, ModelOperationResult,
+        DebugModelDetails, DebugModelNode, DebugTextEditSnapshot, MODEL_SURFACE_SVG_KEY, Model,
+        ModelAttributes, ModelBorder, ModelOperation, ModelOperationResult, ModelSurfaceStyle,
     },
     ui::{CharAttribute, Decoration},
     ui_context::{HighlightMode, TextContext},
@@ -106,6 +107,11 @@ pub struct TextEdit {
     bound: EasingPointN<2>,
 
     border: ModelBorder,
+    surface_style: ModelSurfaceStyle,
+    surface_instances: Option<VectorInstances<String>>,
+    surface_outset: [f32; 2],
+    surface_corner_radius: f32,
+    surface_geometry_key: String,
 }
 
 impl Default for TextEdit {
@@ -189,6 +195,21 @@ impl Model for TextEdit {
         result
     }
 
+    fn surface_instances(&self) -> Vec<&VectorInstances<String>> {
+        self.surface_instances.iter().collect()
+    }
+
+    fn set_surface_style(&mut self, surface_style: ModelSurfaceStyle) {
+        if self.surface_style != surface_style {
+            self.surface_style = surface_style;
+            self.config_updated = true;
+        }
+    }
+
+    fn surface_style(&self) -> ModelSurfaceStyle {
+        self.surface_style
+    }
+
     fn update(&mut self, context: &UiContext) {
         if self.border != ModelBorder::None && self.border_states.is_none() {
             // border が None 以外のときは border_states を初期化する
@@ -238,6 +259,19 @@ impl Model for TextEdit {
         self.caret_states.instances.update(device, queue);
         if let Some(state) = self.border_states.as_mut() {
             state.instances.update(device, queue);
+        }
+        let surface_needs_update = match self.surface_style {
+            ModelSurfaceStyle::None => self.surface_instances.is_some(),
+            ModelSurfaceStyle::ThemeBackground | ModelSurfaceStyle::Color(_) => {
+                self.surface_instances.is_none()
+                    || self.config_updated
+                    || self.position.in_animation()
+                    || self.bound.in_animation()
+                    || self.rotation.in_animation()
+            }
+        };
+        if surface_needs_update {
+            self.update_surface_instances(context);
         }
 
         self.buffer_updated = false;
@@ -503,7 +537,90 @@ impl TextEdit {
             world_scale: [1.0, 1.0],
             bound,
             border: ModelBorder::default(),
+            surface_style: ModelSurfaceStyle::None,
+            surface_instances: None,
+            surface_outset: [0.0, 0.0],
+            surface_corner_radius: 0.0,
+            surface_geometry_key: MODEL_SURFACE_SVG_KEY.to_owned(),
         }
+    }
+
+    fn update_surface_instances(&mut self, context: &UiContext) {
+        let color = match self.surface_style {
+            ModelSurfaceStyle::None => {
+                self.surface_instances = None;
+                return;
+            }
+            ModelSurfaceStyle::ThemeBackground => context.color_theme().background().get_color(),
+            ModelSurfaceStyle::Color(color) => color,
+        };
+
+        let [bound_width, bound_height] = self.bound.last();
+        let surface_width = bound_width + self.surface_outset[0] * 2.0;
+        let surface_height = bound_height + self.surface_outset[1] * 2.0;
+        let surface_size_scale = surface_width.max(surface_height);
+        let surface_geometry_key = if self.surface_corner_radius > 0.0 {
+            format!(
+                "{}_rounded_{:08x}_{:08x}_{:08x}",
+                MODEL_SURFACE_SVG_KEY,
+                surface_width.to_bits(),
+                surface_height.to_bits(),
+                self.surface_corner_radius.to_bits(),
+            )
+        } else {
+            MODEL_SURFACE_SVG_KEY.to_owned()
+        };
+        if self.surface_geometry_key != surface_geometry_key {
+            if self.surface_corner_radius > 0.0 {
+                context.register_svg(
+                    surface_geometry_key.clone(),
+                    Self::rounded_surface_svg(
+                        surface_width,
+                        surface_height,
+                        self.surface_corner_radius,
+                    ),
+                );
+            }
+            self.surface_geometry_key = surface_geometry_key.clone();
+            self.surface_instances = None;
+        }
+
+        let instances = self.surface_instances.get_or_insert_with(|| {
+            let mut instances = VectorInstances::new(surface_geometry_key, context.device());
+            instances.insert(InstanceKey::Monotonic(0), InstanceAttributes::default());
+            instances
+        });
+        if let Some(attributes) = instances.get_mut(&InstanceKey::Monotonic(0)) {
+            attributes.position = self.position.current().into();
+            attributes.rotation = Quat::from_array(self.rotation.current());
+            attributes.world_scale = self.world_scale;
+            let [current_bound_width, current_bound_height] = self.bound.current();
+            let current_surface_width = current_bound_width + self.surface_outset[0] * 2.0;
+            let current_surface_height = current_bound_height + self.surface_outset[1] * 2.0;
+            attributes.instance_scale = if self.surface_corner_radius > 0.0 {
+                [
+                    surface_size_scale * current_surface_width / surface_width,
+                    surface_size_scale * current_surface_height / surface_height,
+                ]
+            } else {
+                [current_surface_width, current_surface_height]
+            };
+            attributes.color = color;
+            attributes.motion = MotionFlags::builder()
+                .camera_detail(self.config.char_easings.add_char.motion.camera_detail())
+                .build();
+        }
+        instances.update_buffer(context.device(), context.queue());
+    }
+
+    fn rounded_surface_svg(width: f32, height: f32, radius: f32) -> String {
+        format!(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"><path d=\"M {radius} 0 H {} Q {width} 0 {width} {radius} V {} Q {width} {height} {} {height} H {radius} Q 0 {height} 0 {} V {radius} Q 0 0 {radius} 0 Z\" /></svg>",
+            width - radius,
+            height - radius,
+            width - radius,
+            height - radius,
+        )
     }
 
     pub fn from_context(context: &UiContext) -> Self {
@@ -1041,6 +1158,20 @@ impl TextEdit {
 
     pub(crate) fn set_world_scale(&mut self, world_scale: [f32; 2]) {
         self.world_scale = world_scale;
+    }
+
+    pub(crate) fn set_surface_outset(&mut self, surface_outset: [f32; 2]) {
+        if self.surface_outset != surface_outset {
+            self.surface_outset = surface_outset;
+            self.config_updated = true;
+        }
+    }
+
+    pub(crate) fn set_surface_corner_radius(&mut self, radius: f32) {
+        if self.surface_corner_radius != radius {
+            self.surface_corner_radius = radius;
+            self.config_updated = true;
+        }
     }
 
     #[inline]

@@ -896,6 +896,8 @@ const BORDER_BOTTOM_RIGHT: BorderFragment = BorderFragment {
     position: CellPosition { row: 2, col: 2 },
 };
 
+const BORDER_BASE_COLOR: ThemedColor = ThemedColor::TextEmphasized;
+
 /// 罫線の 3 次元上の位置と画面上のインスタンスを管理する構造体
 pub(crate) struct BorderStates {
     initialized: bool,
@@ -939,6 +941,11 @@ impl BorderStates {
         bound: [f32; 2],
         config: &TextContext,
     ) {
+        let color = BORDER_BASE_COLOR.get_color(&config.color_theme);
+        for state in self.elements.values_mut() {
+            state.color.update(color);
+        }
+
         // TODO: scale の扱いがおかしいので後で修正する。
         // 現状、グリフの拡大縮小をしたときに罫線の位置とサイズの追従が適切に行えていない。
         let [sx, sy] = config.instance_scale();
@@ -1029,17 +1036,18 @@ impl BorderStates {
         text_context: &TextContext,
         device: &Device,
     ) {
-        let base_color = ThemedColor::TextEmphasized;
         let position = [
             fragment.position.col as f32,
             fragment.position.row as f32,
             0.0,
         ];
         let state = ViewElementState {
-            base_color,
+            base_color: BORDER_BASE_COLOR,
             in_selection: false,
             position: position.into(),
-            color: base_color.get_color(&text_context.color_theme).into(),
+            color: BORDER_BASE_COLOR
+                .get_color(&text_context.color_theme)
+                .into(),
             scale: [1.0, 1.0].into(),
             motion_gain: [1.0].into(),
         };
@@ -1076,4 +1084,80 @@ fn update_easings(view_char_state: &mut ViewElementState, char_easings: &CharEas
         char_easings.motion_gain_easing.duration,
         char_easings.motion_gain_easing.easing_func,
     );
+}
+
+#[cfg(test)]
+mod border_theme_tests {
+    use super::*;
+
+    #[test]
+    fn border_update_tracks_text_emphasized_color_for_all_fragments() {
+        let initial_color = ThemedColor::TextEmphasized.get_color(&ColorTheme::SolarizedLight);
+        let mut states = BorderStates::new();
+        for fragment in [
+            BORDER_TOP,
+            BORDER_BOTTOM,
+            BORDER_LEFT,
+            BORDER_RIGHT,
+            BORDER_TOP_LEFT,
+            BORDER_TOP_RIGHT,
+            BORDER_BOTTOM_LEFT,
+            BORDER_BOTTOM_RIGHT,
+        ] {
+            let mut color = EasingPointN::new(initial_color);
+            color.update_duration_and_easing_func(Duration::ZERO, nenobi::functions::sin_out);
+            states.elements.insert(
+                fragment,
+                ViewElementState {
+                    base_color: ThemedColor::TextEmphasized,
+                    in_selection: false,
+                    position: [0.0; 3].into(),
+                    color,
+                    scale: [1.0; 2].into(),
+                    motion_gain: [1.0].into(),
+                },
+            );
+        }
+        assert_eq!(states.elements.len(), 8);
+        let model_attributes = ModelAttributes {
+            center: Default::default(),
+            position: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+            world_scale: [1.0; 2],
+        };
+
+        for color_theme in [
+            ColorTheme::SolarizedDark,
+            ColorTheme::SolarizedBlackback,
+            ColorTheme::SolarizedLight,
+            ColorTheme::HighContrastLight,
+            ColorTheme::HighContrastDark,
+            ColorTheme::WarmLight,
+            ColorTheme::WarmDark,
+            ColorTheme::CoolLight,
+            ColorTheme::CoolDark,
+            ColorTheme::Vivid,
+        ] {
+            let config = TextContext {
+                color_theme,
+                ..Default::default()
+            };
+            let expected_color = ThemedColor::TextEmphasized.get_color(&color_theme);
+            for _ in 0..2 {
+                states.update_state([0.0; 3], [4.0, 3.0], &config);
+                for state in states.elements.values_mut() {
+                    let mut instance = InstanceAttributes::default();
+                    update_instance(&mut instance, state, &model_attributes, None);
+                    for color in [state.color.last(), instance.color] {
+                        for (actual, expected) in color.into_iter().zip(expected_color) {
+                            assert!(
+                                (actual - expected).abs() < 1e-6,
+                                "border color: {actual}, expected: {expected}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

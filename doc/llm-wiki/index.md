@@ -31,11 +31,13 @@
 - [decisions/preedit-source-of-truth.md](decisions/preedit-source-of-truth.md) preedit 配置の唯一の正
 - [decisions/overlap-removal-strategy.md](decisions/overlap-removal-strategy.md) overlap remover と non-zero 移行の位置づけ
 - [decisions/e2e-performance.md](decisions/e2e-performance.md) E2E 高速化の調査結果と保留判断
+- [decisions/model-bound-surface.md](decisions/model-bound-surface.md) model bound 面の合成順・style・拡張判断
 
 ## Workflows
 
 - [workflows/ingest-workflow.md](workflows/ingest-workflow.md) 新 source の取り込み手順
 - [workflows/url-source-ingest.md](workflows/url-source-ingest.md) raw を置かない URL source の取り込み手順
+- [workflows/model-surface-e2e.md](workflows/model-surface-e2e.md) model surface の E2E scenario 作成・画像確認・golden 更新手順
 
 ## Sources
 
@@ -59,6 +61,7 @@
 - [sources/source-modal-worlds.md](sources/source-modal-worlds.md) kashikishi の World / scene 構成の要約
 - [sources/source-evan-wallace-gpu-text-rendering.md](sources/source-evan-wallace-gpu-text-rendering.md) Evan Wallace の GPU text rendering 記事の要約
 - [sources/source-frost-analytical-anti-aliasing.md](sources/source-frost-analytical-anti-aliasing.md) FrostKiwi の analytical anti-aliasing 記事の要約
+- [sources/source-model-bound-surface.md](sources/source-model-bound-surface.md) Model surface の設計・実装・E2E 検証の要約
 
 ## Backlog
 

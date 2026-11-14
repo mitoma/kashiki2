@@ -2,7 +2,7 @@
 title: Text Rendering Pipeline
 kind: concept
 status: draft
-updated: 2026-09-13
+updated: 2026-11-05
 source_refs:
   - ../../project.md
   - ../../memo/anti_aliasing.md
@@ -62,6 +62,10 @@ related_pages:
 - `outline_shader.wgsl` は `abs(g) / (abs(b) / UNIT)` を clamp して edge alpha を復元し、even-odd / non-zero の fill rule ごとに最終 alpha を決める
 - `ttf_overlap_remover` は even-odd 前提の描画で元の non-zero 輪郭を再現するための前処理として存在する
 - shader art は screen 前段の背景描画を差し替える別系統のパイプラインで、文字ラスタライズ本体とは独立している
+- `World::render_batches` はモデル順を保持し、surface と content の ordered batch を RasterizerPipeline へ渡す
+- Windfoil は batch 列を一つの premultiplied-alpha render pass で処理し、resolve を一度だけ行う。Legacy は coverage/count を共有しない per-batch resolve/composite fallback を使う
+- 面の前後関係は World 順で決め、深度バッファは使わない。normal と modal は独立した texture に描き、modal blur を保つ
+- Windfoil ordered rendering は per-model full-screen composite を省き、debug phase 計測で command palette 約 20→1 ms/frame、tagbase 約 6→<1 ms/frame を確認した。計測は GPU timestamp ではない
 
 ## 現行実装での注意点
 
