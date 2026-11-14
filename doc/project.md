@@ -5,6 +5,61 @@
 炊紙（kashikishi）は三次元空間上でテキストを編集できるテキストエディタです。  
 Rust & WebGPU(wgpu)で開発されており、従来のテキストエディタにはない滑らかな編集体験を提供することを目指しています。
 
+## テストと性能調査
+
+`mise r test` は Boxington (`mbx`) 経由で `cargo test --all` を実行します。
+単体・結合テストと有効な doctest を含み、GPU が必要な ignored テストは別途実行します。
+コードを変更した際は `mise r check` も実行してください。
+
+```powershell
+mise r test
+mise exec -- mbx test --workspace --doc  # 有効な doctest のみ実行
+mise exec -- mbx analyze         # 直近ビルドの未キャッシュ原因・クリティカルパス
+mise exec -- mbx explain --last  # 再ビルドせず、直近のキャッシュミス・bypass を確認
+mise exec -- mbx stats --json    # キャッシュ統計（累積値）
+```
+
+doctest は `stroke_parser` に1件、`tagbase_memo` の README に2件あり、実行しています。
+doctest がない13クレートでは、空の検出処理を省くため `[lib] doctest = false` を設定しています。
+これらのクレートに doctest を追加するときは、その `Cargo.toml` の設定を削除または `true` に変更し、
+`mise exec -- mbx test -p <クレート名> --doc` で実行してください。
+
+`stats` はテスト関数の実行時間ではなく、コンパイルキャッシュの統計です。
+変更前後の差分で読み、`analyze` と `explain --last` は調査したいビルドの直後に実行します。
+Cargo の `Finished ... in ...` はビルド部分だけで、テスト・doctest やラッパーの起動時間は含みません。
+テストハーネスの `finished in ...` にも doctest 自体のコンパイル時間は含まれません。
+
+PowerShell で全体時間を測る場合は、初回のビルドと変更なしの再実行を分けます。
+ログの行ごとに時刻を付けたり `Tee-Object` に通したりすると出力処理の時間も増えるため、
+同じ出力方法で複数回比較してください。
+
+```powershell
+Measure-Command { mise r test *> $env:TEMP\kashikishi-test.log }
+# ビルドだけを測る（テストと doctest は実行しない）
+Measure-Command { mise exec -- mbx test --all --no-run *> $env:TEMP\kashikishi-test-build.log }
+# Boxington を明示的に呼ばない場合との比較
+Measure-Command { mise exec -- cargo test --all --no-run *> $env:TEMP\kashikishi-test-cargo.log }
+```
+
+### 2026-11-14 の Windows での調査
+
+- 変更なしの `mise r test` は修正前が約 18.7〜19.0 秒、修正後が約 12.9〜13.5 秒。
+  計測時のログ出力方法・マシン負荷に依存する値で、クリーンビルドの時間ではありません。
+- 文字幅テストがプロセス全体のロガーを強制的に DEBUG にし、並列実行中の他のテストからも
+  1 万行以上を出力していました。`is_test(true)` によるキャプチャと通常のログレベルに変更しました。
+  `RUST_LOG=debug` でも成功したテストのログはキャプチャされ、失敗時の診断出力は維持します。
+- 時計テストの実時間での 1 秒待機を廃止しました。グローバル時計を変更せず個別の時計を使い、
+  System / Fixed / StepByStep の振る舞いを assertion で検証します。
+- ウォームビルドは約 1.5〜1.8 秒。`--no-run` の比較では、Boxington 経由にすると
+  起動などで約 3.4 秒増えました。ただし再ビルド時のキャッシュ効果とトレードオフなので、
+  既定のタスクからは外していません。
+- `mbx analyze` は通常の再実行で `rustdoc` をキャッシュ対象外と報告しました。
+  調査時の `0 hits, 0 misses, 15 bypassed` はキャッシュ破損ではなく、doctest 処理によるものです。
+- 追加調査では、3件の実行対象が2クレートに存在し、残る13クレートには doctest がありませんでした。
+  空の13クレートでのみ doctest を無効にした結果、ウォーム状態の `mise r test` は
+  変更前の約 14.9 秒から変更後の約 10.7〜12.1 秒になり、`rustdoc` の bypass は15から2になりました。
+  時間はマシン負荷に依存します。また、設定変更直後はクレートの再ビルドが発生します。
+
 ## アーキテクチャ
 
 このプロジェクトはRustのワークスペース構成を採用し、機能ごとに独立したクレートで構成されています。以下に主要なクレートとその役割を示します。

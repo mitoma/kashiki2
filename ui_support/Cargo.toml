@@ -3,6 +3,9 @@ name = "ui_support"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+doctest = false # Enable when adding doctests.
+
 [dependencies]
 env_logger = { workspace = true }
 log = { workspace = true }

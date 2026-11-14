@@ -28,6 +28,7 @@ getrandom = { workspace = true, features = ["wasm_js"] }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+doctest = false # Enable when adding doctests.
 
 [[bin]]
 name = "pig_action_game"

@@ -3,6 +3,9 @@ name = "ttf_overlap_remover"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+doctest = false # Enable when adding doctests.
+
 [dependencies]
 skrifa = { workspace = true }
 tiny-skia-path = { workspace = true }

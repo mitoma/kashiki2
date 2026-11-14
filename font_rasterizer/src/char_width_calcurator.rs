@@ -253,9 +253,7 @@ mod test {
 
     #[test]
     fn get_width() {
-        let _ = env_logger::builder()
-            .filter_level(log::LevelFilter::Debug)
-            .try_init();
+        let _ = env_logger::builder().is_test(true).try_init();
 
         let collector = FontCollector::default();
 

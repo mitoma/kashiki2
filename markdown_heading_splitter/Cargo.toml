@@ -3,5 +3,8 @@ name = "markdown_heading_splitter"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+doctest = false # Enable when adding doctests.
+
 [dependencies]
 arborium = { workspace = true }

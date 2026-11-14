@@ -76,25 +76,44 @@ pub fn increment_fixed_clock(duration: Duration) {
 mod test {
     use web_time::Duration;
 
-    use crate::time::{increment_fixed_clock, set_clock_mode};
-
-    use super::now_millis;
+    use super::{ClockMode, SystemClock, internal_now_millis};
 
     #[test]
     fn test_time() {
-        set_clock_mode(crate::time::ClockMode::System);
-        println!("system time:{}", now_millis());
-        std::thread::sleep(Duration::from_millis(1000));
-        println!("system time:{}", now_millis());
+        let mut clock = SystemClock::new();
+        clock.start_time -= 1234;
+        let before = clock.now_millis();
+        assert!(before >= 1234);
+
+        clock.increment(Duration::from_millis(5678));
+        assert_eq!(clock.current_time, 0);
+        assert!(clock.now_millis() >= before);
     }
 
     #[test]
     fn test_fixed_time() {
-        set_clock_mode(crate::time::ClockMode::Fixed);
-        println!("fixed time:{}", now_millis());
-        std::thread::sleep(Duration::from_millis(1000));
-        println!("fixed time:{}", now_millis());
-        increment_fixed_clock(Duration::from_millis(1234));
-        println!("fixed time:{}", now_millis());
+        let mut clock = SystemClock::new();
+        clock.clock_mode = ClockMode::Fixed;
+        clock.current_time = 42;
+        assert_eq!(clock.now_millis(), 42);
+
+        clock.start_time -= 1000;
+        assert_eq!(clock.now_millis(), 42);
+        clock.increment(Duration::from_millis(1234));
+        assert_eq!(clock.now_millis(), 1276);
+    }
+
+    #[test]
+    fn test_step_by_step_time() {
+        let mut clock = SystemClock::new();
+        clock.clock_mode = ClockMode::StepByStep;
+        clock.start_time -= 1234;
+        assert_eq!(clock.now_millis(), 0);
+
+        let before = internal_now_millis() - clock.start_time;
+        clock.increment(Duration::from_millis(5678));
+        let after = internal_now_millis() - clock.start_time;
+        assert!((before..=after).contains(&clock.current_time));
+        assert_eq!(clock.now_millis(), clock.current_time as u32);
     }
 }

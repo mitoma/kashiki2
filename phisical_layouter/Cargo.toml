@@ -3,6 +3,9 @@ name = "phisical_layouter"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+doctest = false # Enable when adding doctests.
+
 [dependencies]
 icu_segmenter = { workspace = true }
 text_buffer = { path = "../text_buffer" }

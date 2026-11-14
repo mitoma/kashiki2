@@ -3,6 +3,9 @@ name = "apng_gen"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+doctest = false # Enable when adding doctests.
+
 [dependencies]
 font_collector = { path = "../../font_collector" }
 font_rasterizer = { path = "../../font_rasterizer" }

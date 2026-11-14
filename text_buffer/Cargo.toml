@@ -4,6 +4,9 @@ version = "0.1.0"
 authors = ["mitoma <mutetheradio@gmail.com>"]
 edition = "2024"
 
+[lib]
+doctest = false # Enable when adding doctests.
+
 [dependencies]
 
 [dev-dependencies]
