@@ -537,7 +537,7 @@ impl TextEdit {
             world_scale: [1.0, 1.0],
             bound,
             border: ModelBorder::default(),
-            surface_style: ModelSurfaceStyle::ThemeBackground,
+            surface_style: ModelSurfaceStyle::None,
             surface_instances: None,
             surface_outset: [0.0, 0.0],
             surface_corner_radius: 0.0,
