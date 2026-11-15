@@ -74,6 +74,7 @@ C-L       world:look-current
 C-X Key2  world:split-horizontal
 C-X Key3  world:split-vertical
 C-X O     world:look-other-pane
+C-X B     world:switch-model
 C-X Key1  world:unsplit
 C-Right   world:look-next
 C-Left    world:look-prev

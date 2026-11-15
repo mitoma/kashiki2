@@ -195,17 +195,21 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
 - `C-x 2` / `world:split-horizontal`: もう一方の文書を選択して上下分割
 - `C-x 3` / `world:split-vertical`: もう一方の文書を選択して左右分割
 - `C-x o` / `world:look-other-pane`: 配置を維持して Pane のフォーカスを切り替え
+- `C-x b` / `world:switch-model`: 文書を選択し、フォーカス中の文書（分割中はフォーカス側 Pane の文書）と切り替え
 - `C-x 1` / `world:unsplit`: 分割を解除し、現在の文書へフィット
 - `world:change-layout-ui`: 直線・円・左右分割・上下分割を選択
 
 選択画面は Enter で確定、`C-g` でキャンセルします。別文書が必要なので、2文書以上を開いてください。
+分割中はフォーカスがある文書に `ThemeBackgroundHighlight` の Surface を付けて区別します。Border はユーザー設定を維持します。
+フォーカス文書が元々 Surface を持つ場合は強調中だけ置き換え、フォーカス移動・分割解除・文書を閉じたときに元の設定へ戻します。
 分割中も次／前の文書操作は全文書を巡回し、非表示の文書へ移動すると操作中の Pane の文書を置き換えます。
 表示中のもう一方の文書へ移動した場合は、配置を維持してフォーカスだけを切り替えます。
+`world:switch-model` でもう一方の Pane の文書を選んだ場合は、2つの Pane の文書を入れ替えます。
 クリックの対象と通常描画は表示中の2文書に限定されます。
 文書の編集・サイズ変更・ウィンドウのリサイズ時は2文書全体へ再フィットし、
 削除により文書が1つ以下になると直線レイアウトへ戻ります。
-アクション再生では `world:split-horizontal` / `world:split-vertical` に文書インデックス
-（0始まりの文字列）を渡すと、選択画面を開かず分割できます。
+アクション再生では `world:split-horizontal` / `world:split-vertical` / `world:switch-model` に文書インデックス
+（0始まりの文字列）を渡すと、選択画面を開かず実行できます。
 
 ### highlighter（シンタックスハイライト）
 - **パス**: `highlighter/`

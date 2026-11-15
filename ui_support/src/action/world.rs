@@ -287,26 +287,7 @@ fn split_world(
                 log::warn!("モーダル表示中は分割できません");
                 return;
             }
-            let options: Vec<_> = world
-                .strings()
-                .iter()
-                .enumerate()
-                .filter(|(index, _)| *index != world.focus())
-                .map(|(index, text)| {
-                    let title = text
-                        .lines()
-                        .find(|line| !line.trim().is_empty())
-                        .unwrap_or("（空の文書）");
-                    SelectOption::new(
-                        format!(
-                            "{}: {}",
-                            index + 1,
-                            title.chars().take(80).collect::<String>()
-                        ),
-                        Action::new_command_with_argument("world", command, &index.to_string()),
-                    )
-                })
-                .collect();
+            let options = other_model_options(world, command);
             if options.is_empty() {
                 log::warn!("分割するには2つ以上の文書を開いてください");
                 return;
@@ -322,6 +303,66 @@ fn split_world(
             world.look_modal(CameraAdjustment::FitBoth);
         }
         _ => log::warn!("文書の分割には文書番号か引数なしを指定してください"),
+    }
+}
+
+// フォーカス中以外の文書を、選択時に world の command へ文書番号を渡す選択肢にする
+fn other_model_options(world: &dyn World, command: &str) -> Vec<SelectOption> {
+    world
+        .strings()
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| *index != world.focus())
+        .map(|(index, text)| {
+            let title = text
+                .lines()
+                .find(|line| !line.trim().is_empty())
+                .unwrap_or("（空の文書）");
+            SelectOption::new(
+                format!(
+                    "{}: {}",
+                    index + 1,
+                    title.chars().take(80).collect::<String>()
+                ),
+                Action::new_command_with_argument("world", command, &index.to_string()),
+            )
+        })
+        .collect()
+}
+
+world_processor!(WorldSwitchModel, "switch-model", switch_model);
+fn switch_model(arg: &ActionArgument, context: &UiContext, world: &mut dyn World) {
+    match arg {
+        ActionArgument::String(index) => {
+            let Ok(index) = index.parse::<usize>() else {
+                log::warn!("切り替える文書の番号が不正です: {index}");
+                return;
+            };
+            if let Err(error) = world.switch_model(index) {
+                log::warn!("文書を切り替えられません: {error}");
+            }
+        }
+        ActionArgument::None => {
+            if world.has_modal() {
+                log::warn!("モーダル表示中は文書を切り替えられません");
+                return;
+            }
+            let options = other_model_options(world, "switch-model");
+            if options.is_empty() {
+                log::warn!("切り替えられる文書がありません");
+                return;
+            }
+            let modal = SelectBox::new_without_action_name(
+                context,
+                "表示する文書を選択してください".into(),
+                options,
+                None,
+            );
+            context.register_string(modal.to_string());
+            world.add_modal(Box::new(modal));
+            world.look_modal(CameraAdjustment::FitBoth);
+        }
+        _ => log::warn!("文書の切り替えには文書番号か引数なしを指定してください"),
     }
 }
 

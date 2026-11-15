@@ -39,6 +39,8 @@ pub trait World {
     fn focus(&self) -> usize;
     fn split(&mut self, direction: Direction, other_model: usize) -> Result<(), SplitError>;
     fn look_other_pane(&mut self);
+    // フォーカス中の文書（分割中はフォーカス側 Pane の文書）を指定の文書に切り替える
+    fn switch_model(&mut self, model_index: usize) -> Result<(), SwitchModelError>;
     // 何番目のモデルに視点を移すか
     fn look_at(&mut self, model_num: usize, adjustment: CameraAdjustment);
     // modal のモデルに視点を移す
@@ -109,5 +111,13 @@ pub enum SplitError {
     #[error("分割には別の文書を選択してください")]
     SameModel,
     #[error("モーダル表示中は分割できません")]
+    ModalOpen,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SwitchModelError {
+    #[error("切り替える文書が存在しません: {0}")]
+    InvalidModel(usize),
+    #[error("モーダル表示中は文書を切り替えられません")]
     ModalOpen,
 }

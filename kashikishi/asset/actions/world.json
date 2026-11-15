@@ -151,6 +151,11 @@
     },
     {
         "namespace": "world",
+        "name": "switch-model",
+        "description": "文書を選択してフォーカス中の文書（分割中はフォーカス側の Pane）と切り替える"
+    },
+    {
+        "namespace": "world",
         "name": "unsplit",
         "description": "2 Pane 分割を解除する"
     },

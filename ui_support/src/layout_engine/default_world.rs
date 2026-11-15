@@ -22,7 +22,7 @@ use crate::{
     easing_value::EasingPointN,
     layout_engine::{
         DebugModelNode, Model, ModelOperation, ModelOperationResult, ModelRenderBatch,
-        ModelSurfaceStyle, SplitError, World, world::RemovedModelType,
+        ModelSurfaceStyle, SplitError, SwitchModelError, World, world::RemovedModelType,
     },
     to_ndc_position,
 };
@@ -103,6 +103,13 @@ pub struct DefaultWorld {
     direction: Direction,
     layout: WorldLayout,
     split_panes: Option<[usize; 2]>,
+    // 強調中のモデルの識別子と、強調前の面の設定
+    focused_pane_highlight: Option<(usize, ModelSurfaceStyle)>,
+}
+
+// Box 内のモデルはヒープ上で移動しないため、アドレスを並べ替えに影響されない識別子として使う
+fn model_id(model: &dyn Model) -> usize {
+    (model as *const dyn Model).cast::<()>() as usize
 }
 
 impl DefaultWorld {
@@ -119,6 +126,7 @@ impl DefaultWorld {
             direction: Direction::Horizontal,
             layout: WorldLayout::Liner,
             split_panes: None,
+            focused_pane_highlight: None,
         }
     }
 
@@ -176,6 +184,36 @@ impl DefaultWorld {
             for index in panes {
                 *index = remap(*index);
             }
+        }
+    }
+
+    // 分割中はフォーカスがある文書だけを強調し、強調を外すときは元の面の設定に戻す
+    fn sync_focused_pane_surface(&mut self) {
+        let target = self
+            .split_panes
+            .and_then(|_| self.models.get(self.focus))
+            .map(|model| model_id(model.as_ref()));
+        if self.focused_pane_highlight.map(|(id, _)| id) == target {
+            return;
+        }
+        self.restore_focused_pane_surface();
+        if let Some(id) = target {
+            let model = &mut self.models[self.focus];
+            self.focused_pane_highlight = Some((id, model.surface_style()));
+            model.set_surface_style(FOCUSED_PANE_SURFACE);
+        }
+    }
+
+    fn restore_focused_pane_surface(&mut self) {
+        let Some((id, original)) = self.focused_pane_highlight.take() else {
+            return;
+        };
+        if let Some(model) = self
+            .models
+            .iter_mut()
+            .find(|model| model_id(model.as_ref()) == id)
+        {
+            model.set_surface_style(original);
         }
     }
 
@@ -339,6 +377,31 @@ impl World for DefaultWorld {
         }
     }
 
+    fn switch_model(&mut self, model_index: usize) -> Result<(), SwitchModelError> {
+        if self.has_modal() {
+            return Err(SwitchModelError::ModalOpen);
+        }
+        if model_index >= self.models.len() {
+            return Err(SwitchModelError::InvalidModel(model_index));
+        }
+        if model_index == self.focus {
+            return Ok(());
+        }
+        if let Some(panes) = &mut self.split_panes
+            && panes.contains(&model_index)
+        {
+            // もう一方の Pane の文書を選んだときは、2つの Pane の文書を入れ替える
+            panes.swap(0, 1);
+            self.focus = model_index;
+            self.world_updated = true;
+            self.re_layout();
+            self.fit_split(CameraAdjustment::FitBoth);
+            return Ok(());
+        }
+        self.look_at(model_index, CameraAdjustment::NoCare);
+        Ok(())
+    }
+
     fn look_at(&mut self, model_index: usize, adjustment: CameraAdjustment) {
         if let Some(panes) = &mut self.split_panes
             && model_index < self.models.len()
@@ -422,6 +485,7 @@ impl World for DefaultWorld {
             self.world_updated = true;
         }
 
+        self.sync_focused_pane_surface();
         let range = self.model_update_range(context.calculator_updated());
         for model in self.models[range.clone()].iter_mut() {
             model.update(context);
@@ -554,6 +618,8 @@ impl World for DefaultWorld {
             modal.close();
             RemovedModelType::Modal
         } else {
+            // 破棄されるモデルの識別子を残さないよう、削除前に強調を外す
+            self.restore_focused_pane_surface();
             let mut removed_model = self.models.remove(self.focus);
             let (x, y, z) = removed_model.position().into();
             removed_model.set_position(Vec3::new(x, y - 5.0, z));
@@ -751,6 +817,9 @@ pub enum WorldLayout {
 }
 
 const INTERVAL: f32 = 5.0;
+// 2 Pane 分割中にフォーカスがある文書を示す面
+const FOCUSED_PANE_SURFACE: ModelSurfaceStyle =
+    ModelSurfaceStyle::ThemeBackgroundHighlight { alpha: 0.5 };
 impl WorldLayout {
     pub fn next(&self) -> Self {
         match self {
@@ -1050,6 +1119,62 @@ mod font_change_tests {
     }
 
     #[test]
+    fn split_highlights_only_the_focused_pane_and_restores_original_surfaces() {
+        let mut world = split_test_world();
+        let focused_surface = ModelSurfaceStyle::Color([0.1, 0.2, 0.3, 0.4]);
+        let other_surface = ModelSurfaceStyle::ThemeBackground { alpha: 0.3 };
+        world.models[0].set_surface_style(focused_surface);
+        world.models[1].set_surface_style(other_surface);
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[0].surface_style(), focused_surface);
+
+        world.split(Direction::Vertical, 2).unwrap();
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[0].surface_style(), FOCUSED_PANE_SURFACE);
+        assert_eq!(world.models[1].surface_style(), other_surface);
+        assert_eq!(world.models[2].surface_style(), ModelSurfaceStyle::None);
+
+        world.look_other_pane();
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[0].surface_style(), focused_surface);
+        assert_eq!(world.models[2].surface_style(), FOCUSED_PANE_SURFACE);
+
+        // 並べ替え後も強調前の面の設定を元のモデルに戻す
+        world.look_other_pane();
+        world.sync_focused_pane_surface();
+        world.swap_next();
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[1].surface_style(), FOCUSED_PANE_SURFACE);
+        assert_eq!(world.models[0].surface_style(), other_surface);
+        world.change_layout(WorldLayout::Liner);
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[1].surface_style(), focused_surface);
+        assert_eq!(world.models[0].surface_style(), other_surface);
+        assert!(
+            world
+                .models
+                .iter()
+                .all(|model| model.surface_style() != FOCUSED_PANE_SURFACE)
+        );
+
+        // 閉じた文書には強調前の面の設定が戻る
+        world.split(Direction::Horizontal, 2).unwrap();
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[1].surface_style(), FOCUSED_PANE_SURFACE);
+        world.remove_current();
+        assert_eq!(world.focused_pane_highlight, None);
+        assert_eq!(
+            world.removed_models.last().unwrap().surface_style(),
+            focused_surface
+        );
+        world.sync_focused_pane_surface();
+        assert_eq!(
+            world.models[world.focus].surface_style(),
+            FOCUSED_PANE_SURFACE
+        );
+    }
+
+    #[test]
     fn split_rejects_invalid_selections_and_preserves_modal_focus() {
         let mut world = split_test_world();
         assert!(matches!(
@@ -1075,6 +1200,33 @@ mod font_change_tests {
         world.change_layout(WorldLayout::Liner);
         assert_eq!(world.split_panes, None);
         assert_eq!(world.visible_models().count(), 3);
+    }
+
+    #[test]
+    fn switch_model_replaces_or_swaps_the_focused_pane() {
+        let mut world = split_test_world();
+        world.switch_model(1).unwrap();
+        assert_eq!((world.focus, world.split_panes), (1, None));
+
+        world.split(Direction::Vertical, 0).unwrap();
+        world.switch_model(2).unwrap();
+        assert_eq!((world.focus, world.split_panes), (2, Some([2, 0])));
+        assert_split_fits(&world);
+
+        world.switch_model(0).unwrap();
+        assert_eq!((world.focus, world.split_panes), (0, Some([0, 2])));
+        assert_split_fits(&world);
+
+        assert!(matches!(
+            world.switch_model(99),
+            Err(SwitchModelError::InvalidModel(99))
+        ));
+        world.add_modal(Box::new(crate::ui::TextEdit::default()));
+        assert!(matches!(
+            world.switch_model(2),
+            Err(SwitchModelError::ModalOpen)
+        ));
+        assert_eq!(world.split_panes, Some([0, 2]));
     }
 
     #[test]

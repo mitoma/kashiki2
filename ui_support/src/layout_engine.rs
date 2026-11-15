@@ -8,4 +8,4 @@ pub use model::{
 mod default_world;
 pub use default_world::{DebugWorldSnapshot, DefaultWorld, WorldLayout};
 mod world;
-pub use world::{RemovedModelType, SplitError, World};
+pub use world::{RemovedModelType, SplitError, SwitchModelError, World};
