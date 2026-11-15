@@ -184,9 +184,31 @@ impl DefaultWorld {
                 .fold(0.0, f32::max);
             center.y = focused.last_position().y;
             anchor_bound.1 = focused.bound().1;
-            return self.look_at_split_geometry((bound.x, fit_h), anchor_bound, center, adjustment);
+            self.look_at_split_geometry((bound.x, fit_h), anchor_bound, center, adjustment);
+            self.center_unfocused_pane_caret();
+            return;
         }
         self.look_at_split_geometry(fit_bound, anchor_bound, center, adjustment);
+    }
+
+    // フォーカスの無い文書は、カーソルが画面の中心の高さに来るように置く
+    fn center_unfocused_pane_caret(&mut self) {
+        let Some(panes) = self.split_panes else {
+            return;
+        };
+        if !self.aligns_split_carets() {
+            return;
+        }
+        let other = if panes[0] == self.focus {
+            panes[1]
+        } else {
+            panes[0]
+        };
+        let target_y = self.camera.target_and_eye().0[1];
+        let model = &mut self.models[other];
+        let mut position = model.last_position();
+        position.y = target_y - (model.focus_position().y - position.y);
+        model.set_position(position);
     }
 
     fn look_at_split_geometry(
@@ -907,28 +929,15 @@ impl WorldLayout {
                 };
                 // 全体表示（reset-zoom）では揃えると倍率が変わり続けるため、従来どおり中心の高さを揃えて並べる
                 if world.aligns_split_carets() {
-                    // フォーカス側の文書は現在の高さを保ち、もう一方の文書をずらしてカーソルの高さを揃える
-                    let caret_offset_y = |index: usize| {
-                        let model = &world.models[index];
-                        model.focus_position().y - model.last_position().y
-                    };
-                    let (anchor, other) = if world.focus == second {
-                        (second, first)
-                    } else {
-                        (first, second)
-                    };
-                    let anchor_y = world.models[anchor].last_position().y;
-                    let other_y = anchor_y + caret_offset_y(anchor) - caret_offset_y(other);
-                    if anchor == first {
-                        (position1.y, position2.y) = (anchor_y, other_y);
-                    } else {
-                        (position1.y, position2.y) = (other_y, anchor_y);
-                    }
+                    // フォーカス側の文書は現在の高さを保ち、もう一方の文書は後でカーソルを画面の中心に合わせる
+                    let anchor_y = world.models[world.focus].last_position().y;
+                    (position1.y, position2.y) = (anchor_y, anchor_y);
                 }
                 for (index, position) in [(first, position1), (second, position2)] {
                     world.models[index].set_rotation(Quat::IDENTITY);
                     world.models[index].set_position(position);
                 }
+                world.center_unfocused_pane_caret();
                 let focus_position = world
                     .models
                     .get(world.focus)
@@ -1280,25 +1289,25 @@ mod font_change_tests {
     }
 
     #[test]
-    fn vertical_split_aligns_carets_only_when_not_fitting_both() {
+    fn vertical_split_centers_unfocused_caret_only_when_not_fitting_both() {
         let mut world = split_test_world();
         world.models[2].editor_operation(&EditorOperation::InsertString("\nline\nline".into()));
         world.split(Direction::Vertical, 2).unwrap();
-        let caret_y_gap = |world: &DefaultWorld| {
-            world.models[0].focus_position().y - world.models[2].focus_position().y
+        let unfocused_caret_gap = |world: &DefaultWorld, other: usize| {
+            world.models[other].focus_position().y - world.camera.target_and_eye().0[1]
         };
         let center_y_gap = |world: &DefaultWorld| {
             world.models[0].last_position().y - world.models[2].last_position().y
         };
         assert!(center_y_gap(&world).abs() < 0.001);
-        assert!(caret_y_gap(&world).abs() > 0.001);
+        assert!(unfocused_caret_gap(&world, 2).abs() > 0.001);
 
         world.look_current(CameraAdjustment::FitHeight);
-        assert!(caret_y_gap(&world).abs() < 0.001);
-        let focused_y = world.models[0].last_position().y;
+        assert!(unfocused_caret_gap(&world, 2).abs() < 0.001);
+        let next_focused_y = world.models[2].last_position().y;
         world.look_other_pane();
-        assert_eq!(world.models[0].last_position().y, focused_y);
-        assert!(caret_y_gap(&world).abs() < 0.001);
+        assert_eq!(world.models[2].last_position().y, next_focused_y);
+        assert!(unfocused_caret_gap(&world, 0).abs() < 0.001);
 
         world.look_current(CameraAdjustment::FitBoth);
         assert!(center_y_gap(&world).abs() < 0.001);
@@ -1320,6 +1329,8 @@ mod font_change_tests {
         // 文書の上端が画面内に残り、カーソルは画面中央に来ない
         assert!((top - target.y).abs() <= visible_half + 0.001);
         assert!((model.focus_position().y - target.y).abs() > 1.0);
+        // フォーカスの無い文書のカーソルは画面の中心に来る
+        assert!((world.models[1].focus_position().y - target.y).abs() < 0.001);
     }
 
     #[test]
