@@ -191,6 +191,8 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
 `WorldLayout::Split(Direction)` は、単一カメラの3D空間に2文書を配置します。
 `Vertical` は左右分割、`Horizontal` は上下分割で、縦書き・横書きとは独立しています。
 2文書のサイズと間隔を含めた領域を画面へフィットさせます。固定 viewport や文書の複製は行いません。
+左右分割で `world:fit-width` / `world:fit-height` を選んでいるときは、フォーカス側の文書の高さを保ったまま、もう一方の文書を上下にずらして2文書のカーソルの高さを揃えます。
+全体表示（`world:reset-zoom`、分割直後）では倍率が変わり続けないよう、2文書の中心の高さを揃えて並べます。
 
 - `C-x 2` / `world:split-horizontal`: もう一方の文書を選択して上下分割
 - `C-x 3` / `world:split-vertical`: もう一方の文書を選択して左右分割

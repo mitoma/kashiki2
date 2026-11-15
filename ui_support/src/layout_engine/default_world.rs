@@ -863,7 +863,7 @@ impl WorldLayout {
                 };
                 let (w1, h1) = world.models[first].bound();
                 let (w2, h2) = world.models[second].bound();
-                let (position1, position2) = match direction {
+                let (mut position1, mut position2) = match direction {
                     Direction::Vertical => (
                         Vec3::new(-(w2 + INTERVAL) / 2.0, 0.0, 0.0),
                         Vec3::new((w1 + INTERVAL) / 2.0, 0.0, 0.0),
@@ -873,6 +873,28 @@ impl WorldLayout {
                         Vec3::new(0.0, -(h1 + INTERVAL) / 2.0, 0.0),
                     ),
                 };
+                // 全体表示（reset-zoom）では揃えると倍率が変わり続けるため、従来どおり中心の高さを揃えて並べる
+                if *direction == Direction::Vertical
+                    && world.split_adjustment != CameraAdjustment::FitBoth
+                {
+                    // フォーカス側の文書は現在の高さを保ち、もう一方の文書をずらしてカーソルの高さを揃える
+                    let caret_offset_y = |index: usize| {
+                        let model = &world.models[index];
+                        model.focus_position().y - model.last_position().y
+                    };
+                    let (anchor, other) = if world.focus == second {
+                        (second, first)
+                    } else {
+                        (first, second)
+                    };
+                    let anchor_y = world.models[anchor].last_position().y;
+                    let other_y = anchor_y + caret_offset_y(anchor) - caret_offset_y(other);
+                    if anchor == first {
+                        (position1.y, position2.y) = (anchor_y, other_y);
+                    } else {
+                        (position1.y, position2.y) = (other_y, anchor_y);
+                    }
+                }
                 for (index, position) in [(first, position1), (second, position2)] {
                     world.models[index].set_rotation(Quat::IDENTITY);
                     world.models[index].set_position(position);
@@ -1224,6 +1246,31 @@ mod font_change_tests {
         world.look_current(CameraAdjustment::NoCare);
         assert_eq!(world.camera.target_and_eye(), fit_both_camera);
         assert_split_fits(&world);
+    }
+
+    #[test]
+    fn vertical_split_aligns_carets_only_when_not_fitting_both() {
+        let mut world = split_test_world();
+        world.models[2].editor_operation(&EditorOperation::InsertString("\nline\nline".into()));
+        world.split(Direction::Vertical, 2).unwrap();
+        let caret_y_gap = |world: &DefaultWorld| {
+            world.models[0].focus_position().y - world.models[2].focus_position().y
+        };
+        let center_y_gap = |world: &DefaultWorld| {
+            world.models[0].last_position().y - world.models[2].last_position().y
+        };
+        assert!(center_y_gap(&world).abs() < 0.001);
+        assert!(caret_y_gap(&world).abs() > 0.001);
+
+        world.look_current(CameraAdjustment::FitHeight);
+        assert!(caret_y_gap(&world).abs() < 0.001);
+        let focused_y = world.models[0].last_position().y;
+        world.look_other_pane();
+        assert_eq!(world.models[0].last_position().y, focused_y);
+        assert!(caret_y_gap(&world).abs() < 0.001);
+
+        world.look_current(CameraAdjustment::FitBoth);
+        assert!(center_y_gap(&world).abs() < 0.001);
     }
 
     #[test]
