@@ -65,6 +65,7 @@ C-X C M categorized-memo:move-category-ui
 F10     kashikishi:toggle-info-panel
 
 C-X C-F kashikishi:open-file-ui
+C-X C-F tagbase-memo:open-memo-ui
 
 C-X C-I C-D kashikishi:insert-date
 

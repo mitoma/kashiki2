@@ -180,6 +180,7 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
   - キーボード・マウス・ストローク継続判定に同じ名前空間条件を適用し、条件変更時は入力途中のストロークを破棄する。未設定時は従来互換、空リストはコマンド無効、`clear_current_namespaces` で制限解除
 
 炊紙では `ModalWorld::command_namespace` がモード固有の名前空間を返し、起動時とモード切り替え時に共通名前空間より優先して有効化する。カテゴリーメモは `categorized-memo`、タグメモは `tagbase-memo` を使用し、保存などの共通操作は `kashikishi` に残す。
+タグメモでは `C-x C-f` が `tagbase-memo:open-memo-ui` になり、表示中のメモ（番号付き）と表示していないメモ（`未表示:`）を `world:switch-model` と同じ形式のダイアログで選べる。表示していないメモは末尾に追加してから切り替えるため、分割表示中はフォーカス中の Pane に表示される。
 
 ### ui_support（UI支援）
 - **パス**: `ui_support/`
