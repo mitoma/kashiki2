@@ -41,6 +41,8 @@ pub enum ModelSurfaceStyle {
 
 impl ModelSurfaceStyle {
     pub const OPAQUE_THEME_BACKGROUND: Self = Self::ThemeBackground { alpha: 1.0 };
+    pub const OPAQUE_THEME_BACKGROUND_HIGHLIGHT: Self =
+        Self::ThemeBackgroundHighlight { alpha: 0.9 };
 }
 
 pub const MODEL_SURFACE_SVG_KEY: &str = "model_surface";

@@ -60,7 +60,7 @@ impl Card {
             TextEdit::new(editor_settings.text_context(EditorTextContextProfile::Card));
         text_edit.set_world_scale(CARD_DEFAULT_SCALE);
         text_edit.set_position((0.0, -1.5, 0.0).into());
-        text_edit.set_surface_style(ModelSurfaceStyle::OPAQUE_THEME_BACKGROUND);
+        text_edit.set_surface_style(ModelSurfaceStyle::OPAQUE_THEME_BACKGROUND_HIGHLIGHT);
 
         Self {
             text_edit,
@@ -77,6 +77,15 @@ impl Card {
 
     pub fn set_border(&mut self, border: ModelBorder) {
         self.text_edit.set_border(border);
+    }
+
+    pub fn set_world_scale(&mut self, world_scale: [f32; 2]) {
+        self.world_scale = world_scale;
+        self.text_edit.set_world_scale(world_scale);
+    }
+
+    pub fn set_surface_style(&mut self, style: ModelSurfaceStyle) {
+        self.text_edit.set_surface_style(style);
     }
 
     pub fn border(&self) -> ModelBorder {
@@ -120,7 +129,7 @@ impl Card {
     // 長い行が画面の半分を超えないよう、行方向の縮小率だけを下げる。
     // カメラを無視した座標系は x: [-aspect, aspect], y: [-1, 1] なので、半分は x で aspect、y で 1.0 になる
     fn update_world_scale(&mut self, aspect: f32) {
-        let [default_x, default_y] = CARD_DEFAULT_SCALE;
+        let [default_x, default_y] = self.world_scale;
         let fit = |default: f32, half_screen: f32| {
             if self.max_line_width > 0.0 {
                 default.min(half_screen / self.max_line_width)

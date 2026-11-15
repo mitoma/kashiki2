@@ -86,6 +86,21 @@ impl FontRepository {
     pub fn list_font_names(&self) -> Vec<String> {
         self.font_collector.list_font_names()
     }
+
+    // get_fonts と同じ優先順でフォント名だけを返す(バイナリを複製しない)
+    pub fn font_names(&self) -> Vec<&str> {
+        self.primary_font
+            .iter()
+            .chain(self.fallback_fonts.iter())
+            .map(|font| font.font_name.as_str())
+            .collect()
+    }
+
+    pub fn ascii_override_font_name(&self) -> Option<&str> {
+        self.ascii_override_font
+            .as_ref()
+            .map(|font| font.font_name.as_str())
+    }
 }
 
 pub struct FontCollector {

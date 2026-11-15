@@ -240,7 +240,13 @@ fn run_scenario(test_args: &TestArgs) -> Result<ScenarioOutcome, ScenarioError> 
         .and_then(font_rasterizer::builtin_shader_art::find_by_name)
         .map(|source| source.to_string());
     let color_theme = config.editor_settings.color_theme();
-    let callback = KashikishiCallback::new(test_args.window_size, config, action_recorder);
+    // FPS は実時刻で計測するため、headless ではスナップショットが毎回変わらないようシステム情報を出さない
+    let callback = KashikishiCallback::new(
+        test_args.window_size,
+        config,
+        action_recorder,
+        test_args.headed,
+    );
     let support = SimpleStateSupport {
         window_icon: None,
         window_title: "Kashikishi".to_string(),

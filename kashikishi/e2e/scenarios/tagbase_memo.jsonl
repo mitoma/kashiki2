@@ -35,10 +35,10 @@
 {"Command":["edit","return","None"]}
 {"Command":["action_recorder","wait",{"Integer":1500}]}
 {"Command":["action_recorder","snapshot",{"String":"08_searched"}]}
-{"Command":["tagbase-memo","toggle-meta-card","None"]}
+{"Command":["kashikishi","toggle-info-panel","None"]}
 {"Command":["action_recorder","wait",{"Integer":500}]}
 {"Command":["action_recorder","snapshot",{"String":"08_searched_meta_card_hidden"}]}
-{"Command":["tagbase-memo","toggle-meta-card","None"]}
+{"Command":["kashikishi","toggle-info-panel","None"]}
 {"Command":["system","change-global-direction", "None"]}
 {"Command":["action_recorder","wait",{"Integer":500}]}
 {"Command":["action_recorder","snapshot",{"String":"09_searched_meta_card_direction"}]}

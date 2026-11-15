@@ -12,6 +12,7 @@ mod rokid_max_ext;
 #[cfg(not(target_arch = "wasm32"))]
 mod scenario_test;
 mod snapshot_text;
+mod system_info_card;
 mod world;
 
 use std::{
@@ -53,7 +54,7 @@ use ui_support::{
 
 use crate::{
     kashikishi_actions::command_palette_select, kashikishi_config::KashikishiConfig,
-    world::MarkdownPresentationWorld,
+    system_info_card::SystemInfoCard, world::MarkdownPresentationWorld,
 };
 
 const ICON_IMAGE: &[u8] = include_bytes!("../kashikishi-icon.ico");
@@ -288,8 +289,12 @@ pub async fn run(args: Args) {
         Some(Command::Record { path }) => Box::new(FileActionRecordRepository::new(path)),
         _ => Box::new(InMemoryActionRecordRepository::default()),
     };
-    let callback =
-        KashikishiCallback::new(window_size, config, ActionRecorder::new(record_repository));
+    let callback = KashikishiCallback::new(
+        window_size,
+        config,
+        ActionRecorder::new(record_repository),
+        true,
+    );
     let support = SimpleStateSupport {
         window_icon: icon,
         window_title: "Kashikishi".to_string(),
@@ -317,6 +322,11 @@ struct KashikishiCallback {
     rokid_max_action: Rc<Mutex<RokidMaxAction>>,
     action_recorder: Rc<Mutex<ActionRecorder>>,
     config: KashikishiConfig,
+    // init で UiContext が渡されるまでは作れない。表示しない設定のときは None のまま
+    system_info_card: Option<SystemInfoCard>,
+    show_system_info: bool,
+    // システム情報カードと World ごとの情報カードをまとめて表示するかどうか
+    info_panel_visible: bool,
 }
 
 impl KashikishiCallback {
@@ -324,6 +334,7 @@ impl KashikishiCallback {
         window_size: WindowSize,
         config: KashikishiConfig,
         action_recorder: ActionRecorder,
+        show_system_info: bool,
     ) -> Self {
         let mut store: ActionStore = Default::default();
         let key_setting = include_str!("../asset/key-settings.txt");
@@ -356,6 +367,9 @@ impl KashikishiCallback {
             rokid_max_action,
             action_recorder,
             config,
+            system_info_card: None,
+            show_system_info,
+            info_panel_visible: true,
         }
     }
 
@@ -417,6 +431,10 @@ impl SimpleStateCallback for KashikishiCallback {
         register_default_caret(context);
         register_default_border(context);
 
+        if self.show_system_info {
+            self.system_info_card = Some(SystemInfoCard::new(context));
+        }
+
         // カメラを初期化する
         context.register_post_action(self.world.initial_camera_action());
     }
@@ -430,6 +448,11 @@ impl SimpleStateCallback for KashikishiCallback {
 
         self.world.update(context);
         self.ime.update(context);
+        if self.info_panel_visible
+            && let Some(card) = self.system_info_card.as_mut()
+        {
+            card.update(context);
+        }
 
         let _ = self.rokid_max_action.lock().map(|rokid_max_action| {
             self.world
@@ -492,6 +515,12 @@ impl SimpleStateCallback for KashikishiCallback {
         }
 
         match action {
+            Action::Command(category, name, _)
+                if category.as_str() == "kashikishi" && name.as_str() == "toggle-info-panel" =>
+            {
+                self.info_panel_visible = !self.info_panel_visible;
+                InputResult::InputConsumed
+            }
             Action::Command(category, name, argument) => match &*category.to_string() {
                 "world" => {
                     self.execute_world_action(&name, argument, context);
@@ -592,11 +621,23 @@ impl SimpleStateCallback for KashikishiCallback {
                 });
             }
         } else {
-            let mut overlay_glyph_instances = self.world.overlay_glyph_instances();
+            let mut overlay_glyph_instances = Vec::new();
+            let mut overlay_surface_instances = Vec::new();
+            let mut overlay_vector_instances = Vec::new();
+            if self.info_panel_visible {
+                if let Some(card) = &self.system_info_card {
+                    overlay_glyph_instances.extend(card.get_instances());
+                    overlay_surface_instances.extend(card.get_surface_instances());
+                    overlay_vector_instances.extend(card.get_vector_instances());
+                }
+                overlay_glyph_instances.extend(self.world.overlay_glyph_instances());
+                overlay_surface_instances.extend(self.world.overlay_surface_instances());
+                overlay_vector_instances.extend(self.world.overlay_vector_instances());
+            }
             overlay_glyph_instances.append(&mut ime_instances);
             model_batches.push(ui_support::layout_engine::ModelRenderBatch {
-                surface_instances: self.world.overlay_surface_instances(),
-                vector_instances: self.world.overlay_vector_instances(),
+                surface_instances: overlay_surface_instances,
+                vector_instances: overlay_vector_instances,
                 glyph_instances: overlay_glyph_instances,
                 opacity: 1.0,
             });

@@ -62,7 +62,7 @@ C-Z C   tagbase-memo:add-memo
 C-Z K   categorized-memo:remove-memo
 C-Z K   tagbase-memo:close-memo
 C-X C M categorized-memo:move-category-ui
-F10     tagbase-memo:toggle-meta-card
+F10     kashikishi:toggle-info-panel
 
 C-X C-F kashikishi:open-file-ui
 

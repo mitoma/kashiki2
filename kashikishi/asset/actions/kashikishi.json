@@ -10,6 +10,11 @@
         "description": "日付の挿入"
     },
     {
+        "namespace": "kashikishi",
+        "name": "toggle-info-panel",
+        "description": "情報パネルの表示を切り替え"
+    },
+    {
         "namespace": "categorized-memo",
         "name": "move-category-ui",
         "description": "カテゴリを移動"
@@ -63,10 +68,5 @@
         "namespace": "tagbase-memo",
         "name": "delete-memo-ui",
         "description": "現在のタグメモを削除"
-    },
-    {
-        "namespace": "tagbase-memo",
-        "name": "toggle-meta-card",
-        "description": "メモ情報カードの表示を切り替え"
     }
 ]
