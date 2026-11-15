@@ -121,7 +121,7 @@ pub enum CameraOperation {
     None,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CameraAdjustment {
     // モデルの縦横が画面内に収まるようにする
     FitBoth,

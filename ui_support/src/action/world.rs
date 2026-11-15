@@ -47,6 +47,10 @@ fn remove_current(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn W
     world.re_layout();
     match removed_model_type {
         RemovedModelType::Modal => world.look_current(CameraAdjustment::NoCare),
+        // 分割が続く場合は直近のフィット方法を維持する
+        RemovedModelType::Normal if matches!(world.layout(), WorldLayout::Split(_)) => {
+            world.look_current(CameraAdjustment::NoCare)
+        }
         RemovedModelType::Normal if was_split => world.look_current(CameraAdjustment::FitBoth),
         RemovedModelType::Normal => world.look_prev(CameraAdjustment::NoCare),
     }

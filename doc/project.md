@@ -206,7 +206,9 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
 表示中のもう一方の文書へ移動した場合は、配置を維持してフォーカスだけを切り替えます。
 `world:switch-model` でもう一方の Pane の文書を選んだ場合は、2つの Pane の文書を入れ替えます。
 クリックの対象と通常描画は表示中の2文書に限定されます。
-文書の編集・サイズ変更・ウィンドウのリサイズ時は2文書全体へ再フィットし、
+文書の編集・カーソル移動・サイズ変更・ウィンドウのリサイズ時は、分割中に直近で選んだフィット方法
+（`world:reset-zoom` / `world:fit-width` / `world:fit-height`、分割直後は全体表示）で2文書全体へ再フィットします。
+画面に収まらない方向はフォーカス中の文書のカーソルに追従します。
 削除により文書が1つ以下になると直線レイアウトへ戻ります。
 アクション再生では `world:split-horizontal` / `world:split-vertical` / `world:switch-model` に文書インデックス
 （0始まりの文字列）を渡すと、選択画面を開かず実行できます。

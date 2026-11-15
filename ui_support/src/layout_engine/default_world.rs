@@ -103,6 +103,8 @@ pub struct DefaultWorld {
     direction: Direction,
     layout: WorldLayout,
     split_panes: Option<[usize; 2]>,
+    // 分割中に直近で選択されたフィット方法。カーソル移動や編集時の再フィットに使う
+    split_adjustment: CameraAdjustment,
     // 強調中のモデルの識別子と、強調前の面の設定
     focused_pane_highlight: Option<(usize, ModelSurfaceStyle)>,
 }
@@ -126,6 +128,7 @@ impl DefaultWorld {
             direction: Direction::Horizontal,
             layout: WorldLayout::Liner,
             split_panes: None,
+            split_adjustment: CameraAdjustment::FitBoth,
             focused_pane_highlight: None,
         }
     }
@@ -168,11 +171,13 @@ impl DefaultWorld {
         }
         let center = (min + max) / 2.0;
         let bound = max - min;
+        // 画面からはみ出す方向はフォーカス中の文書のカーソルに追従させる
+        let focus_position = self.models[self.focus].focus_position();
         self.camera_controller.look_at_geometry(
             &mut self.camera,
             (bound.x, bound.y),
             center,
-            center,
+            focus_position,
             Quat::IDENTITY,
             adjustment,
         );
@@ -353,13 +358,16 @@ impl World for DefaultWorld {
                 panes[other_slot] = other_model;
                 panes
             }
-            None => [self.focus, other_model],
+            None => {
+                self.split_adjustment = CameraAdjustment::FitBoth;
+                [self.focus, other_model]
+            }
         };
         self.layout = WorldLayout::Split(direction);
         self.split_panes = Some(panes);
         self.world_updated = true;
         self.re_layout();
-        self.fit_split(CameraAdjustment::FitBoth);
+        self.fit_split(self.split_adjustment);
         Ok(())
     }
 
@@ -395,7 +403,7 @@ impl World for DefaultWorld {
             self.focus = model_index;
             self.world_updated = true;
             self.re_layout();
-            self.fit_split(CameraAdjustment::FitBoth);
+            self.fit_split(self.split_adjustment);
             return Ok(());
         }
         self.look_at(model_index, CameraAdjustment::NoCare);
@@ -412,14 +420,25 @@ impl World for DefaultWorld {
                 panes[slot] = model_index;
                 self.world_updated = true;
             }
+            // 現在の文書へのフィット指定（reset-zoom, fit-width, fit-height）は以降の再フィットにも使う
+            if model_index == self.focus {
+                match adjustment {
+                    CameraAdjustment::FitBoth | CameraAdjustment::FitBothAndCentering => {
+                        self.split_adjustment = CameraAdjustment::FitBoth;
+                    }
+                    CameraAdjustment::FitWidth | CameraAdjustment::FitHeight => {
+                        self.split_adjustment = adjustment;
+                    }
+                    CameraAdjustment::NoCare => {}
+                }
+            }
             self.focus = model_index;
             self.re_layout();
-            let adjustment =
-                if changed || (self.world_updated && adjustment == CameraAdjustment::NoCare) {
-                    CameraAdjustment::FitBoth
-                } else {
-                    adjustment
-                };
+            let adjustment = if adjustment == CameraAdjustment::NoCare && !self.world_updated {
+                CameraAdjustment::NoCare
+            } else {
+                self.split_adjustment
+            };
             self.fit_split(adjustment);
             return;
         }
@@ -586,7 +605,13 @@ impl World for DefaultWorld {
                 }
                 ModelOperationResult::RequireReLayoutAndFit => {
                     self.world_updated = true;
-                    self.look_current(CameraAdjustment::FitBoth);
+                    // 分割中は直近のフィット方法を維持する
+                    let adjustment = if self.split_panes.is_some() {
+                        CameraAdjustment::NoCare
+                    } else {
+                        CameraAdjustment::FitBoth
+                    };
+                    self.look_current(adjustment);
                 }
             }
         }
@@ -1172,6 +1197,33 @@ mod font_change_tests {
             world.models[world.focus].surface_style(),
             FOCUSED_PANE_SURFACE
         );
+    }
+
+    #[test]
+    fn split_refits_with_the_last_selected_adjustment() {
+        let mut world = split_test_world();
+        world.split(Direction::Horizontal, 2).unwrap();
+        let fit_both_camera = world.camera.target_and_eye();
+
+        world.look_current(CameraAdjustment::FitWidth);
+        let fit_width_camera = world.camera.target_and_eye();
+        assert_ne!(fit_width_camera, fit_both_camera);
+
+        // カーソル移動などの更新後の再フィットでも直近のフィット方法を使う
+        world.world_updated = true;
+        world.look_current(CameraAdjustment::NoCare);
+        assert_eq!(world.camera.target_and_eye(), fit_width_camera);
+        world.look_other_pane();
+        world.look_other_pane();
+        world.world_updated = true;
+        world.look_current(CameraAdjustment::NoCare);
+        assert_eq!(world.camera.target_and_eye(), fit_width_camera);
+
+        world.look_current(CameraAdjustment::FitBoth);
+        world.world_updated = true;
+        world.look_current(CameraAdjustment::NoCare);
+        assert_eq!(world.camera.target_and_eye(), fit_both_camera);
+        assert_split_fits(&world);
     }
 
     #[test]
