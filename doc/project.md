@@ -186,6 +186,27 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
 - **役割**: ユーザーインターフェースの支援機能
 - **依存関係**: `nenobi`（外部ライブラリ）を使用
 
+#### WorldLayout の 2 Pane
+
+`WorldLayout::Split(Direction)` は、単一カメラの3D空間に2文書を配置します。
+`Vertical` は左右分割、`Horizontal` は上下分割で、縦書き・横書きとは独立しています。
+2文書のサイズと間隔を含めた領域を画面へフィットさせます。固定 viewport や文書の複製は行いません。
+
+- `C-x 2` / `world:split-horizontal`: もう一方の文書を選択して上下分割
+- `C-x 3` / `world:split-vertical`: もう一方の文書を選択して左右分割
+- `C-x o` / `world:look-other-pane`: 配置を維持して Pane のフォーカスを切り替え
+- `C-x 1` / `world:unsplit`: 分割を解除し、現在の文書へフィット
+- `world:change-layout-ui`: 直線・円・左右分割・上下分割を選択
+
+選択画面は Enter で確定、`C-g` でキャンセルします。別文書が必要なので、2文書以上を開いてください。
+分割中も次／前の文書操作は全文書を巡回し、非表示の文書へ移動すると操作中の Pane の文書を置き換えます。
+表示中のもう一方の文書へ移動した場合は、配置を維持してフォーカスだけを切り替えます。
+クリックの対象と通常描画は表示中の2文書に限定されます。
+文書の編集・サイズ変更・ウィンドウのリサイズ時は2文書全体へ再フィットし、
+削除により文書が1つ以下になると直線レイアウトへ戻ります。
+アクション再生では `world:split-horizontal` / `world:split-vertical` に文書インデックス
+（0始まりの文字列）を渡すと、選択画面を開かず分割できます。
+
 ### highlighter（シンタックスハイライト）
 - **パス**: `highlighter/`
 - **役割**: シンタックスハイライト機能

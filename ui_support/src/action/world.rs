@@ -9,7 +9,7 @@ use crate::ui_context::{CharEasingsPreset, UiContext};
 use crate::{
     action::add_model_to_world,
     camera::{CameraAdjustment, CameraOperation},
-    layout_engine::{ModelBorder, ModelOperation, RemovedModelType, World, WorldLayout},
+    layout_engine::{Model, ModelBorder, ModelOperation, RemovedModelType, World, WorldLayout},
     ui::TextInput,
 };
 
@@ -42,10 +42,12 @@ macro_rules! world_processor {
 
 world_processor!(WorldRemoveCurrent, "remove-current", remove_current);
 fn remove_current(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    let was_split = matches!(world.layout(), WorldLayout::Split(_));
     let removed_model_type = world.remove_current();
     world.re_layout();
     match removed_model_type {
         RemovedModelType::Modal => world.look_current(CameraAdjustment::NoCare),
+        RemovedModelType::Normal if was_split => world.look_current(CameraAdjustment::FitBoth),
         RemovedModelType::Normal => world.look_prev(CameraAdjustment::NoCare),
     }
 }
@@ -247,15 +249,144 @@ fn move_to_click_with_mark(arg: &ActionArgument, context: &UiContext, world: &mu
     }
 }
 
+world_processor!(WorldSplitHorizontal, "split-horizontal", split_horizontal);
+fn split_horizontal(arg: &ActionArgument, context: &UiContext, world: &mut dyn World) {
+    split_world(
+        arg,
+        context,
+        world,
+        Direction::Horizontal,
+        "split-horizontal",
+    );
+}
+
+world_processor!(WorldSplitVertical, "split-vertical", split_vertical);
+fn split_vertical(arg: &ActionArgument, context: &UiContext, world: &mut dyn World) {
+    split_world(arg, context, world, Direction::Vertical, "split-vertical");
+}
+
+fn split_world(
+    arg: &ActionArgument,
+    context: &UiContext,
+    world: &mut dyn World,
+    direction: Direction,
+    command: &str,
+) {
+    match arg {
+        ActionArgument::String(index) => {
+            let Ok(index) = index.parse::<usize>() else {
+                log::warn!("分割する文書の番号が不正です: {index}");
+                return;
+            };
+            if let Err(error) = world.split(direction, index) {
+                log::warn!("文書を分割できません: {error}");
+            }
+        }
+        ActionArgument::None => {
+            if world.has_modal() {
+                log::warn!("モーダル表示中は分割できません");
+                return;
+            }
+            let options: Vec<_> = world
+                .strings()
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| *index != world.focus())
+                .map(|(index, text)| {
+                    let title = text
+                        .lines()
+                        .find(|line| !line.trim().is_empty())
+                        .unwrap_or("（空の文書）");
+                    SelectOption::new(
+                        format!(
+                            "{}: {}",
+                            index + 1,
+                            title.chars().take(80).collect::<String>()
+                        ),
+                        Action::new_command_with_argument("world", command, &index.to_string()),
+                    )
+                })
+                .collect();
+            if options.is_empty() {
+                log::warn!("分割するには2つ以上の文書を開いてください");
+                return;
+            }
+            let modal = SelectBox::new_without_action_name(
+                context,
+                "もう一方の Pane に表示する文書を選択してください".into(),
+                options,
+                None,
+            );
+            context.register_string(modal.to_string());
+            world.add_modal(Box::new(modal));
+            world.look_modal(CameraAdjustment::FitBoth);
+        }
+        _ => log::warn!("文書の分割には文書番号か引数なしを指定してください"),
+    }
+}
+
+world_processor!(WorldLookOtherPane, "look-other-pane", look_other_pane);
+fn look_other_pane(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    world.look_other_pane();
+}
+
+world_processor!(WorldUnsplit, "unsplit", unsplit);
+fn unsplit(_arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+    world.change_layout(WorldLayout::Liner);
+    world.re_layout();
+    world.look_current(CameraAdjustment::FitBoth);
+}
+
+world_processor!(WorldChangeLayoutUi, "change-layout-ui", change_layout_ui);
+fn change_layout_ui(_arg: &ActionArgument, context: &UiContext, world: &mut dyn World) {
+    let options = vec![
+        SelectOption::new(
+            "直線".into(),
+            Action::new_command_with_argument("world", "change-layout", "line"),
+        ),
+        SelectOption::new(
+            "円".into(),
+            Action::new_command_with_argument("world", "change-layout", "circle"),
+        ),
+        SelectOption::new(
+            "2 Pane: Vertical（左右分割）".into(),
+            Action::new_command("world", "split-vertical"),
+        ),
+        SelectOption::new(
+            "2 Pane: Horizontal（上下分割）".into(),
+            Action::new_command("world", "split-horizontal"),
+        ),
+    ];
+    let modal = SelectBox::new_without_action_name(
+        context,
+        "レイアウトを選択してください".into(),
+        options,
+        None,
+    );
+    context.register_string(modal.to_string());
+    world.add_modal(Box::new(modal));
+    world.look_modal(CameraAdjustment::FitBoth);
+}
+
 world_processor!(WorldChangeLayout, "change-layout", change_layout);
-fn change_layout(arg: &ActionArgument, _context: &UiContext, world: &mut dyn World) {
+fn change_layout(arg: &ActionArgument, context: &UiContext, world: &mut dyn World) {
     match arg {
         ActionArgument::String(layout_name) => {
             let layout = match layout_name.as_str() {
-                //"grid" => world.model_operation(&ModelOperation::ChangeLayout("grid")),
                 "line" => WorldLayout::Liner,
                 "circle" => WorldLayout::Circle,
-                _ => WorldLayout::Liner,
+                "split-vertical" => {
+                    split_vertical(&ActionArgument::None, context, world);
+                    return;
+                }
+                "split-horizontal" => {
+                    split_horizontal(&ActionArgument::None, context, world);
+                    return;
+                }
+                _ => {
+                    log::warn!("不明なレイアウトです: {layout_name}");
+                    return;
+                }
             };
             world.change_layout(layout);
         }

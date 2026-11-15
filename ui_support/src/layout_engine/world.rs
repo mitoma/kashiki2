@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
-    context::WindowSize, glyph_instances::GlyphInstances, vector_instances::VectorInstances,
+    context::WindowSize, glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
+    vector_instances::VectorInstances,
 };
 
 use crate::{
@@ -35,6 +36,9 @@ pub trait World {
 
     // この World にいくつモデルを配置されているかを返す
     fn model_length(&self) -> usize;
+    fn focus(&self) -> usize;
+    fn split(&mut self, direction: Direction, other_model: usize) -> Result<(), SplitError>;
+    fn look_other_pane(&mut self);
     // 何番目のモデルに視点を移すか
     fn look_at(&mut self, model_num: usize, adjustment: CameraAdjustment);
     // modal のモデルに視点を移す
@@ -96,4 +100,14 @@ pub trait World {
 pub enum RemovedModelType {
     Modal,
     Normal,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum SplitError {
+    #[error("分割する文書が存在しません: {0}")]
+    InvalidModel(usize),
+    #[error("分割には別の文書を選択してください")]
+    SameModel,
+    #[error("モーダル表示中は分割できません")]
+    ModalOpen,
 }

@@ -22,7 +22,7 @@ use crate::{
     easing_value::EasingPointN,
     layout_engine::{
         DebugModelNode, Model, ModelOperation, ModelOperationResult, ModelRenderBatch,
-        ModelSurfaceStyle, World, world::RemovedModelType,
+        ModelSurfaceStyle, SplitError, World, world::RemovedModelType,
     },
     to_ndc_position,
 };
@@ -50,6 +50,8 @@ fn world_layout_name(layout: &WorldLayout) -> &'static str {
     match layout {
         WorldLayout::Liner => "liner",
         WorldLayout::Circle => "circle",
+        WorldLayout::Split(Direction::Vertical) => "split-vertical",
+        WorldLayout::Split(Direction::Horizontal) => "split-horizontal",
     }
 }
 
@@ -100,6 +102,7 @@ pub struct DefaultWorld {
     world_updated: bool,
     direction: Direction,
     layout: WorldLayout,
+    split_panes: Option<[usize; 2]>,
 }
 
 impl DefaultWorld {
@@ -115,12 +118,65 @@ impl DefaultWorld {
             world_updated: true,
             direction: Direction::Horizontal,
             layout: WorldLayout::Liner,
+            split_panes: None,
         }
     }
 
     // 現在フォーカスしているモデルのインデックスを返す
     pub fn focus(&self) -> usize {
         self.focus
+    }
+
+    fn visible_models(&self) -> impl Iterator<Item = &Box<dyn Model>> {
+        let range = if self.split_panes.is_some() {
+            0..self.models.len()
+        } else {
+            self.get_surrounding_model_range()
+        };
+        self.models[range]
+            .iter()
+            .enumerate()
+            .filter_map(move |(index, model)| {
+                let visible = match self.split_panes {
+                    Some(panes) => panes.contains(&index),
+                    None => true,
+                };
+                visible.then_some(model)
+            })
+    }
+
+    fn fit_split(&mut self, adjustment: CameraAdjustment) {
+        let Some(panes) = self.split_panes else {
+            return;
+        };
+        let mut min = Vec3::splat(f32::INFINITY);
+        let mut max = Vec3::splat(f32::NEG_INFINITY);
+        for index in panes {
+            let model = &self.models[index];
+            let (w, h) = model.bound();
+            let half = Vec3::new(w / 2.0, h / 2.0, 0.0);
+            min = min.min(model.last_position() - half);
+            max = max.max(model.last_position() + half);
+        }
+        let center = (min + max) / 2.0;
+        let bound = max - min;
+        self.camera_controller.look_at_geometry(
+            &mut self.camera,
+            (bound.x, bound.y),
+            center,
+            center,
+            Quat::IDENTITY,
+            adjustment,
+        );
+        self.camera_controller.update_camera(&mut self.camera);
+    }
+
+    fn remap_split_panes(&mut self, mut remap: impl FnMut(usize) -> usize) {
+        if let Some(panes) = &mut self.split_panes {
+            for index in panes {
+                *index = remap(*index);
+            }
+        }
     }
 
     fn get_current_mut(&mut self) -> Option<&mut Box<dyn Model>> {
@@ -164,27 +220,30 @@ impl DefaultWorld {
 
     #[inline]
     fn glyph_instances_inner(&self) -> Vec<&GlyphInstances> {
-        let models: Vec<&GlyphInstances> =
-            Self::to_glyph_instances(&self.models[self.get_surrounding_model_range()]);
+        let models: Vec<&GlyphInstances> = self
+            .visible_models()
+            .flat_map(|model| model.glyph_instances())
+            .collect();
         let removed_models: Vec<&GlyphInstances> = Self::to_glyph_instances(&self.removed_models);
         chain(models, removed_models).collect()
     }
 
     #[inline]
     fn vector_instances_inner(&self) -> Vec<&VectorInstances<String>> {
-        let models: Vec<&VectorInstances<String>> =
-            Self::to_vector_instances(&self.models[self.get_surrounding_model_range()]);
+        let models: Vec<&VectorInstances<String>> = self
+            .visible_models()
+            .flat_map(|model| model.vector_instances())
+            .collect();
         let removed_models: Vec<&VectorInstances<String>> =
             Self::to_vector_instances(&self.removed_models);
         chain(models, removed_models).collect()
     }
 
     fn render_batches_inner(&self) -> Vec<ModelRenderBatch<'_>> {
-        let models = &self.models[self.get_surrounding_model_range()];
         // 半透明の描画を正しく重ねるため、視線方向で奥にあるモデルから順に描画する
         let view_depth = self.camera.view_depth_fn();
-        let mut models: Vec<(f32, &dyn Model)> = models
-            .iter()
+        let mut models: Vec<(f32, &dyn Model)> = self
+            .visible_models()
             .chain(self.removed_models.iter())
             .map(|model| (view_depth(model.position()), model.as_ref()))
             .collect();
@@ -215,7 +274,9 @@ impl World for DefaultWorld {
     }
 
     fn add_next(&mut self, model: Box<dyn Model>) {
-        self.models.insert(self.focus + 1, model);
+        let index = self.focus + 1;
+        self.models.insert(index, model);
+        self.remap_split_panes(|pane| if pane >= index { pane + 1 } else { pane });
         self.world_updated = true;
     }
 
@@ -234,7 +295,71 @@ impl World for DefaultWorld {
         self.models.len()
     }
 
+    fn focus(&self) -> usize {
+        self.focus
+    }
+
+    fn split(&mut self, direction: Direction, other_model: usize) -> Result<(), SplitError> {
+        if self.has_modal() {
+            return Err(SplitError::ModalOpen);
+        }
+        if self.models.get(other_model).is_none() || self.models.get(self.focus).is_none() {
+            return Err(SplitError::InvalidModel(other_model));
+        }
+        if self.focus == other_model {
+            return Err(SplitError::SameModel);
+        }
+        let panes = match self.split_panes {
+            Some(mut panes) => {
+                let other_slot = if panes[0] == self.focus { 1 } else { 0 };
+                panes[other_slot] = other_model;
+                panes
+            }
+            None => [self.focus, other_model],
+        };
+        self.layout = WorldLayout::Split(direction);
+        self.split_panes = Some(panes);
+        self.world_updated = true;
+        self.re_layout();
+        self.fit_split(CameraAdjustment::FitBoth);
+        Ok(())
+    }
+
+    fn look_other_pane(&mut self) {
+        if self.has_modal() {
+            return;
+        }
+        if let Some(panes) = self.split_panes {
+            let other = if panes[0] == self.focus {
+                panes[1]
+            } else {
+                panes[0]
+            };
+            self.look_at(other, CameraAdjustment::NoCare);
+        }
+    }
+
     fn look_at(&mut self, model_index: usize, adjustment: CameraAdjustment) {
+        if let Some(panes) = &mut self.split_panes
+            && model_index < self.models.len()
+        {
+            let changed = !panes.contains(&model_index);
+            if changed {
+                let slot = if panes[0] == self.focus { 0 } else { 1 };
+                panes[slot] = model_index;
+                self.world_updated = true;
+            }
+            self.focus = model_index;
+            self.re_layout();
+            let adjustment =
+                if changed || (self.world_updated && adjustment == CameraAdjustment::NoCare) {
+                    CameraAdjustment::FitBoth
+                } else {
+                    adjustment
+                };
+            self.fit_split(adjustment);
+            return;
+        }
         let Some(model) = self.models.get(model_index) else {
             return;
         };
@@ -298,8 +423,15 @@ impl World for DefaultWorld {
         }
 
         let range = self.model_update_range(context.calculator_updated());
-        for model in self.models[range].iter_mut() {
+        for model in self.models[range.clone()].iter_mut() {
             model.update(context);
+        }
+        if let Some(panes) = self.split_panes {
+            for index in panes {
+                if !range.contains(&index) {
+                    self.models[index].update(context);
+                }
+            }
         }
         for model in self.removed_models.iter_mut() {
             model.update(context);
@@ -320,6 +452,9 @@ impl World for DefaultWorld {
     fn change_window_size(&mut self, window_size: WindowSize) {
         self.camera_controller
             .update_camera_aspect(&mut self.camera, window_size);
+        if self.split_panes.is_some() {
+            self.world_updated = true;
+        }
     }
 
     fn camera_operation(&mut self, camera_operation: CameraOperation) {
@@ -423,6 +558,39 @@ impl World for DefaultWorld {
             let (x, y, z) = removed_model.position().into();
             removed_model.set_position(Vec3::new(x, y - 5.0, z));
             self.removed_models.push(removed_model);
+            if let Some(panes) = self.split_panes {
+                if self.models.len() < 2 {
+                    self.split_panes = None;
+                    self.layout = WorldLayout::Liner;
+                    self.focus = 0;
+                } else {
+                    let removed = self.focus;
+                    let surviving = if panes[0] == removed {
+                        panes[1]
+                    } else {
+                        panes[0]
+                    };
+                    let surviving = if surviving > removed {
+                        surviving - 1
+                    } else {
+                        surviving
+                    };
+                    let replacement = (removed..self.models.len())
+                        .chain(0..removed.min(self.models.len()))
+                        .find(|index| *index != surviving)
+                        .unwrap();
+                    self.split_panes = Some(panes.map(|index| {
+                        if index == removed {
+                            replacement
+                        } else if index > removed {
+                            index - 1
+                        } else {
+                            index
+                        }
+                    }));
+                    self.focus = replacement;
+                }
+            }
             RemovedModelType::Normal
         };
 
@@ -446,7 +614,18 @@ impl World for DefaultWorld {
             return;
         }
         self.models.swap(self.focus, self.focus + 1);
-        self.look_at(self.focus + 1, CameraAdjustment::NoCare);
+        let focus = self.focus;
+        self.remap_split_panes(|index| {
+            if index == focus {
+                focus + 1
+            } else if index == focus + 1 {
+                focus
+            } else {
+                index
+            }
+        });
+        self.focus += 1;
+        self.look_at(self.focus, CameraAdjustment::NoCare);
     }
 
     fn swap_prev(&mut self) {
@@ -456,14 +635,28 @@ impl World for DefaultWorld {
             return;
         }
         self.models.swap(self.focus, self.focus - 1);
+        let focus = self.focus;
+        self.remap_split_panes(|index| {
+            if index == focus {
+                focus - 1
+            } else if index == focus - 1 {
+                focus
+            } else {
+                index
+            }
+        });
+        self.focus -= 1;
         self.re_layout();
-        self.look_at(self.focus - 1, CameraAdjustment::NoCare);
+        self.look_at(self.focus, CameraAdjustment::NoCare);
     }
 
     fn move_to_position(&mut self, x_ratio: f32, y_ratio: f32) {
         let mut distance_map: BTreeMap<usize, f32> = BTreeMap::new();
 
         for (idx, model) in self.models.iter().enumerate() {
+            if self.split_panes.is_some_and(|panes| !panes.contains(&idx)) {
+                continue;
+            }
             let (ndc_x, ndc_y) = to_ndc_position(model.as_ref(), &self.camera);
             let distance = (x_ratio - ndc_x).abs().powf(2.0) + (y_ratio - ndc_y).abs().powf(2.0);
             distance_map.insert(idx, distance);
@@ -491,6 +684,13 @@ impl World for DefaultWorld {
             return;
         }
         self.layout = layout;
+        match layout {
+            WorldLayout::Split(_) if self.split_panes.is_none() && self.models.len() >= 2 => {
+                self.split_panes = Some([self.focus, (self.focus + 1) % self.models.len()]);
+            }
+            WorldLayout::Split(_) => {}
+            _ => self.split_panes = None,
+        }
         self.world_updated = true;
     }
     fn layout(&self) -> &WorldLayout {
@@ -547,6 +747,7 @@ impl World for DefaultWorld {
 pub enum WorldLayout {
     Liner,
     Circle,
+    Split(Direction),
 }
 
 const INTERVAL: f32 = 5.0;
@@ -555,11 +756,42 @@ impl WorldLayout {
         match self {
             WorldLayout::Liner => WorldLayout::Circle,
             WorldLayout::Circle => WorldLayout::Liner,
+            WorldLayout::Split(_) => WorldLayout::Liner,
         }
     }
 
     fn layout(&self, world: &mut DefaultWorld) {
         match self {
+            WorldLayout::Split(direction) => {
+                let Some([first, second]) = world.split_panes else {
+                    WorldLayout::Liner.layout(world);
+                    return;
+                };
+                let (w1, h1) = world.models[first].bound();
+                let (w2, h2) = world.models[second].bound();
+                let (position1, position2) = match direction {
+                    Direction::Vertical => (
+                        Vec3::new(-(w2 + INTERVAL) / 2.0, 0.0, 0.0),
+                        Vec3::new((w1 + INTERVAL) / 2.0, 0.0, 0.0),
+                    ),
+                    Direction::Horizontal => (
+                        Vec3::new(0.0, (h2 + INTERVAL) / 2.0, 0.0),
+                        Vec3::new(0.0, -(h1 + INTERVAL) / 2.0, 0.0),
+                    ),
+                };
+                for (index, position) in [(first, position1), (second, position2)] {
+                    world.models[index].set_rotation(Quat::IDENTITY);
+                    world.models[index].set_position(position);
+                }
+                let focus_position = world
+                    .models
+                    .get(world.focus)
+                    .map(|model| model.focus_position())
+                    .unwrap_or(Vec3::ZERO);
+                for modal in world.modal_models.iter_mut().filter(|modal| !modal.closing) {
+                    modal.model.set_position(focus_position);
+                }
+            }
             WorldLayout::Liner => {
                 let mut position = 0.0;
                 for (idx, model) in world.models.iter_mut().enumerate() {
@@ -647,6 +879,203 @@ impl WorldLayout {
 #[cfg(test)]
 mod font_change_tests {
     use super::*;
+
+    fn split_test_world() -> DefaultWorld {
+        let mut world = DefaultWorld::new(WindowSize::new(800, 600));
+        for (index, (width, height)) in [(12.0, 8.0), (30.0, 5.0), (6.0, 20.0)]
+            .into_iter()
+            .enumerate()
+        {
+            let config = crate::ui_context::TextContext {
+                min_bound: (width, height).into(),
+                ..Default::default()
+            };
+            let mut model = crate::ui::TextEdit::new(config);
+            model.editor_operation(&EditorOperation::InsertString(format!("document {index}")));
+            model.set_rotation(Quat::from_rotation_y(0.5));
+            world.add(Box::new(model));
+        }
+        world
+    }
+
+    fn assert_split_fits(world: &DefaultWorld) {
+        let (target, eye) = world.camera.target_and_eye();
+        let camera = Camera::new(
+            eye.into(),
+            target.into(),
+            [0.0, 1.0, 0.0].into(),
+            world.camera.aspect(),
+            45.0,
+            0.1,
+            1000.0,
+        );
+        let matrix = camera.build_view_projection_matrix();
+        let mut extent = 0.0_f32;
+        for index in world.split_panes.unwrap() {
+            let model = &world.models[index];
+            let (w, h) = model.bound();
+            for x in [-w / 2.0, w / 2.0] {
+                for y in [-h / 2.0, h / 2.0] {
+                    let clip = matrix * (model.last_position() + Vec3::new(x, y, 0.0)).extend(1.0);
+                    assert!(clip.w > 0.0);
+                    let projected = clip.truncate() / clip.w;
+                    assert!(projected.x.abs() <= 0.901, "{projected:?}");
+                    assert!(projected.y.abs() <= 0.901, "{projected:?}");
+                    extent = extent.max(projected.x.abs()).max(projected.y.abs());
+                }
+            }
+        }
+        assert!((extent - 0.9).abs() < 0.001, "extent: {extent}");
+    }
+
+    #[test]
+    fn split_layout_fits_both_documents_in_either_direction_and_aspect() {
+        for direction in [Direction::Vertical, Direction::Horizontal] {
+            for window_size in [WindowSize::new(1200, 600), WindowSize::new(600, 1200)] {
+                let mut world = split_test_world();
+                world.direction = Direction::Vertical;
+                world.split(direction, 2).unwrap();
+                world.change_window_size(window_size);
+                assert!(world.world_updated);
+                world.look_current(CameraAdjustment::FitBoth);
+                assert_split_fits(&world);
+
+                let first = &world.models[0];
+                let second = &world.models[2];
+                assert_eq!(first.rotation(), Quat::IDENTITY);
+                assert_eq!(second.rotation(), Quat::IDENTITY);
+                match direction {
+                    Direction::Vertical => {
+                        let gap = second.last_position().x
+                            - second.bound().0 / 2.0
+                            - (first.last_position().x + first.bound().0 / 2.0);
+                        assert!((gap - INTERVAL).abs() < 0.001);
+                        assert_eq!(first.last_position().y, second.last_position().y);
+                    }
+                    Direction::Horizontal => {
+                        let gap = first.last_position().y
+                            - first.bound().1 / 2.0
+                            - (second.last_position().y + second.bound().1 / 2.0);
+                        assert!((gap - INTERVAL).abs() < 0.001);
+                        assert_eq!(first.last_position().x, second.last_position().x);
+                    }
+                }
+                assert_eq!(world.render_batches().len(), 2);
+            }
+        }
+    }
+
+    #[test]
+    fn split_focus_switch_keeps_positions_and_edits_only_the_active_document() {
+        let mut world = split_test_world();
+        world.split(Direction::Vertical, 2).unwrap();
+        let positions: Vec<_> = world
+            .models
+            .iter()
+            .map(|model| model.last_position())
+            .collect();
+        let camera = world.camera.target_and_eye();
+
+        world.look_other_pane();
+        assert_eq!(world.focus, 2);
+        world.editor_operation(&EditorOperation::InsertString(" active".into()));
+        assert_eq!(world.models[0].to_string(), "document 0");
+        assert_eq!(world.models[2].to_string(), "document 2 active");
+        world.look_other_pane();
+        assert_eq!(world.focus, 0);
+        assert_eq!(world.camera.target_and_eye(), camera);
+        assert_eq!(
+            world
+                .models
+                .iter()
+                .map(|model| model.last_position())
+                .collect::<Vec<_>>(),
+            positions,
+        );
+
+        world.world_updated = false;
+        world.camera_operation(CameraOperation::Backward);
+        let zoomed_camera = world.camera.target_and_eye();
+        world.look_other_pane();
+        assert_eq!(world.camera.target_and_eye(), zoomed_camera);
+        world.look_other_pane();
+
+        world.look_next(CameraAdjustment::NoCare);
+        assert_eq!(world.focus, 1);
+        assert_eq!(world.split_panes, Some([1, 2]));
+        world.look_next(CameraAdjustment::NoCare);
+        assert_eq!(world.focus, 2);
+        assert_eq!(world.split_panes, Some([1, 2]));
+        world.look_next(CameraAdjustment::NoCare);
+        assert_eq!(world.focus, 0);
+        assert_eq!(world.split_panes, Some([1, 0]));
+        world.look_prev(CameraAdjustment::NoCare);
+        assert_eq!(world.focus, 2);
+        assert_eq!(world.split_panes, Some([1, 2]));
+    }
+
+    #[test]
+    fn split_preserves_selected_documents_when_inserting_swapping_and_removing() {
+        let mut world = split_test_world();
+        world.split(Direction::Horizontal, 2).unwrap();
+        world.add_next(Box::new(crate::ui::TextEdit::default()));
+        assert_eq!(world.split_panes, Some([0, 3]));
+        world.swap_next();
+        assert_eq!(world.focus, 1);
+        assert_eq!(world.split_panes, Some([1, 3]));
+        assert_eq!(world.current_string(), "document 0");
+        world.swap_prev();
+        assert_eq!(world.focus, 0);
+        assert_eq!(world.split_panes, Some([0, 3]));
+        assert_eq!(world.current_string(), "document 0");
+
+        world.look_other_pane();
+        world.remove_current();
+        world.re_layout();
+        world.look_current(CameraAdjustment::FitBoth);
+        let panes = world.split_panes.unwrap();
+        assert!(panes.contains(&0));
+        assert!(panes.contains(&world.focus));
+        assert_ne!(panes[0], panes[1]);
+        assert_split_fits(&world);
+
+        world.remove_current();
+        world.re_layout();
+        world.look_current(CameraAdjustment::FitBoth);
+        assert_split_fits(&world);
+        world.remove_current();
+        assert_eq!(world.layout, WorldLayout::Liner);
+        assert_eq!(world.split_panes, None);
+        assert_eq!(world.focus, 0);
+    }
+
+    #[test]
+    fn split_rejects_invalid_selections_and_preserves_modal_focus() {
+        let mut world = split_test_world();
+        assert!(matches!(
+            world.split(Direction::Vertical, 0),
+            Err(SplitError::SameModel)
+        ));
+        assert!(matches!(
+            world.split(Direction::Vertical, 99),
+            Err(SplitError::InvalidModel(99))
+        ));
+        assert_eq!(world.layout, WorldLayout::Liner);
+        world.split(Direction::Vertical, 2).unwrap();
+        world.add_modal(Box::new(crate::ui::TextEdit::default()));
+        assert!(matches!(
+            world.split(Direction::Horizontal, 1),
+            Err(SplitError::ModalOpen)
+        ));
+        world.look_other_pane();
+        assert_eq!(world.focus, 0);
+        world.remove_current();
+        world.look_other_pane();
+        assert_eq!(world.focus, 2);
+        world.change_layout(WorldLayout::Liner);
+        assert_eq!(world.split_panes, None);
+        assert_eq!(world.visible_models().count(), 3);
+    }
 
     #[test]
     fn modal_models_share_render_batches_and_use_translucent_surfaces() {
