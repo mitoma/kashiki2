@@ -265,6 +265,7 @@ impl CameraController {
         self.look_at_geometry(
             camera,
             target.bound(),
+            target.bound(),
             target.last_position(),
             target.focus_position(),
             target.rotation(),
@@ -272,9 +273,12 @@ impl CameraController {
         );
     }
 
+    // fit_bound は倍率の計算に、bound と last_position は画面端に残す範囲の計算に使う
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn look_at_geometry(
         &self,
         camera: &mut Camera,
+        fit_bound: (f32, f32),
         bound: (f32, f32),
         last_position: Vec3,
         focus_position: Vec3,
@@ -290,19 +294,20 @@ impl CameraController {
 
         // aspect は width / height
         let (w, h) = bound;
+        let (fit_w, fit_h) = fit_bound;
         let tan_half_fovy = (camera.fovy.to_radians() / 2.0).tan() * 0.9;
         let aspect = camera.aspect.max(f32::EPSILON);
         let size = match adjustment {
             // w と h のうち大きい方を使う
             CameraAdjustment::FitBoth | CameraAdjustment::FitBothAndCentering => {
-                if w / aspect > h {
-                    (w / 2.0) / tan_half_fovy / aspect
+                if fit_w / aspect > fit_h {
+                    (fit_w / 2.0) / tan_half_fovy / aspect
                 } else {
-                    (h / 2.0) / tan_half_fovy
+                    (fit_h / 2.0) / tan_half_fovy
                 }
             }
-            CameraAdjustment::FitWidth => (w / 2.0) / tan_half_fovy / aspect,
-            CameraAdjustment::FitHeight => (h / 2.0) / tan_half_fovy,
+            CameraAdjustment::FitWidth => (fit_w / 2.0) / tan_half_fovy / aspect,
+            CameraAdjustment::FitHeight => (fit_h / 2.0) / tan_half_fovy,
             CameraAdjustment::NoCare => forward_mag,
         };
 

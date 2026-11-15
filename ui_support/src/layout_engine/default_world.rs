@@ -169,19 +169,51 @@ impl DefaultWorld {
             min = min.min(model.last_position() - half);
             max = max.max(model.last_position() + half);
         }
-        let center = (min + max) / 2.0;
+        let mut center = (min + max) / 2.0;
         let bound = max - min;
+        let fit_bound = (bound.x, bound.y);
+        let mut anchor_bound = fit_bound;
+        if self.aligns_split_carets() {
+            // カーソルの高さを揃えている間は、上下方向を分割していないときと同様に
+            // フォーカス中の文書の範囲で扱い、上端・下端付近ではカーソルを中央へ寄せない。
+            // 倍率は高い方の文書に合わせ、カーソル移動やフォーカス切り替えで変わらないようにする
+            let focused = &self.models[self.focus];
+            let fit_h = panes
+                .iter()
+                .map(|index| self.models[*index].bound().1)
+                .fold(0.0, f32::max);
+            center.y = focused.last_position().y;
+            anchor_bound.1 = focused.bound().1;
+            return self.look_at_split_geometry((bound.x, fit_h), anchor_bound, center, adjustment);
+        }
+        self.look_at_split_geometry(fit_bound, anchor_bound, center, adjustment);
+    }
+
+    fn look_at_split_geometry(
+        &mut self,
+        fit_bound: (f32, f32),
+        anchor_bound: (f32, f32),
+        center: Vec3,
+        adjustment: CameraAdjustment,
+    ) {
         // 画面からはみ出す方向はフォーカス中の文書のカーソルに追従させる
         let focus_position = self.models[self.focus].focus_position();
         self.camera_controller.look_at_geometry(
             &mut self.camera,
-            (bound.x, bound.y),
+            fit_bound,
+            anchor_bound,
             center,
             focus_position,
             Quat::IDENTITY,
             adjustment,
         );
         self.camera_controller.update_camera(&mut self.camera);
+    }
+
+    // 左右分割で全体表示以外のときは、2文書のカーソルの高さを揃える
+    fn aligns_split_carets(&self) -> bool {
+        self.layout == WorldLayout::Split(Direction::Vertical)
+            && self.split_adjustment != CameraAdjustment::FitBoth
     }
 
     fn remap_split_panes(&mut self, mut remap: impl FnMut(usize) -> usize) {
@@ -874,9 +906,7 @@ impl WorldLayout {
                     ),
                 };
                 // 全体表示（reset-zoom）では揃えると倍率が変わり続けるため、従来どおり中心の高さを揃えて並べる
-                if *direction == Direction::Vertical
-                    && world.split_adjustment != CameraAdjustment::FitBoth
-                {
+                if world.aligns_split_carets() {
                     // フォーカス側の文書は現在の高さを保ち、もう一方の文書をずらしてカーソルの高さを揃える
                     let caret_offset_y = |index: usize| {
                         let model = &world.models[index];
@@ -997,11 +1027,12 @@ mod font_change_tests {
     use super::*;
 
     fn split_test_world() -> DefaultWorld {
+        split_test_world_with(&[(12.0, 8.0), (30.0, 5.0), (6.0, 20.0)])
+    }
+
+    fn split_test_world_with(sizes: &[(f32, f32)]) -> DefaultWorld {
         let mut world = DefaultWorld::new(WindowSize::new(800, 600));
-        for (index, (width, height)) in [(12.0, 8.0), (30.0, 5.0), (6.0, 20.0)]
-            .into_iter()
-            .enumerate()
-        {
+        for (index, &(width, height)) in sizes.iter().enumerate() {
             let config = crate::ui_context::TextContext {
                 min_bound: (width, height).into(),
                 ..Default::default()
@@ -1271,6 +1302,24 @@ mod font_change_tests {
 
         world.look_current(CameraAdjustment::FitBoth);
         assert!(center_y_gap(&world).abs() < 0.001);
+    }
+
+    #[test]
+    fn aligned_split_keeps_document_edges_visible_near_the_caret() {
+        // GPU なしではカーソルが動かないため、縦長の文書の先頭にカーソルがある状態を検証する
+        let mut world = split_test_world_with(&[(12.0, 120.0), (12.0, 10.0)]);
+        world.split(Direction::Vertical, 1).unwrap();
+        world.look_current(CameraAdjustment::FitWidth);
+
+        let (target, eye) = world.camera.target_and_eye();
+        let (target, eye) = (Vec3::from(target), Vec3::from(eye));
+        let visible_half = (eye - target).length() * (45.0_f32.to_radians() / 2.0).tan();
+        let model = &world.models[0];
+        let top = model.last_position().y + model.bound().1 / 2.0;
+        assert!(visible_half < model.bound().1 / 2.0);
+        // 文書の上端が画面内に残り、カーソルは画面中央に来ない
+        assert!((top - target.y).abs() <= visible_half + 0.001);
+        assert!((model.focus_position().y - target.y).abs() > 1.0);
     }
 
     #[test]
