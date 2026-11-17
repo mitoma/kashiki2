@@ -393,6 +393,90 @@ impl TagbaseMemosWorld {
         self.display_memos(context, result);
     }
 
+    fn open_memo_ui(&mut self, context: &UiContext, chars: &mut HashSet<char>) {
+        let Some(repository) = self.repository.as_ref() else {
+            self.display_error(context, "タグメモ保管庫を開けません");
+            return;
+        };
+        let stored = match repository.list_memos_with_order(self.state.sort_order) {
+            Ok(memos) => memos,
+            Err(error) => {
+                self.display_error(context, error);
+                return;
+            }
+        };
+        let texts = self.world.strings();
+        let options: Vec<SelectOption> =
+            open_memo_options(&self.memos, &texts, self.focused_memo_index(), &stored)
+                .into_iter()
+                .map(|(label, id)| {
+                    SelectOption::new(
+                        label,
+                        Action::new_command_with_argument("tagbase-memo", "open-memo", &id),
+                    )
+                })
+                .collect();
+        if options.is_empty() {
+            self.display_error(context, "開けるメモがありません");
+            return;
+        }
+        self.add_modal(
+            context,
+            chars,
+            Box::new(SelectBox::new_without_action_name(
+                context,
+                "開くメモを選択してください".to_string(),
+                options,
+                None,
+            )),
+        );
+    }
+
+    fn open_memo(&mut self, context: &UiContext, id: &str) {
+        let id = PathBuf::from(id);
+        let in_sync = self.error_message.is_none() && self.memos.len() == self.world.model_length();
+        if let Some(index) = self.memos.iter().position(|memo| memo.id == id) {
+            if in_sync {
+                if let Err(error) = self.world.switch_model(index) {
+                    self.display_error(context, error);
+                }
+            } else {
+                self.error_message = None;
+                self.reset_world(context);
+                self.world.look_at(index, CameraAdjustment::NoCare);
+            }
+            return;
+        }
+        let result = self
+            .repository
+            .as_ref()
+            .expect("repository exists")
+            .get_memo(&id);
+        let memo = match result {
+            Ok(memo) => memo,
+            Err(error) => {
+                self.display_error(context, error);
+                return;
+            }
+        };
+        let index = self.memos.len();
+        if in_sync {
+            // 分割表示などの状態を保つため、作り直さずに文書を追加してから切り替える
+            self.world
+                .add(Box::new(text_edit(context, &memo.content.text)));
+            self.memos.push(memo);
+            self.world.re_layout();
+            if let Err(error) = self.world.switch_model(index) {
+                self.display_error(context, error);
+            }
+        } else {
+            self.memos.push(memo);
+            self.error_message = None;
+            self.reset_world(context);
+            self.world.look_at(index, CameraAdjustment::NoCare);
+        }
+    }
+
     fn add_memo(&mut self, context: &UiContext) {
         if let Err(error) = self.save_visible() {
             self.display_error(context, error);
@@ -521,6 +605,13 @@ impl ModalWorld for TagbaseMemosWorld {
             }
             "open-file-ui" => self.add_modal(context, &mut chars, Box::new(open_file_ui(context))),
             "add-memo" => self.add_memo(context),
+            "open-memo-ui" => self.open_memo_ui(context, &mut chars),
+            "open-memo" => {
+                if let ActionArgument::String(id) = argument {
+                    self.open_memo(context, &id);
+                    chars.extend(self.world_chars());
+                }
+            }
             "search-ui" => self.add_modal(
                 context,
                 &mut chars,
@@ -589,6 +680,50 @@ fn text_edit(context: &UiContext, text: &str) -> TextEdit {
     textedit
 }
 
+fn memo_label(title: Option<&str>, text: &str) -> String {
+    let label = title
+        .filter(|title| !title.trim().is_empty())
+        .or_else(|| text.lines().find(|line| !line.trim().is_empty()))
+        .unwrap_or("（空のメモ）");
+    label.chars().take(80).collect()
+}
+
+/// メモを開くダイアログの選択肢（表示名とメモ ID）。
+/// world:switch-model と同様に表示中のメモを番号付きで並べ、続けて表示していないメモを並べる。
+fn open_memo_options(
+    opened: &[Memo],
+    opened_texts: &[String],
+    focus: Option<usize>,
+    stored: &[Memo],
+) -> Vec<(String, String)> {
+    let opened_options = opened
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| Some(*index) != focus)
+        .map(|(index, memo)| {
+            // 表示中のメモは保存前の編集内容も反映する
+            let text = opened_texts
+                .get(index)
+                .map_or(memo.content.text.as_str(), String::as_str);
+            let label = memo_label(memo.content.title.as_deref(), text);
+            (
+                format!("{}: {label}", index + 1),
+                memo.id.to_string_lossy().into_owned(),
+            )
+        });
+    let stored_options = stored
+        .iter()
+        .filter(|memo| opened.iter().all(|opened| opened.id != memo.id))
+        .map(|memo| {
+            let label = memo_label(memo.content.title.as_deref(), &memo.content.text);
+            (
+                format!("未表示: {label}"),
+                memo.id.to_string_lossy().into_owned(),
+            )
+        });
+    opened_options.chain(stored_options).collect()
+}
+
 static FIXED_CLOCK_BASE: OnceLock<DateTime<FixedOffset>> = OnceLock::new();
 
 /// E2E 用。メモの日時を、固定の基準時刻にテスト用時計の経過時間を足したものにする
@@ -617,4 +752,48 @@ fn tagbase_memos_root() -> TagbaseResult<PathBuf> {
             "ユーザーのホームディレクトリを取得できません",
         ),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tagbase_memo::MemoContent;
+
+    fn memo(id: &str, title: Option<&str>, text: &str) -> Memo {
+        let time = FixedOffset::east_opt(0)
+            .unwrap()
+            .with_ymd_and_hms(2026, 1, 1, 0, 0, 0)
+            .unwrap();
+        Memo {
+            id: PathBuf::from(id),
+            created_at: time,
+            updated_at: time,
+            content: MemoContent {
+                title: title.map(str::to_owned),
+                tags: Vec::new(),
+                text: text.to_owned(),
+            },
+        }
+    }
+
+    #[test]
+    fn open_memo_options_list_opened_memos_then_unopened_memos() {
+        let opened = vec![memo("a.md", None, "a"), memo("b.md", Some("B"), "b")];
+        let texts = vec!["\n編集中の a".to_owned(), "b".to_owned()];
+        let stored = vec![
+            memo("c.md", None, "\n\nc の本文"),
+            memo("a.md", None, "a"),
+            memo("d.md", Some(""), ""),
+            memo("e.md", Some("E"), "e の本文"),
+        ];
+        assert_eq!(
+            open_memo_options(&opened, &texts, Some(1), &stored),
+            vec![
+                ("1: 編集中の a".to_owned(), "a.md".to_owned()),
+                ("未表示: c の本文".to_owned(), "c.md".to_owned()),
+                ("未表示: （空のメモ）".to_owned(), "d.md".to_owned()),
+                ("未表示: E".to_owned(), "e.md".to_owned()),
+            ]
+        );
+    }
 }

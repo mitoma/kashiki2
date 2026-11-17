@@ -121,7 +121,7 @@ pub enum CameraOperation {
     None,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CameraAdjustment {
     // モデルの縦横が画面内に収まるようにする
     FitBoth,
@@ -262,6 +262,29 @@ impl CameraController {
     }
 
     pub fn look_at(&self, camera: &mut Camera, target: &dyn Model, adjustment: CameraAdjustment) {
+        self.look_at_geometry(
+            camera,
+            target.bound(),
+            target.bound(),
+            target.last_position(),
+            target.focus_position(),
+            target.rotation(),
+            adjustment,
+        );
+    }
+
+    // fit_bound は倍率の計算に、bound と last_position は画面端に残す範囲の計算に使う
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn look_at_geometry(
+        &self,
+        camera: &mut Camera,
+        fit_bound: (f32, f32),
+        bound: (f32, f32),
+        last_position: Vec3,
+        focus_position: Vec3,
+        rotation: Quat,
+        adjustment: CameraAdjustment,
+    ) {
         let forward_mag = {
             let forward = Vec3::from(camera.target.last()) - Vec3::from(camera.eye.last());
             // 向きへの距離
@@ -270,20 +293,21 @@ impl CameraController {
         let normal = Vec3::Z;
 
         // aspect は width / height
-        let (w, h) = target.bound();
+        let (w, h) = bound;
+        let (fit_w, fit_h) = fit_bound;
         let tan_half_fovy = (camera.fovy.to_radians() / 2.0).tan() * 0.9;
         let aspect = camera.aspect.max(f32::EPSILON);
         let size = match adjustment {
             // w と h のうち大きい方を使う
             CameraAdjustment::FitBoth | CameraAdjustment::FitBothAndCentering => {
-                if w / aspect > h {
-                    (w / 2.0) / tan_half_fovy / aspect
+                if fit_w / aspect > fit_h {
+                    (fit_w / 2.0) / tan_half_fovy / aspect
                 } else {
-                    (h / 2.0) / tan_half_fovy
+                    (fit_h / 2.0) / tan_half_fovy
                 }
             }
-            CameraAdjustment::FitWidth => (w / 2.0) / tan_half_fovy / aspect,
-            CameraAdjustment::FitHeight => (h / 2.0) / tan_half_fovy,
+            CameraAdjustment::FitWidth => (fit_w / 2.0) / tan_half_fovy / aspect,
+            CameraAdjustment::FitHeight => (fit_h / 2.0) / tan_half_fovy,
             CameraAdjustment::NoCare => forward_mag,
         };
 
@@ -295,9 +319,6 @@ impl CameraController {
                 (visible_half_width / (w / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
             let height_fit_ratio =
                 (visible_half_height / (h / 2.0).max(f32::EPSILON)).clamp(0.0, 1.0);
-
-            let last_position = target.last_position();
-            let focus_position = target.focus_position();
 
             let calc_axis = |position_axis: f32,
                              focus_axis: f32,
@@ -374,9 +395,9 @@ impl CameraController {
             )
         };
 
-        let camera_position = target_position + (target.rotation() * normal * (size));
+        let camera_position = target_position + (rotation * normal * (size));
 
-        let up = target.rotation() * Vec3::Y;
+        let up = rotation * Vec3::Y;
         camera.up.update([up.x, up.y, up.z]);
         camera.target.update(target_position.into());
         camera.eye.update(camera_position.into());
