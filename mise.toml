@@ -131,7 +131,8 @@ run = "{{vars.cargo}} run -p kashikishi -- test --scenario kashikishi/demo/intro
 
 [tasks.check]
 description = "Run checks"
-depends = ["fmt", "clippy", "clippy-tests"]
+# cargo のビルドロックの取り合いを避けるため並行ではなく順番に実行する
+run = [{ task = "fmt" }, { task = "clippy" }, { task = "clippy-tests" }]
 
 [tasks.check-bloat]
 description = "Check binary size with cargo bloat"
