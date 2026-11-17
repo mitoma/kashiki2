@@ -133,6 +133,14 @@ impl TextInstances {
         }
     }
 
+    pub(crate) fn retire_preedit(&mut self, key: &TextInstancesKey, id: RetireId) {
+        if let Some(instances) = self.glyph_instances.get_mut(&key.c)
+            && let Some(instance) = instances.remove(&key.to_preedit_instance_key())
+        {
+            instances.insert(retired_instance_key(id), instance);
+        }
+    }
+
     pub(crate) fn get_mut_retired(
         &mut self,
         c: char,

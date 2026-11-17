@@ -39,7 +39,7 @@ use world::{
 use font_rasterizer::{context::WindowSize, rasterizer_pipeline::Quarity, time::set_clock_mode};
 use log::info;
 use ui_support::{
-    Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
+    FadeOut, Flags, InputResult, RenderData, SimpleStateCallback, SimpleStateSupport,
     action::{ActionProcessor, ActionProcessorStore},
     action_recorder::{
         ActionRecordRepository, ActionRecorder, FileActionRecordRepository,
@@ -312,9 +312,19 @@ pub async fn run(args: Args) {
     run_support(support).await;
 }
 
+struct OutgoingWorld {
+    world: Box<dyn ModalWorld>,
+    fade: FadeOut,
+}
+
+// モード切替で前のワールドがフェードアウトする長さ
+const WORLD_EXIT_DURATION: web_time::Duration = web_time::Duration::from_millis(500);
+
 struct KashikishiCallback {
     store: ActionStore,
     world: Box<dyn ModalWorld>,
+    // モード切替で退場中のワールド。フェードアウトが終わるまで現在のワールドの奥に描画する
+    outgoing_worlds: Vec<OutgoingWorld>,
     /// スナップショットのテキストに出力するワールドの識別名
     world_name: &'static str,
     ime: ImeInput,
@@ -361,6 +371,7 @@ impl KashikishiCallback {
         Self {
             store,
             world: Box::new(NullWorld::new(window_size)),
+            outgoing_worlds: Vec::new(),
             world_name: "null",
             ime,
             action_processor_store,
@@ -447,6 +458,11 @@ impl SimpleStateCallback for KashikishiCallback {
         self.action_recorder.lock().unwrap().replay(context);
 
         self.world.update(context);
+        self.outgoing_worlds
+            .retain(|outgoing| !outgoing.fade.finished());
+        for outgoing in self.outgoing_worlds.iter_mut() {
+            outgoing.world.get_mut().update(context);
+        }
         self.ime.update(context);
         if self.info_panel_visible
             && let Some(card) = self.system_info_card.as_mut()
@@ -544,7 +560,11 @@ impl SimpleStateCallback for KashikishiCallback {
                     };
                     if let Some((world_name, world)) = world {
                         self.world.graceful_exit();
-                        self.world = world;
+                        let outgoing = std::mem::replace(&mut self.world, world);
+                        self.outgoing_worlds.push(OutgoingWorld {
+                            world: outgoing,
+                            fade: FadeOut::start(WORLD_EXIT_DURATION),
+                        });
                         self.world_name = world_name;
                         self.update_command_namespaces();
                         context.register_string(self.world.world_chars().into_iter().collect());
@@ -608,7 +628,24 @@ impl SimpleStateCallback for KashikishiCallback {
 
     fn render(&mut self) -> RenderData<'_> {
         let world = self.world.get();
-        let mut model_batches = world.render_batches();
+        // 退場中のワールドは現在のワールドのカメラで、奥に重ねて描画する
+        let mut model_batches: Vec<_> = self
+            .outgoing_worlds
+            .iter()
+            .flat_map(|outgoing| {
+                let opacity = outgoing.fade.opacity();
+                outgoing
+                    .world
+                    .get()
+                    .render_batches()
+                    .into_iter()
+                    .map(move |mut batch| {
+                        batch.opacity *= opacity;
+                        batch
+                    })
+            })
+            .collect();
+        model_batches.extend(world.render_batches());
         let mut ime_instances = self.ime.get_instances();
 
         if world.has_modal() {

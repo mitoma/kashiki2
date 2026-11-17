@@ -204,9 +204,19 @@ impl CharStates {
         let prev_set: BTreeSet<BufferChar> = self.preedit_chars.keys().copied().collect();
         let next_set: BTreeSet<BufferChar> = next_chars.iter().copied().collect();
 
-        for c in prev_set.difference(&next_set) {
-            self.preedit_chars.remove(c);
-            let _ = self.instances.remove_preedit(&(*c).into());
+        // 確定された preedit は sync_editor_events で文字に昇格済みなので、ここに残るのは取り消された文字
+        for (counter, c) in prev_set.difference(&next_set).enumerate() {
+            let Some(mut state) = self.preedit_chars.remove(c) else {
+                continue;
+            };
+            let deadline = start_char_retirement(
+                &mut state,
+                self.instances.get_mut_preedit(&(*c).into()),
+                counter as u32,
+                text_context,
+            );
+            let id = self.removed_chars.retire((*c, state), deadline);
+            self.instances.retire_preedit(&(*c).into(), id);
         }
 
         for c in next_chars.iter().copied() {
@@ -512,29 +522,12 @@ impl CharStates {
             self.instances.remove(&c.into());
             return;
         };
-        let now = now_millis();
-        let char_easings = &text_context.char_easings;
-        let deadline = match (
-            char_easings.remove_char_mode,
+        let deadline = start_char_retirement(
+            &mut state,
             self.instances.get_mut(&c.into()),
-        ) {
-            (RemoveCharMode::Delayed, Some(instance)) => {
-                if instance.start_time + (instance.duration.as_millis() as u32) < now {
-                    instance.start_time = now + counter * 10;
-                }
-                instance.motion = char_easings.remove_char.motion;
-                instance.duration = char_easings.remove_char.duration;
-                update_easings(&mut state, char_easings);
-                state.motion_gain.update([char_easings.remove_char.gain]);
-                retire_deadline(
-                    now,
-                    instance.start_time,
-                    instance.duration,
-                    char_easings.max_cpu_easing_duration(),
-                )
-            }
-            _ => now,
-        };
+            counter,
+            text_context,
+        );
         let id = self.removed_chars.retire((c, state), deadline);
         self.instances.retire(&c.into(), id);
     }
@@ -1128,6 +1121,17 @@ impl BorderStates {
         });
     }
 
+    // 罫線を退場させる。色を背景色へ寄せ、破棄してよい時刻を返す
+    pub(crate) fn begin_retire(&mut self, text_context: &TextContext) -> u32 {
+        let char_easings = &text_context.char_easings;
+        let background = text_context.color_theme.background().get_color();
+        for state in self.elements.values_mut() {
+            update_easings(state, char_easings);
+            state.color.update(background);
+        }
+        now_millis().saturating_add(char_easings.max_cpu_easing_duration().as_millis() as u32)
+    }
+
     fn add_fragment(
         &mut self,
         fragment: BorderFragment,
@@ -1162,6 +1166,35 @@ impl BorderStates {
             },
             device,
         );
+    }
+}
+
+// 文字の削除モーションを開始し、破棄してよい時刻を返す
+fn start_char_retirement(
+    state: &mut ViewElementState,
+    instance: Option<&mut InstanceAttributes>,
+    counter: u32,
+    text_context: &TextContext,
+) -> u32 {
+    let now = now_millis();
+    let char_easings = &text_context.char_easings;
+    match (char_easings.remove_char_mode, instance) {
+        (RemoveCharMode::Delayed, Some(instance)) => {
+            if instance.start_time + (instance.duration.as_millis() as u32) < now {
+                instance.start_time = now + counter * 10;
+            }
+            instance.motion = char_easings.remove_char.motion;
+            instance.duration = char_easings.remove_char.duration;
+            update_easings(state, char_easings);
+            state.motion_gain.update([char_easings.remove_char.gain]);
+            retire_deadline(
+                now,
+                instance.start_time,
+                instance.duration,
+                char_easings.max_cpu_easing_duration(),
+            )
+        }
+        _ => now,
     }
 }
 
@@ -1257,5 +1290,41 @@ mod border_theme_tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn retiring_border_fades_to_background_until_easings_finish() {
+        let mut states = BorderStates::new();
+        for fragment in [BORDER_TOP, BORDER_BOTTOM_RIGHT] {
+            states.elements.insert(
+                fragment,
+                ViewElementState {
+                    base_color: BORDER_BASE_COLOR,
+                    in_selection: false,
+                    position: [0.0; 3].into(),
+                    color: [1.0; 3].into(),
+                    scale: [1.0; 2].into(),
+                    motion_gain: [1.0].into(),
+                },
+            );
+        }
+        let config = TextContext::default();
+        let before = now_millis();
+
+        let deadline = states.begin_retire(&config);
+
+        let background = config.color_theme.background().get_color();
+        for state in states.elements.values() {
+            let actual = state.color.last();
+            assert!(
+                actual
+                    .iter()
+                    .zip(background)
+                    .all(|(a, b)| (a - b).abs() < 1e-5),
+                "border color: {actual:?}, expected: {background:?}"
+            );
+        }
+        let duration = config.char_easings.max_cpu_easing_duration().as_millis() as u32;
+        assert!(deadline >= before + duration);
     }
 }

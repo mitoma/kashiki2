@@ -37,27 +37,32 @@ impl CategorizedMemosWorld {
         result
     }
 
-    // ワールドを今のカテゴリでリセットする
+    // ワールドを今のカテゴリでリセットする。表示中のメモは退場アニメーションをしてから消える
     fn reset_world(&mut self, context: &UiContext) {
-        let mut world = DefaultWorld::new(context.window_size());
-        for memo in self.memos.get_current_memos().unwrap().memos.iter() {
-            let mut textedit = TextEdit::from_context(context);
-            textedit.model_operation(&ModelOperation::SetHighlightMode(
-                ui_support::ui_context::HighlightMode::Markdown,
-            ));
-            textedit.editor_operation(&EditorOperation::InsertString(memo.to_string()));
-            textedit.editor_operation(&EditorOperation::BufferHead);
-            let model = Box::new(textedit);
-            world.add(model);
-        }
+        let models = self
+            .memos
+            .get_current_memos()
+            .unwrap()
+            .memos
+            .iter()
+            .map(|memo| {
+                let mut textedit = TextEdit::from_context(context);
+                textedit.model_operation(&ModelOperation::SetHighlightMode(
+                    ui_support::ui_context::HighlightMode::Markdown,
+                ));
+                textedit.editor_operation(&EditorOperation::InsertString(memo.to_string()));
+                textedit.editor_operation(&EditorOperation::BufferHead);
+                Box::new(textedit) as Box<dyn Model>
+            })
+            .collect::<Vec<_>>();
+        self.world.replace_models(models);
         let look_at = 0;
         let adjustment = match context.global_direction() {
             Direction::Horizontal => CameraAdjustment::FitWidth,
             Direction::Vertical => CameraAdjustment::FitHeight,
         };
-        world.look_at(look_at, adjustment);
-        world.re_layout();
-        self.world = world;
+        self.world.look_at(look_at, adjustment);
+        self.world.re_layout();
     }
 
     fn sync(&mut self) {

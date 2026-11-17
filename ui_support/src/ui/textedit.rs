@@ -24,6 +24,7 @@ use font_rasterizer::{
     glyph_instances::GlyphInstances,
     glyph_vertex_buffer::Direction,
     motion::MotionFlags,
+    time::now_millis,
     vector_instances::{InstanceAttributes, VectorInstances},
 };
 
@@ -40,6 +41,7 @@ use crate::{
         DebugModelDetails, DebugModelNode, DebugTextEditSnapshot, Model, ModelAttributes,
         ModelBorder, ModelOperation, ModelOperationResult, ModelSurfaceStyle,
     },
+    retiring::Retiring,
     ui::{CharAttribute, Decoration},
     ui_context::{HighlightMode, TextContext},
 };
@@ -94,6 +96,8 @@ pub struct TextEdit {
     char_states: CharStates,
     caret_states: CaretStates,
     border_states: Option<BorderStates>,
+    // ModelBorder::None にされて退場アニメーション中の罫線
+    retiring_borders: Retiring<BorderStates>,
 
     preedit: Option<PreeditState>,
 
@@ -193,6 +197,9 @@ impl Model for TextEdit {
         if let Some(states) = self.border_states.as_ref() {
             result.extend(states.instances.to_instances());
         }
+        for states in self.retiring_borders.iter() {
+            result.extend(states.instances.to_instances());
+        }
         result
     }
 
@@ -259,6 +266,10 @@ impl Model for TextEdit {
         self.char_states.instances.update(device, queue);
         self.caret_states.instances.update(device, queue);
         if let Some(state) = self.border_states.as_mut() {
+            state.instances.update(device, queue);
+        }
+        self.retiring_borders.sweep(now_millis(), |_, _| {});
+        for (_, state) in self.retiring_borders.iter_mut() {
             state.instances.update(device, queue);
         }
         let surface_needs_update = match self.surface_style {
@@ -455,8 +466,11 @@ impl Model for TextEdit {
             self.config_updated = true;
         }
         self.border = border;
-        if border == ModelBorder::None {
-            self.border_states = None;
+        if border == ModelBorder::None
+            && let Some(mut states) = self.border_states.take()
+        {
+            let deadline = states.begin_retire(&self.config);
+            self.retiring_borders.retire(states, deadline);
         }
     }
 
@@ -532,6 +546,7 @@ impl TextEdit {
             char_states: CharStates::default(),
             caret_states: CaretStates::default(),
             border_states: None,
+            retiring_borders: Retiring::default(),
 
             preedit: None,
 
@@ -1065,6 +1080,9 @@ impl TextEdit {
 
         // update border
         if let Some(state) = self.border_states.as_mut() {
+            state.update_instances(update_environment, &model_attributes);
+        }
+        for (_, state) in self.retiring_borders.iter_mut() {
             state.update_instances(update_environment, &model_attributes);
         }
     }

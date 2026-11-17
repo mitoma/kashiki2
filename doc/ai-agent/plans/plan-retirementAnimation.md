@@ -62,21 +62,31 @@ impl<T> Retiring<T> {
 ### 2. モデルの退場を World で一元管理する（`DepartingModel`）
 
 ```rust
+pub struct FadeOut { opacity: EasingPointN<1>, deadline: u32 } // ui_support::retiring
+
+enum DepartingLayer { Normal, Modal { order: usize } }
+
 struct DepartingModel {
     model: Box<dyn Model>,
-    transition: ExitTransition, // opacity と offset のイージング、deadline
-    layer: Layer,               // Normal | Modal
+    fade: FadeOut,
+    layer: DepartingLayer,
 }
 ```
 
-- 退場演出はまず `ModelRenderBatch.opacity` を使ったフェードとスライドとして World 側で共通化する。これで `Model` の実装に依存せず、全モデルが同じように退場する。
-- モデル固有の演出が必要な場合だけ、`Model` トレイトに省略可能なフック `fn begin_exit(&mut self, ctx: &UiContext) -> Duration { Duration::ZERO }` を追加する。World は共通演出と固有演出の長い方を deadline にする。
+- 退場演出は `ModelRenderBatch.opacity` を使ったフェードとスライドとして World 側で共通化する。これで `Model` の実装に依存せず、全モデルが同じように退場する。
+- 通常モデルは `MODEL_EXIT_SLIDE` だけ下へずらしながら、`MODEL_EXIT_DURATION`（500ms）でフェードアウトする。
+- モーダルは開いた順番 `order` を持ち、退場中もその順番で描画する（`Retiring::sweep` は `swap_remove` で順序を保証しないため、明示的な `order` で重なり順を決める）。
+- `modal_models` には表示中のモーダルだけを置く。`closing` フラグでのフィルタは不要になる。
+- モデル固有の演出フック（`Model::begin_exit`）は、必要になるまで追加しない。
 
 ### 3. 「作り直し」を「差し替え」に変える
 
 - `reset_world` が毎回 `DefaultWorld::new` を作るのをやめ、`DefaultWorld::replace_models(new_models)` / `retire_all()` で旧モデルを `DepartingModel` に移す。
-- モード切替では `KashikishiCallback` が `outgoing_world: Option<Box<dyn ModalWorld>>` を持ち、旧 World の `render_batches` に opacity を掛けて重ね描きし、退場が終わったら破棄する。
-- `SingleLine` は前回との差分を取る形にして、`Retiring` に乗せる。
+  - 画面内のモデルだけを退場させ、画面外のモデルはすぐに破棄する。
+  - フォーカス・分割ペイン・`pre_camera` はリセットし、カメラ・レイアウト・方向は引き継ぐ。
+- モード切替では `KashikishiCallback` が `outgoing_worlds: Vec<OutgoingWorld>` を持ち、旧 World の `render_batches` に `FadeOut` の opacity を掛けて重ね描きし、退場が終わったら破棄する。
+  - 旧 World は新しい World のカメラで描画する（簡略化のため）。
+- `SingleLine` はリポジトリ内に利用箇所がないため、本計画の対象外とする。
 
 ### 4. 演出（何をするか）と仕組み（いつ消すか）を分ける
 
@@ -87,7 +97,7 @@ struct DepartingModel {
 
 各ステップで `mise r check` と `cargo test --all` が通る状態を保つ。
 
-### Step 1: `Retiring<T>` を導入し、文字とキャレットを移行する
+### Step 1: `Retiring<T>` を導入し、文字とキャレットを移行する（完了）
 
 - `ui_support/src/retiring.rs` に `Retiring<T>` / `RetireId` と deadline 計算関数を追加する。
 - `font_rasterizer::vector_instances::InstanceKey::PreRemovePosition` を `InstanceKey::Retired(usize)` に置き換える。
@@ -98,23 +108,29 @@ struct DepartingModel {
 - `motion_gain.update([0.0])` による強制アニメーション化と、`RemoveCharMode::Immediate` の特別な分岐を削除する（Immediate は deadline = now）。
 - テスト: `Retiring` の deadline による破棄と ID の一意性、遅延開始のモーションで deadline が延びること。
 
-### Step 2: `DepartingModel` でモーダルと通常モデルの退場を統合する
+### Step 2: `DepartingModel` でモーダルと通常モデルの退場を統合する（完了）
 
-- `removed_models` と `ModalModel.closing` を `DepartingModel` に統合する。
+- `removed_models` と `ModalModel.closing` を `departing_models: Retiring<DepartingModel>` に統合する。
 - 通常モデルもフェードとスライドで退場させる。
 - 既存テスト（`closing_modals_keep_their_layer_when_another_modal_opens` など）を新構造に合わせる。
 
-### Step 3: `DefaultWorld::replace_models` / `retire_all` を追加し、`reset_world` を置き換える
+### Step 3: `DefaultWorld::replace_models` / `retire_all` を追加し、`reset_world` を置き換える（完了）
 
 - `CategorizedMemosWorld` / `TagbaseMemosWorld` の `reset_world` で旧モデルを退場させる。
 
-### Step 4: モード切替時の World の入れ替え演出
+### Step 4: モード切替時の World の入れ替え演出（完了）
 
-- `KashikishiCallback` に `outgoing_world` を追加し、退場が終わるまで重ね描きする。
+- `KashikishiCallback` に `outgoing_worlds` を追加し、退場が終わるまで重ね描きする。
+- 旧 World には `graceful_exit()` を呼んだうえで、World レベルの `update` だけを回す。
 
-### Step 5: preedit・`SingleLine`・罫線を `Retiring` に移行する
+### Step 5: preedit・罫線を `Retiring` に移行する（完了）
+
+- preedit 文字: 確定されずに消えた文字を `removed_chars` に退場させる（`TextInstances::retire_preedit`）。
+- 罫線: `set_border(None)` で `BorderStates` を `retiring_borders` に移し、色を背景色へ寄せてから破棄する（`BorderStates::begin_retire`）。
+- `SingleLine` は利用箇所がないため対象外。
 
 ## 検証
 
 - 各ステップで `mise r check` と `cargo test --all`。
 - 描画が変わるステップ（Step 2 以降）では `mise r e2e` を実行し、意図した差分であれば `mise r e2e-update` でスナップショットを更新する。
+- Step 5 完了時点の `mise r e2e` では、既存の失敗（`command_palette` 01/02、`tagbase_memo` 02/04/05/06*/08/09）以外に新たな失敗はなく、`closing_modal_fades_over_the_parent_modal` も通過している。

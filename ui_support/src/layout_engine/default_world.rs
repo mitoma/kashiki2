@@ -1,6 +1,5 @@
 use std::{
     collections::{BTreeMap, HashSet},
-    iter::chain,
     ops::Range,
 };
 
@@ -11,7 +10,7 @@ use text_buffer::action::EditorOperation;
 
 use font_rasterizer::{
     context::WindowSize, glyph_instances::GlyphInstances, glyph_vertex_buffer::Direction,
-    vector_instances::VectorInstances,
+    time::now_millis, vector_instances::VectorInstances,
 };
 use web_time::Duration;
 
@@ -19,11 +18,11 @@ use crate::ui_context::UiContext;
 
 use crate::{
     camera::{Camera, CameraAdjustment, CameraController, CameraOperation},
-    easing_value::EasingPointN,
     layout_engine::{
         DebugModelNode, Model, ModelOperation, ModelOperationResult, ModelRenderBatch,
         ModelSurfaceStyle, SplitError, SwitchModelError, World, world::RemovedModelType,
     },
+    retiring::{FadeOut, Retiring},
     to_ndc_position,
 };
 
@@ -55,39 +54,28 @@ fn world_layout_name(layout: &WorldLayout) -> &'static str {
     }
 }
 
+// モデルが退場するときのフェードの長さ
+const MODEL_EXIT_DURATION: Duration = Duration::from_millis(500);
+// 通常モデルが退場するときに下へずらす距離
+const MODEL_EXIT_SLIDE: f32 = 5.0;
+
 struct ModalModel {
     model: Box<dyn Model>,
-    opacity: EasingPointN<1>,
-    closing: bool,
+    // モーダル同士の重なり順。退場中のモーダルもこの順序を保って描画する
+    order: usize,
 }
 
-impl ModalModel {
-    fn new(model: Box<dyn Model>) -> Self {
-        let mut opacity = EasingPointN::new([1.0]);
-        opacity.update_duration_and_easing_func(
-            Duration::from_millis(500),
-            nenobi::functions::sin_in_out,
-        );
-        Self {
-            model,
-            opacity,
-            closing: false,
-        }
-    }
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum DepartingLayer {
+    Normal,
+    Modal { order: usize },
+}
 
-    fn close(&mut self) {
-        self.closing = true;
-        self.opacity.update([0.0]);
-    }
-
-    fn opacity(&self) -> f32 {
-        let [opacity] = self.opacity.current();
-        opacity
-    }
-
-    fn fade_finished(&self) -> bool {
-        self.closing && !self.opacity.in_animation()
-    }
+// 退場アニメーション中のモデル。破棄時刻は Retiring が管理する
+struct DepartingModel {
+    model: Box<dyn Model>,
+    fade: FadeOut,
+    layer: DepartingLayer,
 }
 
 pub struct DefaultWorld {
@@ -97,7 +85,8 @@ pub struct DefaultWorld {
     camera_controller: CameraController,
     models: Vec<Box<dyn Model>>,
     modal_models: Vec<ModalModel>,
-    removed_models: Vec<Box<dyn Model>>,
+    next_modal_order: usize,
+    departing_models: Retiring<DepartingModel>,
     focus: usize,
     world_updated: bool,
     direction: Direction,
@@ -122,7 +111,8 @@ impl DefaultWorld {
             camera_controller: CameraController::new(5.0),
             models: Vec::new(),
             modal_models: Vec::new(),
-            removed_models: Vec::new(),
+            next_modal_order: 0,
+            departing_models: Retiring::default(),
             focus: 0,
             world_updated: true,
             direction: Direction::Horizontal,
@@ -136,6 +126,38 @@ impl DefaultWorld {
     // 現在フォーカスしているモデルのインデックスを返す
     pub fn focus(&self) -> usize {
         self.focus
+    }
+
+    /// 表示中のモデルとモーダルを全て退場させる。カメラとレイアウトは引き継ぐ
+    pub fn retire_all(&mut self) {
+        self.restore_focused_pane_surface();
+        let visible: HashSet<usize> = self
+            .visible_models()
+            .map(|model| model_id(model.as_ref()))
+            .collect();
+        // 画面外のモデルまで退場させると描画と更新の負荷が増えるので、見えているものだけ演出する
+        for mut model in std::mem::take(&mut self.models) {
+            if visible.contains(&model_id(model.as_ref())) {
+                let (x, y, z) = model.position().into();
+                model.set_position(Vec3::new(x, y - MODEL_EXIT_SLIDE, z));
+                self.depart(model, DepartingLayer::Normal);
+            }
+        }
+        for modal in std::mem::take(&mut self.modal_models) {
+            self.depart(modal.model, DepartingLayer::Modal { order: modal.order });
+        }
+        self.focus = 0;
+        if self.split_panes.take().is_some() {
+            self.layout = WorldLayout::Liner;
+        }
+        self.pre_camera = None;
+        self.world_updated = true;
+    }
+
+    /// 表示中のモデルを退場させ、新しいモデルに差し替える
+    pub fn replace_models(&mut self, models: impl IntoIterator<Item = Box<dyn Model>>) {
+        self.retire_all();
+        self.models.extend(models);
     }
 
     fn visible_models(&self) -> impl Iterator<Item = &Box<dyn Model>> {
@@ -278,11 +300,23 @@ impl DefaultWorld {
 
     fn get_current_mut(&mut self) -> Option<&mut Box<dyn Model>> {
         self.modal_models
-            .iter_mut()
-            .rev()
-            .find(|modal| !modal.closing)
+            .last_mut()
             .map(|modal| &mut modal.model)
             .or_else(|| self.models.get_mut(self.focus))
+    }
+
+    // モデルを退場させ、フェードが終わる時刻に破棄されるようにする
+    fn depart(&mut self, model: Box<dyn Model>, layer: DepartingLayer) {
+        let fade = FadeOut::start(MODEL_EXIT_DURATION);
+        let deadline = fade.deadline();
+        self.departing_models
+            .retire(DepartingModel { model, fade, layer }, deadline);
+    }
+
+    fn departing_normal_models(&self) -> impl Iterator<Item = &DepartingModel> {
+        self.departing_models
+            .iter()
+            .filter(|departing| departing.layer == DepartingLayer::Normal)
     }
 
     fn model_update_range(&mut self, calculator_updated: bool) -> Range<usize> {
@@ -306,53 +340,61 @@ impl DefaultWorld {
     }
 
     #[inline]
-    fn to_glyph_instances(models: &[Box<dyn Model>]) -> Vec<&GlyphInstances> {
-        models.iter().flat_map(|m| m.glyph_instances()).collect()
-    }
-
-    #[inline]
-    fn to_vector_instances(models: &[Box<dyn Model>]) -> Vec<&VectorInstances<String>> {
-        models.iter().flat_map(|m| m.vector_instances()).collect()
-    }
-
-    #[inline]
     fn glyph_instances_inner(&self) -> Vec<&GlyphInstances> {
-        let models: Vec<&GlyphInstances> = self
-            .visible_models()
+        self.visible_models()
+            .chain(self.departing_normal_models().map(|d| &d.model))
             .flat_map(|model| model.glyph_instances())
-            .collect();
-        let removed_models: Vec<&GlyphInstances> = Self::to_glyph_instances(&self.removed_models);
-        chain(models, removed_models).collect()
+            .collect()
     }
 
     #[inline]
     fn vector_instances_inner(&self) -> Vec<&VectorInstances<String>> {
-        let models: Vec<&VectorInstances<String>> = self
-            .visible_models()
+        self.visible_models()
+            .chain(self.departing_normal_models().map(|d| &d.model))
             .flat_map(|model| model.vector_instances())
-            .collect();
-        let removed_models: Vec<&VectorInstances<String>> =
-            Self::to_vector_instances(&self.removed_models);
-        chain(models, removed_models).collect()
+            .collect()
     }
 
     fn render_batches_inner(&self) -> Vec<ModelRenderBatch<'_>> {
         // 半透明の描画を正しく重ねるため、視線方向で奥にあるモデルから順に描画する
         let view_depth = self.camera.view_depth_fn();
-        let mut models: Vec<(f32, &dyn Model)> = self
+        let mut models: Vec<(f32, &dyn Model, f32)> = self
             .visible_models()
-            .chain(self.removed_models.iter())
-            .map(|model| (view_depth(model.position()), model.as_ref()))
+            .map(|model| (model.as_ref(), 1.0))
+            .chain(
+                self.departing_normal_models()
+                    .map(|departing| (departing.model.as_ref(), departing.fade.opacity())),
+            )
+            .map(|(model, opacity)| (view_depth(model.position()), model, opacity))
             .collect();
-        models.sort_by(|(a, _), (b, _)| b.total_cmp(a));
+        models.sort_by(|(a, _, _), (b, _, _)| b.total_cmp(a));
+
+        // モーダルは奥行きによらず通常モデルより手前に、開いた順に重ねる。
+        // 退場中のモーダルも開いた時の順序を保つ。
+        let mut modals: Vec<(usize, &dyn Model, f32)> = self
+            .modal_models
+            .iter()
+            .map(|modal| (modal.order, modal.model.as_ref(), 1.0))
+            .chain(
+                self.departing_models
+                    .iter()
+                    .filter_map(|departing| match departing.layer {
+                        DepartingLayer::Modal { order } => {
+                            Some((order, departing.model.as_ref(), departing.fade.opacity()))
+                        }
+                        DepartingLayer::Normal => None,
+                    }),
+            )
+            .collect();
+        modals.sort_by_key(|(order, _, _)| *order);
+
         models
             .into_iter()
-            .map(|(_, model)| (model, 1.0))
-            // モーダルは奥行きによらず通常モデルより手前に重ねる。
+            .map(|(_, model, opacity)| (model, opacity))
             .chain(
-                self.modal_models
-                    .iter()
-                    .map(|modal| (modal.model.as_ref(), modal.opacity())),
+                modals
+                    .into_iter()
+                    .map(|(_, model, opacity)| (model, opacity)),
             )
             .map(|(model, opacity)| ModelRenderBatch {
                 surface_instances: model.surface_instances(),
@@ -379,7 +421,9 @@ impl World for DefaultWorld {
 
     fn add_modal(&mut self, mut model: Box<dyn Model>) {
         model.set_surface_style(ModelSurfaceStyle::ThemeBackground { alpha: 0.9 });
-        self.modal_models.push(ModalModel::new(model));
+        let order = self.next_modal_order;
+        self.next_modal_order += 1;
+        self.modal_models.push(ModalModel { model, order });
         self.pre_camera = Some(self.camera.target_and_eye());
         self.world_updated = true;
     }
@@ -506,7 +550,7 @@ impl World for DefaultWorld {
     }
 
     fn look_modal(&mut self, adjustment: CameraAdjustment) {
-        let Some(modal) = self.modal_models.iter().rev().find(|modal| !modal.closing) else {
+        let Some(modal) = self.modal_models.last() else {
             return;
         };
         self.camera_controller
@@ -531,19 +575,17 @@ impl World for DefaultWorld {
     }
 
     fn has_modal(&self) -> bool {
-        self.modal_models.iter().any(|modal| !modal.closing)
+        !self.modal_models.is_empty()
     }
 
     fn modal_instances(&self) -> (Vec<&GlyphInstances>, Vec<&VectorInstances<String>>) {
         (
             self.modal_models
                 .iter()
-                .filter(|modal| !modal.closing)
                 .flat_map(|modal| modal.model.glyph_instances())
                 .collect(),
             self.modal_models
                 .iter()
-                .filter(|modal| !modal.closing)
                 .flat_map(|modal| modal.model.vector_instances())
                 .collect(),
         )
@@ -570,14 +612,13 @@ impl World for DefaultWorld {
                 }
             }
         }
-        for model in self.removed_models.iter_mut() {
-            model.update(context);
+        for (_, departing) in self.departing_models.iter_mut() {
+            departing.model.update(context);
         }
         for modal in self.modal_models.iter_mut() {
             modal.model.update(context);
         }
-        self.removed_models.retain(|m| m.in_animation());
-        self.modal_models.retain(|modal| !modal.fade_finished());
+        self.departing_models.sweep(now_millis(), |_, _| {});
 
         if self.world_updated {
             self.re_layout();
@@ -688,21 +729,16 @@ impl World for DefaultWorld {
 
     fn remove_current(&mut self) -> RemovedModelType {
         self.world_updated = true;
-        let removed_model_type = if let Some(modal) = self
-            .modal_models
-            .iter_mut()
-            .rev()
-            .find(|modal| !modal.closing)
-        {
-            modal.close();
+        let removed_model_type = if let Some(modal) = self.modal_models.pop() {
+            self.depart(modal.model, DepartingLayer::Modal { order: modal.order });
             RemovedModelType::Modal
         } else {
             // 破棄されるモデルの識別子を残さないよう、削除前に強調を外す
             self.restore_focused_pane_surface();
             let mut removed_model = self.models.remove(self.focus);
             let (x, y, z) = removed_model.position().into();
-            removed_model.set_position(Vec3::new(x, y - 5.0, z));
-            self.removed_models.push(removed_model);
+            removed_model.set_position(Vec3::new(x, y - MODEL_EXIT_SLIDE, z));
+            self.depart(removed_model, DepartingLayer::Normal);
             if let Some(panes) = self.split_panes {
                 if self.models.len() < 2 {
                     self.split_panes = None;
@@ -847,9 +883,7 @@ impl World for DefaultWorld {
             m.set_easing_preset(preset);
         });
         self.modal_models.iter_mut().for_each(|modal| {
-            if !modal.closing {
-                modal.model.set_easing_preset(preset);
-            }
+            modal.model.set_easing_preset(preset);
         });
     }
 
@@ -869,21 +903,20 @@ impl World for DefaultWorld {
             modal_models: self
                 .modal_models
                 .iter()
-                .filter(|modal| !modal.closing)
                 .map(|modal| modal.model.debug_node(&self.camera))
                 .collect(),
-            removed_models: self
-                .removed_models
-                .iter()
-                .map(|model| model.as_ref())
-                .chain(
-                    self.modal_models
-                        .iter()
-                        .filter(|modal| modal.closing)
-                        .map(|modal| modal.model.as_ref()),
-                )
-                .map(|model| model.debug_node(&self.camera))
-                .collect(),
+            removed_models: {
+                // 通常モデルを先に、モーダルは開いた順に並べる
+                let mut departing: Vec<&DepartingModel> = self.departing_models.iter().collect();
+                departing.sort_by_key(|departing| match departing.layer {
+                    DepartingLayer::Normal => (0, 0),
+                    DepartingLayer::Modal { order } => (1, order),
+                });
+                departing
+                    .into_iter()
+                    .map(|departing| departing.model.debug_node(&self.camera))
+                    .collect()
+            },
         }
     }
 }
@@ -943,7 +976,7 @@ impl WorldLayout {
                     .get(world.focus)
                     .map(|model| model.focus_position())
                     .unwrap_or(Vec3::ZERO);
-                for modal in world.modal_models.iter_mut().filter(|modal| !modal.closing) {
+                for modal in world.modal_models.iter_mut() {
                     modal.model.set_position(focus_position);
                 }
             }
@@ -975,7 +1008,7 @@ impl WorldLayout {
                     .map(|m| m.focus_position())
                     .unwrap_or([0.0, 0.0, 0.0].into())
                     .into();
-                for modal in world.modal_models.iter_mut().filter(|modal| !modal.closing) {
+                for modal in world.modal_models.iter_mut() {
                     modal.model.set_position([focus_x, focus_y, focus_z].into());
                 }
             }
@@ -1034,6 +1067,7 @@ impl WorldLayout {
 #[cfg(test)]
 mod font_change_tests {
     use super::*;
+    use crate::easing_value::EasingPointN;
 
     fn split_test_world() -> DefaultWorld {
         split_test_world_with(&[(12.0, 8.0), (30.0, 5.0), (6.0, 20.0)])
@@ -1251,7 +1285,12 @@ mod font_change_tests {
         world.remove_current();
         assert_eq!(world.focused_pane_highlight, None);
         assert_eq!(
-            world.removed_models.last().unwrap().surface_style(),
+            world
+                .departing_normal_models()
+                .last()
+                .unwrap()
+                .model
+                .surface_style(),
             focused_surface
         );
         world.sync_focused_pane_surface();
@@ -1414,21 +1453,68 @@ mod font_change_tests {
         let last_position = world.modal_models[1].model.last_position();
         assert!(matches!(world.remove_current(), RemovedModelType::Modal));
         assert!(world.has_modal());
-        assert_eq!(world.modal_models[1].model.last_position(), last_position);
-        assert!(world.modal_models[1].closing);
-        assert_eq!(world.modal_models[1].opacity.last(), [0.0]);
+        assert_eq!(world.modal_models.len(), 1);
+        let departing = world.departing_models.iter().next().unwrap();
+        assert_eq!(departing.layer, DepartingLayer::Modal { order: 1 });
+        assert_eq!(departing.model.last_position(), last_position);
+        assert_eq!(departing.fade.opacity.last(), [0.0]);
         assert_eq!(world.render_batches().len(), 3);
         assert!(matches!(world.remove_current(), RemovedModelType::Modal));
         assert!(!world.has_modal());
-        assert!(world.modal_models.iter().all(|modal| modal.closing));
-        assert!(world.removed_models.is_empty());
+        assert_eq!(world.departing_normal_models().count(), 0);
         assert!(world.modal_instances().0.is_empty());
         assert_eq!(
             world.get_current_mut().unwrap().last_position(),
             Vec3::new(1.0, 2.0, 3.0)
         );
         assert_eq!(world.render_batches().len(), 3);
-        world.modal_models.clear();
+        // 破棄時刻を過ぎると退場中のモーダルは描画されなくなる
+        world.departing_models.sweep(u32::MAX, |_, _| {});
+        assert_eq!(world.render_batches().len(), 1);
+    }
+
+    #[test]
+    fn replace_models_retires_visible_models_and_resets_split() {
+        let mut world = DefaultWorld::new(WindowSize::new(800, 600));
+        for _ in 0..20 {
+            world.add(Box::new(crate::ui::TextEdit::default()));
+        }
+        world.split(Direction::Horizontal, 1).unwrap();
+        world.add_modal(Box::new(crate::ui::TextEdit::default()));
+
+        world.replace_models([
+            Box::new(crate::ui::TextEdit::default()) as Box<dyn Model>,
+            Box::new(crate::ui::TextEdit::default()),
+        ]);
+
+        assert_eq!(world.model_length(), 2);
+        assert_eq!(world.focus, 0);
+        assert_eq!(world.split_panes, None);
+        assert_eq!(world.layout, WorldLayout::Liner);
+        assert!(!world.has_modal());
+        // 分割中に見えていた 2 つのペインとモーダルだけが退場アニメーションを行う
+        assert_eq!(world.departing_normal_models().count(), 2);
+        assert_eq!(world.departing_models.len(), 3);
+    }
+
+    #[test]
+    fn removed_normal_model_fades_out_below_its_position() {
+        let mut world = DefaultWorld::new(WindowSize::new(800, 600));
+        world.add(Box::new(crate::ui::TextEdit::default()));
+        world.add(Box::new(crate::ui::TextEdit::default()));
+        let position = world.models[0].position();
+
+        assert!(matches!(world.remove_current(), RemovedModelType::Normal));
+        assert_eq!(world.models.len(), 1);
+        let departing = world.departing_normal_models().next().unwrap();
+        assert_eq!(
+            departing.model.last_position(),
+            position - Vec3::Y * MODEL_EXIT_SLIDE
+        );
+        assert_eq!(departing.fade.opacity.last(), [0.0]);
+        assert_eq!(world.render_batches().len(), 2);
+
+        world.departing_models.sweep(u32::MAX, |_, _| {});
         assert_eq!(world.render_batches().len(), 1);
     }
 
@@ -1440,7 +1526,9 @@ mod font_change_tests {
         world.add_modal(Box::new(crate::ui::TextEdit::default()));
         assert!(matches!(world.remove_current(), RemovedModelType::Modal));
 
-        world.modal_models[1].opacity = EasingPointN::new([0.5]);
+        for (_, departing) in world.departing_models.iter_mut() {
+            departing.fade.opacity = EasingPointN::new([0.5]);
+        }
         world.add_modal(Box::new(crate::ui::TextEdit::default()));
 
         let batches = world.render_batches();

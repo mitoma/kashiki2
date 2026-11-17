@@ -1,4 +1,38 @@
+use font_rasterizer::time::now_millis;
 use web_time::Duration;
+
+use crate::easing_value::EasingPointN;
+
+/// 不透明度を 1 から 0 へ下げる退場演出。終わる時刻を明示的に持つ
+pub struct FadeOut {
+    pub(crate) opacity: EasingPointN<1>,
+    deadline: u32,
+}
+
+impl FadeOut {
+    pub fn start(duration: Duration) -> Self {
+        let mut opacity = EasingPointN::new([1.0]);
+        opacity.update_duration_and_easing_func(duration, nenobi::functions::sin_in_out);
+        opacity.update([0.0]);
+        Self {
+            opacity,
+            deadline: now_millis().saturating_add(duration.as_millis() as u32),
+        }
+    }
+
+    pub fn opacity(&self) -> f32 {
+        let [opacity] = self.opacity.current();
+        opacity
+    }
+
+    pub fn deadline(&self) -> u32 {
+        self.deadline
+    }
+
+    pub fn finished(&self) -> bool {
+        now_millis() >= self.deadline
+    }
+}
 
 /// 退場中の要素を一意に識別する ID
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -53,6 +87,10 @@ impl<T> Retiring<T> {
                 index += 1;
             }
         }
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
+        self.entries.iter().map(|entry| &entry.value)
     }
 
     pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = (RetireId, &mut T)> {
