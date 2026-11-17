@@ -131,6 +131,36 @@
     },
     {
         "namespace": "world",
+        "name": "change-layout-ui",
+        "description": "レイアウトを選択する（直線・円・2 Pane）"
+    },
+    {
+        "namespace": "world",
+        "name": "split-horizontal",
+        "description": "文書を選択して上下に2 Pane 分割する"
+    },
+    {
+        "namespace": "world",
+        "name": "split-vertical",
+        "description": "文書を選択して左右に2 Pane 分割する"
+    },
+    {
+        "namespace": "world",
+        "name": "look-other-pane",
+        "description": "もう一方の Pane にフォーカスを移す"
+    },
+    {
+        "namespace": "world",
+        "name": "switch-model",
+        "description": "文書を選択してフォーカス中の文書（分割中はフォーカス側の Pane）と切り替える"
+    },
+    {
+        "namespace": "world",
+        "name": "unsplit",
+        "description": "2 Pane 分割を解除する"
+    },
+    {
+        "namespace": "world",
         "name": "toggle-min-bound",
         "description": "文章の最小サイズを切り替える"
     },

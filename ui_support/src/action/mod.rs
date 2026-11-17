@@ -105,6 +105,12 @@ impl ActionProcessorStore {
         self.add_processor(Box::new(WorldMoveToClick));
         self.add_processor(Box::new(WorldMoveToClickWithMark));
         self.add_processor(Box::new(WorldChangeLayout));
+        self.add_processor(Box::new(WorldChangeLayoutUi));
+        self.add_processor(Box::new(WorldSplitHorizontal));
+        self.add_processor(Box::new(WorldSplitVertical));
+        self.add_processor(Box::new(WorldLookOtherPane));
+        self.add_processor(Box::new(WorldSwitchModel));
+        self.add_processor(Box::new(WorldUnsplit));
         self.add_processor(Box::new(WorldToggleMinBound));
         self.add_processor(Box::new(WorldSetModelBorder));
         self.add_processor(Box::new(WorldUnsetModelBorder));

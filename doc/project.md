@@ -180,11 +180,43 @@ cargo test -p font_rasterizer --features cache cached_legacy_geometry_preserves_
   - キーボード・マウス・ストローク継続判定に同じ名前空間条件を適用し、条件変更時は入力途中のストロークを破棄する。未設定時は従来互換、空リストはコマンド無効、`clear_current_namespaces` で制限解除
 
 炊紙では `ModalWorld::command_namespace` がモード固有の名前空間を返し、起動時とモード切り替え時に共通名前空間より優先して有効化する。カテゴリーメモは `categorized-memo`、タグメモは `tagbase-memo` を使用し、保存などの共通操作は `kashikishi` に残す。
+タグメモでは `C-x C-f` が `tagbase-memo:open-memo-ui` になり、表示中のメモ（番号付き）と表示していないメモ（`未表示:`）を `world:switch-model` と同じ形式のダイアログで選べる。表示していないメモは末尾に追加してから切り替えるため、分割表示中はフォーカス中の Pane に表示される。
 
 ### ui_support（UI支援）
 - **パス**: `ui_support/`
 - **役割**: ユーザーインターフェースの支援機能
 - **依存関係**: `nenobi`（外部ライブラリ）を使用
+
+#### WorldLayout の 2 Pane
+
+`WorldLayout::Split(Direction)` は、単一カメラの3D空間に2文書を配置します。
+`Vertical` は左右分割、`Horizontal` は上下分割で、縦書き・横書きとは独立しています。
+2文書のサイズと間隔を含めた領域を画面へフィットさせます。固定 viewport や文書の複製は行いません。
+左右分割で `world:fit-width` / `world:fit-height` を選んでいるときは、フォーカス側の文書の高さを保ったまま、もう一方の文書を上下にずらしてそのカーソルが画面の中心の高さに来るようにします。
+全体表示（`world:reset-zoom`、分割直後）では倍率が変わり続けないよう、2文書の中心の高さを揃えて並べます。
+このとき上下方向の表示位置はフォーカス中の文書の範囲で決めるため、
+分割していないときと同様に、フォーカス中の文書の上端・下端付近ではカーソルを画面中央へ寄せません。
+
+- `C-x 2` / `world:split-horizontal`: もう一方の文書を選択して上下分割
+- `C-x 3` / `world:split-vertical`: もう一方の文書を選択して左右分割
+- `C-x o` / `world:look-other-pane`: 配置を維持して Pane のフォーカスを切り替え
+- `C-x b` / `world:switch-model`: 文書を選択し、フォーカス中の文書（分割中はフォーカス側 Pane の文書）と切り替え
+- `C-x 1` / `world:unsplit`: 分割を解除し、現在の文書へフィット
+- `world:change-layout-ui`: 直線・円・左右分割・上下分割を選択
+
+選択画面は Enter で確定、`C-g` でキャンセルします。別文書が必要なので、2文書以上を開いてください。
+分割中はフォーカスがある文書に `ThemeBackgroundHighlight` の Surface を付けて区別します。Border はユーザー設定を維持します。
+フォーカス文書が元々 Surface を持つ場合は強調中だけ置き換え、フォーカス移動・分割解除・文書を閉じたときに元の設定へ戻します。
+分割中も次／前の文書操作は全文書を巡回し、非表示の文書へ移動すると操作中の Pane の文書を置き換えます。
+表示中のもう一方の文書へ移動した場合は、配置を維持してフォーカスだけを切り替えます。
+`world:switch-model` でもう一方の Pane の文書を選んだ場合は、2つの Pane の文書を入れ替えます。
+クリックの対象と通常描画は表示中の2文書に限定されます。
+文書の編集・カーソル移動・サイズ変更・ウィンドウのリサイズ時は、分割中に直近で選んだフィット方法
+（`world:reset-zoom` / `world:fit-width` / `world:fit-height`、分割直後は全体表示）で2文書全体へ再フィットします。
+画面に収まらない方向はフォーカス中の文書のカーソルに追従します。
+削除により文書が1つ以下になると直線レイアウトへ戻ります。
+アクション再生では `world:split-horizontal` / `world:split-vertical` / `world:switch-model` に文書インデックス
+（0始まりの文字列）を渡すと、選択画面を開かず実行できます。
 
 ### highlighter（シンタックスハイライト）
 - **パス**: `highlighter/`

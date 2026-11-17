@@ -22,7 +22,7 @@ use crate::{
     easing_value::EasingPointN,
     layout_engine::{
         DebugModelNode, Model, ModelOperation, ModelOperationResult, ModelRenderBatch,
-        ModelSurfaceStyle, World, world::RemovedModelType,
+        ModelSurfaceStyle, SplitError, SwitchModelError, World, world::RemovedModelType,
     },
     to_ndc_position,
 };
@@ -50,6 +50,8 @@ fn world_layout_name(layout: &WorldLayout) -> &'static str {
     match layout {
         WorldLayout::Liner => "liner",
         WorldLayout::Circle => "circle",
+        WorldLayout::Split(Direction::Vertical) => "split-vertical",
+        WorldLayout::Split(Direction::Horizontal) => "split-horizontal",
     }
 }
 
@@ -100,6 +102,16 @@ pub struct DefaultWorld {
     world_updated: bool,
     direction: Direction,
     layout: WorldLayout,
+    split_panes: Option<[usize; 2]>,
+    // 分割中に直近で選択されたフィット方法。カーソル移動や編集時の再フィットに使う
+    split_adjustment: CameraAdjustment,
+    // 強調中のモデルの識別子と、強調前の面の設定
+    focused_pane_highlight: Option<(usize, ModelSurfaceStyle)>,
+}
+
+// Box 内のモデルはヒープ上で移動しないため、アドレスを並べ替えに影響されない識別子として使う
+fn model_id(model: &dyn Model) -> usize {
+    (model as *const dyn Model).cast::<()>() as usize
 }
 
 impl DefaultWorld {
@@ -115,12 +127,153 @@ impl DefaultWorld {
             world_updated: true,
             direction: Direction::Horizontal,
             layout: WorldLayout::Liner,
+            split_panes: None,
+            split_adjustment: CameraAdjustment::FitBoth,
+            focused_pane_highlight: None,
         }
     }
 
     // 現在フォーカスしているモデルのインデックスを返す
     pub fn focus(&self) -> usize {
         self.focus
+    }
+
+    fn visible_models(&self) -> impl Iterator<Item = &Box<dyn Model>> {
+        let range = if self.split_panes.is_some() {
+            0..self.models.len()
+        } else {
+            self.get_surrounding_model_range()
+        };
+        self.models[range]
+            .iter()
+            .enumerate()
+            .filter_map(move |(index, model)| {
+                let visible = match self.split_panes {
+                    Some(panes) => panes.contains(&index),
+                    None => true,
+                };
+                visible.then_some(model)
+            })
+    }
+
+    fn fit_split(&mut self, adjustment: CameraAdjustment) {
+        let Some(panes) = self.split_panes else {
+            return;
+        };
+        let mut min = Vec3::splat(f32::INFINITY);
+        let mut max = Vec3::splat(f32::NEG_INFINITY);
+        for index in panes {
+            let model = &self.models[index];
+            let (w, h) = model.bound();
+            let half = Vec3::new(w / 2.0, h / 2.0, 0.0);
+            min = min.min(model.last_position() - half);
+            max = max.max(model.last_position() + half);
+        }
+        let mut center = (min + max) / 2.0;
+        let bound = max - min;
+        let fit_bound = (bound.x, bound.y);
+        let mut anchor_bound = fit_bound;
+        if self.aligns_split_carets() {
+            // カーソルの高さを揃えている間は、上下方向を分割していないときと同様に
+            // フォーカス中の文書の範囲で扱い、上端・下端付近ではカーソルを中央へ寄せない。
+            // 倍率は高い方の文書に合わせ、カーソル移動やフォーカス切り替えで変わらないようにする
+            let focused = &self.models[self.focus];
+            let fit_h = panes
+                .iter()
+                .map(|index| self.models[*index].bound().1)
+                .fold(0.0, f32::max);
+            center.y = focused.last_position().y;
+            anchor_bound.1 = focused.bound().1;
+            self.look_at_split_geometry((bound.x, fit_h), anchor_bound, center, adjustment);
+            self.center_unfocused_pane_caret();
+            return;
+        }
+        self.look_at_split_geometry(fit_bound, anchor_bound, center, adjustment);
+    }
+
+    // フォーカスの無い文書は、カーソルが画面の中心の高さに来るように置く
+    fn center_unfocused_pane_caret(&mut self) {
+        let Some(panes) = self.split_panes else {
+            return;
+        };
+        if !self.aligns_split_carets() {
+            return;
+        }
+        let other = if panes[0] == self.focus {
+            panes[1]
+        } else {
+            panes[0]
+        };
+        let target_y = self.camera.target_and_eye().0[1];
+        let model = &mut self.models[other];
+        let mut position = model.last_position();
+        position.y = target_y - (model.focus_position().y - position.y);
+        model.set_position(position);
+    }
+
+    fn look_at_split_geometry(
+        &mut self,
+        fit_bound: (f32, f32),
+        anchor_bound: (f32, f32),
+        center: Vec3,
+        adjustment: CameraAdjustment,
+    ) {
+        // 画面からはみ出す方向はフォーカス中の文書のカーソルに追従させる
+        let focus_position = self.models[self.focus].focus_position();
+        self.camera_controller.look_at_geometry(
+            &mut self.camera,
+            fit_bound,
+            anchor_bound,
+            center,
+            focus_position,
+            Quat::IDENTITY,
+            adjustment,
+        );
+        self.camera_controller.update_camera(&mut self.camera);
+    }
+
+    // 左右分割で全体表示以外のときは、2文書のカーソルの高さを揃える
+    fn aligns_split_carets(&self) -> bool {
+        self.layout == WorldLayout::Split(Direction::Vertical)
+            && self.split_adjustment != CameraAdjustment::FitBoth
+    }
+
+    fn remap_split_panes(&mut self, mut remap: impl FnMut(usize) -> usize) {
+        if let Some(panes) = &mut self.split_panes {
+            for index in panes {
+                *index = remap(*index);
+            }
+        }
+    }
+
+    // 分割中はフォーカスがある文書だけを強調し、強調を外すときは元の面の設定に戻す
+    fn sync_focused_pane_surface(&mut self) {
+        let target = self
+            .split_panes
+            .and_then(|_| self.models.get(self.focus))
+            .map(|model| model_id(model.as_ref()));
+        if self.focused_pane_highlight.map(|(id, _)| id) == target {
+            return;
+        }
+        self.restore_focused_pane_surface();
+        if let Some(id) = target {
+            let model = &mut self.models[self.focus];
+            self.focused_pane_highlight = Some((id, model.surface_style()));
+            model.set_surface_style(FOCUSED_PANE_SURFACE);
+        }
+    }
+
+    fn restore_focused_pane_surface(&mut self) {
+        let Some((id, original)) = self.focused_pane_highlight.take() else {
+            return;
+        };
+        if let Some(model) = self
+            .models
+            .iter_mut()
+            .find(|model| model_id(model.as_ref()) == id)
+        {
+            model.set_surface_style(original);
+        }
     }
 
     fn get_current_mut(&mut self) -> Option<&mut Box<dyn Model>> {
@@ -164,27 +317,30 @@ impl DefaultWorld {
 
     #[inline]
     fn glyph_instances_inner(&self) -> Vec<&GlyphInstances> {
-        let models: Vec<&GlyphInstances> =
-            Self::to_glyph_instances(&self.models[self.get_surrounding_model_range()]);
+        let models: Vec<&GlyphInstances> = self
+            .visible_models()
+            .flat_map(|model| model.glyph_instances())
+            .collect();
         let removed_models: Vec<&GlyphInstances> = Self::to_glyph_instances(&self.removed_models);
         chain(models, removed_models).collect()
     }
 
     #[inline]
     fn vector_instances_inner(&self) -> Vec<&VectorInstances<String>> {
-        let models: Vec<&VectorInstances<String>> =
-            Self::to_vector_instances(&self.models[self.get_surrounding_model_range()]);
+        let models: Vec<&VectorInstances<String>> = self
+            .visible_models()
+            .flat_map(|model| model.vector_instances())
+            .collect();
         let removed_models: Vec<&VectorInstances<String>> =
             Self::to_vector_instances(&self.removed_models);
         chain(models, removed_models).collect()
     }
 
     fn render_batches_inner(&self) -> Vec<ModelRenderBatch<'_>> {
-        let models = &self.models[self.get_surrounding_model_range()];
         // 半透明の描画を正しく重ねるため、視線方向で奥にあるモデルから順に描画する
         let view_depth = self.camera.view_depth_fn();
-        let mut models: Vec<(f32, &dyn Model)> = models
-            .iter()
+        let mut models: Vec<(f32, &dyn Model)> = self
+            .visible_models()
             .chain(self.removed_models.iter())
             .map(|model| (view_depth(model.position()), model.as_ref()))
             .collect();
@@ -215,7 +371,9 @@ impl World for DefaultWorld {
     }
 
     fn add_next(&mut self, model: Box<dyn Model>) {
-        self.models.insert(self.focus + 1, model);
+        let index = self.focus + 1;
+        self.models.insert(index, model);
+        self.remap_split_panes(|pane| if pane >= index { pane + 1 } else { pane });
         self.world_updated = true;
     }
 
@@ -234,7 +392,110 @@ impl World for DefaultWorld {
         self.models.len()
     }
 
+    fn focus(&self) -> usize {
+        self.focus
+    }
+
+    fn split(&mut self, direction: Direction, other_model: usize) -> Result<(), SplitError> {
+        if self.has_modal() {
+            return Err(SplitError::ModalOpen);
+        }
+        if self.models.get(other_model).is_none() || self.models.get(self.focus).is_none() {
+            return Err(SplitError::InvalidModel(other_model));
+        }
+        if self.focus == other_model {
+            return Err(SplitError::SameModel);
+        }
+        let panes = match self.split_panes {
+            Some(mut panes) => {
+                let other_slot = if panes[0] == self.focus { 1 } else { 0 };
+                panes[other_slot] = other_model;
+                panes
+            }
+            None => {
+                self.split_adjustment = CameraAdjustment::FitBoth;
+                [self.focus, other_model]
+            }
+        };
+        self.layout = WorldLayout::Split(direction);
+        self.split_panes = Some(panes);
+        self.world_updated = true;
+        self.re_layout();
+        self.fit_split(self.split_adjustment);
+        Ok(())
+    }
+
+    fn look_other_pane(&mut self) {
+        if self.has_modal() {
+            return;
+        }
+        if let Some(panes) = self.split_panes {
+            let other = if panes[0] == self.focus {
+                panes[1]
+            } else {
+                panes[0]
+            };
+            self.look_at(other, CameraAdjustment::NoCare);
+        }
+    }
+
+    fn switch_model(&mut self, model_index: usize) -> Result<(), SwitchModelError> {
+        if self.has_modal() {
+            return Err(SwitchModelError::ModalOpen);
+        }
+        if model_index >= self.models.len() {
+            return Err(SwitchModelError::InvalidModel(model_index));
+        }
+        if model_index == self.focus {
+            return Ok(());
+        }
+        if let Some(panes) = &mut self.split_panes
+            && panes.contains(&model_index)
+        {
+            // もう一方の Pane の文書を選んだときは、2つの Pane の文書を入れ替える
+            panes.swap(0, 1);
+            self.focus = model_index;
+            self.world_updated = true;
+            self.re_layout();
+            self.fit_split(self.split_adjustment);
+            return Ok(());
+        }
+        self.look_at(model_index, CameraAdjustment::NoCare);
+        Ok(())
+    }
+
     fn look_at(&mut self, model_index: usize, adjustment: CameraAdjustment) {
+        if let Some(panes) = &mut self.split_panes
+            && model_index < self.models.len()
+        {
+            let changed = !panes.contains(&model_index);
+            if changed {
+                let slot = if panes[0] == self.focus { 0 } else { 1 };
+                panes[slot] = model_index;
+                self.world_updated = true;
+            }
+            // 現在の文書へのフィット指定（reset-zoom, fit-width, fit-height）は以降の再フィットにも使う
+            if model_index == self.focus {
+                match adjustment {
+                    CameraAdjustment::FitBoth | CameraAdjustment::FitBothAndCentering => {
+                        self.split_adjustment = CameraAdjustment::FitBoth;
+                    }
+                    CameraAdjustment::FitWidth | CameraAdjustment::FitHeight => {
+                        self.split_adjustment = adjustment;
+                    }
+                    CameraAdjustment::NoCare => {}
+                }
+            }
+            self.focus = model_index;
+            self.re_layout();
+            let adjustment = if adjustment == CameraAdjustment::NoCare && !self.world_updated {
+                CameraAdjustment::NoCare
+            } else {
+                self.split_adjustment
+            };
+            self.fit_split(adjustment);
+            return;
+        }
         let Some(model) = self.models.get(model_index) else {
             return;
         };
@@ -297,9 +558,17 @@ impl World for DefaultWorld {
             self.world_updated = true;
         }
 
+        self.sync_focused_pane_surface();
         let range = self.model_update_range(context.calculator_updated());
-        for model in self.models[range].iter_mut() {
+        for model in self.models[range.clone()].iter_mut() {
             model.update(context);
+        }
+        if let Some(panes) = self.split_panes {
+            for index in panes {
+                if !range.contains(&index) {
+                    self.models[index].update(context);
+                }
+            }
         }
         for model in self.removed_models.iter_mut() {
             model.update(context);
@@ -320,6 +589,9 @@ impl World for DefaultWorld {
     fn change_window_size(&mut self, window_size: WindowSize) {
         self.camera_controller
             .update_camera_aspect(&mut self.camera, window_size);
+        if self.split_panes.is_some() {
+            self.world_updated = true;
+        }
     }
 
     fn camera_operation(&mut self, camera_operation: CameraOperation) {
@@ -387,7 +659,13 @@ impl World for DefaultWorld {
                 }
                 ModelOperationResult::RequireReLayoutAndFit => {
                     self.world_updated = true;
-                    self.look_current(CameraAdjustment::FitBoth);
+                    // 分割中は直近のフィット方法を維持する
+                    let adjustment = if self.split_panes.is_some() {
+                        CameraAdjustment::NoCare
+                    } else {
+                        CameraAdjustment::FitBoth
+                    };
+                    self.look_current(adjustment);
                 }
             }
         }
@@ -419,10 +697,45 @@ impl World for DefaultWorld {
             modal.close();
             RemovedModelType::Modal
         } else {
+            // 破棄されるモデルの識別子を残さないよう、削除前に強調を外す
+            self.restore_focused_pane_surface();
             let mut removed_model = self.models.remove(self.focus);
             let (x, y, z) = removed_model.position().into();
             removed_model.set_position(Vec3::new(x, y - 5.0, z));
             self.removed_models.push(removed_model);
+            if let Some(panes) = self.split_panes {
+                if self.models.len() < 2 {
+                    self.split_panes = None;
+                    self.layout = WorldLayout::Liner;
+                    self.focus = 0;
+                } else {
+                    let removed = self.focus;
+                    let surviving = if panes[0] == removed {
+                        panes[1]
+                    } else {
+                        panes[0]
+                    };
+                    let surviving = if surviving > removed {
+                        surviving - 1
+                    } else {
+                        surviving
+                    };
+                    let replacement = (removed..self.models.len())
+                        .chain(0..removed.min(self.models.len()))
+                        .find(|index| *index != surviving)
+                        .unwrap();
+                    self.split_panes = Some(panes.map(|index| {
+                        if index == removed {
+                            replacement
+                        } else if index > removed {
+                            index - 1
+                        } else {
+                            index
+                        }
+                    }));
+                    self.focus = replacement;
+                }
+            }
             RemovedModelType::Normal
         };
 
@@ -446,7 +759,18 @@ impl World for DefaultWorld {
             return;
         }
         self.models.swap(self.focus, self.focus + 1);
-        self.look_at(self.focus + 1, CameraAdjustment::NoCare);
+        let focus = self.focus;
+        self.remap_split_panes(|index| {
+            if index == focus {
+                focus + 1
+            } else if index == focus + 1 {
+                focus
+            } else {
+                index
+            }
+        });
+        self.focus += 1;
+        self.look_at(self.focus, CameraAdjustment::NoCare);
     }
 
     fn swap_prev(&mut self) {
@@ -456,14 +780,28 @@ impl World for DefaultWorld {
             return;
         }
         self.models.swap(self.focus, self.focus - 1);
+        let focus = self.focus;
+        self.remap_split_panes(|index| {
+            if index == focus {
+                focus - 1
+            } else if index == focus - 1 {
+                focus
+            } else {
+                index
+            }
+        });
+        self.focus -= 1;
         self.re_layout();
-        self.look_at(self.focus - 1, CameraAdjustment::NoCare);
+        self.look_at(self.focus, CameraAdjustment::NoCare);
     }
 
     fn move_to_position(&mut self, x_ratio: f32, y_ratio: f32) {
         let mut distance_map: BTreeMap<usize, f32> = BTreeMap::new();
 
         for (idx, model) in self.models.iter().enumerate() {
+            if self.split_panes.is_some_and(|panes| !panes.contains(&idx)) {
+                continue;
+            }
             let (ndc_x, ndc_y) = to_ndc_position(model.as_ref(), &self.camera);
             let distance = (x_ratio - ndc_x).abs().powf(2.0) + (y_ratio - ndc_y).abs().powf(2.0);
             distance_map.insert(idx, distance);
@@ -491,6 +829,13 @@ impl World for DefaultWorld {
             return;
         }
         self.layout = layout;
+        match layout {
+            WorldLayout::Split(_) if self.split_panes.is_none() && self.models.len() >= 2 => {
+                self.split_panes = Some([self.focus, (self.focus + 1) % self.models.len()]);
+            }
+            WorldLayout::Split(_) => {}
+            _ => self.split_panes = None,
+        }
         self.world_updated = true;
     }
     fn layout(&self) -> &WorldLayout {
@@ -547,19 +892,61 @@ impl World for DefaultWorld {
 pub enum WorldLayout {
     Liner,
     Circle,
+    Split(Direction),
 }
 
 const INTERVAL: f32 = 5.0;
+// 2 Pane 分割中にフォーカスがある文書を示す面
+const FOCUSED_PANE_SURFACE: ModelSurfaceStyle =
+    ModelSurfaceStyle::ThemeBackgroundHighlight { alpha: 0.5 };
 impl WorldLayout {
     pub fn next(&self) -> Self {
         match self {
             WorldLayout::Liner => WorldLayout::Circle,
             WorldLayout::Circle => WorldLayout::Liner,
+            WorldLayout::Split(_) => WorldLayout::Liner,
         }
     }
 
     fn layout(&self, world: &mut DefaultWorld) {
         match self {
+            WorldLayout::Split(direction) => {
+                let Some([first, second]) = world.split_panes else {
+                    WorldLayout::Liner.layout(world);
+                    return;
+                };
+                let (w1, h1) = world.models[first].bound();
+                let (w2, h2) = world.models[second].bound();
+                let (mut position1, mut position2) = match direction {
+                    Direction::Vertical => (
+                        Vec3::new(-(w2 + INTERVAL) / 2.0, 0.0, 0.0),
+                        Vec3::new((w1 + INTERVAL) / 2.0, 0.0, 0.0),
+                    ),
+                    Direction::Horizontal => (
+                        Vec3::new(0.0, (h2 + INTERVAL) / 2.0, 0.0),
+                        Vec3::new(0.0, -(h1 + INTERVAL) / 2.0, 0.0),
+                    ),
+                };
+                // 全体表示（reset-zoom）では揃えると倍率が変わり続けるため、従来どおり中心の高さを揃えて並べる
+                if world.aligns_split_carets() {
+                    // フォーカス側の文書は現在の高さを保ち、もう一方の文書は後でカーソルを画面の中心に合わせる
+                    let anchor_y = world.models[world.focus].last_position().y;
+                    (position1.y, position2.y) = (anchor_y, anchor_y);
+                }
+                for (index, position) in [(first, position1), (second, position2)] {
+                    world.models[index].set_rotation(Quat::IDENTITY);
+                    world.models[index].set_position(position);
+                }
+                world.center_unfocused_pane_caret();
+                let focus_position = world
+                    .models
+                    .get(world.focus)
+                    .map(|model| model.focus_position())
+                    .unwrap_or(Vec3::ZERO);
+                for modal in world.modal_models.iter_mut().filter(|modal| !modal.closing) {
+                    modal.model.set_position(focus_position);
+                }
+            }
             WorldLayout::Liner => {
                 let mut position = 0.0;
                 for (idx, model) in world.models.iter_mut().enumerate() {
@@ -647,6 +1034,359 @@ impl WorldLayout {
 #[cfg(test)]
 mod font_change_tests {
     use super::*;
+
+    fn split_test_world() -> DefaultWorld {
+        split_test_world_with(&[(12.0, 8.0), (30.0, 5.0), (6.0, 20.0)])
+    }
+
+    fn split_test_world_with(sizes: &[(f32, f32)]) -> DefaultWorld {
+        let mut world = DefaultWorld::new(WindowSize::new(800, 600));
+        for (index, &(width, height)) in sizes.iter().enumerate() {
+            let config = crate::ui_context::TextContext {
+                min_bound: (width, height).into(),
+                ..Default::default()
+            };
+            let mut model = crate::ui::TextEdit::new(config);
+            model.editor_operation(&EditorOperation::InsertString(format!("document {index}")));
+            model.set_rotation(Quat::from_rotation_y(0.5));
+            world.add(Box::new(model));
+        }
+        world
+    }
+
+    fn assert_split_fits(world: &DefaultWorld) {
+        let (target, eye) = world.camera.target_and_eye();
+        let camera = Camera::new(
+            eye.into(),
+            target.into(),
+            [0.0, 1.0, 0.0].into(),
+            world.camera.aspect(),
+            45.0,
+            0.1,
+            1000.0,
+        );
+        let matrix = camera.build_view_projection_matrix();
+        let mut extent = 0.0_f32;
+        for index in world.split_panes.unwrap() {
+            let model = &world.models[index];
+            let (w, h) = model.bound();
+            for x in [-w / 2.0, w / 2.0] {
+                for y in [-h / 2.0, h / 2.0] {
+                    let clip = matrix * (model.last_position() + Vec3::new(x, y, 0.0)).extend(1.0);
+                    assert!(clip.w > 0.0);
+                    let projected = clip.truncate() / clip.w;
+                    assert!(projected.x.abs() <= 0.901, "{projected:?}");
+                    assert!(projected.y.abs() <= 0.901, "{projected:?}");
+                    extent = extent.max(projected.x.abs()).max(projected.y.abs());
+                }
+            }
+        }
+        assert!((extent - 0.9).abs() < 0.001, "extent: {extent}");
+    }
+
+    #[test]
+    fn split_layout_fits_both_documents_in_either_direction_and_aspect() {
+        for direction in [Direction::Vertical, Direction::Horizontal] {
+            for window_size in [WindowSize::new(1200, 600), WindowSize::new(600, 1200)] {
+                let mut world = split_test_world();
+                world.direction = Direction::Vertical;
+                world.split(direction, 2).unwrap();
+                world.change_window_size(window_size);
+                assert!(world.world_updated);
+                world.look_current(CameraAdjustment::FitBoth);
+                assert_split_fits(&world);
+
+                let first = &world.models[0];
+                let second = &world.models[2];
+                assert_eq!(first.rotation(), Quat::IDENTITY);
+                assert_eq!(second.rotation(), Quat::IDENTITY);
+                match direction {
+                    Direction::Vertical => {
+                        let gap = second.last_position().x
+                            - second.bound().0 / 2.0
+                            - (first.last_position().x + first.bound().0 / 2.0);
+                        assert!((gap - INTERVAL).abs() < 0.001);
+                        assert_eq!(first.last_position().y, second.last_position().y);
+                    }
+                    Direction::Horizontal => {
+                        let gap = first.last_position().y
+                            - first.bound().1 / 2.0
+                            - (second.last_position().y + second.bound().1 / 2.0);
+                        assert!((gap - INTERVAL).abs() < 0.001);
+                        assert_eq!(first.last_position().x, second.last_position().x);
+                    }
+                }
+                assert_eq!(world.render_batches().len(), 2);
+            }
+        }
+    }
+
+    #[test]
+    fn split_focus_switch_keeps_positions_and_edits_only_the_active_document() {
+        let mut world = split_test_world();
+        world.split(Direction::Vertical, 2).unwrap();
+        let positions: Vec<_> = world
+            .models
+            .iter()
+            .map(|model| model.last_position())
+            .collect();
+        let camera = world.camera.target_and_eye();
+
+        world.look_other_pane();
+        assert_eq!(world.focus, 2);
+        world.editor_operation(&EditorOperation::InsertString(" active".into()));
+        assert_eq!(world.models[0].to_string(), "document 0");
+        assert_eq!(world.models[2].to_string(), "document 2 active");
+        world.look_other_pane();
+        assert_eq!(world.focus, 0);
+        assert_eq!(world.camera.target_and_eye(), camera);
+        assert_eq!(
+            world
+                .models
+                .iter()
+                .map(|model| model.last_position())
+                .collect::<Vec<_>>(),
+            positions,
+        );
+
+        world.world_updated = false;
+        world.camera_operation(CameraOperation::Backward);
+        let zoomed_camera = world.camera.target_and_eye();
+        world.look_other_pane();
+        assert_eq!(world.camera.target_and_eye(), zoomed_camera);
+        world.look_other_pane();
+
+        world.look_next(CameraAdjustment::NoCare);
+        assert_eq!(world.focus, 1);
+        assert_eq!(world.split_panes, Some([1, 2]));
+        world.look_next(CameraAdjustment::NoCare);
+        assert_eq!(world.focus, 2);
+        assert_eq!(world.split_panes, Some([1, 2]));
+        world.look_next(CameraAdjustment::NoCare);
+        assert_eq!(world.focus, 0);
+        assert_eq!(world.split_panes, Some([1, 0]));
+        world.look_prev(CameraAdjustment::NoCare);
+        assert_eq!(world.focus, 2);
+        assert_eq!(world.split_panes, Some([1, 2]));
+    }
+
+    #[test]
+    fn split_preserves_selected_documents_when_inserting_swapping_and_removing() {
+        let mut world = split_test_world();
+        world.split(Direction::Horizontal, 2).unwrap();
+        world.add_next(Box::new(crate::ui::TextEdit::default()));
+        assert_eq!(world.split_panes, Some([0, 3]));
+        world.swap_next();
+        assert_eq!(world.focus, 1);
+        assert_eq!(world.split_panes, Some([1, 3]));
+        assert_eq!(world.current_string(), "document 0");
+        world.swap_prev();
+        assert_eq!(world.focus, 0);
+        assert_eq!(world.split_panes, Some([0, 3]));
+        assert_eq!(world.current_string(), "document 0");
+
+        world.look_other_pane();
+        world.remove_current();
+        world.re_layout();
+        world.look_current(CameraAdjustment::FitBoth);
+        let panes = world.split_panes.unwrap();
+        assert!(panes.contains(&0));
+        assert!(panes.contains(&world.focus));
+        assert_ne!(panes[0], panes[1]);
+        assert_split_fits(&world);
+
+        world.remove_current();
+        world.re_layout();
+        world.look_current(CameraAdjustment::FitBoth);
+        assert_split_fits(&world);
+        world.remove_current();
+        assert_eq!(world.layout, WorldLayout::Liner);
+        assert_eq!(world.split_panes, None);
+        assert_eq!(world.focus, 0);
+    }
+
+    #[test]
+    fn split_highlights_only_the_focused_pane_and_restores_original_surfaces() {
+        let mut world = split_test_world();
+        let focused_surface = ModelSurfaceStyle::Color([0.1, 0.2, 0.3, 0.4]);
+        let other_surface = ModelSurfaceStyle::ThemeBackground { alpha: 0.3 };
+        world.models[0].set_surface_style(focused_surface);
+        world.models[1].set_surface_style(other_surface);
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[0].surface_style(), focused_surface);
+
+        world.split(Direction::Vertical, 2).unwrap();
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[0].surface_style(), FOCUSED_PANE_SURFACE);
+        assert_eq!(world.models[1].surface_style(), other_surface);
+        assert_eq!(world.models[2].surface_style(), ModelSurfaceStyle::None);
+
+        world.look_other_pane();
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[0].surface_style(), focused_surface);
+        assert_eq!(world.models[2].surface_style(), FOCUSED_PANE_SURFACE);
+
+        // 並べ替え後も強調前の面の設定を元のモデルに戻す
+        world.look_other_pane();
+        world.sync_focused_pane_surface();
+        world.swap_next();
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[1].surface_style(), FOCUSED_PANE_SURFACE);
+        assert_eq!(world.models[0].surface_style(), other_surface);
+        world.change_layout(WorldLayout::Liner);
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[1].surface_style(), focused_surface);
+        assert_eq!(world.models[0].surface_style(), other_surface);
+        assert!(
+            world
+                .models
+                .iter()
+                .all(|model| model.surface_style() != FOCUSED_PANE_SURFACE)
+        );
+
+        // 閉じた文書には強調前の面の設定が戻る
+        world.split(Direction::Horizontal, 2).unwrap();
+        world.sync_focused_pane_surface();
+        assert_eq!(world.models[1].surface_style(), FOCUSED_PANE_SURFACE);
+        world.remove_current();
+        assert_eq!(world.focused_pane_highlight, None);
+        assert_eq!(
+            world.removed_models.last().unwrap().surface_style(),
+            focused_surface
+        );
+        world.sync_focused_pane_surface();
+        assert_eq!(
+            world.models[world.focus].surface_style(),
+            FOCUSED_PANE_SURFACE
+        );
+    }
+
+    #[test]
+    fn split_refits_with_the_last_selected_adjustment() {
+        let mut world = split_test_world();
+        world.split(Direction::Horizontal, 2).unwrap();
+        let fit_both_camera = world.camera.target_and_eye();
+
+        world.look_current(CameraAdjustment::FitWidth);
+        let fit_width_camera = world.camera.target_and_eye();
+        assert_ne!(fit_width_camera, fit_both_camera);
+
+        // カーソル移動などの更新後の再フィットでも直近のフィット方法を使う
+        world.world_updated = true;
+        world.look_current(CameraAdjustment::NoCare);
+        assert_eq!(world.camera.target_and_eye(), fit_width_camera);
+        world.look_other_pane();
+        world.look_other_pane();
+        world.world_updated = true;
+        world.look_current(CameraAdjustment::NoCare);
+        assert_eq!(world.camera.target_and_eye(), fit_width_camera);
+
+        world.look_current(CameraAdjustment::FitBoth);
+        world.world_updated = true;
+        world.look_current(CameraAdjustment::NoCare);
+        assert_eq!(world.camera.target_and_eye(), fit_both_camera);
+        assert_split_fits(&world);
+    }
+
+    #[test]
+    fn vertical_split_centers_unfocused_caret_only_when_not_fitting_both() {
+        let mut world = split_test_world();
+        world.models[2].editor_operation(&EditorOperation::InsertString("\nline\nline".into()));
+        world.split(Direction::Vertical, 2).unwrap();
+        let unfocused_caret_gap = |world: &DefaultWorld, other: usize| {
+            world.models[other].focus_position().y - world.camera.target_and_eye().0[1]
+        };
+        let center_y_gap = |world: &DefaultWorld| {
+            world.models[0].last_position().y - world.models[2].last_position().y
+        };
+        assert!(center_y_gap(&world).abs() < 0.001);
+        assert!(unfocused_caret_gap(&world, 2).abs() > 0.001);
+
+        world.look_current(CameraAdjustment::FitHeight);
+        assert!(unfocused_caret_gap(&world, 2).abs() < 0.001);
+        let next_focused_y = world.models[2].last_position().y;
+        world.look_other_pane();
+        assert_eq!(world.models[2].last_position().y, next_focused_y);
+        assert!(unfocused_caret_gap(&world, 0).abs() < 0.001);
+
+        world.look_current(CameraAdjustment::FitBoth);
+        assert!(center_y_gap(&world).abs() < 0.001);
+    }
+
+    #[test]
+    fn aligned_split_keeps_document_edges_visible_near_the_caret() {
+        // GPU なしではカーソルが動かないため、縦長の文書の先頭にカーソルがある状態を検証する
+        let mut world = split_test_world_with(&[(12.0, 120.0), (12.0, 10.0)]);
+        world.split(Direction::Vertical, 1).unwrap();
+        world.look_current(CameraAdjustment::FitWidth);
+
+        let (target, eye) = world.camera.target_and_eye();
+        let (target, eye) = (Vec3::from(target), Vec3::from(eye));
+        let visible_half = (eye - target).length() * (45.0_f32.to_radians() / 2.0).tan();
+        let model = &world.models[0];
+        let top = model.last_position().y + model.bound().1 / 2.0;
+        assert!(visible_half < model.bound().1 / 2.0);
+        // 文書の上端が画面内に残り、カーソルは画面中央に来ない
+        assert!((top - target.y).abs() <= visible_half + 0.001);
+        assert!((model.focus_position().y - target.y).abs() > 1.0);
+        // フォーカスの無い文書のカーソルは画面の中心に来る
+        assert!((world.models[1].focus_position().y - target.y).abs() < 0.001);
+    }
+
+    #[test]
+    fn split_rejects_invalid_selections_and_preserves_modal_focus() {
+        let mut world = split_test_world();
+        assert!(matches!(
+            world.split(Direction::Vertical, 0),
+            Err(SplitError::SameModel)
+        ));
+        assert!(matches!(
+            world.split(Direction::Vertical, 99),
+            Err(SplitError::InvalidModel(99))
+        ));
+        assert_eq!(world.layout, WorldLayout::Liner);
+        world.split(Direction::Vertical, 2).unwrap();
+        world.add_modal(Box::new(crate::ui::TextEdit::default()));
+        assert!(matches!(
+            world.split(Direction::Horizontal, 1),
+            Err(SplitError::ModalOpen)
+        ));
+        world.look_other_pane();
+        assert_eq!(world.focus, 0);
+        world.remove_current();
+        world.look_other_pane();
+        assert_eq!(world.focus, 2);
+        world.change_layout(WorldLayout::Liner);
+        assert_eq!(world.split_panes, None);
+        assert_eq!(world.visible_models().count(), 3);
+    }
+
+    #[test]
+    fn switch_model_replaces_or_swaps_the_focused_pane() {
+        let mut world = split_test_world();
+        world.switch_model(1).unwrap();
+        assert_eq!((world.focus, world.split_panes), (1, None));
+
+        world.split(Direction::Vertical, 0).unwrap();
+        world.switch_model(2).unwrap();
+        assert_eq!((world.focus, world.split_panes), (2, Some([2, 0])));
+        assert_split_fits(&world);
+
+        world.switch_model(0).unwrap();
+        assert_eq!((world.focus, world.split_panes), (0, Some([0, 2])));
+        assert_split_fits(&world);
+
+        assert!(matches!(
+            world.switch_model(99),
+            Err(SwitchModelError::InvalidModel(99))
+        ));
+        world.add_modal(Box::new(crate::ui::TextEdit::default()));
+        assert!(matches!(
+            world.switch_model(2),
+            Err(SwitchModelError::ModalOpen)
+        ));
+        assert_eq!(world.split_panes, Some([0, 2]));
+    }
 
     #[test]
     fn modal_models_share_render_batches_and_use_translucent_surfaces() {

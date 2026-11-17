@@ -56,6 +56,11 @@
     },
     {
         "namespace": "tagbase-memo",
+        "name": "open-memo-ui",
+        "description": "タグメモを選んで開く"
+    },
+    {
+        "namespace": "tagbase-memo",
         "name": "edit-title-ui",
         "description": "現在のタグメモのタイトルを変更"
     },
