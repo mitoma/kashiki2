@@ -205,16 +205,12 @@ impl CharStates {
         let next_set: BTreeSet<BufferChar> = next_chars.iter().copied().collect();
 
         // 確定された preedit は sync_editor_events で文字に昇格済みなので、ここに残るのは取り消された文字
-        for (counter, c) in prev_set.difference(&next_set).enumerate() {
-            let Some(mut state) = self.preedit_chars.remove(c) else {
+        for c in prev_set.difference(&next_set) {
+            let Some(state) = self.preedit_chars.remove(c) else {
                 continue;
             };
-            let deadline = start_char_retirement(
-                &mut state,
-                self.instances.get_mut_preedit(&(*c).into()),
-                counter as u32,
-                text_context,
-            );
+            // IME 文字の削除モーションは即時削除とする
+            let deadline = now_millis();
             let id = self.removed_chars.retire((*c, state), deadline);
             self.instances.retire_preedit(&(*c).into(), id);
         }
