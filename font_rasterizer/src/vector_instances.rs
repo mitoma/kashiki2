@@ -121,8 +121,8 @@ pub enum InstanceKey {
     Position(usize, usize),
     // 入力中の文字列を扱うためのキー
     PreeditPosition(usize, usize),
-    // 削除予定だが削除アニメーションの都合でまだ消さない文字のためのキー
-    PreRemovePosition(usize, usize),
+    // 削除アニメーション中でまだ消さないインスタンスのためのキー(退場ごとに一意な ID)
+    Retired(usize),
 }
 
 #[repr(C)]

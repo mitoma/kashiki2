@@ -8,6 +8,7 @@ pub mod layout_engine;
 mod metrics_counter;
 mod render_rate_adjuster;
 mod render_state;
+mod retiring;
 mod text_instances;
 pub mod ui;
 pub mod ui_context;

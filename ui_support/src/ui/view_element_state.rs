@@ -21,6 +21,7 @@ use font_rasterizer::{
 use crate::{
     easing_value::EasingPointN,
     layout_engine::{MODEL_SURFACE_SVG_KEY, ModelAttributes, ModelBorder, ModelSurfaceStyle},
+    retiring::{Retiring, retire_deadline},
     text_instances::{BorderFragment, BorderInstances, BorderType, CaretInstances, TextInstances},
     ui_context::{CharEasings, GpuEasingConfig, RemoveCharMode, TextContext, UiContext},
 };
@@ -162,7 +163,7 @@ impl ViewElementState {
 pub(crate) struct CharStates {
     chars: BTreeMap<BufferChar, ViewElementState>,
     preedit_chars: BTreeMap<BufferChar, ViewElementState>,
-    removed_chars: BTreeMap<BufferChar, ViewElementState>,
+    removed_chars: Retiring<(BufferChar, ViewElementState)>,
     pub(crate) instances: TextInstances,
 }
 
@@ -481,12 +482,12 @@ impl CharStates {
         }
 
         // update removed chars
-        self.clean_dustbox();
-        for (c, i) in self.removed_chars.iter_mut() {
+        self.sweep_removed_chars();
+        for (id, (c, i)) in self.removed_chars.iter_mut() {
             if !update_environment && !i.in_animation() {
                 continue;
             }
-            if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
+            if let Some(instance) = self.instances.get_mut_retired(c.c, id) {
                 let char_rotation = calc_rotation(c.c, text_context, char_width_calcurator);
                 update_instance(instance, i, model_attribuetes, char_rotation);
             }
@@ -504,48 +505,44 @@ impl CharStates {
         }
     }
 
-    // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    // remove_char_mode が Immediate の場合は即座に削除する
-    pub(crate) fn char_to_dustbox(
-        &mut self,
-        c: BufferChar,
-        counter: u32,
-        text_context: &TextContext,
-    ) {
-        if text_context.char_easings.remove_char_mode == RemoveCharMode::Immediate {
-            self.chars.remove(&c);
+    // 文字を削除アニメーションに入れ、アニメーションが終わる時刻に破棄されるようにする。
+    // remove_char_mode が Immediate の場合は次の更新で破棄される
+    pub(crate) fn retire_char(&mut self, c: BufferChar, counter: u32, text_context: &TextContext) {
+        let Some(mut state) = self.chars.remove(&c) else {
             self.instances.remove(&c.into());
             return;
-        }
-
-        if let Some(mut state) = self.chars.remove(&c) {
-            // アニメーション状態に強制的に有効にするために gain を 0 にしている。
-            // 本当はアニメーションが終わったらゴミ箱から消すという仕様が適切ではないのかもしれない
-            state.motion_gain.update([0.0]);
-            state
-                .motion_gain
-                .update([text_context.char_easings.remove_char.gain]);
-            self.removed_chars.insert(c, state);
-        }
-        if let Some(instance) = self.instances.get_mut(&c.into()) {
-            if instance.start_time + (instance.duration.as_millis() as u32) < now_millis() {
-                instance.start_time = now_millis() + counter * 10;
-            }
-            instance.motion = text_context.char_easings.remove_char.motion;
-            instance.duration = text_context.char_easings.remove_char.duration;
         };
-        self.instances.pre_remove(&c.into());
+        let now = now_millis();
+        let char_easings = &text_context.char_easings;
+        let deadline = match (
+            char_easings.remove_char_mode,
+            self.instances.get_mut(&c.into()),
+        ) {
+            (RemoveCharMode::Delayed, Some(instance)) => {
+                if instance.start_time + (instance.duration.as_millis() as u32) < now {
+                    instance.start_time = now + counter * 10;
+                }
+                instance.motion = char_easings.remove_char.motion;
+                instance.duration = char_easings.remove_char.duration;
+                update_easings(&mut state, char_easings);
+                state.motion_gain.update([char_easings.remove_char.gain]);
+                retire_deadline(
+                    now,
+                    instance.start_time,
+                    instance.duration,
+                    char_easings.max_cpu_easing_duration(),
+                )
+            }
+            _ => now,
+        };
+        let id = self.removed_chars.retire((c, state), deadline);
+        self.instances.retire(&c.into(), id);
     }
 
-    // ゴミ箱の文字の削除モーションが完了しているものを削除する
-    fn clean_dustbox(&mut self) {
-        self.removed_chars.retain(|c, i| {
-            let in_animation = i.in_animation();
-            // こいつは消えゆく運命の文字なので position_updated なんて考慮せずに in_animation だけ見る
-            if !in_animation {
-                self.instances.remove_from_dustbox(&(*c).into());
-            }
-            in_animation
+    fn sweep_removed_chars(&mut self) {
+        let instances = &mut self.instances;
+        self.removed_chars.sweep(now_millis(), |id, (c, _)| {
+            instances.remove_retired(c.c, id);
         });
     }
 
@@ -666,7 +663,7 @@ impl CharStates {
 pub(crate) struct CaretStates {
     main_caret: Option<(Caret, ViewElementState)>,
     mark: Option<(Caret, ViewElementState)>,
-    removed_carets: BTreeMap<Caret, ViewElementState>,
+    removed_carets: Retiring<(Caret, ViewElementState)>,
     pub(crate) instances: CaretInstances,
 }
 
@@ -758,33 +755,36 @@ impl CaretStates {
         }
     }
 
-    // BufferChar をゴミ箱に移動する(削除モーションに入る)
-    pub(crate) fn caret_to_dustbox(&mut self, c: Caret, text_context: &TextContext) {
-        match c.caret_type {
-            CaretType::Primary => {
-                if let Some((_, mut state)) = self.main_caret.take() {
-                    state
-                        .color
-                        .update(text_context.color_theme.background().get_color());
-                    self.removed_carets.insert(c, state);
-                }
-            }
-            CaretType::Mark => {
-                if let Some((_, mut state)) = self.mark.take() {
-                    state
-                        .color
-                        .update(text_context.color_theme.background().get_color());
-                    self.removed_carets.insert(c, state);
-                }
-            }
-        }
+    // Caret を削除アニメーションに入れ、アニメーションが終わる時刻に破棄されるようにする
+    pub(crate) fn retire_caret(&mut self, c: Caret, text_context: &TextContext) {
+        let taken = match c.caret_type {
+            CaretType::Primary => self.main_caret.take(),
+            CaretType::Mark => self.mark.take(),
+        };
+        let Some((_, mut state)) = taken else {
+            self.instances.remove(&c.into());
+            return;
+        };
+        let now = now_millis();
+        let char_easings = &text_context.char_easings;
+        update_easings(&mut state, char_easings);
+        state
+            .color
+            .update(text_context.color_theme.background().get_color());
         if let Some(attr) = self.instances.get_mut(&c.into()) {
-            attr.start_time = now_millis();
-            attr.motion = text_context.char_easings.remove_caret.motion;
-            attr.duration = text_context.char_easings.remove_caret.duration;
-            attr.gain = text_context.char_easings.remove_caret.gain;
+            attr.start_time = now;
+            attr.motion = char_easings.remove_caret.motion;
+            attr.duration = char_easings.remove_caret.duration;
+            attr.gain = char_easings.remove_caret.gain;
         }
-        self.instances.pre_remove(&c.into());
+        let deadline = retire_deadline(
+            now,
+            now,
+            char_easings.remove_caret.duration,
+            char_easings.max_cpu_easing_duration(),
+        );
+        let id = self.removed_carets.retire((c, state), deadline);
+        self.instances.retire(&c.into(), id);
     }
 
     pub(crate) fn update_state_position_and_scale(
@@ -863,25 +863,18 @@ impl CaretStates {
         }
 
         // update removed carets
-        self.removed_carets.retain(|c, i| {
-            let in_animation = i.in_animation();
-            // こいつは消えゆく運命の Caret なので position_updated なんて考慮せずに in_animation だけ見る
-            if !in_animation {
-                self.instances.remove_from_dustbox(&(*c).into());
-            }
-            in_animation
+        let instances = &mut self.instances;
+        self.removed_carets.sweep(now_millis(), |id, (c, _)| {
+            instances.remove_retired(caret_char(c.caret_type), id);
         });
-        for (c, i) in self.removed_carets.iter_mut() {
-            if let Some(instance) = self.instances.get_mut_from_dustbox(&(*c).into()) {
+        for (id, (c, i)) in self.removed_carets.iter_mut() {
+            let caret_char = caret_char(c.caret_type);
+            if let Some(instance) = self.instances.get_mut_retired(caret_char, id) {
                 update_instance(
                     instance,
                     i,
                     model_attribuetes,
-                    calc_rotation(
-                        caret_char(c.caret_type),
-                        text_context,
-                        char_width_calcurator,
-                    ),
+                    calc_rotation(caret_char, text_context, char_width_calcurator),
                 );
             }
         }

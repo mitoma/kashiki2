@@ -12,7 +12,7 @@ use font_rasterizer::{
     vector_instances::{InstanceAttributes, InstanceKey, VectorInstances},
 };
 
-use crate::ui::caret_char;
+use crate::{retiring::RetireId, ui::caret_char};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct TextInstancesKey {
@@ -42,13 +42,13 @@ impl TextInstancesKey {
         InstanceKey::Position(self.position.row, self.position.col)
     }
 
-    pub(crate) fn to_pre_remove_instance_key(&self) -> InstanceKey {
-        InstanceKey::PreRemovePosition(self.position.row, self.position.col)
-    }
-
     pub(crate) fn to_preedit_instance_key(&self) -> InstanceKey {
         InstanceKey::PreeditPosition(self.position.row, self.position.col)
     }
+}
+
+fn retired_instance_key(id: RetireId) -> InstanceKey {
+    InstanceKey::Retired(id.value())
 }
 
 #[derive(Default)]
@@ -125,34 +125,28 @@ impl TextInstances {
         }
     }
 
-    pub(crate) fn pre_remove(&mut self, key: &TextInstancesKey) {
+    pub(crate) fn retire(&mut self, key: &TextInstancesKey, id: RetireId) {
         if let Some(instances) = self.glyph_instances.get_mut(&key.c)
             && let Some(instance) = instances.remove(&key.to_instance_key())
         {
-            instances.insert(key.to_pre_remove_instance_key(), instance);
+            instances.insert(retired_instance_key(id), instance);
         }
     }
 
-    pub(crate) fn get_mut_from_dustbox(
+    pub(crate) fn get_mut_retired(
         &mut self,
-        key: &TextInstancesKey,
+        c: char,
+        id: RetireId,
     ) -> Option<&mut InstanceAttributes> {
-        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
-            instances.get_mut(&key.to_pre_remove_instance_key())
-        } else {
-            None
-        }
+        self.glyph_instances
+            .get_mut(&c)
+            .and_then(|instances| instances.get_mut(&retired_instance_key(id)))
     }
 
-    pub(crate) fn remove_from_dustbox(
-        &mut self,
-        key: &TextInstancesKey,
-    ) -> Option<InstanceAttributes> {
-        if let Some(instances) = self.glyph_instances.get_mut(&key.c) {
-            instances.remove(&key.to_pre_remove_instance_key())
-        } else {
-            None
-        }
+    pub(crate) fn remove_retired(&mut self, c: char, id: RetireId) -> Option<InstanceAttributes> {
+        self.glyph_instances
+            .get_mut(&c)
+            .and_then(|instances| instances.remove(&retired_instance_key(id)))
     }
 
     pub(crate) fn update(&mut self, device: &Device, queue: &Queue) {
@@ -208,34 +202,28 @@ impl CaretInstances {
         }
     }
 
-    pub(crate) fn pre_remove(&mut self, key: &TextInstancesKey) {
+    pub(crate) fn retire(&mut self, key: &TextInstancesKey, id: RetireId) {
         if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string())
             && let Some(instance) = instances.remove(&key.to_instance_key())
         {
-            instances.insert(key.to_pre_remove_instance_key(), instance);
+            instances.insert(retired_instance_key(id), instance);
         }
     }
 
-    pub(crate) fn get_mut_from_dustbox(
+    pub(crate) fn get_mut_retired(
         &mut self,
-        key: &TextInstancesKey,
+        c: char,
+        id: RetireId,
     ) -> Option<&mut InstanceAttributes> {
-        if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string()) {
-            instances.get_mut(&key.to_pre_remove_instance_key())
-        } else {
-            None
-        }
+        self.vector_instances
+            .get_mut(&c.to_string())
+            .and_then(|instances| instances.get_mut(&retired_instance_key(id)))
     }
 
-    pub(crate) fn remove_from_dustbox(
-        &mut self,
-        key: &TextInstancesKey,
-    ) -> Option<InstanceAttributes> {
-        if let Some(instances) = self.vector_instances.get_mut(&key.c.to_string()) {
-            instances.remove(&key.to_pre_remove_instance_key())
-        } else {
-            None
-        }
+    pub(crate) fn remove_retired(&mut self, c: char, id: RetireId) -> Option<InstanceAttributes> {
+        self.vector_instances
+            .get_mut(&c.to_string())
+            .and_then(|instances| instances.remove(&retired_instance_key(id)))
     }
 
     pub(crate) fn update(&mut self, device: &Device, queue: &Queue) {

@@ -777,11 +777,8 @@ impl TextEdit {
                         .move_char(from, to, 0, &self.config, device);
                 }
                 BulkedChangeEvent::SingleEvent(ChangeEvent::RemoveChar(c)) => {
-                    self.char_states.char_to_dustbox(
-                        c,
-                        char_change_counter.remove_char,
-                        &self.config,
-                    );
+                    self.char_states
+                        .retire_char(c, char_change_counter.remove_char, &self.config);
                     char_change_counter.remove_char += 1;
                 }
                 BulkedChangeEvent::SingleEvent(ChangeEvent::SelectChar(c)) => {
@@ -802,7 +799,7 @@ impl TextEdit {
                     self.caret_states.move_caret(from, to, &self.config, device);
                 }
                 BulkedChangeEvent::SingleEvent(ChangeEvent::RemoveCaret(c)) => {
-                    self.caret_states.caret_to_dustbox(c, &self.config);
+                    self.caret_states.retire_caret(c, &self.config);
                 }
                 BulkedChangeEvent::MultipleMoveCharEvents(events) => {
                     // events は昇順、または降順でソートされている場合があり、その順序を無視して move_char を実行すると
