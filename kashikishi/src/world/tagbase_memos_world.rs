@@ -70,15 +70,18 @@ impl TagbaseMemosWorld {
         result
     }
 
+    // 表示中のメモは退場アニメーションをしてから消える
     fn reset_world(&mut self, context: &UiContext) {
-        let mut world = DefaultWorld::new(context.window_size());
-        if let Some(message) = &self.error_message {
-            world.add(Box::new(text_edit(context, message)));
+        let models: Vec<Box<dyn Model>> = if let Some(message) = &self.error_message {
+            vec![Box::new(text_edit(context, message))]
         } else {
-            for memo in &self.memos {
-                world.add(Box::new(text_edit(context, &memo.content.text)));
-            }
-        }
+            self.memos
+                .iter()
+                .map(|memo| Box::new(text_edit(context, &memo.content.text)) as Box<dyn Model>)
+                .collect()
+        };
+        let world = &mut self.world;
+        world.replace_models(models);
         if world.model_length() > 0 {
             let adjustment = match context.global_direction() {
                 Direction::Horizontal => CameraAdjustment::FitWidth,
@@ -92,7 +95,6 @@ impl TagbaseMemosWorld {
             world.look_at(focus, adjustment);
         }
         world.re_layout();
-        self.world = world;
     }
 
     fn save_visible(&mut self) -> TagbaseResult<()> {

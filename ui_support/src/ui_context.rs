@@ -219,6 +219,19 @@ impl Default for CharEasings {
 }
 
 impl CharEasings {
+    /// CPU 側で補間する値(位置・色・大きさ・gain)のうち最も長いイージング時間
+    pub(crate) fn max_cpu_easing_duration(&self) -> Duration {
+        [
+            self.position_easing.duration,
+            self.color_easing.duration,
+            self.scale_easing.duration,
+            self.motion_gain_easing.duration,
+        ]
+        .into_iter()
+        .max()
+        .unwrap_or_default()
+    }
+
     // 動きが何もない状態の設定を返す
     #[allow(dead_code)]
     pub(crate) fn zero_motion() -> Self {
